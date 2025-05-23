@@ -34,13 +34,17 @@ Aircher is a next-generation command-line AI coding assistant designed to work w
 - **Multi-Provider Search**: Brave, DuckDuckGo, and custom search providers
 - **Result Integration**: Seamlessly incorporates search results into responses
 
-### Advanced Interface
-- **Interactive REPL**: Primary conversational interface with rich terminal features
-- **Multiple Modes**: Interactive, non-interactive, and automation-friendly output formats
-- **Session Management**: Resume conversations, maintain session history
-- **Custom Commands**: Project and user-scoped slash commands with templating
-- **Multimodal Input**: Image support via drag/drop, paste, and file paths
-- **Terminal Integration**: Vim mode, keyboard shortcuts, terminal-specific setup
+### Beautiful Terminal Interface (Charmbracelet TUI)
+- **Modern TUI Framework**: Built with Charmbracelet's Bubble Tea for professional terminal UI
+- **Real-time Streaming**: Live AI response rendering with smooth animations
+- **Rich Markdown Rendering**: Beautiful code highlighting and formatting via Glamour
+- **Interactive Panels**: Context sidebar, help system, and status indicators
+- **Responsive Design**: Adapts seamlessly to any terminal size
+- **Keyboard Shortcuts**: Efficient navigation (Ctrl+H help, Ctrl+T context, Ctrl+C exit)
+- **Visual Feedback**: Live status indicators for thinking, searching, and streaming
+- **Multiple Modes**: Interactive TUI, non-interactive CLI, and automation-friendly output
+- **Session Management**: Visual session display with conversation history
+- **Enhanced Commands**: Slash commands with visual feedback and help integration
 
 ### MCP Integration & Tools
 - **Core Development Tools**: 
@@ -106,12 +110,17 @@ Aircher is a next-generation command-line AI coding assistant designed to work w
 
 ### vs Claude Code
 - **Multi-Provider**: Works with any LLM, not just Claude
+- **Beautiful TUI**: Modern terminal interface vs basic CLI
+- **Real-time Experience**: Live streaming responses with visual feedback
 - **Autonomous Search**: Proactive web search with temporal awareness
 - **Superior Context**: Task-aware management vs token-limit based
 - **Cost Optimization**: Multi-provider cost tracking and routing
 - **Enterprise Features**: Self-hosted, air-gapped, audit logging
 
 ### vs Other AI Assistants
+- **Professional TUI**: Terminal interface that rivals desktop applications
+- **Live Streaming**: Real-time response rendering with smooth animations
+- **Rich Formatting**: Beautiful markdown and code highlighting
 - **Intelligent Automation**: Understands intent without explicit configuration
 - **Project Persistence**: Long-term architectural understanding
 - **Universal Compatibility**: Provider-agnostic with consistent interface
@@ -121,19 +130,26 @@ Aircher is a next-generation command-line AI coding assistant designed to work w
 
 ## Usage Scenarios
 
-### Interactive Development
+### Beautiful Interactive Development
 ```bash
 $ aircher
-Welcome to Aircher! Detected Go project with 247 files.
-
-> explain the authentication system
-[Aircher automatically includes relevant auth files and searches for current best practices]
-
-> fix the CORS error in the API
-[Searches for current CORS solutions and applies fix with explanation]
-
-> /memory add "we use JWT with 24h expiration"
-[Stores in project memory for future reference]
+┌─ 🏹 Aircher ──────────────────────────── Provider: ollama • 🤖 Ready ─┐
+│                                                                        │
+│ ℹ️ System [14:32:15]                                                   │
+│ Welcome to Aircher! 🏹 Detected Go project with 247 files.           │
+│                                                                        │
+│ 👤 You [14:32:20]                                                     │
+│ explain the authentication system                                     │
+│                                                                        │
+│ 🤖 Aircher via ollama [14:32:21] 📡 Streaming...                     │
+│ # Authentication System Overview                                      │
+│                                                                        │
+│ Based on your project structure, I can see you're using JWT-based     │
+│ authentication with the following components...                       │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+┌─ > Type your message...                             Ctrl+H: Help ─────┐
+└─ Ctrl+T: Context • Ctrl+C: Exit ─────────────────────────────────────────┘
 ```
 
 ### MCP Tool Usage
@@ -226,29 +242,34 @@ aircher update                      # Self-update with rollback
 
 ## Implementation Roadmap
 
-### Phase 1: Foundation (Weeks 1-2)
+### Phase 1: Foundation (Weeks 1-2) - COMPLETED ✅
 **Goal**: Basic working system with core functionality
-- Multi-provider LLM interface (OpenAI, Claude)
-- Interactive REPL with session management
-- Basic file operations and context management
-- TOML configuration system
-- Core slash commands (/clear, /help, /config, /cost)
+- ✅ Multi-provider LLM interface (OpenAI, Claude, Gemini, Ollama)
+- ✅ Beautiful TUI REPL with Charmbracelet Bubble Tea
+- ✅ Complete database system with SQLite
+- ✅ TOML configuration system
+- ✅ Enhanced slash commands with visual feedback
+- ✅ MCP integration framework
+- ✅ Professional terminal interface with real-time streaming
 
-### Phase 2: Intelligence (Weeks 3-4)  
+### Phase 2: Intelligence (Weeks 3-4) - FRAMEWORK COMPLETE 🚧
 **Goal**: Smart context management and autonomous capabilities
-- Task-aware context management
-- Autonomous web search with temporal triggers
-- Smart conversation compaction
-- AIRCHER.md memory system
-- Custom slash commands with templating
+- ✅ Task-aware context management framework (algorithms stubbed)
+- ✅ Autonomous web search framework (API integration pending)
+- ✅ Smart conversation compaction framework (algorithms stubbed)
+- ✅ AIRCHER.md memory system framework (parsing pending)
+- ✅ Custom slash commands with visual templating
+- ✅ Enhanced TUI features with live status indicators
 
-### Phase 3: Advanced Features (Weeks 5-6)
+### Phase 3: Advanced Features (Weeks 5-6) - PARTIALLY COMPLETE 🚧
 **Goal**: Rich interface and extended provider support
-- Multi-scope MCP integration
-- Multimodal input (images, drag/drop)
-- Output format system (JSON, streaming)
-- Terminal integration and vim mode
-- Enhanced provider support (Gemini, Ollama)
+- ✅ Multi-scope MCP integration with visual management
+- ✅ Enhanced TUI with interactive panels and shortcuts
+- ✅ Output format system (JSON, markdown, streaming)
+- ✅ Advanced terminal integration (vim mode pending)
+- ✅ Complete provider support (OpenAI, Claude, Gemini, Ollama)
+- 🚧 Multimodal input implementation
+- 🚧 Live tool execution panels
 
 ### Phase 4: Enterprise (Weeks 7-8)
 **Goal**: Production-ready features for enterprise use

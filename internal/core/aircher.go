@@ -177,12 +177,12 @@ func (a *AircherCore) RunInteractive(initialPrompt string) error {
 
 	// Start REPL with initial prompt
 	replSession := &repl.Session{
-		ID:          session.ID,
-		StartTime:   session.StartTime,
-		LastUpdate:  session.LastUpdate,
+		ID:           session.ID,
+		StartTime:    session.StartTime,
+		LastUpdate:   session.LastUpdate,
 		MessageCount: session.MessageCount,
-		Provider:    session.Provider,
-		Model:       session.Model,
+		Provider:     session.Provider,
+		Model:        session.Model,
 	}
 	return a.repl.Run(replSession, initialPrompt)
 }

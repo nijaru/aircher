@@ -8,6 +8,13 @@ Aircher is a command-line AI coding assistant designed to work with any LLM prov
 
 ## Key Features
 
+### 🎨 Modern Terminal Interface
+- **Beautiful TUI**: Powered by Charmbracelet's Bubble Tea framework
+- **Real-time Streaming**: Watch AI responses appear live with smooth animations
+- **Rich Formatting**: Markdown rendering with syntax highlighting
+- **Interactive Panels**: Context sidebar, help system, and status indicators
+- **Responsive Design**: Adapts seamlessly to any terminal size
+
 ### 🔄 Multi-Provider LLM Support
 - **Universal Interface**: Seamlessly switch between OpenAI, Claude, Gemini, Ollama
 - **Intelligent Routing**: Automatically select optimal provider based on cost, features, availability
@@ -26,6 +33,13 @@ Aircher is a command-line AI coding assistant designed to work with any LLM prov
 - **Smart Triggers**: Detects when queries need fresh information ("latest", "current", version mentions)
 - **Error Recovery**: Proactive search for solutions to encountered errors
 - **Multi-Provider Search**: Brave, DuckDuckGo, and custom search providers
+
+### 🎨 Beautiful Terminal Interface
+- **Modern TUI**: Built with Charmbracelet's Bubble Tea framework
+- **Real-time Streaming**: Live updates as AI responds
+- **Rich Markdown Rendering**: Code highlighting and formatted responses
+- **Interactive Panels**: Context sidebar, help system, status indicators
+- **Keyboard Shortcuts**: Efficient navigation with vim-like controls
 
 ### 🛠️ MCP Integration & Tools
 - **Core Development Tools**: Filesystem, Git, GitHub/GitLab integration
@@ -92,19 +106,47 @@ cat main.go | aircher -p "review this code"
 
 ## Usage Examples
 
-### Interactive Development
+### Beautiful Interactive Interface
 ```bash
 $ aircher
-Welcome to Aircher! Detected Go project with 247 files.
+┌─ 🏹 Aircher ──────────────────────────── Provider: ollama • 🤖 Ready ─┐
+│                                                                        │
+│ ℹ️ System [14:32:15]                                                   │
+│ Welcome to Aircher! 🏹                                                │
+│                                                                        │
+│ ℹ️ System [14:32:15]                                                   │
+│ Type your question or use /help for commands.                         │
+│                                                                        │
+│ 👤 You [14:32:20]                                                     │
+│ explain the authentication system                                     │
+│                                                                        │
+│ 🤖 Aircher via ollama [14:32:21]                                      │
+│ # Authentication System Overview                                      │
+│                                                                        │
+│ Based on your project structure, I can see you're using JWT-based     │
+│ authentication with the following components:                         │
+│                                                                        │
+│ ```go                                                                  │
+│ // JWT middleware implementation                                       │
+│ func AuthMiddleware(next http.Handler) http.Handler {                 │
+│     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+│         // Token validation logic...                                   │
+│     })                                                                 │
+│ }                                                                      │
+│ ```                                                                    │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+┌─ > Type your message...                                              ─┐
+└─ Ctrl+H: Help • Ctrl+T: Context • Ctrl+C: Exit ─────────────────────────┘
+```
 
-> explain the authentication system
-[Aircher automatically includes relevant auth files and searches for current best practices]
-
-> fix the CORS error in the API
-[Searches for current CORS solutions and applies fix with explanation]
-
-> /memory add "we use JWT with 24h expiration"
-[Stores in project memory for future reference]
+### Real-time Interaction
+```bash
+> /help                          # Toggle help panel
+> /clear                         # Clear conversation  
+> /think                         # Enable thinking mode
+> Ctrl+T                         # Toggle context panel
+> Ctrl+H                         # Toggle help
 ```
 
 ### MCP Tool Usage
@@ -122,18 +164,35 @@ Welcome to Aircher! Detected Go project with 247 files.
 > create a pull request for the current branch
 ```
 
-### Slash Commands
+### Interactive Commands & Shortcuts
+
+#### Slash Commands
 ```bash
-/help                    # Show available commands
+/help                    # Toggle help panel
 /clear                   # Clear conversation
-/config                  # Settings management
-/cost                    # Usage and cost statistics
+/config                  # Settings management  
+/cost                    # Show usage statistics
 /memory                  # Edit AIRCHER.md memory
 /search [query]          # Force web search
-/think                   # Enable thinking mode
+/think                   # Toggle thinking mode
 /mcp                     # MCP server management
 /tools                   # List available MCP tools
 ```
+
+#### Keyboard Shortcuts
+```bash
+Ctrl+H                   # Toggle help panel
+Ctrl+T                   # Toggle context sidebar
+Ctrl+C / Esc            # Exit Aircher
+Enter                    # Send message
+```
+
+#### TUI Features
+- **Live Streaming**: See responses appear in real-time
+- **Markdown Rendering**: Beautiful code highlighting and formatting
+- **Context Panel**: View session info, costs, and available tools
+- **Status Indicators**: Visual feedback for thinking/searching states
+- **Responsive Layout**: Adapts to terminal size automatically
 
 ### Automation & Scripting
 ```bash
@@ -227,6 +286,8 @@ Create an `AIRCHER.md` file in your project root for team-shared knowledge:
 - Go 1.21+
 - SQLite (included)
 - Node.js (for MCP servers)
+- Modern terminal with color support
+- Recommended: Terminal with Unicode support for best experience
 
 ### Building from Source
 
