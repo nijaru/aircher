@@ -105,26 +105,140 @@ func (p *OpenAIProvider) Chat(ctx context.Context, request *ChatRequest) (*ChatR
 	start := time.Now()
 	p.logger.Debug().Str("model", request.Model).Int("messages", len(request.Messages)).Msg("Sending chat request")
 
-	// TODO: Implement actual OpenAI API call
-	// For now, return a stub response
+	// Convert our messages to OpenAI format
+	openaiMessages := make([]openai.ChatCompletionMessage, 0, len(request.Messages))
+	
+	// Add system message if provided
+	if request.SystemMsg != "" {
+		openaiMessages = append(openaiMessages, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: request.SystemMsg,
+		})
+	}
+	
+	for _, msg := range request.Messages {
+		openaiMsg := openai.ChatCompletionMessage{
+			Content: msg.Content,
+		}
+		
+		switch msg.Role {
+		case RoleUser:
+			openaiMsg.Role = openai.ChatMessageRoleUser
+		case RoleAssistant:
+			openaiMsg.Role = openai.ChatMessageRoleAssistant
+		case RoleSystem:
+			openaiMsg.Role = openai.ChatMessageRoleSystem
+		case RoleTool:
+			openaiMsg.Role = openai.ChatMessageRoleTool
+		default:
+			openaiMsg.Role = openai.ChatMessageRoleUser
+		}
+		
+		// Handle tool calls
+		if len(msg.ToolCalls) > 0 {
+			for _, toolCall := range msg.ToolCalls {
+				openaiMsg.ToolCalls = append(openaiMsg.ToolCalls, openai.ToolCall{
+					ID:   toolCall.ID,
+					Type: openai.ToolTypeFunction,
+					Function: openai.FunctionCall{
+						Name:      toolCall.Function.Name,
+						Arguments: toolCall.Function.Arguments,
+					},
+				})
+			}
+		}
+		
+		openaiMessages = append(openaiMessages, openaiMsg)
+	}
+
+	// Prepare OpenAI request
+	model := request.Model
+	if model == "" {
+		model = p.model
+	}
+	
+	openaiRequest := openai.ChatCompletionRequest{
+		Model:       model,
+		Messages:    openaiMessages,
+		MaxTokens:   request.MaxTokens,
+		Temperature: float32(request.Temperature),
+		Stream:      false,
+	}
+	
+	// Convert tools if provided
+	if len(request.Tools) > 0 {
+		openaiTools := make([]openai.Tool, 0, len(request.Tools))
+		for _, tool := range request.Tools {
+			openaiTools = append(openaiTools, openai.Tool{
+				Type: openai.ToolTypeFunction,
+				Function: openai.FunctionDefinition{
+					Name:        tool.Function.Name,
+					Description: tool.Function.Description,
+					Parameters:  tool.Function.Parameters,
+				},
+			})
+		}
+		openaiRequest.Tools = openaiTools
+	}
+
+	// Make the API call
+	openaiResponse, err := p.client.CreateChatCompletion(ctx, openaiRequest)
+	if err != nil {
+		p.logger.Error().Err(err).Msg("OpenAI API call failed")
+		return nil, fmt.Errorf("OpenAI API call failed: %w", err)
+	}
+
+	// Convert response back to our format
+	if len(openaiResponse.Choices) == 0 {
+		return nil, fmt.Errorf("no response choices returned from OpenAI")
+	}
+
+	choice := openaiResponse.Choices[0]
+	message := Message{
+		Role:    RoleAssistant,
+		Content: choice.Message.Content,
+	}
+
+	// Handle tool calls in response
+	if len(choice.Message.ToolCalls) > 0 {
+		for _, toolCall := range choice.Message.ToolCalls {
+			message.ToolCalls = append(message.ToolCalls, ToolCall{
+				ID:   toolCall.ID,
+				Type: string(toolCall.Type),
+				Function: FunctionCall{
+					Name:      toolCall.Function.Name,
+					Arguments: toolCall.Function.Arguments,
+				},
+			})
+		}
+	}
+
+	tokenUsage := TokenUsage{
+		PromptTokens:     openaiResponse.Usage.PromptTokens,
+		CompletionTokens: openaiResponse.Usage.CompletionTokens,
+		TotalTokens:      openaiResponse.Usage.TotalTokens,
+	}
+
 	response := &ChatResponse{
-		Message: Message{
-			Role:    RoleAssistant,
-			Content: "OpenAI provider response not yet implemented",
-		},
-		TokensUsed: TokenUsage{
-			PromptTokens:     100,
-			CompletionTokens: 50,
-			TotalTokens:      150,
-		},
-		Cost:     p.calculateCostForTokens(150, request.Model),
-		Duration: time.Since(start),
-		Provider: p.Name(),
-		Model:    request.Model,
+		Message:      message,
+		TokensUsed:   tokenUsage,
+		Cost:         p.calculateRealCost(tokenUsage, model),
+		Duration:     time.Since(start),
+		Provider:     p.Name(),
+		Model:        model,
+		FinishReason: string(choice.FinishReason),
 		Metadata: map[string]interface{}{
-			"stub": true,
+			"openai_response_id": openaiResponse.ID,
+			"created":           openaiResponse.Created,
 		},
 	}
+
+	p.logger.Debug().
+		Int("prompt_tokens", tokenUsage.PromptTokens).
+		Int("completion_tokens", tokenUsage.CompletionTokens).
+		Float64("cost", response.Cost).
+		Dur("duration", response.Duration).
+		Msg("OpenAI chat request completed")
 
 	return response, nil
 }
@@ -133,30 +247,180 @@ func (p *OpenAIProvider) Chat(ctx context.Context, request *ChatRequest) (*ChatR
 func (p *OpenAIProvider) ChatStream(ctx context.Context, request *ChatRequest) (<-chan *StreamChunk, error) {
 	p.logger.Debug().Str("model", request.Model).Msg("Starting streaming chat request")
 
-	// TODO: Implement actual OpenAI streaming API call
-	// For now, return a stub stream
-	stream := make(chan *StreamChunk, 1)
+	// Convert our messages to OpenAI format
+	openaiMessages := make([]openai.ChatCompletionMessage, 0, len(request.Messages))
+	
+	// Add system message if provided
+	if request.SystemMsg != "" {
+		openaiMessages = append(openaiMessages, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: request.SystemMsg,
+		})
+	}
+	
+	for _, msg := range request.Messages {
+		openaiMsg := openai.ChatCompletionMessage{
+			Content: msg.Content,
+		}
+		
+		switch msg.Role {
+		case RoleUser:
+			openaiMsg.Role = openai.ChatMessageRoleUser
+		case RoleAssistant:
+			openaiMsg.Role = openai.ChatMessageRoleAssistant
+		case RoleSystem:
+			openaiMsg.Role = openai.ChatMessageRoleSystem
+		case RoleTool:
+			openaiMsg.Role = openai.ChatMessageRoleTool
+		default:
+			openaiMsg.Role = openai.ChatMessageRoleUser
+		}
+		
+		// Handle tool calls
+		if len(msg.ToolCalls) > 0 {
+			for _, toolCall := range msg.ToolCalls {
+				openaiMsg.ToolCalls = append(openaiMsg.ToolCalls, openai.ToolCall{
+					ID:   toolCall.ID,
+					Type: openai.ToolTypeFunction,
+					Function: openai.FunctionCall{
+						Name:      toolCall.Function.Name,
+						Arguments: toolCall.Function.Arguments,
+					},
+				})
+			}
+		}
+		
+		openaiMessages = append(openaiMessages, openaiMsg)
+	}
+
+	// Prepare OpenAI streaming request
+	model := request.Model
+	if model == "" {
+		model = p.model
+	}
+	
+	openaiRequest := openai.ChatCompletionRequest{
+		Model:       model,
+		Messages:    openaiMessages,
+		MaxTokens:   request.MaxTokens,
+		Temperature: float32(request.Temperature),
+		Stream:      true,
+	}
+	
+	// Convert tools if provided
+	if len(request.Tools) > 0 {
+		openaiTools := make([]openai.Tool, 0, len(request.Tools))
+		for _, tool := range request.Tools {
+			openaiTools = append(openaiTools, openai.Tool{
+				Type: openai.ToolTypeFunction,
+				Function: openai.FunctionDefinition{
+					Name:        tool.Function.Name,
+					Description: tool.Function.Description,
+					Parameters:  tool.Function.Parameters,
+				},
+			})
+		}
+		openaiRequest.Tools = openaiTools
+	}
+
+	// Create streaming response
+	streamResponse, err := p.client.CreateChatCompletionStream(ctx, openaiRequest)
+	if err != nil {
+		p.logger.Error().Err(err).Msg("OpenAI streaming API call failed")
+		return nil, fmt.Errorf("OpenAI streaming API call failed: %w", err)
+	}
+
+	// Create our stream channel
+	stream := make(chan *StreamChunk, 10)
 	
 	go func() {
 		defer close(stream)
+		defer streamResponse.Close()
+
+		var totalTokens TokenUsage
+		var responseID string
+		start := time.Now()
 		
-		// Send a single chunk as stub
-		stream <- &StreamChunk{
-			Delta: MessageDelta{
-				Role:    RoleAssistant,
-				Content: "OpenAI streaming response not yet implemented",
-			},
-			TokensUsed: TokenUsage{
-				TotalTokens: 150,
-			},
-			Cost:     p.calculateCostForTokens(150, request.Model),
-			Provider: p.Name(),
-			Model:    request.Model,
-			Done:     true,
-			Metadata: map[string]interface{}{
-				"stub": true,
-			},
+		for {
+			response, err := streamResponse.Recv()
+			if err != nil {
+				if err.Error() == "EOF" {
+					// Send final chunk with completion info
+					stream <- &StreamChunk{
+						Delta:       MessageDelta{},
+						TokensUsed:  totalTokens,
+						Cost:        p.calculateRealCost(totalTokens, model),
+						Provider:    p.Name(),
+						Model:       model,
+						Done:        true,
+						Metadata: map[string]interface{}{
+							"openai_response_id": responseID,
+							"duration":          time.Since(start),
+						},
+					}
+					break
+				}
+				
+				p.logger.Error().Err(err).Msg("Error receiving streaming response")
+				stream <- &StreamChunk{
+					Error:    err,
+					Provider: p.Name(),
+					Model:    model,
+					Done:     true,
+				}
+				return
+			}
+
+			if responseID == "" {
+				responseID = response.ID
+			}
+
+			// Note: Streaming responses don't include usage information per chunk
+			// We'll calculate token usage at the end or estimate it
+
+			// Process each choice
+			for _, choice := range response.Choices {
+				chunk := &StreamChunk{
+					Provider: p.Name(),
+					Model:    model,
+					Done:     false,
+				}
+
+				if choice.Delta.Role != "" {
+					chunk.Delta.Role = string(choice.Delta.Role)
+				}
+
+				if choice.Delta.Content != "" {
+					chunk.Delta.Content = choice.Delta.Content
+				}
+
+				// Handle tool calls in delta
+				if len(choice.Delta.ToolCalls) > 0 {
+					for _, toolCall := range choice.Delta.ToolCalls {
+						chunk.Delta.ToolCalls = append(chunk.Delta.ToolCalls, ToolCall{
+							ID:   toolCall.ID,
+							Type: string(toolCall.Type),
+							Function: FunctionCall{
+								Name:      toolCall.Function.Name,
+								Arguments: toolCall.Function.Arguments,
+							},
+						})
+					}
+				}
+
+				if choice.FinishReason != "" {
+					chunk.FinishReason = string(choice.FinishReason)
+					chunk.Done = true
+				}
+
+				stream <- chunk
+			}
 		}
+
+		p.logger.Debug().
+			Int("total_tokens", totalTokens.TotalTokens).
+			Dur("duration", time.Since(start)).
+			Msg("OpenAI streaming request completed")
 	}()
 
 	return stream, nil
@@ -222,7 +486,7 @@ func (p *OpenAIProvider) CalculateCost(tokens int, model string) (float64, error
 	return p.calculateCostForTokens(tokens, model), nil
 }
 
-// calculateCostForTokens internal helper for cost calculation
+// calculateCostForTokens internal helper for cost calculation (estimation)
 func (p *OpenAIProvider) calculateCostForTokens(tokens int, model string) float64 {
 	costInfo, exists := p.costTable[model]
 	if !exists {
@@ -236,6 +500,20 @@ func (p *OpenAIProvider) calculateCostForTokens(tokens int, model string) float6
 	
 	inputCost := (inputTokens / 1000) * costInfo.InputCostPer1K
 	outputCost := (outputTokens / 1000) * costInfo.OutputCostPer1K
+	
+	return inputCost + outputCost
+}
+
+// calculateRealCost calculates actual cost using real token usage
+func (p *OpenAIProvider) calculateRealCost(tokens TokenUsage, model string) float64 {
+	costInfo, exists := p.costTable[model]
+	if !exists {
+		// Default to GPT-4 pricing if model not found
+		costInfo = p.costTable["gpt-4"]
+	}
+	
+	inputCost := (float64(tokens.PromptTokens) / 1000) * costInfo.InputCostPer1K
+	outputCost := (float64(tokens.CompletionTokens) / 1000) * costInfo.OutputCostPer1K
 	
 	return inputCost + outputCost
 }

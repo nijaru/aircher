@@ -341,8 +341,35 @@ func (a *AircherCore) GetCommandRouter() interface{} {
 // Helper methods
 
 func (a *AircherCore) processPrompt(session *Session, prompt string) (string, error) {
-	// TODO: Implement prompt processing with context, providers, etc.
-	return "Response processing not yet implemented", nil
+	// Build message with the prompt
+	messages := []providers.Message{
+		{
+			Role:    providers.RoleUser,
+			Content: prompt,
+		},
+	}
+
+	// Get default provider and model
+	defaultProvider := a.providerMgr.GetDefaultProvider()
+	defaultModel := a.providerMgr.GetDefaultModel(defaultProvider)
+
+	// Create chat request
+	request := &providers.ChatRequest{
+		Messages:    messages,
+		Model:       defaultModel,
+		Provider:    defaultProvider,
+		Temperature: 0.7,
+		Stream:      false,
+	}
+
+	// Send request to provider
+	ctx := context.Background()
+	response, err := a.providerMgr.Chat(ctx, request)
+	if err != nil {
+		return "", fmt.Errorf("failed to process prompt: %w", err)
+	}
+
+	return response.Message.Content, nil
 }
 
 func (a *AircherCore) outputResponse(response, format string) error {

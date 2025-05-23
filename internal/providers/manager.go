@@ -378,6 +378,66 @@ func (m *Manager) GetUsageStats() map[string]interface{} {
 	return m.costTracker.GetStats()
 }
 
+// GetDefaultProvider returns the default provider name
+func (m *Manager) GetDefaultProvider() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	
+	// Check if default provider is available
+	if m.defaultProvider != "" {
+		if _, exists := m.providers[m.defaultProvider]; exists {
+			return m.defaultProvider
+		}
+	}
+	
+	// Return first available provider as fallback
+	// Priority order: Ollama (free), OpenAI, Claude, Gemini
+	providerPriority := []string{ProviderOllama, ProviderOpenAI, ProviderClaude, ProviderGemini}
+	for _, provider := range providerPriority {
+		if _, exists := m.providers[provider]; exists {
+			return provider
+		}
+	}
+	
+	// If none of the priority providers are available, return any available provider
+	for name := range m.providers {
+		return name
+	}
+	
+	// No providers available
+	return ""
+}
+
+// GetDefaultModel returns the default model for a given provider
+func (m *Manager) GetDefaultModel(providerName string) string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	
+	provider, exists := m.providers[providerName]
+	if !exists {
+		return ""
+	}
+	
+	models := provider.Models()
+	if len(models) > 0 {
+		return models[0].ID
+	}
+	
+	// Fallback defaults based on provider type
+	switch providerName {
+	case ProviderOpenAI:
+		return "gpt-4o-mini"
+	case ProviderClaude:
+		return "claude-3-haiku-20240307"
+	case ProviderGemini:
+		return "gemini-pro"
+	case ProviderOllama:
+		return "llama2"
+	default:
+		return ""
+	}
+}
+
 // createDefaultRoutingRules creates the default routing rules
 func (m *Manager) createDefaultRoutingRules() []RoutingRule {
 	return []RoutingRule{

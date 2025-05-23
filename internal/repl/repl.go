@@ -1,6 +1,7 @@
 package repl
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/aircher/aircher/internal/config"
+	"github.com/aircher/aircher/internal/providers"
 )
 
 // REPL represents the interactive Bubble Tea application
@@ -31,6 +33,13 @@ type AircherCore interface {
 	GetMemoryManager() interface{}
 	GetMCPManager() interface{}
 	GetCommandRouter() interface{}
+}
+
+// ProviderManager interface for accessing LLM providers
+type ProviderManager interface {
+	ChatStream(ctx context.Context, request *providers.ChatRequest) (<-chan *providers.StreamChunk, error)
+	GetDefaultProvider() string
+	GetDefaultModel(provider string) string
 }
 
 // Session represents a conversation session
@@ -75,6 +84,9 @@ type Model struct {
 	// Current session
 	session      *Session
 	currentProvider string
+	
+	// Active streaming
+	streamChan <-chan *providers.StreamChunk
 	
 	// Styling
 	styles       Styles
@@ -131,8 +143,13 @@ var (
 // Messages for Bubble Tea
 type (
 	streamMsg struct {
-		content string
-		done    bool
+		content  string
+		done     bool
+		tokens   int
+		cost     float64
+		provider string
+		model    string
+		isError  bool
 	}
 	
 	errorMsg struct {
@@ -140,15 +157,15 @@ type (
 	}
 	
 	statusMsg struct {
-		status string
+		text string
 	}
 	
 	thinkingMsg struct {
-		thinking bool
+		active bool
 	}
 	
 	searchingMsg struct {
-		searching bool
+		active bool
 	}
 )
 
@@ -293,23 +310,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 	case streamMsg:
 		// Handle streaming response
-		if len(m.messages) > 0 && m.messages[len(m.messages)-1].Role == "assistant" {
-			m.messages[len(m.messages)-1].Content += msg.content
-		} else {
-			m.addAssistantMessage(msg.content)
+		if msg.isError {
+			// Add error message
+			errorMessage := Message{
+				Role:      "assistant",
+				Content:   msg.content,
+				Timestamp: time.Now(),
+				Provider:  "error",
+			}
+			m.messages = append(m.messages, errorMessage)
+			m.streaming = false
+		} else if len(m.messages) > 0 && m.messages[len(m.messages)-1].Role == "assistant" {
+			// Update the last assistant message by appending new content
+			if msg.content != "" {
+				m.messages[len(m.messages)-1].Content += msg.content
+			}
+			if msg.done {
+				m.messages[len(m.messages)-1].Tokens = msg.tokens
+				m.messages[len(m.messages)-1].Cost = msg.cost
+				m.messages[len(m.messages)-1].Provider = msg.provider
+				m.streaming = false
+				m.streamChan = nil
+			}
 		}
 		m.updateViewportContent()
 		
-		if !msg.done {
-			return m, m.waitForStream()
+		if !msg.done && !msg.isError && m.streamChan != nil {
+			// Continue reading from stream
+			return m, m.streamCommand(m.streamChan)
 		}
-		m.streaming = false
 		
 	case thinkingMsg:
-		m.thinking = msg.thinking
+		m.thinking = msg.active
 		
 	case searchingMsg:
-		m.searching = msg.searching
+		m.searching = msg.active
 		
 	case errorMsg:
 		m.addErrorMessage(fmt.Sprintf("Error: %v", msg.err))
@@ -317,7 +352,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 	case statusMsg:
 		// Handle status updates
-		m.addSystemMessage(msg.status)
+		m.addSystemMessage(msg.text)
 		m.updateViewportContent()
 	}
 	
@@ -632,19 +667,138 @@ func (m Model) handleSlashCommand(command string) tea.Cmd {
 func (m Model) processInput(input string) tea.Cmd {
 	m.streaming = true
 	
-	// Simulate processing with a delay
-	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
-		return streamMsg{
-			content: "Response processing not yet implemented.",
-			done:    true,
+	// Add user message to conversation immediately
+	userMessage := Message{
+		Role:      "user",
+		Content:   input,
+		Timestamp: time.Now(),
+		Provider:  "user",
+	}
+	m.messages = append(m.messages, userMessage)
+	
+	// Add empty assistant message for streaming
+	assistantMessage := Message{
+		Role:      "assistant",
+		Content:   "",
+		Timestamp: time.Now(),
+		Provider:  "",
+	}
+	m.messages = append(m.messages, assistantMessage)
+	
+	return m.startLLMStream()
+}
+
+func (m Model) startLLMStream() tea.Cmd {
+	// Get provider manager from core
+	providerMgrInterface := m.core.GetProviderManager()
+	providerMgr, ok := providerMgrInterface.(*providers.Manager)
+	if !ok {
+		return func() tea.Msg {
+			return streamMsg{
+				content: "Error: Provider manager not available",
+				done:    true,
+				isError: true,
+			}
 		}
-	})
+	}
+
+	// Build conversation history (excluding the empty assistant message)
+	var messages []providers.Message
+	for i, msg := range m.messages {
+		if i == len(m.messages)-1 && msg.Role == "assistant" && msg.Content == "" {
+			continue // Skip the empty assistant message we just added
+		}
+		
+		role := msg.Role
+		if role == "user" {
+			role = providers.RoleUser
+		} else if role == "assistant" {
+			role = providers.RoleAssistant
+		}
+		
+		messages = append(messages, providers.Message{
+			Role:    role,
+			Content: msg.Content,
+		})
+	}
+
+	// Determine provider and model
+	provider := m.currentProvider
+	if provider == "" {
+		provider = providerMgr.GetDefaultProvider()
+	}
+	
+	model := providerMgr.GetDefaultModel(provider)
+
+	// Create chat request
+	request := &providers.ChatRequest{
+		Messages:    messages,
+		Model:       model,
+		Provider:    provider,
+		Temperature: 0.7,
+		Stream:      true,
+	}
+
+	// Start streaming
+	return func() tea.Msg {
+		ctx := context.Background()
+		stream, err := providerMgr.ChatStream(ctx, request)
+		if err != nil {
+			return streamMsg{
+				content: fmt.Sprintf("Error: %v", err),
+				done:    true,
+				isError: true,
+			}
+		}
+
+		// Store stream reference and start reading
+		m.streamChan = stream
+		return m.streamCommand(stream)()
+	}
+}
+
+func (m Model) streamCommand(stream <-chan *providers.StreamChunk) tea.Cmd {
+	return func() tea.Msg {
+		select {
+		case chunk, ok := <-stream:
+			if !ok {
+				return streamMsg{
+					done: true,
+				}
+			}
+			
+			if chunk.Error != nil {
+				return streamMsg{
+					content: fmt.Sprintf("Stream error: %v", chunk.Error),
+					done:    true,
+					isError: true,
+				}
+			}
+
+			return streamMsg{
+				content:  chunk.Delta.Content,
+				done:     chunk.Done,
+				tokens:   chunk.TokensUsed.TotalTokens,
+				cost:     chunk.Cost,
+				provider: chunk.Provider,
+				model:    chunk.Model,
+			}
+			
+		default:
+			// No data available yet
+			time.Sleep(time.Millisecond * 50)
+			return streamMsg{
+				content: "",
+				done:    false,
+			}
+		}
+	}
 }
 
 func (m Model) waitForStream() tea.Cmd {
 	return tea.Tick(time.Millisecond*50, func(t time.Time) tea.Msg {
 		return streamMsg{
-			content: ".",
+			content: "",
 			done:    false,
 		}
 	})
