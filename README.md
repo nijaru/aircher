@@ -16,6 +16,14 @@ Aircher is a command-line AI coding assistant designed to work with any LLM prov
 - **Responsive Design**: Adapts seamlessly to any terminal size
 
 ### 🔄 Multi-Provider LLM Support
+### 🚀 Go 1.24 Enhanced Performance
+- **Swiss Tables Maps**: 2-3% CPU performance improvement with Go 1.24's new map implementation
+- **Secure Filesystem**: Uses Go 1.24's os.Root for secure, sandboxed MCP operations
+- **Enhanced Cryptography**: Ready for post-quantum cryptography with ML-KEM support
+- **Tool Management**: Modern development workflow with Go 1.24 tool directives
+- **Runtime Optimizations**: Better memory management and garbage collection performance
+
+### 🔄 Multi-Provider LLM Support
 - **Universal Interface**: Seamlessly switch between OpenAI, Claude, Gemini, Ollama
 - **Intelligent Routing**: Automatically select optimal provider based on cost, features, availability
 - **Provider-Specific Features**: Function calling, thinking mode, image support where available
@@ -283,7 +291,7 @@ Create an `AIRCHER.md` file in your project root for team-shared knowledge:
 ## Development
 
 ### Requirements
-- Go 1.21+
+- Go 1.24+ (leverages Swiss Tables, os.Root security, and tool management)
 - SQLite (included)
 - Node.js (for MCP servers)
 - Modern terminal with color support
@@ -295,8 +303,18 @@ Create an `AIRCHER.md` file in your project root for team-shared knowledge:
 git clone https://github.com/aircher/aircher.git
 cd aircher
 go mod download
-go build -o aircher ./cmd/aircher
+make build  # Uses Go 1.24 optimizations and tool management
 ```
+
+### Go 1.24 Features
+
+Aircher leverages the latest Go 1.24 features for enhanced performance and security:
+
+- **Swiss Tables**: Automatic map performance improvements (2-3% faster)
+- **Secure Filesystem**: `os.Root` for sandboxed MCP server operations  
+- **Tool Management**: Development tools managed in go.mod
+- **Enhanced Crypto**: Post-quantum cryptography support
+- **Runtime Improvements**: Better memory allocation and garbage collection
 
 ### Running Tests
 

@@ -57,9 +57,15 @@ deps:
 	$(GOMOD) download
 	$(GOMOD) tidy
 
-# Format code
+# Format code (uses gofumpt for better formatting)
 fmt:
 	@echo "Formatting code..."
+	@which gofumpt > /dev/null || (echo "gofumpt not found. Install with: go install mvdan.cc/gofumpt@latest" && exit 1)
+	gofumpt -w .
+
+# Format code (fallback to standard gofmt)
+fmt-std:
+	@echo "Formatting code with standard gofmt..."
 	$(GOFMT) -s -w .
 
 # Vet code
@@ -115,7 +121,23 @@ init:
 	$(GOMOD) download
 	@echo "Installing development tools..."
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install mvdan.cc/gofumpt@latest
+	go install honnef.co/go/tools/cmd/staticcheck@latest
 	@echo "Development environment ready!"
+
+# Install all development tools
+tools:
+	@echo "Installing development tools..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install mvdan.cc/gofumpt@latest
+	go install honnef.co/go/tools/cmd/staticcheck@latest
+
+# Update all development tools
+tools-update:
+	@echo "Updating development tools..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install mvdan.cc/gofumpt@latest
+	go install honnef.co/go/tools/cmd/staticcheck@latest
 
 # Show help
 help:
@@ -125,7 +147,8 @@ help:
 	@echo "  test-coverage - Run tests with coverage report"
 	@echo "  clean         - Clean build artifacts"
 	@echo "  deps          - Download dependencies"
-	@echo "  fmt           - Format code"
+	@echo "  fmt           - Format code with gofumpt"
+	@echo "  fmt-std       - Format code with standard gofmt"
 	@echo "  vet           - Vet code"
 	@echo "  lint          - Lint code (requires golangci-lint)"
 	@echo "  install       - Install binary to GOPATH/bin"
@@ -134,4 +157,6 @@ help:
 	@echo "  docker        - Build Docker image"
 	@echo "  check         - Run all quality checks"
 	@echo "  init          - Initialize development environment"
+	@echo "  tools         - Install all development tools"
+	@echo "  tools-update  - Update all development tools"
 	@echo "  help          - Show this help"

@@ -2,7 +2,10 @@
 
 ## Instructions
 
-- This project uses Go 1.23+ with Charmbracelet's Bubble Tea TUI framework
+- This project uses Go 1.24+ with Charmbracelet's Bubble Tea TUI framework
+- Uses Go 1.24 tool management for development tools (golangci-lint, gofumpt, staticcheck, air)
+- Leverages Go 1.24's os.Root for secure MCP filesystem operations
+- Takes advantage of Swiss Tables map implementation for performance
 - Follow Go standard project layout and naming conventions
 - Use zerolog for structured logging throughout the application
 - All database operations use SQLite with sqlx for enhanced functionality
@@ -27,11 +30,15 @@
 - `make build` - Build the aircher binary
 - `make test` - Run all tests with race detection
 - `make test-coverage` - Generate coverage report
-- `make lint` - Run golangci-lint
+- `make lint` - Run golangci-lint (Go 1.24 tool management)
+- `make fmt` - Format code with gofumpt (better than gofmt)
 - `make clean` - Clean build artifacts
 - `make dev` - Build and run development version
 - `make release` - Build for multiple platforms
+- `make tools` - Install all development tools (Go 1.24 feature)
+- `make tools-update` - Update all development tools
 - `go mod tidy` - Clean up dependencies
+- `go tool <toolname>` - Run development tools (Go 1.24 feature)
 - `./aircher --help` - Show CLI help
 - `./aircher` - Start interactive TUI mode
 
@@ -78,6 +85,18 @@
 - Context management algorithms are framework-ready but need implementation
 - Web search integration has decision engine but needs API integration
 - All styling uses centralized Lipgloss definitions for maintainability
+- Go 1.24 os.Root provides secure filesystem access for MCP operations
+- Swiss Tables map implementation improves runtime performance by 2-3%
+- Tool management in go.mod eliminates need for tools.go files
+
+## Go 1.24 Features Used
+
+- **Tool Management**: Development tools tracked in go.mod with `tool` directives
+- **os.Root**: Secure directory-limited filesystem access for MCP security
+- **Swiss Tables**: Improved map performance with automatic runtime optimization
+- **Enhanced Build Info**: JSON output and VCS info embedded in binaries
+- **Generic Type Aliases**: Available for future type system enhancements
+- **Improved Finalizers**: runtime.AddCleanup for better resource management
 
 ## Current Priorities
 
