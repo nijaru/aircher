@@ -260,6 +260,8 @@ aircher update                      # Self-update with rollback
 - ✅ AIRCHER.md memory system framework (parsing pending)
 - ✅ Custom slash commands with visual templating
 - ✅ Enhanced TUI features with live status indicators
+- ✅ OpenAI provider with full API integration and streaming
+- ✅ Claude provider with Anthropic SDK and context caching
 
 ### Phase 3: Advanced Features (Weeks 5-6) - PARTIALLY COMPLETE 🚧
 **Goal**: Rich interface and extended provider support
@@ -267,7 +269,8 @@ aircher update                      # Self-update with rollback
 - ✅ Enhanced TUI with interactive panels and shortcuts
 - ✅ Output format system (JSON, markdown, streaming)
 - ✅ Advanced terminal integration (vim mode pending)
-- ✅ Complete provider support (OpenAI, Claude, Gemini, Ollama)
+- ✅ Multi-provider support with OpenAI and Claude complete
+- 🚧 Remaining provider APIs (Gemini, Ollama)
 - 🚧 Multimodal input implementation
 - 🚧 Live tool execution panels
 

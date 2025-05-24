@@ -25,9 +25,12 @@ Aircher is a command-line AI coding assistant designed to work with any LLM prov
 
 ### 🔄 Multi-Provider LLM Support
 - **Universal Interface**: Seamlessly switch between OpenAI, Claude, Gemini, Ollama
+- **Production Ready**: OpenAI and Claude fully integrated with real API calls and streaming
+- **Context Caching**: Claude integration includes advanced context caching for efficient token usage
+- **Provider Selection**: Explicit provider choice via CLI flags (--provider claude/openai)
 - **Intelligent Routing**: Automatically select optimal provider based on cost, features, availability
 - **Provider-Specific Features**: Function calling, thinking mode, image support where available
-- **Fallback Support**: Automatic failover when providers are unavailable
+- **Fallback Support**: Automatic failover when providers are unavailable with graceful stub modes
 - **Cost Optimization**: Track usage and costs across all providers
 
 ### 🧠 Intelligent Context Management
@@ -155,6 +158,20 @@ $ aircher
 > /think                         # Enable thinking mode
 > Ctrl+T                         # Toggle context panel
 > Ctrl+H                         # Toggle help
+```
+
+### Provider Selection
+```bash
+# Use Claude provider specifically
+$ aircher -p "Write a haiku about coding" --provider claude
+
+# Use OpenAI provider
+$ aircher -p "Explain this function" --provider openai
+
+# Interactive provider switching
+$ aircher
+> /provider claude
+> Hello Claude, can you help me debug this Go function?
 ```
 
 ### MCP Tool Usage

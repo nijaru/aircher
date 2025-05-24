@@ -4,10 +4,10 @@
 
 ### 1. Test Claude in Non-Interactive Mode
 ```bash
-# Test Claude with stub mode (no API key needed)
+# Test Claude with fallback mode (no API key needed)
 ./build/aircher -p "Hello Claude, tell me about yourself" --provider claude
 
-# Expected output: Claude stub mode response
+# Expected output: Claude fallback response indicating API key needed
 ```
 
 ### 2. Test Claude in Interactive Mode
@@ -19,7 +19,7 @@
 /provider claude
 Hello Claude, can you explain what you are?
 
-# Expected: Claude responses in stub mode
+# Expected: Claude responses in fallback mode or real API responses
 ```
 
 ### 3. Test with Real API Key (Optional)
@@ -35,14 +35,14 @@ export ANTHROPIC_API_KEY="your-api-key-here"
 
 ## Verification Checklist
 
-- [ ] Claude provider initializes (check logs for "Claude provider running in stub mode")
+- [ ] Claude provider initializes (check logs for "Claude provider running in stub mode" or "Claude provider initialized with API key")
 - [ ] Non-interactive mode works: `--provider claude` flag accepted
 - [ ] Interactive mode allows provider switching
-- [ ] Stub mode returns meaningful responses without API key
-- [ ] Real API mode works when ANTHROPIC_API_KEY is set
+- [ ] Fallback mode returns meaningful responses without API key  
+- [ ] Real API mode with full Anthropic SDK integration when ANTHROPIC_API_KEY is set
 - [ ] Streaming responses work in both modes
-- [ ] Cost calculation works (even in stub mode)
-- [ ] Context caching framework is ready for real API usage
+- [ ] Cost calculation works (even in fallback mode)
+- [ ] Context caching works with real API and is ready for long conversations
 
 ## Advanced Features to Test
 
@@ -94,9 +94,11 @@ export ANTHROPIC_API_KEY="your-api-key-here"
 ## Success Criteria
 
 ✅ Claude provider loads without errors  
-✅ Stub mode provides meaningful responses  
-✅ CLI provider selection works  
+✅ Fallback mode provides meaningful responses  
+✅ Real Claude API integration with Anthropic SDK  
+✅ CLI provider selection works (--provider claude)  
 ✅ Interactive provider switching works  
-✅ Streaming responses display properly  
-✅ Cost tracking works (even estimated in stub mode)  
-✅ Context caching framework ready for production use
+✅ Streaming responses display properly in TUI  
+✅ Cost tracking works (estimated in fallback, accurate with API key)  
+✅ Context caching fully implemented for efficient token usage  
+✅ Production-ready implementation with proper error handling
