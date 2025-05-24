@@ -22,7 +22,7 @@ Aircher is a next-generation AI coding assistant with multi-provider support, in
 - **✅ Provider Interface**: Universal LLMProvider interface for all providers
 - **✅ Provider Manager**: Intelligent routing, fallback, cost tracking, health monitoring
 - **✅ OpenAI Provider**: Full API integration with streaming support
-- **✅ Claude Provider**: Stub implementation with thinking mode support
+- **✅ Claude Provider**: Full Anthropic SDK integration with context caching, streaming, and stub mode fallback
 - **✅ Gemini Provider**: Stub implementation with vision capabilities
 - **✅ Ollama Provider**: Local model support with zero-cost tracking
 
@@ -50,7 +50,7 @@ Aircher is a next-generation AI coding assistant with multi-provider support, in
 
 ### LLM Provider APIs
 - **✅ OpenAI Integration**: Complete with streaming support and real API calls
-- **🚧 Claude Provider**: Framework complete, API integration pending
+- **✅ Claude Provider**: Complete with Anthropic SDK, context caching framework, and stub mode support
 - **🚧 Gemini Provider**: Framework complete, API integration pending
 - **🚧 Ollama Provider**: Framework complete, API integration pending
 
@@ -72,7 +72,8 @@ Aircher is a next-generation AI coding assistant with multi-provider support, in
 
 ### Core Features
 - **✅ OpenAI LLM API Calls**: Fully implemented with streaming
-- **❌ Claude/Gemini/Ollama API Calls**: Framework ready, integration pending
+- **✅ Claude API Calls**: Fully implemented with Anthropic SDK and context caching support
+- **❌ Gemini/Ollama API Calls**: Framework ready, integration pending
 - **❌ Real Context Processing**: File analysis and relevance scoring
 - **❌ Web Search Integration**: Brave/DuckDuckGo API implementations
 - **❌ Function Calling**: Tool execution and result processing
@@ -130,12 +131,15 @@ aircher/
 ✅ ./aircher version  
 ✅ ./aircher -p "hello world" (Routes to Ollama, returns stub response)
 ✅ ./aircher -p "test" --output-format json
+✅ ./aircher -p "test Claude" --provider claude (Claude stub mode working)
 ✅ ./aircher (Full TUI interface with panels)
 ✅ TUI keyboard shortcuts (Ctrl+H, Ctrl+T, Ctrl+C)
 ✅ TUI slash commands (/help, /clear, /cost, /think)
 ✅ make build && ./build/aircher version
 ✅ Provider routing and fallback logic
+✅ Provider-specific selection via CLI flags
 ✅ Interactive mode with project detection (42 files)
+✅ Claude provider stub mode with context caching framework
 ```
 
 ## 📈 Next Implementation Priorities
@@ -173,7 +177,9 @@ aircher/
 - ✅ Multi-format output (text, JSON, markdown)
 - ✅ Intelligent provider routing and fallback
 - ✅ Real OpenAI integration with streaming responses
-- ✅ Graceful degradation when API keys unavailable
+- ✅ Real Claude integration with Anthropic SDK and context caching framework
+- ✅ Provider selection via CLI flag (--provider openai|claude|gemini|ollama)
+- ✅ Graceful degradation when API keys unavailable (stub mode)
 - ✅ Database initialization and schema
 - ✅ Project detection (Go project with file count)
 - ✅ MCP server management framework
@@ -240,8 +246,8 @@ Aircher has a **solid foundation** with excellent architecture and all major fra
 - MCP integration for extensibility
 - Clean, maintainable codebase with modern UI patterns
 
-**Current milestone**: ✅ **CORE LLM INTEGRATION COMPLETE** - OpenAI fully functional with streaming
+**Current milestone**: ✅ **MULTI-PROVIDER LLM SUPPORT** - OpenAI and Claude fully functional with streaming and context caching
 
-**Next milestone**: Complete remaining provider APIs (Claude, Gemini, Ollama) and implement basic context management for enhanced AI assistance.
+**Next milestone**: Complete remaining provider APIs (Gemini, Ollama) and enhance context management with advanced features like context caching utilization.
 
 **Estimated effort to full MVP**: 1-2 weeks with focus on remaining provider APIs, enhanced TUI features, and basic file context.

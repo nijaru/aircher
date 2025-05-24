@@ -19,6 +19,7 @@ var (
 	continue_    bool
 	resume       string
 	outputFormat string
+	provider     string
 )
 
 func main() {
@@ -52,7 +53,7 @@ Examples:
 		// Handle different execution modes
 		if prompt != "" {
 			// Non-interactive mode with prompt
-			return aircher.RunNonInteractive(prompt, outputFormat)
+			return aircher.RunNonInteractive(prompt, outputFormat, provider)
 		}
 
 		if continue_ {
@@ -148,6 +149,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&continue_, "continue", "c", false, "Continue last conversation")
 	rootCmd.Flags().StringVarP(&resume, "resume", "r", "", "Resume specific session")
 	rootCmd.Flags().StringVar(&outputFormat, "output-format", "text", "Output format: text, json, markdown")
+	rootCmd.Flags().StringVar(&provider, "provider", "", "LLM provider: openai, claude, gemini, ollama")
 
 	// Add subcommands
 	rootCmd.AddCommand(configCmd)

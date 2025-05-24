@@ -188,7 +188,7 @@ func (a *AircherCore) RunInteractive(initialPrompt string) error {
 }
 
 // RunNonInteractive processes a single prompt and exits
-func (a *AircherCore) RunNonInteractive(prompt, outputFormat string) error {
+func (a *AircherCore) RunNonInteractive(prompt, outputFormat, provider string) error {
 	a.logger.Info().Str("mode", "non-interactive").Str("format", outputFormat).Msg("Processing prompt")
 
 	// Check for piped input
@@ -220,7 +220,7 @@ func (a *AircherCore) RunNonInteractive(prompt, outputFormat string) error {
 	}
 
 	// Process the prompt
-	response, err := a.processPrompt(session, input)
+	response, err := a.processPromptWithProvider(session, input, provider)
 	if err != nil {
 		return fmt.Errorf("failed to process prompt: %w", err)
 	}
@@ -367,6 +367,49 @@ func (a *AircherCore) processPrompt(session *Session, prompt string) (string, er
 	response, err := a.providerMgr.Chat(ctx, request)
 	if err != nil {
 		return "", fmt.Errorf("failed to process prompt: %w", err)
+	}
+
+	return response.Message.Content, nil
+}
+
+// processPromptWithProvider processes a prompt with a specific provider preference
+func (a *AircherCore) processPromptWithProvider(session *Session, prompt, provider string) (string, error) {
+	// Build message with the prompt
+	messages := []providers.Message{
+		{
+			Role:    providers.RoleUser,
+			Content: prompt,
+		},
+	}
+
+	// Determine provider and model
+	var selectedProvider string
+	var selectedModel string
+	
+	if provider != "" {
+		// Use specified provider
+		selectedProvider = provider
+		selectedModel = a.providerMgr.GetDefaultModel(provider)
+	} else {
+		// Use default provider
+		selectedProvider = a.providerMgr.GetDefaultProvider()
+		selectedModel = a.providerMgr.GetDefaultModel(selectedProvider)
+	}
+
+	// Create chat request
+	request := &providers.ChatRequest{
+		Messages:    messages,
+		Model:       selectedModel,
+		Provider:    selectedProvider,
+		Temperature: 0.7,
+		Stream:      false,
+	}
+
+	// Send request to provider
+	ctx := context.Background()
+	response, err := a.providerMgr.Chat(ctx, request)
+	if err != nil {
+		return "", fmt.Errorf("failed to process prompt with provider %s: %w", selectedProvider, err)
 	}
 
 	return response.Message.Content, nil

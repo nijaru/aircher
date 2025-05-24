@@ -190,12 +190,15 @@ func (m *Manager) initializeProviders(cfg *config.Config) error {
 		}
 	}
 
-	// Initialize Claude provider
+	// Initialize Claude provider (always include, even in stub mode)
 	if cfg.Providers.Claude.APIKeyEnv != "" {
 		provider, err := NewClaudeProvider(&cfg.Providers.Claude, m.logger)
 		if err != nil {
 			m.logger.Warn().Err(err).Msg("Failed to initialize Claude provider")
-		} else {
+		}
+		// Always add Claude provider, even if initialization had warnings
+		// (it will work in stub mode without API key)
+		if provider != nil {
 			m.providers[ProviderClaude] = provider
 		}
 	}
