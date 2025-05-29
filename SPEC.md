@@ -26,10 +26,10 @@ type AircherCore struct {
 Built with Charmbracelet's excellent TUI ecosystem:
 
 ```go
-// Bubble Tea Model for Interactive Interface
+// Bubble Tea Model for Interactive Interface (Claude Code-inspired design)
 type Model struct {
     // Core components
-    input    textinput.Model    // User input field
+    input    textarea.Model     // Multiline user input field
     viewport viewport.Model     // Message display area
     
     // Application state
@@ -39,11 +39,10 @@ type Model struct {
     ready        bool           // Initialization status
     
     // UI state
-    thinking     bool           // AI thinking indicator
-    searching    bool           // Web search indicator
-    streaming    bool           // Response streaming indicator
-    showHelp     bool           // Help panel visibility
-    showContext  bool           // Context panel visibility
+    streaming      bool         // Response streaming indicator
+    showHelp       bool         // Help panel visibility (full help)
+    showContext    bool         // Context panel visibility
+    showShortcuts  bool         // Footer shortcuts visibility
     
     // Styling and rendering
     styles       Styles         // Lipgloss styling definitions
@@ -59,13 +58,19 @@ type Model struct {
 ```
 
 #### TUI Features
+- **Claude Code-Inspired Design**: Clean welcome screen with boxed layout and professional aesthetics
+- **Contextual Footer System**: Dynamic help that adapts to user context - from simple hints to full shortcuts
+- **Progressive Help Interface**: "? for shortcuts" → command autocomplete → full help panel
+- **Clean Chat History**: Commands show results in footer/status area, keeping conversation pure
 - **Real-time Streaming**: Live AI response rendering with smooth animations
-- **Rich Formatting**: Markdown rendering with syntax highlighting
-- **Interactive Panels**: Context sidebar, help system, status indicators
-- **Responsive Design**: Adapts to terminal size changes
-- **Keyboard Shortcuts**: Ctrl+H (help), Ctrl+T (context), Ctrl+C (exit)
-- **Visual Feedback**: Live status for thinking, searching, streaming states
-- **Professional Styling**: Modern color schemes and typography
+- **Rich Formatting**: Markdown rendering with syntax highlighting and proper borders
+- **Smart Automation**: Automatic thinking mode detection via keywords (think, analyze, plan, etc.)
+- **Enhanced Command Autocomplete**: Real-time suggestions with descriptions as you type slash commands
+- **Interactive Panels**: Context sidebar with session stats and available tools
+- **Responsive Design**: Adapts seamlessly to terminal size with proper spacing
+- **Intuitive Shortcuts**: Ctrl+H/? (help), Ctrl+T (context), Ctrl+C (exit), Shift+Enter (multiline)
+- **Multiline Input Support**: Textarea component for complex queries and code snippets
+- **Professional Styling**: Modern color schemes, typography, and spacing following CLI design best practices
 
 ### Storage Architecture
 
@@ -441,7 +446,77 @@ func (sc *SmartCompactor) ShouldCompact(conversation *Conversation, task *Task) 
 }
 ```
 
+## Intelligent Automation Features
+
+### Automatic Thinking Detection
+
+Aircher automatically detects when thinking mode should be enabled based on keywords in user messages, similar to Claude Code but more comprehensive:
+
+```go
+// detectThinkingKeywords checks if the input contains keywords that suggest thinking mode should be enabled
+func (m Model) detectThinkingKeywords(input string) bool {
+    thinkingKeywords := []string{
+        "think", "thinking", "reason", "reasoning", "analyze", "analysis",
+        "consider", "evaluate", "examine", "plan", "planning", "strategy",
+        "approach", "methodology", "step by step", "walk through", "break down",
+        "pros and cons", "trade-offs", "implications", "consequences",
+    }
+    
+    lowerInput := strings.ToLower(input)
+    for _, keyword := range thinkingKeywords {
+        if strings.Contains(lowerInput, keyword) {
+            return true
+        }
+    }
+    return false
+}
+
+// Provider request includes thinking mode when detected
+request := &providers.ChatRequest{
+    Messages: messages,
+    Model:    model,
+    Stream:   true,
+    Thinking: enableThinking, // Automatically set based on keywords
+}
+```
+
+#### Thinking Mode Behavior
+- **Automatic Detection**: No manual `/think` commands needed
+- **Provider Compatibility**: Only enabled for providers/models that support it
+- **Transparent Operation**: Users see thinking indicators in status bar
+- **Keyword Triggers**: Natural language keywords automatically enable reasoning mode
+- **Fallback Graceful**: Works seamlessly with non-thinking models
+
+### Automatic Web Search Integration
+
+Web search is handled automatically through MCP tools rather than manual commands:
+
+```go
+// Automatic search integration via MCP
+type SearchCapability struct {
+    MCPManager     *mcp.Manager
+    SearchProviders []SearchProvider
+    AutoSearch     bool
+    Cache          *SearchCache
+}
+
+// Search is triggered automatically when:
+// 1. Questions about current events, documentation, or APIs
+// 2. Error messages that need recent solutions
+// 3. Technology questions requiring up-to-date information
+// 4. Explicit search intent detected in natural language
+```
+
+#### Search Integration Features
+- **MCP-Based**: Uses Model Context Protocol for extensible search capabilities
+- **Automatic Triggering**: No `/search` commands - triggered by context and intent
+- **Multiple Providers**: Brave Search, Tavily, or custom providers via MCP
+- **Intelligent Caching**: Avoids redundant searches with time-based cache
+- **Cost Transparency**: Search costs tracked and displayed in status
+- **Fallback Handling**: Graceful degradation when search unavailable
+
 ## Multi-Provider LLM System
+</edits>
 
 ### Universal Provider Interface
 
@@ -699,6 +774,13 @@ The memory system combines human-editable AIRCHER.md files with automatic databa
 - File access patterns and relevance scores
 - Task completion patterns and outcomes
 
+**Auto-Generated Documentation**:
+- Project structure analysis (`.aircher/project_analysis.md`)
+- Documentation file discovery and cross-references
+- Technology stack detection (languages, frameworks, build systems)
+- Architecture pattern recognition (MVC, Clean Architecture, microservices)
+- Project metadata extraction (names, versions, dependencies)
+
 ### Implementation
 
 ```go
@@ -746,6 +828,138 @@ func (mm *MemoryManager) HandleMemoryInput(input string) error {
     }
     
     return mm.syncToDatabase()
+}
+```
+
+### Project Analysis System
+
+The automatic project analysis system discovers project structure, documentation, and technology stack without user intervention:
+
+```go
+type ProjectAnalyzer struct {
+    projectRoot   string
+    storageEngine *storage.Engine
+    logger        zerolog.Logger
+}
+
+type DocumentationFile struct {
+    FilePath     string    `json:"file_path"`
+    DocType      string    `json:"doc_type"`      // 'readme', 'spec', 'api', 'guide'
+    Title        string    `json:"title"`
+    Purpose      string    `json:"purpose"`
+    Sections     []string  `json:"sections"`      // Extracted headings
+    CrossRefs    []string  `json:"cross_refs"`    // References to other docs
+    LastAnalyzed time.Time `json:"last_analyzed"`
+    ContentHash  string    `json:"content_hash"`  // For change detection
+}
+
+type ProjectComponent struct {
+    Component   string                 `json:"component"`
+    Type        string                 `json:"type"`        // 'language', 'framework', 'build', 'architecture'
+    Description string                 `json:"description"`
+    Confidence  float64                `json:"confidence"`  // 0.0 to 1.0
+    Evidence    []string               `json:"evidence"`    // Supporting files/patterns
+    Metadata    map[string]interface{} `json:"metadata"`
+    LastUpdated time.Time              `json:"last_updated"`
+}
+
+type DocumentationGenerator struct {
+    projectRoot string
+    logger      zerolog.Logger
+}
+
+func (pa *ProjectAnalyzer) AnalyzeProject() (*AnalysisResult, error) {
+    // Analyze documentation files
+    docs := pa.analyzeDocumentation()
+    
+    // Detect languages and frameworks
+    components := pa.analyzeProjectStructure()
+    
+    // Extract project metadata
+    metadata := pa.extractProjectMetadata()
+    
+    // Store in enhanced knowledge database
+    return &AnalysisResult{
+        Documentation: docs,
+        Components:    components,
+        Metadata:      metadata,
+        AnalyzedAt:    time.Now(),
+    }, nil
+}
+```
+
+#### Enhanced Knowledge Database Schema
+
+```sql
+-- Auto-discovered documentation files
+CREATE TABLE documentation_analysis (
+    file_path TEXT PRIMARY KEY,
+    doc_type TEXT NOT NULL,
+    title TEXT,
+    purpose TEXT,
+    sections TEXT,        -- JSON array of headings
+    cross_refs TEXT,      -- JSON array of references
+    last_analyzed INTEGER NOT NULL,
+    content_hash TEXT     -- For change detection
+);
+
+-- Project components (languages, frameworks, architecture)
+CREATE TABLE project_structure_analysis (
+    component TEXT PRIMARY KEY,
+    type TEXT NOT NULL,   -- 'language', 'framework', 'build', 'architecture'
+    description TEXT NOT NULL,
+    confidence REAL DEFAULT 0.0,
+    evidence TEXT,        -- JSON array of supporting files
+    metadata TEXT,        -- JSON object with additional info
+    last_updated INTEGER NOT NULL
+);
+
+-- Key-value project metadata
+CREATE TABLE project_metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    confidence REAL DEFAULT 0.0,
+    source TEXT,          -- Where this info came from
+    category TEXT,        -- 'language', 'framework', 'build', 'structure'
+    last_updated INTEGER NOT NULL
+);
+```
+
+#### Auto-Generated Documentation
+
+The system generates `.aircher/project_analysis.md` containing:
+
+- **Project Overview**: Detected languages, frameworks, component summary
+- **Project Structure**: Top-level directory layout
+- **Documentation Files**: Discovered docs grouped by type with purposes and cross-references
+- **Technology Stack**: Programming languages and frameworks with confidence levels
+- **Architecture Patterns**: Detected patterns (MVC, Clean Architecture, microservices)
+- **Build Systems**: Make, CMake, Gradle, Docker, etc.
+- **Project Metadata**: Names, versions, dependencies extracted from config files
+
+#### Integration with Context Engine
+
+```go
+func (ce *ContextEngine) GatherContext(task *Task) (*Context, error) {
+    context := &Context{}
+    
+    // Load manual team knowledge from AIRCHER.md
+    if teamMemory := ce.memoryManager.GetProjectMemory(); teamMemory != nil {
+        context.Instructions = teamMemory.Instructions
+        context.Conventions = teamMemory.Conventions
+        context.Commands = teamMemory.Commands
+    }
+    
+    // Load auto-discovered project knowledge
+    if analysisPath := ce.memoryManager.GetProjectAnalysisPath(); fileExists(analysisPath) {
+        context.ProjectAnalysis = readFile(analysisPath)
+    }
+    
+    // Combine with file relevance and conversation history
+    context.RelevantFiles = ce.fileEngine.GetRelevantFiles(task)
+    context.ConversationHistory = ce.getRecentConversation()
+    
+    return context, nil
 }
 ```
 

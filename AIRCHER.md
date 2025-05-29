@@ -51,6 +51,7 @@
 - **TUI-First**: Charmbracelet Bubble Tea provides modern terminal interface
 - **MCP Integration**: Model Context Protocol for extensible tool support
 - **Configuration Layers**: Project-specific and user-global TOML configuration
+- **Project Analysis System**: Automatic project structure analysis and documentation generation
 
 ## Documentation Maintenance
 
@@ -59,6 +60,7 @@
 - **SPEC.md**: Update technical specifications when architecture changes
 - **README.md**: Keep usage examples and feature list current
 - **STATUS.md**: Update project status and metrics after significant work
+- **`.aircher/project_analysis.md`**: Auto-generated, do not edit manually - updated automatically by project analyzer
 - Mark completed items with ✅, in-progress with 🚧, not started with ❌
 - Add implementation notes for complex features
 - Update code metrics (line counts, test coverage) regularly
@@ -75,6 +77,8 @@
 - **Streaming**: Real-time response rendering as LLM generates text
 - **Compaction**: Intelligent conversation summarization to manage context limits
 - **Relevance Scoring**: Algorithm to determine file importance for context
+- **Project Analysis**: Automatic discovery and analysis of project structure, documentation, and technology stack
+- **Auto-Generated Documentation**: Machine-created project overview files that update automatically as the project evolves
 
 ## Development Notes
 
@@ -88,6 +92,9 @@
 - Go 1.24 os.Root provides secure filesystem access for MCP operations
 - Swiss Tables map implementation improves runtime performance by 2-3%
 - Tool management in go.mod eliminates need for tools.go files
+- **Project Analysis System**: Automatically analyzes project structure, documentation files, technology stack, and architecture patterns
+- **Auto-Generated Documentation**: Creates `.aircher/project_analysis.md` with comprehensive project overview
+- **Enhanced Knowledge Database**: Stores auto-discovered project insights separate from manual AIRCHER.md content
 
 ## Go 1.24 Features Used
 
@@ -107,3 +114,6 @@
 5. Add real MCP tool execution with permission system
 6. Implement conversation compaction algorithms
 7. Add comprehensive test coverage across all components
+8. **Completed**: Project Analysis System - automatic project structure analysis ✅
+9. **Completed**: Auto-generated documentation in `.aircher/project_analysis.md` ✅
+10. Store project analysis results in enhanced knowledge database

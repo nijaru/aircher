@@ -36,15 +36,19 @@ Aircher is a next-generation command-line AI coding assistant designed to work w
 
 ### Beautiful Terminal Interface (Charmbracelet TUI)
 - **Modern TUI Framework**: Built with Charmbracelet's Bubble Tea for professional terminal UI
+- **Claude Code-Inspired Design**: Clean welcome screen with boxed layout and contextual help
 - **Real-time Streaming**: Live AI response rendering with smooth animations
 - **Rich Markdown Rendering**: Beautiful code highlighting and formatting via Glamour
-- **Interactive Panels**: Context sidebar, help system, and status indicators
-- **Responsive Design**: Adapts seamlessly to any terminal size
-- **Keyboard Shortcuts**: Efficient navigation (Ctrl+H help, Ctrl+T context, Ctrl+C exit)
-- **Visual Feedback**: Live status indicators for thinking, searching, and streaming
+- **Contextual Footer System**: Dynamic help that shows shortcuts, command autocomplete, or hints based on context
+- **Interactive Panels**: Context sidebar with session stats and available tools
+- **Responsive Design**: Adapts seamlessly to any terminal size with proper border spacing
+- **Keyboard Shortcuts**: Intuitive navigation (Ctrl+H/? for help, Ctrl+T context, Ctrl+C exit)
+- **Smart Thinking Mode**: Automatic thinking detection based on keywords (like "think", "analyze", "plan")
+- **Progressive Help System**: From simple hints ("? for shortcuts") to full command reference
+- **Clean Chat History**: Commands show results in footer/status, not cluttering conversation
+- **Enhanced Command Autocomplete**: Real-time suggestions with descriptions as you type slash commands
 - **Multiple Modes**: Interactive TUI, non-interactive CLI, and automation-friendly output
 - **Session Management**: Visual session display with conversation history
-- **Enhanced Commands**: Slash commands with visual feedback and help integration
 
 ### MCP Integration & Tools
 - **Core Development Tools**: 
@@ -72,10 +76,12 @@ Aircher is a next-generation command-line AI coding assistant designed to work w
 
 ### Project Memory System
 - **AIRCHER.md Files**: Human-editable project memory for team-shared knowledge
+- **Automatic Project Analysis**: Auto-generated `.aircher/project_analysis.md` with discovered project structure, documentation files, technology stack, and architecture patterns
 - **Automatic Database**: File indexes, conversation history, and knowledge base handled automatically
 - **Memory Types**: Instructions, conventions, commands, architecture notes, glossary
 - **Instant Memory**: `#` prefix for quick memory additions from chat
 - **Sync System**: Changes to AIRCHER.md automatically update internal databases
+- **Intelligent Context**: Combines manual team knowledge with auto-discovered project insights for optimal LLM context
 
 ### Enterprise Features
 - **Self-Hosted Deployment**: No dependency on external services for core functionality
@@ -110,20 +116,24 @@ Aircher is a next-generation command-line AI coding assistant designed to work w
 
 ### vs Claude Code
 - **Multi-Provider**: Works with any LLM, not just Claude
-- **Beautiful TUI**: Modern terminal interface vs basic CLI
-- **Real-time Experience**: Live streaming responses with visual feedback
-- **Autonomous Search**: Proactive web search with temporal awareness
+- **Enhanced TUI Design**: Claude Code-inspired layout with improved contextual help system
+- **Smart Automation**: Automatic thinking detection via keywords, no manual mode switching
+- **Integrated Search**: Automatic web search via MCP tools, no separate commands needed
 - **Superior Context**: Task-aware management vs token-limit based
+- **Clean Chat History**: Commands show results in footer/status, keeping conversation pure
+- **Progressive Help**: Dynamic footer help system from hints to full shortcuts
 - **Cost Optimization**: Multi-provider cost tracking and routing
 - **Enterprise Features**: Self-hosted, air-gapped, audit logging
 
 ### vs Other AI Assistants
-- **Professional TUI**: Terminal interface that rivals desktop applications
+- **Professional TUI**: Terminal interface with Claude Code-inspired design principles
+- **Contextual Interface**: Dynamic footer help that adapts to user context and input
 - **Live Streaming**: Real-time response rendering with smooth animations
-- **Rich Formatting**: Beautiful markdown and code highlighting
-- **Intelligent Automation**: Understands intent without explicit configuration
-- **Project Persistence**: Long-term architectural understanding
-- **Universal Compatibility**: Provider-agnostic with consistent interface
+- **Rich Formatting**: Beautiful markdown and code highlighting with proper borders
+- **Intelligent Automation**: Auto-detects thinking mode needs, integrated search via MCP
+- **Clean UX**: Separate UI controls from conversation history for clarity
+- **Project Persistence**: Long-term architectural understanding via AIRCHER.md
+- **Universal Compatibility**: Provider-agnostic with consistent interface across all LLMs
 - **Advanced Context**: Quality-based compaction preserving key information
 - **MCP Ecosystem**: Access to 200+ MCP servers for extended functionality
 - **Tool Transparency**: Clear visibility and control over tool operations
@@ -218,15 +228,27 @@ aircher update                      # Self-update with rollback
 ### Slash Commands
 ```bash
 # Built-in commands
-/clear                              # Clear conversation
-/help                               # Show available commands
-/config                            # Settings management
-/cost                              # Usage and cost statistics
-/memory                            # Edit AIRCHER.md memory
-/search [query]                    # Force web search
-/think                             # Enable thinking mode
-/mcp                               # MCP server management
-/tools                             # List available MCP tools
+/help                               # Toggle help/shortcuts in footer
+/clear                              # Clear conversation history
+/status                             # Show current system setup
+/init                               # Create AIRCHER.md project memory
+/cost                               # Usage and cost statistics
+/config [key] [value]               # Settings management
+/memory [add|edit|show]             # Edit AIRCHER.md memory
+
+# Provider & Model Management
+/provider [name]                    # Switch AI provider (claude, openai, ollama)
+/model [name]                       # Switch model within current provider
+
+# Session Management
+/save [name]                        # Save current conversation
+/load <name>                        # Load saved conversation  
+/export [format]                    # Export conversation (md, json, txt)
+/session [list|new|load]            # Manage conversation sessions
+
+# Tools & Integration
+/mcp                                # MCP server management
+/tools                              # List available MCP tools
 
 # MCP-specific commands
 /mcp list                          # List installed MCP servers
@@ -307,13 +329,17 @@ AIRCHER.md files serve as human-editable project memory for information that sho
 - **File Index**: Relationships, dependencies, and metadata (file_index.db)
 - **Conversation History**: Previous conversations and context (conversations.db)
 - **Knowledge Base**: Learned patterns and solutions (knowledge.db)
+- **Project Analysis**: Auto-generated documentation of project structure, technology stack, and architecture patterns (`.aircher/project_analysis.md`)
+- **Documentation Discovery**: Automatic detection and analysis of README, SPEC, API docs, and other documentation files
+- **Technology Detection**: Automatic identification of programming languages, frameworks, build systems, and dependencies
+- **Architecture Pattern Recognition**: Detection of MVC, Clean Architecture, microservices, and other architectural patterns
 
 ### Example AIRCHER.md Structure
 ```markdown
 # Project Name - Aircher Memory
 
 ## Instructions
-- This project uses Go 1.21 with Echo framework
+- This project uses Go 1.24+ with Charmbracelet TUI framework
 - Follow Google Go style guide
 - Use testify for testing
 
