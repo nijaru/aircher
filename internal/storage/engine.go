@@ -199,12 +199,45 @@ func (e *Engine) initKnowledgeSchema() error {
 		metadata TEXT -- JSON object
 	);
 
+	CREATE TABLE IF NOT EXISTS documentation_analysis (
+		file_path TEXT PRIMARY KEY,
+		doc_type TEXT NOT NULL, -- 'readme', 'spec', 'guide', 'api', 'config'
+		title TEXT,
+		purpose TEXT,
+		sections TEXT, -- JSON array of section headings
+		cross_refs TEXT, -- JSON array of references to other docs
+		last_analyzed INTEGER NOT NULL,
+		content_hash TEXT -- for change detection
+	);
+
+	CREATE TABLE IF NOT EXISTS project_structure_analysis (
+		component TEXT PRIMARY KEY,
+		type TEXT NOT NULL, -- 'framework', 'architecture', 'convention', 'dependency'
+		description TEXT NOT NULL,
+		confidence REAL DEFAULT 0.0, -- 0.0 to 1.0
+		evidence TEXT, -- JSON array of supporting files/patterns
+		metadata TEXT, -- JSON object with additional info
+		last_updated INTEGER NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS project_metadata (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL,
+		confidence REAL DEFAULT 0.0,
+		source TEXT, -- where this info came from
+		category TEXT, -- 'language', 'framework', 'build', 'structure'
+		last_updated INTEGER NOT NULL
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_decisions_created_at ON decisions(created_at);
 	CREATE INDEX IF NOT EXISTS idx_decisions_status ON decisions(status);
 	CREATE INDEX IF NOT EXISTS idx_patterns_type ON patterns(pattern_type);
 	CREATE INDEX IF NOT EXISTS idx_patterns_last_seen ON patterns(last_seen);
 	CREATE INDEX IF NOT EXISTS idx_code_insights_file_path ON code_insights(file_path);
 	CREATE INDEX IF NOT EXISTS idx_code_insights_type ON code_insights(insight_type);
+	CREATE INDEX IF NOT EXISTS idx_documentation_analysis_doc_type ON documentation_analysis(doc_type);
+	CREATE INDEX IF NOT EXISTS idx_project_structure_type ON project_structure_analysis(type);
+	CREATE INDEX IF NOT EXISTS idx_project_metadata_category ON project_metadata(category);
 	`
 
 	_, err := e.knowledgeDB.Exec(schema)
