@@ -280,7 +280,7 @@ Create an `AIRCHER.md` file in your project root for team-shared knowledge:
 # Project Name - Aircher Memory
 
 ## Instructions
-- This project uses Go 1.21 with Echo framework
+- This project uses Go 1.24+ with Charmbracelet TUI framework
 - Follow Google Go style guide
 - Use testify for testing
 
@@ -363,36 +363,71 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Discussions**: [GitHub Discussions](https://github.com/aircher/aircher/discussions)
 - **Documentation**: [docs.aircher.ai](https://docs.aircher.ai)
 
-**API-Agnostic AI Coding Assistant**
-
-Aircher is a planned next-generation command-line AI coding assistant designed to work with any LLM provider while providing superior context management, autonomous web search, and intelligent automation.
-
 ## Project Status
 
-🚧 **In Planning Phase** - This project is currently in active planning and design. No code has been implemented yet.
+🚀 **Production Ready Core** - Aircher has a solid foundation with beautiful TUI interface, multi-provider LLM support, and extensible architecture. OpenAI and Claude providers are fully functional with real API integration.
 
-## Key Features (Planned)
+### Current Capabilities
+- ✅ **Beautiful Terminal Interface**: Modern TUI with Charmbracelet Bubble Tea
+- ✅ **Multi-Provider Support**: OpenAI and Claude fully implemented with streaming
+- ✅ **Real-time Streaming**: Live AI responses with rich markdown rendering
+- ✅ **Interactive Panels**: Context sidebar, help system, keyboard shortcuts
+- ✅ **MCP Integration**: Framework complete for extensible tool support
+- ✅ **Project Memory**: AIRCHER.md system for team knowledge
+- 🚧 **Web Search**: Framework ready, API integration pending
+- 🚧 **Context Intelligence**: File relevance and smart compaction algorithms pending
 
-- **Multi-Provider Support**: Works with OpenAI, Claude, Gemini, Ollama, and custom endpoints
-- **Intelligent Context Management**: Task-aware context with quality-based conversation compaction
-- **Autonomous Web Search**: Automatically searches for current documentation and solutions
-- **Interactive REPL**: Primary conversational interface with rich terminal features
-- **Project Memory**: AIRCHER.md files for team-shared knowledge and conventions
-- **Custom Commands**: Project and user-scoped slash commands with templating
+## Key Features
+
+### 🎨 Modern Terminal Interface
+- **Beautiful TUI**: Powered by Charmbracelet's Bubble Tea framework
+- **Real-time Streaming**: Watch AI responses appear live with smooth animations
+- **Rich Formatting**: Markdown rendering with syntax highlighting
+- **Interactive Panels**: Context sidebar, help system, and status indicators
+- **Responsive Design**: Adapts seamlessly to any terminal size
+
+### 🔄 Multi-Provider LLM Support
+- **Universal Interface**: Seamlessly switch between OpenAI, Claude, Gemini, Ollama
+- **Production Ready**: OpenAI and Claude fully integrated with real API calls and streaming
+- **Context Caching**: Claude integration includes advanced context caching for efficient token usage
+- **Provider Selection**: Explicit provider choice via CLI flags (--provider claude/openai)
+- **Intelligent Routing**: Automatically select optimal provider based on cost, features, availability
+- **Provider-Specific Features**: Function calling, thinking mode, image support where available
+- **Fallback Support**: Automatic failover when providers are unavailable with graceful stub modes
+- **Cost Optimization**: Track usage and costs across all providers
+
+### 🧠 Intelligent Context Management
+- **Task-Aware Context**: Automatically detects current task (debugging, feature development, refactoring)
+- **Smart File Relevance**: Dynamic scoring based on task context, dependencies, and usage patterns
+- **Quality-Based Compaction**: Preserves important context while managing token limits intelligently
+- **Project Knowledge Persistence**: Long-term understanding of architecture and decisions
+
+### 🔍 Autonomous Web Search
+- **Temporal Awareness**: Automatically searches for current documentation and solutions
+- **Smart Triggers**: Detects when queries need fresh information ("latest", "current", version mentions)
+- **Error Recovery**: Proactive search for solutions to encountered errors
+- **Multi-Provider Search**: Brave, DuckDuckGo, and custom search providers
+
+### 🛠️ MCP Integration & Tools
+- **Core Development Tools**: Filesystem, Git, GitHub/GitLab integration
+- **Database Tools**: PostgreSQL, MySQL, SQLite, Redis support
+- **Web Tools**: Documentation retrieval, search integration
+- **Development Environment**: Docker, terminal, build tool integration
+- **Extensibility**: Support for 200+ community MCP servers
+
+### 📝 Project Memory System
+- **AIRCHER.md Files**: Human-editable project memory for team-shared knowledge
+- **Automatic Database**: File indexes, conversation history, and knowledge base
+- **Instant Memory**: `#` prefix for quick memory additions from chat
+- **Sync System**: Changes to AIRCHER.md automatically update internal databases
 
 ## Documentation
 
-- [**OUTLINE.md**](OUTLINE.md) - Comprehensive project overview, features, and roadmap
-- [**SPEC.md**](SPEC.md) - Detailed technical specification and architecture
+- [**DOCS.md**](DOCS.md) - Complete documentation reference guide
+- [**OUTLINE.md**](OUTLINE.md) - Project vision, features, and roadmap
+- [**SPEC.md**](SPEC.md) - Technical specification and architecture
+- [**STATUS.md**](STATUS.md) - Current implementation status and progress
 - [**TASKS.md**](TASKS.md) - Implementation task list and progress tracking
-
-## Installation
-
-*Installation instructions will be available once the project is implemented.*
-
-## Quick Start
-
-*Usage instructions will be available once the project is implemented.*
 
 ## Key Differentiators
 
@@ -409,12 +444,8 @@ Aircher is a planned next-generation command-line AI coding assistant designed t
 
 ## Contributing
 
-This project is in the planning phase. Contributions to the design and specification are welcome through GitHub issues and discussions.
+Aircher welcomes contributions! The core framework is complete with opportunities to enhance provider integrations, context algorithms, and MCP tools.
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-**Note**: This project is currently in planning and design phase. See [OUTLINE.md](OUTLINE.md) for comprehensive project details and [TASKS.md](TASKS.md) for implementation roadmap.
