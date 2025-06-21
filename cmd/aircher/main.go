@@ -93,7 +93,7 @@ var configCmd = &cobra.Command{
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize project with AIRCHER.md",
+	Short: "Initialize project with AGENTS.md",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		aircher, err := core.NewAircher()
 		if err != nil {

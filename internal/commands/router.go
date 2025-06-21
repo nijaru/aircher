@@ -10,14 +10,14 @@ import (
 
 // Router handles slash command routing and execution
 type Router struct {
-	config           *config.Config
-	projectRoot      string
-	builtInCommands  map[string]Command
-	projectCommands  map[string]CustomCommand
-	userCommands     map[string]CustomCommand
-	middleware       []MiddlewareFunc
-	logger           zerolog.Logger
-	core             AircherCore // Interface to avoid circular imports
+	config          *config.Config
+	projectRoot     string
+	builtInCommands map[string]Command
+	projectCommands map[string]CustomCommand
+	userCommands    map[string]CustomCommand
+	middleware      []MiddlewareFunc
+	logger          zerolog.Logger
+	core            AircherCore // Interface to avoid circular imports
 }
 
 // AircherCore interface to avoid circular dependency
@@ -41,12 +41,12 @@ type Command interface {
 
 // CustomCommand represents a user or project-defined command
 type CustomCommand struct {
-	Name        string                 `json:"name"`
-	Scope       CommandScope           `json:"scope"`
-	FilePath    string                 `json:"file_path"`
-	Content     string                 `json:"content"`
-	Arguments   []CommandArgument      `json:"arguments,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Name      string                 `json:"name"`
+	Scope     CommandScope           `json:"scope"`
+	FilePath  string                 `json:"file_path"`
+	Content   string                 `json:"content"`
+	Arguments []CommandArgument      `json:"arguments,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // CommandScope defines where a command is available
@@ -69,11 +69,11 @@ type CommandArgument struct {
 
 // CommandContext provides context for command execution
 type CommandContext struct {
-	Command     string
-	Arguments   []string
-	RawInput    string
-	Core        AircherCore
-	Logger      zerolog.Logger
+	Command   string
+	Arguments []string
+	RawInput  string
+	Core      AircherCore
+	Logger    zerolog.Logger
 }
 
 // MiddlewareFunc represents command middleware
@@ -207,14 +207,14 @@ func (r *Router) loadCustomCommands() error {
 // GetAvailableCommands returns list of available commands
 func (r *Router) GetAvailableCommands() map[string]Command {
 	commands := make(map[string]Command)
-	
+
 	// Add built-in commands
 	for name, cmd := range r.builtInCommands {
 		commands[name] = cmd
 	}
 
 	// TODO: Add custom commands
-	
+
 	return commands
 }
 
@@ -281,7 +281,7 @@ func (c *CostCommand) Execute(ctx *CommandContext) error {
 type MemoryCommand struct{}
 
 func (c *MemoryCommand) Name() string        { return "memory" }
-func (c *MemoryCommand) Description() string { return "Edit AIRCHER.md memory" }
+func (c *MemoryCommand) Description() string { return "Edit AGENTS.md memory" }
 func (c *MemoryCommand) Usage() string       { return "/memory [add|edit|show] [content]" }
 
 func (c *MemoryCommand) Execute(ctx *CommandContext) error {

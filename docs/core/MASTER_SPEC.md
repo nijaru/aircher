@@ -16,7 +16,7 @@ type AircherCore struct {
     providerMgr    *providers.Manager      // Multi-LLM provider system
     storageEngine  *storage.Engine         // SQLite multi-DB storage
     searchEngine   *search.Engine          // Autonomous web search
-    memoryManager  *memory.Manager         // AIRCHER.md integration
+    memoryManager  *memory.Manager         // AGENTS.md integration
     mcpManager     *mcp.Manager           // MCP server management
 }
 ```
@@ -745,21 +745,21 @@ type BraveSearchProvider struct {
 }
 ```
 
-## Memory System (AIRCHER.md Integration)
+## Memory System (AGENTS.md Integration)
 
 ### Implementation Status: ✅ OpenAI & Claude Complete, 🚧 Others Pending
 
 ### Architecture Overview
 
-The memory system combines human-editable AIRCHER.md files with automatic database storage:
+The memory system combines human-editable AGENTS.md files with automatic database storage:
 
-- **AIRCHER.md**: Human-editable project memory for user-specified knowledge
+- **AGENTS.md**: Human-editable project memory for user-specified knowledge
 - **Database Storage**: Automatic handling of file indexes, conversation history, and learned patterns
-- **Sync System**: Automatic synchronization between AIRCHER.md and knowledge.db
+- **Sync System**: Automatic synchronization between AGENTS.md and knowledge.db
 
 ### What Goes Where
 
-**AIRCHER.md (User-Specified)**:
+**AGENTS.md (User-Specified)**:
 - Programming language and framework versions
 - Coding style guides and team conventions  
 - Project-specific instructions and preferences
@@ -785,14 +785,14 @@ The memory system combines human-editable AIRCHER.md files with automatic databa
 
 ```go
 type MemoryManager struct {
-    projectMemory *ProjectMemoryFile      // AIRCHER.md in project root
+    projectMemory *ProjectMemoryFile      // AGENTS.md in project root
     userMemory    *UserMemoryFiles        // ~/.aircher/memory/
     knowledgeDB   *ProjectKnowledgeDB     // Database backend
-    fileWatcher   *fsnotify.Watcher       // Watch for AIRCHER.md changes
+    fileWatcher   *fsnotify.Watcher       // Watch for AGENTS.md changes
 }
 
 type ProjectMemoryFile struct {
-    FilePath        string              // ./AIRCHER.md
+    FilePath        string              // ./AGENTS.md
     Instructions    []Instruction       // Team-shared instructions
     Conventions     []Convention        // Code style, patterns, naming
     Commands        []FrequentCommand   // Build, test, deploy, lint commands
@@ -822,7 +822,7 @@ func (mm *MemoryManager) HandleMemoryInput(input string) error {
     
     selectedType := mm.promptForMemoryType(memoryTypes)
     
-    // Add to AIRCHER.md and sync to database
+    // Add to AGENTS.md and sync to database
     if err := mm.addToMemoryFile(content, selectedType); err != nil {
         return err
     }
@@ -943,7 +943,7 @@ The system generates `.aircher/project_analysis.md` containing:
 func (ce *ContextEngine) GatherContext(task *Task) (*Context, error) {
     context := &Context{}
     
-    // Load manual team knowledge from AIRCHER.md
+    // Load manual team knowledge from AGENTS.md
     if teamMemory := ce.memoryManager.GetProjectMemory(); teamMemory != nil {
         context.Instructions = teamMemory.Instructions
         context.Conventions = teamMemory.Conventions
@@ -1000,7 +1000,7 @@ var coreCommands = map[string]*BuiltInCommand{
     },
     "memory": {
         Name:        "memory",
-        Description: "Edit AIRCHER.md memory file",
+        Description: "Edit AGENTS.md memory file",
         Handler:     handleMemory,
         Args:        []CommandArg{{Name: "action", Optional: true}},
     },
@@ -1337,7 +1337,7 @@ max_results = 5
 cache_duration = "1h"
 
 [memory]
-project_file = "AIRCHER.md"
+project_file = "AGENTS.md"
 auto_save_decisions = true
 sync_interval = "5m"
 
@@ -1412,7 +1412,7 @@ allowed_extensions = [".go", ".py", ".js", ".ts", ".md", ".json", ".yaml", ".tom
 - **LLM Provider APIs**: Structures complete, actual API calls stubbed
 - **Context Management**: Task detection and file relevance frameworks ready
 - **Web Search**: Temporal search engine framework, provider APIs stubbed
-- **Memory System**: AIRCHER.md integration framework, parsing pending
+- **Memory System**: AGENTS.md integration framework, parsing pending
 - **Smart Compaction**: Conversation analysis framework, algorithms stubbed
 
 ### ❌ Not Yet Implemented
@@ -1510,4 +1510,4 @@ allowed_extensions = [".go", ".py", ".js", ".ts", ".md", ".json", ".yaml", ".tom
 "github.com/golangci/golangci-lint"   // Linting
 ```
 
-This technical specification provides the detailed implementation guidance needed to build Aircher according to our architectural vision, with clear separation between user-editable knowledge (AIRCHER.md) and automatically managed data (databases).
+This technical specification provides the detailed implementation guidance needed to build Aircher according to our architectural vision, with clear separation between user-editable knowledge (AGENTS.md) and automatically managed data (databases).

@@ -2,6 +2,23 @@
 
 This document contains comprehensive task lists for implementing Aircher, organized by major components and phases.
 
+## 📊 Project Metrics
+
+**Last Updated**: 2025-05-23  
+**Version**: dev (commit: latest)  
+**Total Lines of Code**: 6,200+ lines of Go  
+**UI Framework**: Charmbracelet Bubble Tea TUI  
+**Architecture**: Clean Architecture with multi-database design  
+**Test Coverage**: ~60% (needs improvement)  
+
+### Component Status
+- ✅ **Core Infrastructure**: CLI, Config, Storage, Logging complete
+- ✅ **TUI Framework**: Bubble Tea integration complete  
+- 🚧 **Provider Integration**: Framework complete, API calls needed
+- ❌ **Context Management**: Algorithm design needed
+- ❌ **MCP Integration**: Tool execution needed
+- ❌ **Web Search**: API integration needed
+
 ## Project Setup & Infrastructure
 
 ### Repository & Development Environment
@@ -161,7 +178,7 @@ This document contains comprehensive task lists for implementing Aircher, organi
 - [ ] Add /help command with dynamic help
 - [ ] Implement /config command for settings
 - [ ] Create /cost command for usage tracking
-- [ ] Add /memory command for AIRCHER.md editing
+- [ ] Add /memory command for AGENTS.md editing
 - [ ] Implement /search command for forced search
 
 ### Custom Commands
@@ -172,10 +189,10 @@ This document contains comprehensive task lists for implementing Aircher, organi
 - [ ] Implement command scope management (project/user)
 - [ ] Add command validation and error handling
 
-## Memory System (AIRCHER.md Integration)
+## Memory System (AGENTS.md Integration)
 
 ### File Management
-- [ ] Implement AIRCHER.md file creation and initialization
+- [ ] Implement AGENTS.md file creation and initialization
 - [ ] Add file parsing for different memory sections
 - [ ] Create file watching for automatic updates
 - [ ] Implement file validation and error handling
@@ -191,7 +208,7 @@ This document contains comprehensive task lists for implementing Aircher, organi
 - [ ] Add memory cleanup and maintenance
 
 ### Database Synchronization
-- [ ] Implement automatic sync from AIRCHER.md to database
+- [ ] Implement automatic sync from AGENTS.md to database
 - [ ] Create conflict resolution for concurrent edits
 - [ ] Add sync status tracking
 - [ ] Implement incremental sync optimization
@@ -508,7 +525,7 @@ This document contains comprehensive task lists for implementing Aircher, organi
 - [x] File relevance scoring framework (algorithms stubbed)
 - [x] Smart conversation compaction framework (algorithms stubbed)
 - [x] Web search integration framework (API calls stubbed)
-- [x] AIRCHER.md memory system framework (parsing stubbed)
+- [x] AGENTS.md memory system framework (parsing stubbed)
 - [x] Custom slash commands system
 - [x] MCP tool permissions and security framework
 - [x] OpenAI provider API integration with streaming support

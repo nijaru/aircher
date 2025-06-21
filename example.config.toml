@@ -83,7 +83,7 @@ show_search_status = true   # Show search indicators in TUI
 
 # Project Memory System
 [memory]
-project_file = "AIRCHER.md"     # Project memory file name
+project_file = "AGENTS.md"     # Project memory file name
 auto_save_decisions = true       # Automatically save important decisions
 sync_interval = "5m"            # How often to sync memory to database
 instant_memory_prefix = "#"     # Prefix for instant memory additions
@@ -108,9 +108,9 @@ registry_url = "https://mcp-registry.aircher.ai"
 filesystem_allowed_paths = ["."]              # Allowed filesystem paths
 filesystem_readonly_paths = [".git", "node_modules"]  # Read-only paths
 require_confirmation = [                       # Actions requiring confirmation
-    "file_write", 
-    "file_delete", 
-    "git_push", 
+    "file_write",
+    "file_delete",
+    "git_push",
     "process_execute"
 ]
 
@@ -144,21 +144,21 @@ enabled = false              # Requires API token
 [security]
 require_confirmation = [     # Actions requiring user confirmation
     "file_delete",
-    "git_push", 
+    "git_push",
     "process_execute",
     "network_request"
 ]
 sandbox_mode = false         # Run in sandboxed mode
 max_file_size = "10MB"       # Maximum file size to process
 allowed_extensions = [       # Allowed file extensions
-    ".txt", ".md", ".go", ".js", ".py", ".rs", ".java", 
+    ".txt", ".md", ".go", ".js", ".py", ".rs", ".java",
     ".c", ".cpp", ".h", ".json", ".yaml", ".toml"
 ]
 
 # TUI-Specific Keyboard Shortcuts
 [interface.shortcuts]
 toggle_help = "ctrl+h"       # Toggle help panel
-toggle_context = "ctrl+t"    # Toggle context panel  
+toggle_context = "ctrl+t"    # Toggle context panel
 quit = "ctrl+c"              # Exit application
 clear_conversation = "ctrl+l" # Clear conversation
 search_mode = "ctrl+s"       # Enter search mode

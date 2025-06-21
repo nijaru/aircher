@@ -60,10 +60,10 @@ Aircher is a command-line AI coding assistant designed to work with any LLM prov
 - **Extensibility**: Support for 200+ community MCP servers
 
 ### 📝 Project Memory System
-- **AIRCHER.md Files**: Human-editable project memory for team-shared knowledge
+- **AGENTS.md Files**: Human-editable project memory for team-shared knowledge
 - **Automatic Database**: File indexes, conversation history, and knowledge base
 - **Instant Memory**: `#` prefix for quick memory additions from chat
-- **Sync System**: Changes to AIRCHER.md automatically update internal databases
+- **Sync System**: Changes to AGENTS.md automatically update internal databases
 
 ## Installation
 
@@ -197,7 +197,7 @@ $ aircher
 /clear                   # Clear conversation
 /config                  # Settings management  
 /cost                    # Show usage statistics
-/memory                  # Edit AIRCHER.md memory
+/memory                  # Edit AGENTS.md memory
 /search [query]          # Force web search
 /think                   # Toggle thinking mode
 /mcp                     # MCP server management
@@ -272,9 +272,9 @@ monthly_budget = 100.0
 daily_limit = 10.0
 ```
 
-## Project Memory (AIRCHER.md)
+## Project Memory (AGENTS.md)
 
-Create an `AIRCHER.md` file in your project root for team-shared knowledge:
+Create an `AGENTS.md` file in your project root for team-shared knowledge:
 
 ```markdown
 # Project Name - Aircher Memory
@@ -373,7 +373,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - ✅ **Real-time Streaming**: Live AI responses with rich markdown rendering
 - ✅ **Interactive Panels**: Context sidebar, help system, keyboard shortcuts
 - ✅ **MCP Integration**: Framework complete for extensible tool support
-- ✅ **Project Memory**: AIRCHER.md system for team knowledge
+- ✅ **Project Memory**: AGENTS.md system for team knowledge
 - 🚧 **Web Search**: Framework ready, API integration pending
 - 🚧 **Context Intelligence**: File relevance and smart compaction algorithms pending
 
@@ -416,10 +416,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Extensibility**: Support for 200+ community MCP servers
 
 ### 📝 Project Memory System
-- **AIRCHER.md Files**: Human-editable project memory for team-shared knowledge
+- **AGENTS.md Files**: Human-editable project memory for team-shared knowledge
 - **Automatic Database**: File indexes, conversation history, and knowledge base
 - **Instant Memory**: `#` prefix for quick memory additions from chat
-- **Sync System**: Changes to AIRCHER.md automatically update internal databases
+- **Sync System**: Changes to AGENTS.md automatically update internal databases
 
 ## Documentation
 

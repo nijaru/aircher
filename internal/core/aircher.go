@@ -10,8 +10,8 @@ import (
 	"github.com/aircher/aircher/internal/commands"
 	"github.com/aircher/aircher/internal/config"
 	contextengine "github.com/aircher/aircher/internal/context"
-	"github.com/aircher/aircher/internal/memory"
 	"github.com/aircher/aircher/internal/mcp"
+	"github.com/aircher/aircher/internal/memory"
 	"github.com/aircher/aircher/internal/providers"
 	"github.com/aircher/aircher/internal/repl"
 	"github.com/aircher/aircher/internal/search"
@@ -39,20 +39,20 @@ type AircherCore struct {
 
 // SessionManager handles conversation sessions
 type SessionManager struct {
-	storage       *storage.Engine
+	storage        *storage.Engine
 	currentSession *Session
-	logger        zerolog.Logger
+	logger         zerolog.Logger
 }
 
 // Session represents an active conversation session
 type Session struct {
-	ID          string
-	StartTime   int64
-	LastUpdate  int64
+	ID           string
+	StartTime    int64
+	LastUpdate   int64
 	MessageCount int
-	Provider    string
-	Model       string
-	Context     *context.Context
+	Provider     string
+	Model        string
+	Context      *context.Context
 }
 
 // NewAircher initializes a new Aircher instance
@@ -237,7 +237,7 @@ func (a *AircherCore) ContinueLastConversation() error {
 	}
 
 	a.logger.Info().Msg("Continuing last conversation")
-	
+
 	return a.RunInteractive("")
 }
 
@@ -249,7 +249,7 @@ func (a *AircherCore) ResumeSession(sessionID string) error {
 	}
 
 	a.logger.Info().Str("session_id", sessionID).Msg("Resuming session")
-	
+
 	return a.RunInteractive("")
 }
 
@@ -260,7 +260,7 @@ func (a *AircherCore) RunConfigManager() error {
 	return fmt.Errorf("configuration manager not yet implemented")
 }
 
-// InitializeProject creates AIRCHER.md and sets up project structure
+// InitializeProject creates AGENTS.md and sets up project structure
 func (a *AircherCore) InitializeProject() error {
 	a.logger.Info().Msg("Initializing project")
 	return a.memoryManager.InitializeProject()
@@ -385,7 +385,7 @@ func (a *AircherCore) processPromptWithProvider(session *Session, prompt, provid
 	// Determine provider and model
 	var selectedProvider string
 	var selectedModel string
-	
+
 	if provider != "" {
 		// Use specified provider
 		selectedProvider = provider
@@ -431,10 +431,10 @@ func (a *AircherCore) outputResponse(response, format string) error {
 
 func (a *AircherCore) showWelcomeMessage() {
 	fmt.Printf("Welcome to Aircher! ")
-	
+
 	// Detect project type and file count
 	if projectInfo := a.contextEngine.GetProjectInfo(); projectInfo != nil {
-		fmt.Printf("Detected %s project with %d files.\n", 
+		fmt.Printf("Detected %s project with %d files.\n",
 			projectInfo.Type, projectInfo.FileCount)
 	} else {
 		fmt.Printf("Ready to assist.\n")
@@ -459,7 +459,7 @@ func findProjectRoot(startDir string) string {
 		}
 		dir = parent
 	}
-	
+
 	// Default to starting directory
 	return startDir
 }

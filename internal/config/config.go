@@ -90,12 +90,12 @@ type ContextManagementConfig struct {
 
 // AutoCompactionConfig contains auto-compaction settings
 type AutoCompactionConfig struct {
-	Enabled                     bool `toml:"enabled"`
-	TaskCompletionTrigger       bool `toml:"task_completion_trigger"`
-	ContextShiftTrigger         bool `toml:"context_shift_trigger"`
-	QualityDegradationTrigger   bool `toml:"quality_degradation_trigger"`
-	TokenThreshold              int  `toml:"token_threshold"`
-	PreserveMessages            int  `toml:"preserve_messages"`
+	Enabled                   bool `toml:"enabled"`
+	TaskCompletionTrigger     bool `toml:"task_completion_trigger"`
+	ContextShiftTrigger       bool `toml:"context_shift_trigger"`
+	QualityDegradationTrigger bool `toml:"quality_degradation_trigger"`
+	TokenThreshold            int  `toml:"token_threshold"`
+	PreserveMessages          int  `toml:"preserve_messages"`
 }
 
 // FileRelevanceConfig contains file relevance settings
@@ -109,37 +109,37 @@ type FileRelevanceConfig struct {
 
 // SearchConfig contains web search settings
 type SearchConfig struct {
-	Enabled         bool     `toml:"enabled"`
-	AutoSearch      bool     `toml:"auto_search"`
-	Providers       []string `toml:"providers"`
-	BraveAPIKeyEnv  string   `toml:"brave_api_key_env"`
-	MaxResults      int      `toml:"max_results"`
-	CacheDuration   string   `toml:"cache_duration"`
+	Enabled        bool     `toml:"enabled"`
+	AutoSearch     bool     `toml:"auto_search"`
+	Providers      []string `toml:"providers"`
+	BraveAPIKeyEnv string   `toml:"brave_api_key_env"`
+	MaxResults     int      `toml:"max_results"`
+	CacheDuration  string   `toml:"cache_duration"`
 }
 
 // MemoryConfig contains memory system settings
 type MemoryConfig struct {
-	ProjectFile        string `toml:"project_file"`
-	AutoSaveDecisions  bool   `toml:"auto_save_decisions"`
-	SyncInterval       string `toml:"sync_interval"`
+	ProjectFile       string `toml:"project_file"`
+	AutoSaveDecisions bool   `toml:"auto_save_decisions"`
+	SyncInterval      string `toml:"sync_interval"`
 }
 
 // CostsConfig contains cost tracking settings
 type CostsConfig struct {
-	MonthlyBudget    float64 `toml:"monthly_budget"`
-	DailyLimit       float64 `toml:"daily_limit"`
-	AlertThreshold   float64 `toml:"alert_threshold"`
-	TrackByProvider  bool    `toml:"track_by_provider"`
+	MonthlyBudget   float64 `toml:"monthly_budget"`
+	DailyLimit      float64 `toml:"daily_limit"`
+	AlertThreshold  float64 `toml:"alert_threshold"`
+	TrackByProvider bool    `toml:"track_by_provider"`
 }
 
 // MCPConfig contains MCP-related settings
 type MCPConfig struct {
-	Timeout     string           `toml:"timeout"`
-	Debug       bool             `toml:"debug"`
-	AutoRestart bool             `toml:"auto_restart"`
-	AutoInstall bool             `toml:"auto_install"`
-	RegistryURL string           `toml:"registry_url"`
-	Permissions MCPPermissions   `toml:"permissions"`
+	Timeout     string            `toml:"timeout"`
+	Debug       bool              `toml:"debug"`
+	AutoRestart bool              `toml:"auto_restart"`
+	AutoInstall bool              `toml:"auto_install"`
+	RegistryURL string            `toml:"registry_url"`
+	Permissions MCPPermissions    `toml:"permissions"`
 	Servers     []MCPServerConfig `toml:"servers"`
 }
 
@@ -276,7 +276,7 @@ func (c *Config) setDefaults() {
 	}
 
 	c.Memory = MemoryConfig{
-		ProjectFile:       "AIRCHER.md",
+		ProjectFile:       "AGENTS.md",
 		AutoSaveDecisions: true,
 		SyncInterval:      "5m",
 	}

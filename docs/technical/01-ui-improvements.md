@@ -54,7 +54,7 @@ This document outlines the comprehensive UI/UX improvements made to Aircher's te
 **Enhanced Commands**:
 - `/help` - Toggles shortcuts in footer (not chat)
 - `/status` - Shows current system setup
-- `/init` - Creates AIRCHER.md project memory
+- `/init` - Creates AGENTS.md project memory
 - Added provider/model switching commands
 - Added session management commands
 

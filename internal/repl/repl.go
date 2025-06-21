@@ -159,8 +159,6 @@ type (
 	statusMsg struct {
 		text string
 	}
-
-
 )
 
 // New creates a new REPL instance
@@ -355,8 +353,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.streamCommand(m.streamChan)
 		}
 
-
-
 	case errorMsg:
 		m.addErrorMessage(fmt.Sprintf("Error: %v", msg.err))
 		m.updateViewportContent()
@@ -459,12 +455,12 @@ func (m Model) renderContent() string {
 // renderWelcome renders the welcome message when no chat history exists
 func (m Model) renderWelcome() string {
 	welcomeTitle := m.styles.Header.Render("✻ Welcome to Aircher!")
-	
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		cwd = "unknown"
 	}
-	
+
 	instructions := []string{
 		"",
 		"/help for commands, /status for your current setup",
@@ -472,7 +468,7 @@ func (m Model) renderWelcome() string {
 		fmt.Sprintf("cwd: %s", cwd),
 		"",
 	}
-	
+
 	welcomeBox := m.styles.Content.Width(m.width - 20).Render(
 		lipgloss.JoinVertical(
 			lipgloss.Left,
@@ -480,22 +476,22 @@ func (m Model) renderWelcome() string {
 			strings.Join(instructions, "\n"),
 		),
 	)
-	
+
 	tips := []string{
 		"Tips for getting started:",
 		"",
-		"1. Run /init to create an AIRCHER.md file with instructions",
-		"2. Use Aircher to help with file analysis, editing, and git operations", 
+		"1. Run /init to create an AGENTS.md file with instructions",
+		"2. Use Aircher to help with file analysis, editing, and git operations",
 		"3. Use MCP tools for enhanced capabilities like filesystem and git",
 		"4. Be as specific as you would with another engineer for best results",
 	}
-	
+
 	tipsContent := strings.Join(tips, "\n")
-	
+
 	exampleBox := m.styles.Help.Width(m.width - 20).Render(
 		`Try "how do I log an error?"`,
 	)
-	
+
 	content := lipgloss.JoinVertical(
 		lipgloss.Center,
 		"",
@@ -506,10 +502,10 @@ func (m Model) renderWelcome() string {
 		exampleBox,
 		"",
 	)
-	
+
 	return lipgloss.Place(
-		m.width - 2,
-		m.height - 8,
+		m.width-2,
+		m.height-8,
 		lipgloss.Center,
 		lipgloss.Center,
 		content,
@@ -520,10 +516,10 @@ func (m Model) renderWelcome() string {
 func (m Model) renderFooter() string {
 	// Input area with prompt
 	prompt := m.styles.Prompt.Render("> ")
-	inputArea := m.styles.Input.Width(m.width-2).Render(
+	inputArea := m.styles.Input.Width(m.width - 2).Render(
 		lipgloss.JoinHorizontal(lipgloss.Left, prompt, m.input.View()),
 	)
-	
+
 	// Footer content
 	var footerHints string
 	if m.showShortcuts {
@@ -536,13 +532,13 @@ func (m Model) renderFooter() string {
 			// Show matching commands with descriptions
 			prefix := strings.ToLower(currentInput[1:])
 			commands := map[string]string{
-				"help": "show commands", "clear": "clear chat", "cost": "show usage", 
-				"config": "settings", "memory": "edit memory", "provider": "switch AI", 
-				"tools": "list tools", "status": "show setup", "init": "create AIRCHER.md",
+				"help": "show commands", "clear": "clear chat", "cost": "show usage",
+				"config": "settings", "memory": "edit memory", "provider": "switch AI",
+				"tools": "list tools", "status": "show setup", "init": "create AGENTS.md",
 				"mcp": "manage servers", "session": "manage sessions", "save": "save chat",
 				"load": "load chat", "export": "export chat",
 			}
-			
+
 			var matches []string
 			for cmd, desc := range commands {
 				if strings.HasPrefix(cmd, prefix) {
@@ -558,7 +554,7 @@ func (m Model) renderFooter() string {
 			footerHints = m.styles.Help.Render("? for shortcuts")
 		}
 	}
-	
+
 	return m.styles.Footer.Width(m.width).Render(
 		lipgloss.JoinVertical(
 			lipgloss.Top,
@@ -580,7 +576,7 @@ func (m Model) renderHelp() string {
 		m.styles.HelpKey.Render("🔧 Configuration & Memory:"),
 		"",
 		m.styles.HelpKey.Render("/config <key> [value]") + " - " + m.styles.HelpDesc.Render("Manage settings"),
-		m.styles.HelpKey.Render("/memory [add|edit|show]") + " - " + m.styles.HelpDesc.Render("Manage AIRCHER.md memory"),
+		m.styles.HelpKey.Render("/memory [add|edit|show]") + " - " + m.styles.HelpDesc.Render("Manage AGENTS.md memory"),
 		"",
 		m.styles.HelpKey.Render("🔧 Tools & Integration:"),
 		"",
@@ -768,7 +764,7 @@ func (m Model) handleSlashCommand(command string) tea.Cmd {
 
 	case "/init":
 		return func() tea.Msg {
-			return statusMsg{"AIRCHER.md initialization not yet implemented"}
+			return statusMsg{"AGENTS.md initialization not yet implemented"}
 		}
 
 	case "/clear":
@@ -915,7 +911,7 @@ func (m Model) detectThinkingKeywords(input string) bool {
 		"approach", "methodology", "step by step", "walk through", "break down",
 		"pros and cons", "trade-offs", "implications", "consequences",
 	}
-	
+
 	lowerInput := strings.ToLower(input)
 	for _, keyword := range thinkingKeywords {
 		if strings.Contains(lowerInput, keyword) {

@@ -75,12 +75,12 @@ Aircher is a next-generation command-line AI coding assistant designed to work w
   - Custom MCP server development support
 
 ### Project Memory System
-- **AIRCHER.md Files**: Human-editable project memory for team-shared knowledge
+- **AGENTS.md Files**: Human-editable project memory for team-shared knowledge
 - **Automatic Project Analysis**: Auto-generated `.aircher/project_analysis.md` with discovered project structure, documentation files, technology stack, and architecture patterns
 - **Automatic Database**: File indexes, conversation history, and knowledge base handled automatically
 - **Memory Types**: Instructions, conventions, commands, architecture notes, glossary
 - **Instant Memory**: `#` prefix for quick memory additions from chat
-- **Sync System**: Changes to AIRCHER.md automatically update internal databases
+- **Sync System**: Changes to AGENTS.md automatically update internal databases
 - **Intelligent Context**: Combines manual team knowledge with auto-discovered project insights for optimal LLM context
 
 ### Enterprise Features
@@ -108,7 +108,7 @@ Aircher is a next-generation command-line AI coding assistant designed to work w
 - **Context Engine**: Task detection, file relevance, smart compaction
 - **Provider Manager**: Multi-LLM support with intelligent routing
 - **Search Engine**: Autonomous web search with temporal awareness  
-- **Memory System**: Project knowledge with AIRCHER.md integration
+- **Memory System**: Project knowledge with AGENTS.md integration
 - **Command Router**: Slash commands and custom command system
 - **MCP Integration**: Model Context Protocol for extensible tools
 
@@ -132,7 +132,7 @@ Aircher is a next-generation command-line AI coding assistant designed to work w
 - **Rich Formatting**: Beautiful markdown and code highlighting with proper borders
 - **Intelligent Automation**: Auto-detects thinking mode needs, integrated search via MCP
 - **Clean UX**: Separate UI controls from conversation history for clarity
-- **Project Persistence**: Long-term architectural understanding via AIRCHER.md
+- **Project Persistence**: Long-term architectural understanding via AGENTS.md
 - **Universal Compatibility**: Provider-agnostic with consistent interface across all LLMs
 - **Advanced Context**: Quality-based compaction preserving key information
 - **MCP Ecosystem**: Access to 200+ MCP servers for extended functionality
@@ -220,7 +220,7 @@ aircher -p "task" --output-format json  # Structured output
 
 # Management commands
 aircher config                      # Interactive configuration
-aircher init                        # Initialize project with AIRCHER.md
+aircher init                        # Initialize project with AGENTS.md
 aircher doctor                      # Health diagnostics
 aircher update                      # Self-update with rollback
 ```
@@ -231,10 +231,10 @@ aircher update                      # Self-update with rollback
 /help                               # Toggle help/shortcuts in footer
 /clear                              # Clear conversation history
 /status                             # Show current system setup
-/init                               # Create AIRCHER.md project memory
+/init                               # Create AGENTS.md project memory
 /cost                               # Usage and cost statistics
 /config [key] [value]               # Settings management
-/memory [add|edit|show]             # Edit AIRCHER.md memory
+/memory [add|edit|show]             # Edit AGENTS.md memory
 
 # Provider & Model Management
 /provider [name]                    # Switch AI provider (claude, openai, ollama)
@@ -279,7 +279,7 @@ aircher update                      # Self-update with rollback
 - ✅ Task-aware context management framework (algorithms stubbed)
 - ✅ Autonomous web search framework (API integration pending)
 - ✅ Smart conversation compaction framework (algorithms stubbed)
-- ✅ AIRCHER.md memory system framework (parsing pending)
+- ✅ AGENTS.md memory system framework (parsing pending)
 - ✅ Custom slash commands with visual templating
 - ✅ Enhanced TUI features with live status indicators
 - ✅ OpenAI provider with full API integration and streaming
@@ -312,12 +312,12 @@ aircher update                      # Self-update with rollback
 - Enterprise deployment guides
 - Community features and plugin system
 
-## AIRCHER.md Memory System
+## AGENTS.md Memory System
 
 ### Purpose
-AIRCHER.md files serve as human-editable project memory for information that should be included in every conversation but isn't automatically handled by the database systems.
+AGENTS.md files serve as human-editable project memory for information that should be included in every conversation but isn't automatically handled by the database systems.
 
-### What Goes in AIRCHER.md
+### What Goes in AGENTS.md
 - **Programming language and framework versions**
 - **Coding style guides and conventions**
 - **Team-specific instructions and preferences**
@@ -334,7 +334,7 @@ AIRCHER.md files serve as human-editable project memory for information that sho
 - **Technology Detection**: Automatic identification of programming languages, frameworks, build systems, and dependencies
 - **Architecture Pattern Recognition**: Detection of MVC, Clean Architecture, microservices, and other architectural patterns
 
-### Example AIRCHER.md Structure
+### Example AGENTS.md Structure
 ```markdown
 # Project Name - Aircher Memory
 
@@ -372,7 +372,7 @@ AIRCHER.md files serve as human-editable project memory for information that sho
 - **Debugging**: Automated error research and solution suggestions
 
 ### Development Teams
-- **Shared Knowledge**: Team conventions in AIRCHER.md files
+- **Shared Knowledge**: Team conventions in AGENTS.md files
 - **Onboarding**: New team members get instant project context
 - **Consistency**: Uniform coding practices across team members
 
