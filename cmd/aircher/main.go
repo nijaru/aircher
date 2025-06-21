@@ -133,6 +133,32 @@ var updateCmd = &cobra.Command{
 	},
 }
 
+var loginCmd = &cobra.Command{
+	Use:   "login",
+	Short: "Login to LLM providers by configuring API keys",
+	Long: `Interactive login to configure API keys for LLM providers.
+Supports OpenAI, Claude (Anthropic), Gemini (Google), and Ollama.
+
+Examples:
+  aircher login                # Interactive provider selection
+  aircher login openai         # Login directly to OpenAI
+  aircher login claude         # Login directly to Claude`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		aircher, err := core.NewAircher()
+		if err != nil {
+			return fmt.Errorf("failed to initialize Aircher: %w", err)
+		}
+		defer aircher.Close()
+
+		var provider string
+		if len(args) > 0 {
+			provider = args[0]
+		}
+
+		return aircher.RunLogin(provider)
+	},
+}
+
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
@@ -153,6 +179,7 @@ func init() {
 
 	// Add subcommands
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(doctorCmd)
 	rootCmd.AddCommand(updateCmd)

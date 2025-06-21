@@ -15,7 +15,43 @@ Aircher is an AI-powered terminal-based development assistant built with Go 1.24
 
 ## Core Components
 
-### 1. Modern Terminal Interface (TUI)
+### 1. Command Line Interface (CLI)
+**Detailed Specification**: `docs/core/TASKS.md` (Deferred Features section)
+
+**Service/Provider/Model Hierarchy**:
+- **Service**: API endpoint (OpenAI, Anthropic, OpenRouter, Ollama)
+- **Provider**: Entity hosting model (Anthropic, DeepSeek, Meta, etc.)
+- **Model**: Specific model (gpt-4, claude-3-sonnet, llama-3.1-8b)
+
+**Core Commands**:
+```bash
+# Main Interface (Claude Code-inspired)
+aircher                          # Start unified TUI
+aircher --service openai         # Start with specific service
+aircher --model claude-3-sonnet  # Start with specific model
+
+# Service Authentication
+aircher auth                     # Interactive service setup
+aircher auth openai              # Configure specific service
+aircher auth status              # Show configured services
+aircher auth set                 # Set default service
+aircher auth remove openai       # Remove service
+
+# Model Management  
+aircher model                    # Interactive model selection
+aircher model gpt-4              # Set specific model
+aircher model list               # List available models
+aircher model list --provider deepseek  # Filter by provider (OpenRouter)
+```
+
+**Key Features**:
+- Clean service → provider → model hierarchy
+- Secure API key management with validation
+- OpenRouter provider filtering support
+- Context usage display in TUI (44k/200k tokens)
+- Unified chat interface following Claude Code patterns
+
+### 2. Modern Terminal Interface (TUI)
 **Detailed Specification**: `docs/technical/01-ui-improvements.md`
 
 ```go
@@ -39,7 +75,7 @@ type Model struct {
 - Context-aware help and shortcuts
 - Vim-mode support and keyboard navigation
 
-### 2. Multi-Database Storage Architecture
+### 3. Multi-Database Storage Architecture
 **Detailed Specification**: `docs/technical/03-storage-architecture.md`
 
 **Database Design**:
@@ -53,7 +89,7 @@ type Model struct {
 - **File System**: Large content and binary data
 - **Specialized Indexes**: Vector embeddings for semantic search
 
-### 3. Universal LLM Provider System
+### 4. Universal LLM Provider System
 **Detailed Specification**: `docs/technical/04-llm-providers.md`
 
 ```go
@@ -78,7 +114,7 @@ type LLMProvider interface {
 - 🚧 **Google Gemini**: Gemini Pro, Gemini Pro Vision
 - 🚧 **Ollama**: Local model hosting with various open-source models
 
-### 4. Intelligent Context Management
+### 5. Intelligent Context Management
 **Detailed Specification**: `docs/technical/05-context-management.md`
 
 **Task Detection System**:
@@ -116,7 +152,7 @@ type FileRelevanceEngine struct {
 - Intelligent message importance scoring
 - Configurable preservation rules for critical information
 
-### 5. MCP (Model Context Protocol) Integration
+### 6. MCP (Model Context Protocol) Integration
 **Detailed Specification**: `docs/technical/06-mcp-integration.md`
 
 ```go
@@ -143,7 +179,7 @@ type MCPManager struct {
 - Scoped access control (local, project, user)
 - Audit logging and security monitoring
 
-### 6. Project Analysis System
+### 7. Project Analysis System
 **Status**: ✅ **Completed**
 
 ```go
@@ -200,41 +236,61 @@ type FileRelevance struct {
 
 ## Configuration System
 
-**Primary Configuration**: TOML format for all settings
+**Architecture**: Minimal configuration with intelligent defaults and secure credential management
 
-### Key Configuration Sections
+### Two-File Strategy
+- **Configuration**: `~/.config/aircher/config.toml` - User preferences, no secrets
+- **Credentials**: `~/.config/aircher/credentials.toml` - API keys, restricted permissions (600)
+
+### MVP Configuration Approach
 ```toml
+# ~/.config/aircher/config.toml - Minimal user preferences
 [providers]
-default = "openai"
-fallback_order = ["openai", "claude", "gemini", "ollama"]
+default = "auto"              # auto-detect best available provider
+fallback_enabled = true       # automatically fallback if primary fails
 
-[providers.openai]
-api_key_env = "OPENAI_API_KEY"
-model = "gpt-4"
-max_tokens = 4096
+[models]
+auto_select = true            # intelligent model selection based on task
+openai_default = "gpt-4"      # smart defaults per provider
+anthropic_default = "claude-3-5-sonnet"
 
-[context_management]
-[context_management.file_relevance]
-max_files = 20
-threshold = 0.3
-include_dependencies = true
+[interface]
+show_thinking = true          # show AI thinking process
+show_context_usage = true     # show token usage (e.g., "44k/200k")
+streaming = true             # real-time response streaming
 
-[context_management.auto_compaction]
-enabled = true
-token_threshold = 8000
-preserve_recent_messages = 10
+[context]
+max_files = 20               # intelligent context management
+auto_compaction = true       # automatic optimization
 
-[mcp]
-timeout = "30s"
-debug = false
-auto_restart = true
-auto_install = false
-
-[storage]
-data_dir = ".aircher"
-max_db_size = "1GB"
-backup_enabled = true
+[costs]
+monthly_budget = 100.0       # budget tracking and warnings
+track_usage = true
 ```
+
+### Credential Management via `aircher login`
+```toml
+# ~/.config/aircher/credentials.toml - API keys (file permissions: 600)
+[openai]
+api_key = "sk-..."
+
+[anthropic]
+api_key = "sk-ant-..."
+
+[google]
+api_key = "AI..."
+```
+
+### Smart Defaults Strategy
+- **Model Parameters**: Auto-detected from models.dev API (max_tokens, temperature, context limits)
+- **Provider Selection**: Auto-detect from available credentials
+- **Model Selection**: Intelligent defaults (GPT-4, Claude-3.5-Sonnet, Gemini-2.5-Pro)
+- **Context Management**: File relevance scoring with automatic optimization
+- **Cost Tracking**: Real-time pricing from models.dev API
+
+### Planning Documentation
+- **MVP Configuration**: `docs/config/mvp-config-spec.toml`
+- **Credential Management**: `docs/config/credentials-spec.toml`
 
 ## Implementation Phases
 

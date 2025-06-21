@@ -48,12 +48,14 @@ This project follows a hierarchical documentation pattern optimized for AI-assis
 
 **Access these via tools when needed (not in initial context):**
 - `docs/technical/01-ui-improvements.md` - TUI enhancement specifications
+- `docs/technical/07-configuration-architecture.md` - Configuration system technical specification
+- `docs/config/mvp-config-spec.toml` - MVP configuration planning and specifications
+- `docs/config/credentials-spec.toml` - API key management and `aircher login` command specs
 - `README.md` - Usage examples and installation guide
 - `go.mod` / `go.sum` - Dependencies and tool management
 - `Makefile` - Build commands and development workflows
 - `.aircher/project_analysis.md` - Auto-generated project analysis
 - Source code files in `internal/`, `cmd/`, `examples/`
-
 ## Task-to-Documentation Lookup
 
 | Development Task | Primary Source | Supporting References |
@@ -66,7 +68,7 @@ This project follows a hierarchical documentation pattern optimized for AI-assis
 | **MCP Tool Integration** | `docs/technical/06-mcp-integration.md` | `docs/core/MASTER_SPEC.md` |
 | **Testing & Quality** | `docs/core/DEVELOPER_GUIDE.md` | Test files throughout codebase |
 | **Project Analysis** | `docs/core/MASTER_SPEC.md` | `internal/analyzer/` |
-| **Configuration** | `docs/core/DEVELOPER_GUIDE.md` | `example.config.toml` |
+| **Configuration** | `docs/technical/07-configuration-architecture.md` | `docs/config/mvp-config-spec.toml`, `docs/config/credentials-spec.toml` |
 
 ## Development Guidelines
 
@@ -76,6 +78,7 @@ This project follows a hierarchical documentation pattern optimized for AI-assis
 - **SQLite + sqlx** for database operations
 - **zerolog** for structured logging
 - **TOML** for configuration (avoid JSON/YAML)
+- **Secure credential management** via `aircher login` command with proper file permissions
 
 ### Architecture Principles
 - **Clean Architecture**: Core business logic separated from external dependencies

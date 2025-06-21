@@ -118,6 +118,22 @@ Tools: /mcp, /tools
 - Responsive design that adapts to terminal size
 - Clear toggle instructions
 
+### 8.1. Context Usage Display
+**Real-time Token Tracking**:
+- Status bar shows current context usage as fraction (e.g., "44k/200k")
+- Updates in real-time as conversation progresses
+- Model-aware limits based on current service (GPT-4: 128k, Claude-3: 200k, etc.)
+
+**Visual Indicators**:
+- Normal usage: Default color (e.g., "44k/200k")
+- Warning level (80%): Yellow/amber color (e.g., "160k/200k")
+- Critical level (95%): Red color (e.g., "190k/200k")
+
+**Context Management Integration**:
+- Quick access to context compaction when approaching limits
+- Proactive warnings before hitting context limits
+- Clear indication when context compaction is recommended
+
 ### 9. Visual Design Enhancements
 **Styling Improvements**:
 - Professional color scheme with consistent theming

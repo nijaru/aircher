@@ -30,7 +30,7 @@ The project is organized into five distinct phases, progressing from foundationa
 - ✅ **Modern TUI Framework**: Responsive terminal interface built with Charmbracelet Bubble Tea
 - ✅ **Multi-Database Architecture**: Four specialized SQLite databases (conversations, knowledge, file_index, sessions)
 - ✅ **Project Analysis System**: Automatic project structure analysis with documentation generation in `.aircher/project_analysis.md`
-- ✅ **Configuration System**: Robust TOML-based configuration with hierarchical settings
+- ✅ **Configuration System**: MVP minimal configuration with smart defaults and secure credential management via `aircher login`
 - ✅ **Development Infrastructure**: Complete build system with Makefile, linting, formatting, and testing
 - ✅ **Structured Logging**: Comprehensive logging system with zerolog
 - ✅ **Database Migrations**: Automatic schema migration system for database evolution
@@ -53,12 +53,15 @@ The project is organized into five distinct phases, progressing from foundationa
 
 **Pending Implementation:**
 - 🚧 **Actual LLM API Integration**: Complete API calls with error handling and streaming for all providers
+- 🚧 **CLI Authentication & Model Management**: Interactive `aircher auth` and `aircher model` commands for service authentication and model selection
 - 🚧 **Gemini and Ollama Providers**: Full implementation of Google Gemini and local Ollama support
 - 🚧 **Token Management**: Token counting, cost calculation, and usage tracking
 - 🚧 **Response Streaming**: Real-time TUI integration with LLM streaming responses
 
 **Next Steps:**
 - Implement complete API integration for OpenAI and Claude providers
+- Build interactive CLI authentication and model management system with service/provider/model hierarchy support
+- Add unified TUI experience following Claude Code's design principles with context usage display
 - Add streaming response handling in TUI components
 - Implement token counting and cost management features
 - Complete Gemini and Ollama provider implementations
@@ -139,7 +142,7 @@ The project is organized into five distinct phases, progressing from foundationa
 - **Project Analysis System**: Fully functional with automatic documentation generation
 - **Multi-Database Architecture**: Complete with migration system and optimized schemas
 - **TUI Framework**: Responsive, beautiful interface with comprehensive styling
-- **Configuration Management**: Hierarchical TOML configuration with validation
+- **Configuration Management**: Two-file strategy with minimal user preferences and secure credential storage
 - **Development Infrastructure**: Complete build system with quality gates
 
 ### 🚧 Active Development Areas
@@ -149,10 +152,12 @@ The project is organized into five distinct phases, progressing from foundationa
 
 ### ❌ Future Development Priorities
 1. **Complete LLM API Integration**: Priority focus for immediate functionality
-2. **File Relevance Algorithms**: Core intelligence for context management
-3. **MCP Tool Framework**: Extensible tool ecosystem with security
-4. **Comprehensive Testing**: Quality assurance and reliability
-5. **Performance Optimization**: Scalability and user experience
+2. **CLI Authentication & Model Management**: Interactive `aircher auth` and `aircher model` commands with service/provider/model hierarchy
+3. **Unified TUI Experience**: Claude Code-inspired interface with real-time context usage display (44k/200k tokens)
+4. **File Relevance Algorithms**: Core intelligence for context management
+5. **MCP Tool Framework**: Extensible tool ecosystem with security
+6. **Comprehensive Testing**: Quality assurance and reliability
+7. **Performance Optimization**: Scalability and user experience
 
 ---
 
@@ -163,7 +168,7 @@ The project is organized into five distinct phases, progressing from foundationa
 - **Charmbracelet Bubble Tea**: Industry-leading TUI framework
 - **SQLite + sqlx**: High-performance embedded database with SQL extensions
 - **zerolog**: Structured logging for debugging and monitoring
-- **TOML Configuration**: Human-readable configuration format
+- **Smart Configuration**: Minimal TOML preferences with intelligent defaults from models.dev API
 
 ### Architecture Principles
 - **Clean Architecture**: Business logic separated from external dependencies

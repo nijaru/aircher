@@ -1,0 +1,41 @@
+# Aircher MVP Configuration
+# User preferences and non-sensitive settings
+# Copy to ~/.config/aircher/config.toml or project/.aircher/config.toml
+
+[providers]
+default = "auto"              # auto-detect best available provider
+fallback_enabled = true       # automatically fallback if primary fails
+fallback_order = ["openai", "anthropic", "google", "groq"]
+
+[models]
+# Smart defaults (can override if needed)
+openai_default = "gpt-4"                    # Latest GPT-4 variant
+anthropic_default = "claude-3-5-sonnet"     # Latest Sonnet
+google_default = "gemini-2.5-pro"           # Latest Gemini Pro
+auto_select = true                          # Smart model selection based on task
+
+[interface]
+show_thinking = true          # Show AI thinking process
+show_context_usage = true     # Show token usage (e.g., "44k/200k")
+show_cost = true             # Show cost estimates
+markdown_rendering = true     # Rich markdown formatting
+streaming = true             # Real-time response streaming
+syntax_highlighting = true    # Code syntax highlighting
+
+[context]
+max_files = 20               # Maximum files to include in context
+relevance_threshold = 0.3    # Minimum file relevance score (0.0-1.0)
+auto_compaction = true       # Automatically manage context limits
+preserve_recent = 5          # Always keep last N messages
+
+[costs]
+monthly_budget = 100.0       # Monthly spending limit (USD)
+warn_threshold = 0.8         # Warn when reaching 80% of budget
+track_usage = true           # Track and display costs
+
+# All other settings use intelligent defaults:
+# - Model parameters auto-detected from models.dev API
+# - Context limits automatically set per model
+# - File relevance scoring with smart algorithms
+# - Security permissions with safe defaults
+# - API keys managed via `aircher login` command

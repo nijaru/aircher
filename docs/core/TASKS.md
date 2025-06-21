@@ -46,7 +46,7 @@ This document provides a detailed, granular breakdown of all tasks required for 
 
 ### 1.2 Configuration System ✅
 - [x] Design hierarchical TOML configuration system
-- [x] Implement `example.config.toml` with all settings
+- [x] Create configuration specifications (`docs/config/mvp-config-spec.toml`, `docs/config/credentials-spec.toml`)
 - [x] Support environment variable overrides for sensitive values
 - [x] Create configuration validation and error handling
 - [x] Support both global (`~/.config/aircher/`) and project (`.aircher/`) configs
@@ -354,9 +354,10 @@ This document provides a detailed, granular breakdown of all tasks required for 
 ### Medium Priority (Next 4 Weeks)
 1. **[❌] Complete Gemini Provider** - Google AI integration
 2. **[❌] Complete Ollama Provider** - Local model support
-3. **[❌] Implement Cost Tracking** - Usage analytics and budgeting
-4. **[❌] Add Basic Testing** - Unit tests for core components
-5. **[❌] Improve Documentation** - User guides and examples
+3. **[🚧] CLI Login Command** - Interactive `aircher login` for provider API key setup (HIGH PRIORITY)
+4. **[❌] Implement Cost Tracking** - Usage analytics and budgeting
+5. **[❌] Add Basic Testing** - Unit tests for core components
+6. **[❌] Improve Documentation** - User guides and examples
 
 ### Long Term (Next 8 Weeks)
 1. **[❌] File Relevance Engine** - Intelligent context management
@@ -364,6 +365,108 @@ This document provides a detailed, granular breakdown of all tasks required for 
 3. **[❌] Task Detection System** - AI-driven task classification
 4. **[❌] Performance Optimization** - Caching and async processing
 5. **[❌] Comprehensive Testing** - >80% test coverage
+
+---
+
+## High Priority Features (Next Sprint)
+
+### CLI Authentication & Model Management - `aircher login` & `aircher model`
+**Status**: 🚧 **HIGH PRIORITY - Go Implementation**  
+**Priority**: High  
+**Rationale**: Essential for MVP user experience - secure credential management with excellent UX
+
+#### Feature Specification
+Comprehensive CLI commands for service authentication, model selection, and configuration management.
+
+**Terminology:**
+- **Service**: API endpoint/platform (OpenAI, Anthropic, OpenRouter, Ollama)
+- **Provider**: Entity hosting the model (Anthropic, DeepSeek, Meta, etc.)
+- **Model**: Specific model (gpt-4, claude-3-sonnet, llama-3.1-8b)
+
+**Authentication Commands:**
+```bash
+# Service Authentication
+aircher auth                     # Interactive service selection and API key setup
+aircher auth openai              # Configure OpenAI directly
+aircher auth anthropic           # Configure Anthropic directly  
+aircher auth openrouter          # Configure OpenRouter directly
+aircher auth ollama              # Configure local Ollama connection
+
+# Authentication Management
+aircher auth status              # Show configured services with connection health
+aircher auth set                 # Interactive default service selection
+aircher auth set openai          # Set default service directly
+aircher auth remove openai       # Remove service configuration
+aircher auth test openai         # Test specific service connection
+```
+
+**Model Management Commands:**
+```bash
+# Model Selection
+aircher model                    # Interactive model selection from available services
+aircher model gpt-4              # Set specific model directly
+aircher model list               # List available models from all configured services
+aircher model list openai        # List models from specific service
+aircher model list --provider deepseek  # List models from specific provider (OpenRouter)
+aircher model set                # Interactive model selection
+aircher model set gpt-4          # Set default model directly
+aircher model info gpt-4         # Show model details (provider, pricing, capabilities)
+```
+
+**TUI Integration Commands:**
+```bash
+# Main TUI Interface (like Claude Code)
+aircher                          # Start TUI with current default service/model
+aircher --service openai         # Start TUI with specific service
+aircher --model claude-3-sonnet  # Start TUI with specific model
+```
+
+**TUI Context Display:**
+- **Context Usage Indicator**: Show current token usage as fraction (e.g., "44k/200k") in status bar
+- **Real-time Updates**: Update context count as conversation progresses
+- **Model-aware Limits**: Display context limit based on current model (GPT-4: 128k, Claude-3: 200k, etc.)
+- **Visual Warnings**: Color-code when approaching context limits (yellow at 80%, red at 95%)
+- **Context Management**: Quick access to context compaction when limits approached
+
+**Configuration Commands:**
+```bash
+# Project Configuration
+aircher config                   # Interactive configuration editor
+aircher config show              # Display current configuration
+aircher config init              # Initialize project configuration
+aircher config reset             # Reset to defaults
+aircher config export            # Export configuration to file
+aircher config import <file>     # Import configuration from file
+```
+
+**Core Features:**
+1. **Service Authentication**: Secure API key management with validation for multiple services
+2. **Model Discovery**: Automatic model listing from configured services with capability detection
+3. **Provider Awareness**: OpenRouter provider filtering and selection support
+4. **TUI Integration**: Service/model switching within chat interface (like `/model` commands)
+5. **Configuration Management**: Project-specific and user-global configuration with import/export
+6. **Connection Health**: Real-time service availability and model compatibility checking
+7. **Cost Awareness**: Model pricing display and usage tracking integration
+
+**Security Requirements:**
+- Never display API keys in plain text
+- Store keys in environment variables or secure config
+- Validate keys before saving
+- Provide clear error messages for invalid keys
+- Support key removal/rotation
+
+**User Experience:**
+- **Simple Flow**: Interactive list → select provider → paste API key → done
+- **Visual Feedback**: Progress indicators and real-time key validation
+- **Clear Help**: Show where to get API keys for each provider
+- **Error Recovery**: Clear error messages with retry options
+
+**Implementation Notes for Go:**
+- Use Charmbracelet Bubble Tea for TUI interface
+- Implement secure input masking with proper file permissions (600)
+- Add provider health checks during validation using models.dev API
+- Support both user-global (~/.config/aircher/) and project-specific (.aircher/) configuration
+- Include cost estimation and usage warnings with real-time pricing
 
 ---
 
