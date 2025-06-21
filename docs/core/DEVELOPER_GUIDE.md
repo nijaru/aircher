@@ -227,7 +227,13 @@ internal/
 When completing features, always update:
 - `docs/core/TASKS.md`: Mark completion status and outcomes
 - `docs/core/PROJECT_ROADMAP.md`: Update roadmap and milestones
-- `docs/core/MASTER_SPEC.md`: Update technical specifications
+- `docs/core/MASTER_SPEC.md`: Update architectural overview
+- `docs/technical/`: Update relevant technical specifications
+  - `01-ui-improvements.md` for TUI components
+  - `03-storage-architecture.md` for database operations
+  - `04-llm-providers.md` for provider implementations
+  - `05-context-management.md` for context algorithms
+  - `06-mcp-integration.md` for MCP tools
 - `README.md`: Update usage examples and feature lists
 - `docs/core/STATUS.md`: Update project metrics and status
 

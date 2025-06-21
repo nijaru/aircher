@@ -60,9 +60,10 @@ This project follows a hierarchical documentation pattern optimized for AI-assis
 |------------------|----------------|----------------------|
 | **Architecture & Design** | `docs/core/MASTER_SPEC.md` | `docs/core/DEVELOPER_GUIDE.md` |
 | **TUI Components** | `docs/technical/01-ui-improvements.md` | `docs/core/DEVELOPER_GUIDE.md` |
-| **LLM Provider Integration** | `docs/core/MASTER_SPEC.md` | `internal/providers/` |
-| **Database Operations** | `docs/core/MASTER_SPEC.md` | `internal/storage/` |
-| **MCP Tool Integration** | `docs/core/MASTER_SPEC.md` | `internal/mcp/` |
+| **LLM Provider Integration** | `docs/technical/04-llm-providers.md` | `docs/core/MASTER_SPEC.md` |
+| **Database Operations** | `docs/technical/03-storage-architecture.md` | `docs/core/MASTER_SPEC.md` |
+| **Context Management** | `docs/technical/05-context-management.md` | `docs/core/MASTER_SPEC.md` |
+| **MCP Tool Integration** | `docs/technical/06-mcp-integration.md` | `docs/core/MASTER_SPEC.md` |
 | **Testing & Quality** | `docs/core/DEVELOPER_GUIDE.md` | Test files throughout codebase |
 | **Project Analysis** | `docs/core/MASTER_SPEC.md` | `internal/analyzer/` |
 | **Configuration** | `docs/core/DEVELOPER_GUIDE.md` | `example.config.toml` |

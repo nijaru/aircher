@@ -1,564 +1,429 @@
 # Aircher Implementation Tasks
 
-This document contains comprehensive task lists for implementing Aircher, organized by major components and phases.
+This document provides a detailed, granular breakdown of all tasks required for the implementation of Aircher. It serves as the **single source of truth** for tracking development progress, aligned with `docs/core/MASTER_SPEC.md`.
 
-## 📊 Project Metrics
-
-**Last Updated**: 2025-05-23  
-**Version**: dev (commit: latest)  
-**Total Lines of Code**: 6,200+ lines of Go  
-**UI Framework**: Charmbracelet Bubble Tea TUI  
-**Architecture**: Clean Architecture with multi-database design  
-**Test Coverage**: ~60% (needs improvement)  
-
-### Component Status
-- ✅ **Core Infrastructure**: CLI, Config, Storage, Logging complete
-- ✅ **TUI Framework**: Bubble Tea integration complete  
-- 🚧 **Provider Integration**: Framework complete, API calls needed
-- ❌ **Context Management**: Algorithm design needed
-- ❌ **MCP Integration**: Tool execution needed
-- ❌ **Web Search**: API integration needed
-
-## Project Setup & Infrastructure
-
-### Repository & Development Environment
-- [x] Initialize Go module with proper structure
-- [ ] Set up GitHub repository with appropriate labels and templates
-- [ ] Configure GitHub Actions for CI/CD
-- [x] Set up development environment documentation
-- [x] Create contributor guidelines and code of conduct
-- [x] Set up semantic versioning and release process
-
-### Core Project Structure
-- [x] Design and implement main package structure
-- [x] Set up configuration management with TOML (using BurntSushi/toml)
-- [x] Implement logging system with zerolog
-- [x] Create error handling patterns and custom error types
-- [x] Set up testing framework and coverage reporting
-- [x] Implement build system with Makefile
-
-## Database Layer (Multi-DB Architecture)
-
-### Database Schema Design
-- [x] Design conversations.db schema with migrations
-- [x] Design knowledge.db schema with migrations  
-- [x] Design file_index.db schema with migrations
-- [x] Design sessions.db schema with migrations
-- [x] Create database migration system
-- [x] Implement database connection management
-
-### Database Operations
-- [x] Implement SQLite operations for conversations
-- [x] Implement SQLite operations for knowledge
-- [x] Implement SQLite operations for file index
-- [x] Implement SQLite operations for sessions
-- [ ] Create database backup and restore functionality
-- [ ] Implement database cleanup and maintenance tasks
-
-### Data Models
-- [x] Define Go structs for all database entities
-- [x] Implement serialization/deserialization for JSON fields
-- [x] Create data validation functions
-- [x] Implement data migration utilities
-- [x] Add database integrity checks
-- [ ] Create database performance monitoring
-
-## LLM Provider System
-
-### Provider Interface
-- [x] Design universal LLM provider interface
-- [x] Implement base provider functionality
-- [x] Create provider registration system
-- [x] Implement provider health checking
-- [x] Design provider routing engine
-- [x] Create provider failover mechanisms
-
-### Individual Provider Implementations
-- [x] Implement OpenAI provider structure (API calls stubbed)
-- [x] Implement Claude provider structure (API calls stubbed)
-- [x] Implement Gemini provider structure (API calls stubbed)
-- [x] Implement Ollama provider for local models (API calls stubbed)
-- [x] Add support for custom endpoints
-- [x] Implement provider-specific optimizations framework
-
-### Provider Management
-- [x] Create provider configuration system
-- [x] Implement cost calculation for each provider
-- [x] Add rate limiting per provider
-- [x] Create provider usage analytics framework
-- [x] Implement provider preference management
-- [x] Add provider performance monitoring
-
-## Context Management System
-
-### Task Detection
-- [ ] Implement conversation analysis for task identification
-- [ ] Create task type classification system
-- [ ] Add file change analysis for task context
-- [ ] Implement git status integration for task detection
-- [ ] Create task completion detection algorithms
-- [ ] Add task transition handling
-
-### File Relevance Engine
-- [ ] Implement dependency graph analysis
-- [ ] Create file access pattern tracking
-- [ ] Add relevance scoring algorithms
-- [ ] Implement time-based relevance decay
-- [ ] Create contextual relevance calculation
-- [ ] Add historical relevance tracking
-
-### Smart Compaction
-- [ ] Implement conversation quality analysis
-- [ ] Create compaction trigger detection
-- [ ] Add conversation summarization system
-- [ ] Implement message importance scoring
-- [ ] Create context preservation rules
-- [ ] Add compaction quality metrics
-
-### Context Retrieval
-- [ ] Implement conversation similarity matching
-- [ ] Create context search functionality
-- [ ] Add historical context ranking
-- [ ] Implement context fusion algorithms
-- [ ] Create context relevance scoring
-- [ ] Add context caching system
-
-## Web Search System
-
-### Search Decision Engine
-- [ ] Implement temporal trigger detection
-- [ ] Create technology/framework detection
-- [ ] Add error pattern recognition
-- [ ] Implement search necessity scoring
-- [ ] Create search query generation
-- [ ] Add search result relevance filtering
-
-### Search Providers
-- [ ] Implement Brave Search integration
-- [ ] Add DuckDuckGo search support
-- [ ] Create custom search provider interface
-- [ ] Implement search result caching
-- [ ] Add search rate limiting
-- [ ] Create search result ranking
-
-### Content Processing
-- [ ] Implement web content fetching
-- [ ] Add HTML content extraction
-- [ ] Create content summarization
-- [ ] Implement code block extraction
-- [ ] Add content relevance scoring
-- [ ] Create content caching system
-
-## Command Interface System
-
-### CLI Framework
-- [x] Implement Cobra-based CLI structure
-- [x] Create command routing system
-- [x] Add command argument parsing
-- [x] Implement command validation
-- [x] Create command help system
-- [ ] Add command completion support
-
-### Interactive REPL (Charmbracelet TUI Implementation)
-- [x] Implement Bubble Tea TUI framework
-- [x] Add beautiful terminal interface with Lipgloss styling
-- [x] Create real-time streaming response display
-- [x] Implement multiline input handling with textinput
-- [x] Add markdown rendering with Glamour
-- [x] Create interactive panels (help, context, status)
-- [x] Implement keyboard shortcuts (Ctrl+H, Ctrl+T, Ctrl+C)
-- [x] Add responsive layout that adapts to terminal size
-- [x] Implement session management with visual indicators
-- [x] Create rich message formatting and syntax highlighting
-- [ ] Create REPL command processing
-
-### Slash Commands
-- [ ] Implement built-in slash command system
-- [ ] Create /clear command for conversation clearing
-- [ ] Add /help command with dynamic help
-- [ ] Implement /config command for settings
-- [ ] Create /cost command for usage tracking
-- [ ] Add /memory command for AGENTS.md editing
-- [ ] Implement /search command for forced search
-
-### Custom Commands
-- [ ] Design custom command system architecture
-- [ ] Implement command file loading from .aircher/commands/
-- [ ] Add user command loading from ~/.aircher/commands/
-- [ ] Create $ARGUMENTS template processing
-- [ ] Implement command scope management (project/user)
-- [ ] Add command validation and error handling
-
-## Memory System (AGENTS.md Integration)
-
-### File Management
-- [ ] Implement AGENTS.md file creation and initialization
-- [ ] Add file parsing for different memory sections
-- [ ] Create file watching for automatic updates
-- [ ] Implement file validation and error handling
-- [ ] Add file backup and recovery
-- [ ] Create file sync with database
-
-### Memory Processing
-- [ ] Implement # prefix memory addition
-- [ ] Create memory type classification
-- [ ] Add memory content validation
-- [ ] Implement memory search functionality
-- [ ] Create memory relevance scoring
-- [ ] Add memory cleanup and maintenance
-
-### Database Synchronization
-- [ ] Implement automatic sync from AGENTS.md to database
-- [ ] Create conflict resolution for concurrent edits
-- [ ] Add sync status tracking
-- [ ] Implement incremental sync optimization
-- [ ] Create sync error handling and recovery
-- [ ] Add sync performance monitoring
-
-### Project Analysis System ✅
-- [x] Create ProjectAnalyzer for automatic project structure analysis
-- [x] Implement documentation file discovery and analysis
-- [x] Add technology stack detection (languages, frameworks, build systems)
-- [x] Create architecture pattern recognition (MVC, Clean Architecture, microservices)
-- [x] Build project metadata extraction from config files
-- [x] Enhance knowledge database schema with analysis tables
-- [x] Create DocumentationGenerator for .aircher/project_analysis.md
-- [x] Integrate project analyzer with memory manager
-- [ ] Add database storage implementation for analysis results
-- [ ] Create file change monitoring for re-analysis triggers
-- [ ] Add confidence scoring refinement and machine learning
-- [ ] Implement incremental analysis for large projects
-- [ ] Add custom analysis rules and pattern configuration
-
-## MCP (Model Context Protocol) Integration
-
-### MCP Framework
-- [ ] Integrate mark3labs/mcp-go library
-- [ ] Implement MCP server management with process lifecycle
-- [ ] Create MCP client functionality with proper transport handling
-- [ ] Add MCP tool registration and discovery
-- [ ] Implement MCP resource handling
-- [ ] Create MCP prompt management
-- [ ] Build MCP server registry integration
-- [ ] Implement MCP server auto-installation
-
-### Core MCP Server Integration
-- [ ] Integrate filesystem MCP server with security controls
-- [ ] Add Git MCP server with branch/commit/history support
-- [ ] Implement GitHub MCP server for PR/issue management
-- [ ] Add web fetch MCP with markdown conversion
-- [ ] Integrate Brave Search MCP with cost warnings
-- [ ] Create unified tool result processing
-
-### Database MCP Servers
-- [ ] Add PostgreSQL MCP server support
-- [ ] Integrate SQLite MCP server
-- [ ] Add MySQL MCP server support
-- [ ] Integrate Redis MCP for caching operations
-- [ ] Create database connection management
-- [ ] Implement schema inspection tools
-
-### Development Environment MCP
-- [ ] Add Docker MCP server integration
-- [ ] Implement terminal/shell MCP server
-- [ ] Add build tool MCP servers (npm, cargo, etc.)
-- [ ] Create IDE integration MCP support
-- [ ] Add debugging MCP server support
-
-### Knowledge & Documentation MCP
-- [ ] Integrate memory MCP server
-- [ ] Add RAG/vector search MCP servers
-- [ ] Implement markdown processing MCP
-- [ ] Add documentation search MCP
-- [ ] Create knowledge graph MCP integration
-
-### MCP Security & Permissions
-- [ ] Implement tool permission system
-- [ ] Create user confirmation prompts for dangerous operations
-- [ ] Add path-based access controls
-- [ ] Implement network request validation
-- [ ] Create audit logging for MCP operations
-- [ ] Add sandbox execution for untrusted MCP servers
-
-### MCP Installation & Management
-- [ ] Create MCP server installer (npm/uvx/pip)
-- [ ] Implement MCP server version management
-- [ ] Add MCP server update mechanisms
-- [ ] Create MCP server dependency resolution
-- [ ] Build MCP server health checking
-- [ ] Add MCP server performance monitoring
-
-### MCP UI/UX Integration
-- [ ] Create MCP tool discovery UI
-- [ ] Implement MCP tool result formatting
-- [ ] Add MCP server status indicators
-- [ ] Create MCP configuration UI
-- [ ] Build MCP server installation wizard
-- [ ] Add MCP tool usage documentation
-
-### MCP Configuration
-- [ ] Implement multi-scope MCP configuration (local/project/user)
-- [ ] Create MCP server discovery and registration
-- [ ] Add environment variable expansion in MCP config
-- [ ] Implement MCP server categories and filtering
-- [ ] Create MCP configuration validation
-- [ ] Add MCP server enable/disable management
-
-## Terminal Integration
-
-### Interface Enhancement
-- [ ] Implement terminal detection and capabilities
-- [ ] Add color scheme support
-- [ ] Create progress indicators and spinners
-- [ ] Implement terminal resizing handling
-- [ ] Add copy/paste support
-- [ ] Create terminal-specific optimizations
-
-### Vim Mode
-- [ ] Implement vim mode toggle
-- [ ] Add basic vim navigation (h/j/k/l)
-- [ ] Create vim editing commands (i/a/o/x/d/c)
-- [ ] Implement vim command mode
-- [ ] Add vim repeat functionality (.)
-- [ ] Create vim mode status indicators
-
-### Keyboard Shortcuts
-- [ ] Implement multiline input (Shift+Enter, Option+Enter)
-- [ ] Add keyboard shortcut configuration
-- [ ] Create platform-specific key handling
-- [ ] Implement shortcut help system
-- [ ] Add customizable key bindings
-- [ ] Create keyboard shortcut validation
-
-## Output System
-
-### Format Management
-- [ ] Implement text output formatting
-- [ ] Create JSON output structure
-- [ ] Add streaming JSON output
-- [ ] Implement output format validation
-- [ ] Create output format conversion
-- [ ] Add output format documentation
-
-### Response Processing
-- [ ] Implement response streaming
-- [ ] Create response caching
-- [ ] Add response validation
-- [ ] Implement response transformation
-- [ ] Create response metadata handling
-- [ ] Add response error handling
-
-## Configuration System
-
-### TOML Configuration
-- [ ] Design comprehensive configuration schema
-- [ ] Implement configuration file loading
-- [ ] Create configuration validation
-- [ ] Add configuration migration system
-- [ ] Implement configuration inheritance
-- [ ] Create configuration documentation
-
-### Settings Management
-- [ ] Implement interactive configuration interface
-- [ ] Create configuration command-line interface
-- [ ] Add configuration file generation
-- [ ] Implement configuration backup and restore
-- [ ] Create configuration validation and repair
-- [ ] Add configuration change tracking
-
-## Security & Permissions
-
-### Access Control
-- [ ] Implement file system permission checking
-- [ ] Create command execution confirmation
-- [ ] Add network request validation
-- [ ] Implement sandbox mode functionality
-- [ ] Create permission audit logging
-- [ ] Add permission policy enforcement
-
-### Data Security
-- [ ] Implement secure API key storage
-- [ ] Create data encryption for sensitive information
-- [ ] Add secure communication protocols
-- [ ] Implement data sanitization
-- [ ] Create security vulnerability scanning
-- [ ] Add security audit logging
-
-## Enterprise Features
-
-### Git Integration
-- [ ] Implement git worktree support
-- [ ] Create git branch management
-- [ ] Add git commit automation
-- [ ] Implement git history analysis
-- [ ] Create git conflict resolution assistance
-- [ ] Add git workflow integration
-
-### Health & Monitoring
-- [ ] Implement health check system (/doctor command)
-- [ ] Create system diagnostics
-- [ ] Add performance monitoring
-- [ ] Implement error tracking and reporting
-- [ ] Create usage analytics
-- [ ] Add system maintenance tools
-
-### Cost Management
-- [ ] Implement cost tracking per provider
-- [ ] Create budget management and alerts
-- [ ] Add cost optimization recommendations
-- [ ] Implement usage reporting
-- [ ] Create cost analysis tools
-- [ ] Add cost forecasting
-
-## Auto-Update System
-
-### Update Framework
-- [ ] Implement GitHub releases integration
-- [ ] Create binary signature verification
-- [ ] Add rollback functionality on failed updates
-- [ ] Implement update checking and notification
-- [ ] Create update configuration management
-- [ ] Add update testing and validation
-
-### Release Management
-- [ ] Implement semantic versioning
-- [ ] Create release automation
-- [ ] Add release notes generation
-- [ ] Implement multi-platform builds
-- [ ] Create release testing procedures
-- [ ] Add release distribution management
-
-## Testing & Quality Assurance
-
-### Unit Testing
-- [ ] Create unit tests for all core components
-- [ ] Implement test coverage reporting
-- [ ] Add integration tests for provider interactions
-- [ ] Create mock providers for testing
-- [ ] Implement test data management
-- [ ] Add performance benchmarking tests
-
-### End-to-End Testing
-- [ ] Create E2E test scenarios
-- [ ] Implement test automation
-- [ ] Add regression testing
-- [ ] Create test environment management
-- [ ] Implement test reporting
-- [ ] Add continuous testing integration
-
-### Quality Metrics
-- [ ] Implement code quality checking
-- [ ] Create performance profiling
-- [ ] Add memory usage monitoring
-- [ ] Implement error rate tracking
-- [ ] Create user experience metrics
-- [ ] Add quality assurance automation
-
-## Documentation & Distribution
-
-### Documentation
-- [ ] Create comprehensive user documentation
-- [ ] Add API documentation
-- [ ] Implement inline help system
-- [ ] Create tutorial and examples
-- [ ] Add troubleshooting guides
-- [ ] Create developer documentation
-
-### Distribution
-- [ ] Set up Homebrew formula
-- [ ] Create Scoop package for Windows
-- [ ] Add Docker image distribution
-- [ ] Implement direct binary downloads
-- [ ] Create package signing and verification
-- [ ] Add installation verification
-
-## Multimodal Support
-
-### Image Processing
-- [ ] Implement image input detection
-- [ ] Add drag-and-drop image support
-- [ ] Create clipboard image paste functionality
-- [ ] Implement image file path processing
-- [ ] Add image format validation
-- [ ] Create image preprocessing pipeline
-
-### File Attachments
-- [ ] Implement file attachment system
-- [ ] Add file type validation
-- [ ] Create file size limitations
-- [ ] Implement file content analysis
-- [ ] Add file metadata extraction
-- [ ] Create file processing pipeline
-
-## Performance Optimization
-
-### System Performance
-- [ ] Implement caching strategies
-- [ ] Create memory usage optimization
-- [ ] Add CPU usage monitoring
-- [ ] Implement I/O optimization
-- [ ] Create garbage collection tuning
-- [ ] Add performance profiling tools
-
-### Response Time Optimization
-- [ ] Implement concurrent request processing
-- [ ] Create response caching
-- [ ] Add request prioritization
-- [ ] Implement smart prefetching
-- [ ] Create response compression
-- [ ] Add latency monitoring
-
-## Phase Completion Tracking
-
-### Phase 1: Foundation (Weeks 1-2) - COMPLETED ✅
-- [x] Core CLI framework with Cobra
-- [x] Multi-provider interface (OpenAI, Claude, Gemini, Ollama)
-- [x] Beautiful TUI REPL with Charmbracelet Bubble Tea
-- [x] Database setup and complete operations (SQLite)
-- [x] Configuration system with TOML
-- [x] Enhanced slash commands with visual feedback
-- [x] Complete MCP framework integration
-- [x] Core MCP servers configuration (filesystem, git)
-
-### Phase 2: Intelligence (Weeks 3-4) - FRAMEWORK COMPLETE 🚧
-- [x] Task detection system framework (algorithms stubbed)
-- [x] File relevance scoring framework (algorithms stubbed)
-- [x] Smart conversation compaction framework (algorithms stubbed)
-- [x] Web search integration framework (API calls stubbed)
-- [x] AGENTS.md memory system framework (parsing stubbed)
-- [x] Custom slash commands system
-- [x] MCP tool permissions and security framework
-- [x] OpenAI provider API integration with streaming support
-- [x] Claude provider API integration with Anthropic SDK and context caching
-- [ ] Database MCP servers implementation (PostgreSQL, SQLite)
-
-### Phase 3: Advanced Features (Weeks 5-6) - PARTIALLY COMPLETE 🚧
-- [x] Full MCP integration with multi-scope support
-- [x] MCP server management framework (auto-installation stubbed)
-- [x] Real-time LLM streaming integration (OpenAI complete)
-- [ ] Multimodal input support
-- [x] Output format system (JSON, markdown, text)
-- [x] Enhanced terminal integration with TUI (vim mode pending)
-- [x] Additional provider support (Gemini, Ollama implemented)
-- [x] Claude provider API implementation with Anthropic SDK
-- [ ] Remaining provider API implementations (Gemini, Ollama)
-- [ ] Development environment MCP servers
-- [ ] Knowledge/documentation MCP servers
-
-### Phase 4: Enterprise (Weeks 7-8)
-- [ ] Git worktree integration
-- [ ] Health diagnostics system
-- [ ] Cost tracking and budget management
-- [ ] Auto-update with rollback
-- [ ] Security and permission system
-
-### Phase 5: Production (Weeks 9-10)
-- [ ] Performance optimization
-- [ ] Comprehensive testing
-- [ ] Documentation completion
-- [ ] Distribution packages
-- [ ] Production deployment guides
+**Last Updated**: December 2024
+**Current Phase**: Phase 2 (LLM Provider Integration)
 
 ---
 
-**Note**: This task list will be updated as the project progresses. Completed tasks should be checked off, and new tasks should be added as requirements evolve.
+## Legend
+
+- ✅ **Completed**: Feature is fully implemented, tested, and documented
+- 🚧 **In Progress**: Feature is partially implemented or in active development
+- ❌ **Not Started**: Feature has not yet been started
+- 🔄 **Blocked**: Feature is blocked by dependencies or external factors
+
+---
+
+## Project Metrics
+
+### Code Statistics
+- **Total Go Files**: ~45 (estimated)
+- **Lines of Code**: ~8,500 (estimated)
+- **Test Coverage**: ~35% (needs improvement)
+- **Database Schemas**: 4 complete (conversations, knowledge, file_index, sessions)
+
+### Implementation Progress by Phase
+- **Phase 1 (Foundation)**: ✅ 100% Complete
+- **Phase 2 (Intelligence)**: 🚧 40% Complete (framework done, API integration pending)
+- **Phase 3 (Context Management)**: ❌ 0% Complete
+- **Phase 4 (Tool Integration)**: 🚧 15% Complete (framework only)
+- **Phase 5 (Enterprise)**: ❌ 0% Complete
+- **Phase 6 (Production)**: ❌ 0% Complete
+
+---
+
+## Phase 1: Foundation ✅ **COMPLETED**
+
+### 1.1 Project Infrastructure ✅
+- [x] Initialize Go 1.24+ module with proper structure
+- [x] Implement Makefile with comprehensive build commands
+- [x] Set up Go 1.24 tool management (`make tools`, `make tools-update`)
+- [x] Configure golangci-lint, gofumpt, and development tools
+- [x] Establish project directory structure following Go standards
+- [x] Create `.gitignore` and repository configuration
+
+### 1.2 Configuration System ✅
+- [x] Design hierarchical TOML configuration system
+- [x] Implement `example.config.toml` with all settings
+- [x] Support environment variable overrides for sensitive values
+- [x] Create configuration validation and error handling
+- [x] Support both global (`~/.config/aircher/`) and project (`.aircher/`) configs
+- [x] Implement configuration hot-reloading capabilities
+
+### 1.3 Multi-Database Architecture ✅
+- [x] Design `conversations.db` schema (messages, sessions, metadata)
+- [x] Design `knowledge.db` schema (project insights, learned patterns)
+- [x] Design `file_index.db` schema (file metadata, relationships, changes)
+- [x] Design `sessions.db` schema (persistent state, preferences)
+- [x] Implement database migration system with version tracking
+- [x] Integrate `sqlx` for enhanced database operations
+- [x] Create database connection pooling and management
+- [x] Implement automatic database creation and initialization
+
+### 1.4 Terminal User Interface (TUI) ✅
+- [x] Integrate Charmbracelet Bubble Tea framework
+- [x] Implement core `Model` struct with MVC pattern
+- [x] Create responsive layout with input and viewport components
+- [x] Implement terminal resizing handling
+- [x] Integrate Lipgloss for consistent styling and theming
+- [x] Create color scheme supporting light/dark terminals
+- [x] Implement keyboard navigation and shortcuts
+- [x] Add loading states and user feedback mechanisms
+
+### 1.5 Logging and Error Handling ✅
+- [x] Integrate `zerolog` for structured logging
+- [x] Implement log levels and configuration
+- [x] Create consistent error handling patterns
+- [x] Design user-friendly error messages
+- [x] Implement debug logging for development
+- [x] Create log rotation and management
+
+### 1.6 Project Analysis System ✅
+- [x] Implement `ProjectAnalyzer` with filesystem traversal
+- [x] Add project structure detection algorithms
+- [x] Create language and framework detection
+- [x] Implement automatic documentation generation
+- [x] Generate comprehensive `.aircher/project_analysis.md`
+- [x] Integrate with storage engine for persistent analysis
+- [x] Add incremental analysis and change detection
+- [x] Create project metrics and statistics
+
+---
+
+## Phase 2: Intelligence 🚧 **40% COMPLETE**
+
+### 2.1 Universal LLM Provider System 🚧
+
+#### Provider Interface Design ✅
+- [x] Design comprehensive `LLMProvider` interface
+- [x] Define `ChatRequest` and `ChatResponse` structures
+- [x] Implement provider capability detection (`SupportsFunctions`, `SupportsStreaming`, etc.)
+- [x] Create token counting and cost calculation interfaces
+- [x] Design streaming response handling architecture
+- [x] Implement provider registration and management system
+
+#### OpenAI Provider 🚧
+- [x] Create OpenAI provider structure and configuration
+- [x] Implement model support (GPT-3.5, GPT-4, GPT-4 Turbo)
+- [x] Design API request/response handling
+- [❌] **HIGH PRIORITY**: Implement actual API calls with error handling
+- [❌] **HIGH PRIORITY**: Integrate streaming responses with TUI
+- [❌] Implement token counting for OpenAI models
+- [❌] Add cost calculation based on model pricing
+- [❌] Implement retry logic with exponential backoff
+- [❌] Add comprehensive error handling and user feedback
+
+#### Claude (Anthropic) Provider 🚧
+- [x] Create Claude provider structure and configuration
+- [x] Implement model support (Claude-3 Haiku, Sonnet, Opus)
+- [x] Design API request/response handling
+- [❌] **HIGH PRIORITY**: Implement actual API calls with error handling
+- [❌] **HIGH PRIORITY**: Integrate streaming responses with TUI
+- [❌] Implement token counting for Claude models
+- [❌] Add cost calculation based on Anthropic pricing
+- [❌] Implement Claude-specific features (thinking, system messages)
+- [❌] Add comprehensive error handling and user feedback
+
+#### Gemini Provider ❌
+- [❌] Create Gemini provider structure and configuration
+- [❌] Implement Google AI Studio and Vertex AI support
+- [❌] Design API request/response handling for Gemini
+- [❌] Implement actual API calls with error handling
+- [❌] Add multimodal support (text + images)
+- [❌] Implement token counting for Gemini models
+- [❌] Add cost calculation and usage tracking
+
+#### Ollama Provider ❌
+- [❌] Create Ollama provider structure and configuration
+- [❌] Implement local model detection and management
+- [❌] Design API communication with Ollama daemon
+- [❌] Implement actual API calls for local models
+- [❌] Add model download and management features
+- [❌] Implement streaming responses for local models
+- [❌] Create performance optimization for local inference
+
+### 2.2 Response Streaming Integration ❌
+- [❌] **HIGH PRIORITY**: Integrate streaming responses with TUI viewport
+- [❌] **HIGH PRIORITY**: Implement real-time text rendering
+- [❌] Create smooth streaming animation and effects
+- [❌] Add streaming error handling and recovery
+- [❌] Implement streaming cancellation and timeout
+- [❌] Create streaming performance optimization
+- [❌] Add streaming response caching and replay
+
+### 2.3 Token Management System ❌
+- [❌] **HIGH PRIORITY**: Implement accurate token counting for all providers
+- [❌] Create cost tracking and budgeting system
+- [❌] Add usage analytics and reporting
+- [❌] Implement token optimization strategies
+- [❌] Create cost alerts and budget limits
+- [❌] Add usage history and trends
+
+---
+
+## Phase 3: Context Intelligence ❌ **NOT STARTED**
+
+### 3.
+1 Task Detection System ❌
+- [❌] Design task classification algorithms (`TaskDetector`)
+- [❌] Implement task type detection (debugging, feature development, refactoring, etc.)
+- [❌] Create behavior pattern analysis (`BehaviorAnalyzer`)
+- [❌] Add file access pattern monitoring (`FileWatcher`)
+- [❌] Implement git activity monitoring (`GitWatcher`)
+- [❌] Create task transition detection and context switching
+- [❌] Add task completion detection and archiving
+
+### 3.2 File Relevance Engine ❌
+- [❌] Design file relevance scoring algorithms (`FileRelevanceEngine`)
+- [❌] Implement dependency graph construction (`DependencyGraph`)
+- [❌] Create access pattern analysis (`AccessPatternAnalyzer`)
+- [❌] Add semantic analysis for file relationships
+- [❌] Implement relevance score calculation and ranking
+- [❌] Create dynamic relevance adjustment based on context
+- [❌] Add file relationship learning and improvement
+
+### 3.3 Smart Context Assembly ❌
+- [❌] Implement intelligent file selection for context
+- [❌] Create context window optimization algorithms
+- [❌] Add conversation history relevance scoring
+- [❌] Implement context prioritization and ranking
+- [❌] Create context size management and limits
+- [❌] Add context quality metrics and validation
+
+### 3.4 Conversation Compaction ❌
+- [❌] Design conversation summarization algorithms
+- [❌] Implement message importance scoring
+- [❌] Create intelligent message pruning and archiving
+- [❌] Add conversation thread management
+- [❌] Implement context preservation rules
+- [❌] Create compaction quality metrics and validation
+
+---
+
+## Phase 4: Tool Integration ❌ **15% COMPLETE**
+
+### 4.1 MCP (Model Context Protocol) Framework 🚧
+
+#### Core MCP Infrastructure 🚧
+- [x] Design `MCPManager` architecture and interfaces
+- [x] Create MCP client for server communication
+- [x] Design server lifecycle management (start, stop, restart)
+- [x] Implement server registry and discovery
+- [❌] Implement actual MCP protocol communication
+- [❌] Add MCP server installation and management
+- [❌] Create server health monitoring and diagnostics
+- [❌] Implement automatic server recovery and restart
+
+#### Security and Permissions ❌
+- [❌] **CRITICAL**: Design comprehensive permission system (`MCPPermissionSystem`)
+- [❌] **CRITICAL**: Integrate Go 1.24 `os.Root` for secure filesystem operations
+- [❌] Implement user confirmation dialogs for dangerous operations
+- [❌] Create audit logging for all tool executions
+- [❌] Add permission scope management (local, project, user)
+- [❌] Implement security policy configuration and enforcement
+- [❌] Create sandboxed execution environment
+
+### 4.2 Core MCP Tools ❌
+
+#### Filesystem Tool ❌
+- [❌] Implement secure file operations with `os.Root`
+- [❌] Add file reading, writing, and manipulation capabilities
+- [❌] Create directory traversal and search functions
+- [❌] Implement file permission and ownership management
+- [❌] Add file backup and versioning support
+- [❌] Create filesystem monitoring and change detection
+
+#### Git Integration Tool ❌
+- [❌] Implement git repository operations
+- [❌] Add commit, branch, and merge functionality
+- [❌] Create git status and diff analysis
+- [❌] Implement intelligent commit message generation
+- [❌] Add git workflow automation and assistance
+- [❌] Create git history analysis and insights
+
+#### Web Search Tool ❌
+- [❌] Integrate Brave Search API for web search
+- [❌] Implement intelligent search query generation
+- [❌] Add search result filtering and ranking
+- [❌] Create contextual search triggers
+- [❌] Implement search result caching and management
+- [❌] Add search history and analytics
+
+#### Database Tools ❌
+- [❌] Implement SQLite database operations
+- [❌] Add PostgreSQL integration for external databases
+- [❌] Create database query generation and optimization
+- [❌] Implement database schema analysis and documentation
+- [❌] Add database backup and migration tools
+- [❌] Create database performance monitoring
+
+### 4.3 GitHub Integration ❌
+- [❌] Implement GitHub API integration
+- [❌] Add repository management and operations
+- [❌] Create issue tracking and management
+- [❌] Implement pull request automation and assistance
+- [❌] Add GitHub workflow integration
+- [❌] Create GitHub analytics and insights
+
+---
+
+## Phase 5: Enterprise Features ❌ **NOT STARTED**
+
+### 5.1 Advanced Monitoring and Health Checks ❌
+- [❌] Implement comprehensive system health monitoring
+- [❌] Create performance metrics collection and analysis
+- [❌] Add resource usage monitoring and optimization
+- [❌] Implement error tracking and alerting systems
+- [❌] Create diagnostic tools and troubleshooting guides
+- [❌] Add system performance benchmarking and testing
+
+### 5.2 Cost Management and Analytics ❌
+- [❌] Implement comprehensive cost tracking across all providers
+- [❌] Create budget management and alerting systems
+- [❌] Add usage analytics and reporting dashboards
+- [❌] Implement cost optimization recommendations
+- [❌] Create cost forecasting and planning tools
+- [❌] Add multi-user cost allocation and tracking
+
+### 5.3 Team Collaboration Features ❌
+- [❌] Implement shared knowledge bases and conversation synchronization
+- [❌] Create team workspace management and permissions
+- [❌] Add collaborative conversation and context sharing
+- [❌] Implement team analytics and usage insights
+- [❌] Create team configuration and policy management
+- [❌] Add integration with team communication tools
+
+### 5.4 Advanced Git Workflow Integration ❌
+- [❌] Implement intelligent commit message generation
+- [❌] Create automated pull request summaries and descriptions
+- [❌] Add code review assistance and suggestions
+- [❌] Implement git workflow automation and optimization
+- [❌] Create git analytics and team insights
+- [❌] Add integration with git hosting platforms
+
+---
+
+## Phase 6: Production Ready ❌ **NOT STARTED**
+
+### 6.1 Comprehensive Testing ❌
+- [❌] **CRITICAL**: Achieve >90% unit test coverage across all components
+- [❌] **CRITICAL**: Implement integration tests for all major workflows
+- [❌] Create end-to-end tests for user scenarios
+- [❌] Add performance benchmarking and regression testing
+- [❌] Implement chaos testing and reliability validation
+- [❌] Create automated testing in CI/CD pipeline
+- [❌] Add test coverage reporting and quality gates
+
+### 6.2 Performance Optimization ❌
+- [❌] Implement connection pooling for all external APIs
+- [❌] Add intelligent caching for responses and data
+- [❌] Create async processing for non-blocking operations
+- [❌] Implement memory optimization and garbage collection tuning
+- [❌] Add database query optimization and indexing
+- [❌] Create performance monitoring and profiling tools
+
+### 6.3 Documentation and User Experience ❌
+- [❌] Write comprehensive user documentation and guides
+- [❌] Create developer API documentation and examples
+- [❌] Implement interactive tutorials and onboarding
+- [❌] Add contextual help and assistance features
+- [❌] Create troubleshooting guides and FAQ
+- [❌] Implement user feedback collection and analysis
+
+### 6.4 Distribution and Release ❌
+- [❌] Set up automated binary building for multiple platforms
+- [❌] Create Homebrew formula and distribution
+- [❌] Implement Scoop package for Windows distribution
+- [❌] Add auto-update system with security verification
+- [❌] Create release automation and versioning
+- [❌] Implement telemetry and usage analytics (opt-in)
+
+---
+
+## Current Sprint: High Priority Tasks
+
+### Immediate Focus (Next 2 Weeks)
+1. **[❌] Complete OpenAI API Integration** - Implement actual API calls with streaming
+2. **[❌] Complete Claude API Integration** - Implement actual API calls with streaming  
+3. **[❌] Integrate Streaming with TUI** - Real-time response rendering in viewport
+4. **[❌] Implement Token Counting** - Accurate token counting for cost management
+5. **[❌] Add Basic Error Handling** - User-friendly error messages and recovery
+
+### Medium Priority (Next 4 Weeks)
+1. **[❌] Complete Gemini Provider** - Google AI integration
+2. **[❌] Complete Ollama Provider** - Local model support
+3. **[❌] Implement Cost Tracking** - Usage analytics and budgeting
+4. **[❌] Add Basic Testing** - Unit tests for core components
+5. **[❌] Improve Documentation** - User guides and examples
+
+### Long Term (Next 8 Weeks)
+1. **[❌] File Relevance Engine** - Intelligent context management
+2. **[❌] MCP Security Framework** - Secure tool execution
+3. **[❌] Task Detection System** - AI-driven task classification
+4. **[❌] Performance Optimization** - Caching and async processing
+5. **[❌] Comprehensive Testing** - >80% test coverage
+
+---
+
+## Blockers and Dependencies
+
+### Current Blockers
+- **None** - All immediate tasks are unblocked and ready for implementation
+
+### External Dependencies
+- **OpenAI API Access** - Requires valid API key for testing
+- **Claude API Access** - Requires Anthropic API key for testing
+- **Google AI Studio** - Requires Gemini API access for testing
+- **Local Ollama** - Requires Ollama installation for local model testing
+
+### Technical Dependencies
+- **Go 1.24+** - Required for os.Root and modern language features
+- **SQLite** - Core database functionality (already integrated)  
+- **Bubble Tea** - TUI framework (already integrated)
+- **MCP Servers** - External servers for tool functionality
+
+---
+
+## Quality Metrics and Goals
+
+### Code Quality Targets
+- **Test Coverage**: >90% (Current: ~35%)
+- **Linting**: Zero warnings from golangci-lint
+- **Documentation**: 100% of public APIs documented
+- **Performance**: <100ms response time for local operations
+- **Security**: Zero critical vulnerabilities
+
+### User Experience Goals
+- **Startup Time**: <500ms from command to ready
+- **Response Latency**: <2s for most LLM responses (network dependent)
+- **Error Recovery**: Graceful handling of all error conditions
+- **Accessibility**: Support for screen readers and keyboard-only navigation
+- **Reliability**: <0.1% crash rate in production usage
+
+---
+
+## Development Guidelines
+
+### Task Completion Criteria
+Each task must meet the following criteria before being marked as ✅:
+1. **Implementation**: Feature is fully implemented according to specifications
+2. **Testing**: Adequate test coverage with passing tests
+3. **Documentation**: Code is documented with clear godoc comments
+4. **Error Handling**: Proper error handling with user-friendly messages
+5. **Code Review**: Code follows project standards and passes review
+6. **Integration**: Feature integrates properly with existing components
+
+### Progress Updates
+- **Daily**: Update task status for active development items
+- **Weekly**: Review and adjust priority and timeline estimates  
+- **Monthly**: Update project metrics and coverage statistics
+- **Per Release**: Complete documentation updates and quality validation
+
+---
+
+**CRITICAL REMINDER**: This document is the **single source of truth** for all task management and progress tracking. Never create duplicate task lists in other files. All development progress, metrics, and status updates must be maintained here exclusively.
+
+**Last Review**: December 2024  
+**Next Review**: January 2025

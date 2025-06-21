@@ -1,402 +1,242 @@
-# Aircher Project Outline
+# Aircher Project Roadmap
+
+This document outlines the strategic vision, key features, and implementation phases for the Aircher project. It provides a high-level overview of our development timeline and goals, aligned with the `docs/core/MASTER_SPEC.md`.
+
+---
 
 ## Project Vision
 
-Aircher is a next-generation command-line AI coding assistant designed to work with any LLM provider while providing superior context management, autonomous web search, and intelligent automation. Unlike single-provider tools, Aircher offers true multi-provider support, cost optimization, and enterprise-ready features.
+Aircher aims to be an indispensable AI-powered development assistant, seamlessly integrated into the terminal. By combining a beautiful and intuitive TUI with intelligent context management, extensible tools, and multi-provider LLM support, Aircher will accelerate development workflows and provide developers with a powerful, context-aware coding partner.
 
-## Core Philosophy
+**Key Differentiators:**
+- Terminal-native interface with responsive design optimized for developer workflows
+- Multi-database architecture for efficient data organization and retrieval
+- Universal LLM provider interface supporting OpenAI, Claude, Gemini, and Ollama
+- Intelligent context management with file relevance scoring and task detection
+- Model Context Protocol (MCP) integration for extensible tool ecosystem
+- Project analysis system with automatic documentation generation
 
-- **API-Agnostic**: Works with OpenAI, Claude, Gemini, Ollama, and custom endpoints
-- **Intelligence over Configuration**: Understands context and intent automatically  
-- **Proactive Assistance**: Anticipates needs rather than waiting for explicit commands
-- **Enterprise-Ready**: Self-hosted, air-gapped support, audit logging
+---
 
-## Key Features
+## Implementation Phases
 
-### Multi-Provider LLM Support
-- **Universal Interface**: Seamlessly switch between OpenAI, Claude, Gemini, Ollama
-- **Intelligent Routing**: Automatically select optimal provider based on cost, features, availability
-- **Provider-Specific Features**: Function calling, thinking mode, image support where available
-- **Fallback Support**: Automatic failover when providers are unavailable
-- **Cost Optimization**: Track usage and costs across all providers
+The project is organized into five distinct phases, progressing from foundational infrastructure to enterprise-ready features. Each phase builds upon the previous one to create a robust, production-ready development assistant.
 
-### Intelligent Context Management
-- **Task-Aware Context**: Automatically detects current task (debugging, feature development, refactoring)
-- **Smart File Relevance**: Dynamic scoring based on task context, dependencies, and usage patterns
-- **Quality-Based Compaction**: Preserves important context while managing token limits intelligently
-- **Project Knowledge Persistence**: Long-term understanding of architecture and decisions
-- **Context Retrieval**: Finds relevant historical conversations and solutions
+### Phase 1: Foundation ✅ **COMPLETED**
 
-### Autonomous Web Search
-- **Temporal Awareness**: Automatically searches for current documentation and solutions
-- **Smart Triggers**: Detects when queries need fresh information ("latest", "current", version mentions)
-- **Error Recovery**: Proactive search for solutions to encountered errors
-- **Multi-Provider Search**: Brave, DuckDuckGo, and custom search providers
-- **Result Integration**: Seamlessly incorporates search results into responses
+**Objective**: Establish core infrastructure and development environment
 
-### Beautiful Terminal Interface (Charmbracelet TUI)
-- **Modern TUI Framework**: Built with Charmbracelet's Bubble Tea for professional terminal UI
-- **Claude Code-Inspired Design**: Clean welcome screen with boxed layout and contextual help
-- **Real-time Streaming**: Live AI response rendering with smooth animations
-- **Rich Markdown Rendering**: Beautiful code highlighting and formatting via Glamour
-- **Contextual Footer System**: Dynamic help that shows shortcuts, command autocomplete, or hints based on context
-- **Interactive Panels**: Context sidebar with session stats and available tools
-- **Responsive Design**: Adapts seamlessly to any terminal size with proper border spacing
-- **Keyboard Shortcuts**: Intuitive navigation (Ctrl+H/? for help, Ctrl+T context, Ctrl+C exit)
-- **Smart Thinking Mode**: Automatic thinking detection based on keywords (like "think", "analyze", "plan")
-- **Progressive Help System**: From simple hints ("? for shortcuts") to full command reference
-- **Clean Chat History**: Commands show results in footer/status, not cluttering conversation
-- **Enhanced Command Autocomplete**: Real-time suggestions with descriptions as you type slash commands
-- **Multiple Modes**: Interactive TUI, non-interactive CLI, and automation-friendly output
-- **Session Management**: Visual session display with conversation history
+**Completed Features:**
+- ✅ **Modern TUI Framework**: Responsive terminal interface built with Charmbracelet Bubble Tea
+- ✅ **Multi-Database Architecture**: Four specialized SQLite databases (conversations, knowledge, file_index, sessions)
+- ✅ **Project Analysis System**: Automatic project structure analysis with documentation generation in `.aircher/project_analysis.md`
+- ✅ **Configuration System**: Robust TOML-based configuration with hierarchical settings
+- ✅ **Development Infrastructure**: Complete build system with Makefile, linting, formatting, and testing
+- ✅ **Structured Logging**: Comprehensive logging system with zerolog
+- ✅ **Database Migrations**: Automatic schema migration system for database evolution
 
-### MCP Integration & Tools
-- **Core Development Tools**: 
-  - Filesystem operations with security controls
-  - Git integration for version control
-  - GitHub/GitLab/Gitea support for repository management
-- **Web Tools**:
-  - Web fetch for documentation retrieval
-  - Search integration (Brave, Tavily) with cost transparency
-- **Database Tools**: 
-  - PostgreSQL, MySQL, SQLite for database operations
-  - Redis for caching and key-value operations
-- **Development Environment**:
-  - Docker container management
-  - Terminal/shell command execution
-  - Build tool integration
-- **Knowledge & Documentation**:
-  - Memory systems for persistent context
-  - RAG capabilities for code search
-  - Markdown processing and generation
-- **Extensibility**: 
-  - Support for community MCP servers
-  - Easy MCP server installation and management
-  - Custom MCP server development support
+**Technical Achievements:**
+- Go 1.24+ foundation with modern language features
+- Clean architecture with interface-based design
+- Comprehensive development toolchain with Go 1.24 tool management
+- Solid foundation for all subsequent development phases
 
-### Project Memory System
-- **AGENTS.md Files**: Human-editable project memory for team-shared knowledge
-- **Automatic Project Analysis**: Auto-generated `.aircher/project_analysis.md` with discovered project structure, documentation files, technology stack, and architecture patterns
-- **Automatic Database**: File indexes, conversation history, and knowledge base handled automatically
-- **Memory Types**: Instructions, conventions, commands, architecture notes, glossary
-- **Instant Memory**: `#` prefix for quick memory additions from chat
-- **Sync System**: Changes to AGENTS.md automatically update internal databases
-- **Intelligent Context**: Combines manual team knowledge with auto-discovered project insights for optimal LLM context
+### Phase 2: Intelligence 🚧 **FRAMEWORK COMPLETE, API INTEGRATION PENDING**
 
-### Enterprise Features
-- **Self-Hosted Deployment**: No dependency on external services for core functionality
-- **Air-Gapped Support**: Works in offline environments with local models
-- **Cost Tracking**: Monthly budgets, daily limits, provider-specific cost analysis
-- **Health Diagnostics**: System health checks and troubleshooting
-- **Audit Logging**: Comprehensive logging for compliance requirements
-- **Git Integration**: Worktree support for parallel development sessions
+**Objective**: Implement core AI capabilities and LLM provider integration
 
-## Architecture Overview
+**Framework Completed:**
+- ✅ **Universal LLM Provider Interface**: Complete interface design supporting all major providers
+- ✅ **Provider Foundations**: OpenAI and Claude provider structures implemented
+- ✅ **Context Management Architecture**: TaskDetector and FileRelevanceEngine designed
+- ✅ **Streaming Framework**: Infrastructure for real-time response streaming
 
-### Storage System
-```
-.aircher/
-├── config.toml              # Configuration
-├── conversations.db         # Chat history with file references  
-├── knowledge.db            # Project understanding & decisions
-├── file_index.db           # File relationships & metadata
-├── sessions.db             # Session management
-└── cache/                  # Search results, temporary data
-```
+**Pending Implementation:**
+- 🚧 **Actual LLM API Integration**: Complete API calls with error handling and streaming for all providers
+- 🚧 **Gemini and Ollama Providers**: Full implementation of Google Gemini and local Ollama support
+- 🚧 **Token Management**: Token counting, cost calculation, and usage tracking
+- 🚧 **Response Streaming**: Real-time TUI integration with LLM streaming responses
 
-### Core Components
-- **Context Engine**: Task detection, file relevance, smart compaction
-- **Provider Manager**: Multi-LLM support with intelligent routing
-- **Search Engine**: Autonomous web search with temporal awareness  
-- **Memory System**: Project knowledge with AGENTS.md integration
-- **Command Router**: Slash commands and custom command system
-- **MCP Integration**: Model Context Protocol for extensible tools
+**Next Steps:**
+- Implement complete API integration for OpenAI and Claude providers
+- Add streaming response handling in TUI components
+- Implement token counting and cost management features
+- Complete Gemini and Ollama provider implementations
 
-## Key Differentiators
+### Phase 3: Context Intelligence ❌ **NOT STARTED** 
 
-### vs Claude Code
-- **Multi-Provider**: Works with any LLM, not just Claude
-- **Enhanced TUI Design**: Claude Code-inspired layout with improved contextual help system
-- **Smart Automation**: Automatic thinking detection via keywords, no manual mode switching
-- **Integrated Search**: Automatic web search via MCP tools, no separate commands needed
-- **Superior Context**: Task-aware management vs token-limit based
-- **Clean Chat History**: Commands show results in footer/status, keeping conversation pure
-- **Progressive Help**: Dynamic footer help system from hints to full shortcuts
-- **Cost Optimization**: Multi-provider cost tracking and routing
-- **Enterprise Features**: Self-hosted, air-gapped, audit logging
+**Objective**: Build intelligent context management and file relevance systems
 
-### vs Other AI Assistants
-- **Professional TUI**: Terminal interface with Claude Code-inspired design principles
-- **Contextual Interface**: Dynamic footer help that adapts to user context and input
-- **Live Streaming**: Real-time response rendering with smooth animations
-- **Rich Formatting**: Beautiful markdown and code highlighting with proper borders
-- **Intelligent Automation**: Auto-detects thinking mode needs, integrated search via MCP
-- **Clean UX**: Separate UI controls from conversation history for clarity
-- **Project Persistence**: Long-term architectural understanding via AGENTS.md
-- **Universal Compatibility**: Provider-agnostic with consistent interface across all LLMs
-- **Advanced Context**: Quality-based compaction preserving key information
-- **MCP Ecosystem**: Access to 200+ MCP servers for extended functionality
-- **Tool Transparency**: Clear visibility and control over tool operations
+**Planned Features:**
+- **Task Detection System**: Automatic detection of development tasks (debugging, feature development, refactoring, etc.)
+- **File Relevance Engine**: AI-driven scoring of file importance based on context and dependencies
+- **Smart Context Assembly**: Intelligent selection of relevant files and conversation history
+- **Dependency Graph Analysis**: Understanding of project structure and file relationships
+- **Conversation Compaction**: Automatic summarization to manage context window limits
 
-## Usage Scenarios
+**Technical Components:**
+- Advanced algorithms for file relevance scoring
+- Project dependency analysis and graph construction
+- Task-aware context optimization
+- Intelligent conversation summarization
 
-### Beautiful Interactive Development
-```bash
-$ aircher
-┌─ 🏹 Aircher ──────────────────────────── Provider: ollama • 🤖 Ready ─┐
-│                                                                        │
-│ ℹ️ System [14:32:15]                                                   │
-│ Welcome to Aircher! 🏹 Detected Go project with 247 files.           │
-│                                                                        │
-│ 👤 You [14:32:20]                                                     │
-│ explain the authentication system                                     │
-│                                                                        │
-│ 🤖 Aircher via ollama [14:32:21] 📡 Streaming...                     │
-│ # Authentication System Overview                                      │
-│                                                                        │
-│ Based on your project structure, I can see you're using JWT-based     │
-│ authentication with the following components...                       │
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
-┌─ > Type your message...                             Ctrl+H: Help ─────┐
-└─ Ctrl+T: Context • Ctrl+C: Exit ─────────────────────────────────────────┘
-```
+### Phase 4: Tool Integration ❌ **NOT STARTED**
 
-### MCP Tool Usage
-```bash
-# Database operations
-> show me the user table schema in our postgres database
-[Uses PostgreSQL MCP to inspect database schema]
+**Objective**: Implement Model Context Protocol (MCP) and extensible tool ecosystem
 
-# Git operations
-> create a new branch for the authentication fix
-[Uses Git MCP to create branch and switch to it]
+**Planned Features:**
+- **MCP Server Management**: Local, project, and user-scoped server management
+- **Security Framework**: Comprehensive permission system with user confirmation
+- **Core MCP Tools**: Filesystem, git, web search, and database operation tools
+- **Web Search Integration**: Automatic search triggers with Brave Search integration
+- **GitHub Integration**: Repository operations and issue tracking
 
-# Web documentation
-> fetch the latest Next.js 14 routing documentation
-[Uses web fetch MCP to retrieve and parse documentation]
+**Security Focus:**
+- Go 1.24 os.Root integration for secure filesystem operations
+- Granular permission system with audit logging
+- Sandboxed tool execution environment
+- User-controlled security policies
 
-# GitHub integration
-> create a pull request for the current branch
-[Uses GitHub MCP to create PR with generated description]
-```
+### Phase 5: Enterprise Features ❌ **NOT STARTED**
 
-### Automation & Scripting
-```bash
-# Code review automation
-git diff | aircher -p "review this code" --output-format json
+**Objective**: Production-ready features for team and enterprise environments
 
-# Batch processing
-find . -name "*.go" | xargs -I {} aircher -p "add error handling to {}"
+**Planned Features:**
+- **Advanced Monitoring**: System health checks, performance monitoring, and diagnostics
+- **Cost Management**: Budget tracking, usage analytics, and cost optimization
+- **Team Collaboration**: Shared knowledge bases and conversation synchronization
+- **Git Workflow Integration**: Automated commit messages, PR summaries, and workflow assistance
+- **Performance Optimization**: Caching, connection pooling, and async processing
 
-# Pipeline integration  
-aircher -p "check test coverage" --max-turns 1
-```
+**Enterprise Considerations:**
+- Scalability for large codebases and teams
+- Integration with enterprise authentication systems
+- Compliance and audit logging
+- Advanced security policies and controls
 
-### Custom Commands
-```bash
-# .aircher/commands/optimize.md
-# Optimize the $ARGUMENTS for performance and readability
+### Phase 6: Production Ready ❌ **NOT STARTED**
 
-$ aircher
-> /project:optimize user authentication flow
-[Executes custom optimization command with context]
-```
+**Objective**: Finalize application for public release and distribution
 
-## Command Interface
+**Planned Features:**
+- **Comprehensive Testing**: >90% test coverage with unit, integration, and end-to-end tests
+- **Documentation Completion**: User guides, API documentation, and tutorials
+- **Distribution System**: Homebrew, Scoop, and binary release automation
+- **Auto-Update System**: Secure and reliable automatic updates
+- **Performance Benchmarking**: Comprehensive performance testing and optimization
 
-### Core Commands
-```bash
-# Interactive modes
-aircher                              # Start interactive REPL
-aircher "explain this project"       # REPL with initial prompt  
-aircher -c                          # Continue last conversation
-aircher -r "session-id"             # Resume specific session
+**Release Preparation:**
+- Security audit and penetration testing
+- Performance optimization and benchmarking
+- Documentation and user experience testing
+- Beta testing program with developer community
 
-# Non-interactive modes
-aircher -p "query"                  # One-shot query, then exit
-cat file.go | aircher -p "review"   # Process piped content
-aircher -p "task" --output-format json  # Structured output
+---
 
-# Management commands
-aircher config                      # Interactive configuration
-aircher init                        # Initialize project with AGENTS.md
-aircher doctor                      # Health diagnostics
-aircher update                      # Self-update with rollback
-```
+## Current Implementation Status
 
-### Slash Commands
-```bash
-# Built-in commands
-/help                               # Toggle help/shortcuts in footer
-/clear                              # Clear conversation history
-/status                             # Show current system setup
-/init                               # Create AGENTS.md project memory
-/cost                               # Usage and cost statistics
-/config [key] [value]               # Settings management
-/memory [add|edit|show]             # Edit AGENTS.md memory
+### ✅ Production Ready Components
+- **Project Analysis System**: Fully functional with automatic documentation generation
+- **Multi-Database Architecture**: Complete with migration system and optimized schemas
+- **TUI Framework**: Responsive, beautiful interface with comprehensive styling
+- **Configuration Management**: Hierarchical TOML configuration with validation
+- **Development Infrastructure**: Complete build system with quality gates
 
-# Provider & Model Management
-/provider [name]                    # Switch AI provider (claude, openai, ollama)
-/model [name]                       # Switch model within current provider
+### 🚧 Active Development Areas
+- **LLM Provider Integration**: Framework complete, API implementation in progress
+- **Streaming Infrastructure**: TUI integration with real-time response rendering
+- **Provider Implementations**: OpenAI and Claude foundations ready for API integration
 
-# Session Management
-/save [name]                        # Save current conversation
-/load <name>                        # Load saved conversation  
-/export [format]                    # Export conversation (md, json, txt)
-/session [list|new|load]            # Manage conversation sessions
+### ❌ Future Development Priorities
+1. **Complete LLM API Integration**: Priority focus for immediate functionality
+2. **File Relevance Algorithms**: Core intelligence for context management
+3. **MCP Tool Framework**: Extensible tool ecosystem with security
+4. **Comprehensive Testing**: Quality assurance and reliability
+5. **Performance Optimization**: Scalability and user experience
 
-# Tools & Integration
-/mcp                                # MCP server management
-/tools                              # List available MCP tools
+---
 
-# MCP-specific commands
-/mcp list                          # List installed MCP servers
-/mcp install [server]              # Install an MCP server
-/mcp enable [server]               # Enable an MCP server
-/mcp disable [server]              # Disable an MCP server
-/mcp status                        # Show MCP server status
+## Technical Architecture Highlights
 
-# Custom commands
-/project:optimize                  # Team-shared project command
-/user:debug                        # Personal user command
-```
+### Core Technologies
+- **Go 1.24+**: Modern language features including tool management and os.Root
+- **Charmbracelet Bubble Tea**: Industry-leading TUI framework
+- **SQLite + sqlx**: High-performance embedded database with SQL extensions
+- **zerolog**: Structured logging for debugging and monitoring
+- **TOML Configuration**: Human-readable configuration format
 
-## Implementation Roadmap
+### Architecture Principles
+- **Clean Architecture**: Business logic separated from external dependencies
+- **Interface-Based Design**: All components implement testable interfaces
+- **Multi-Database Strategy**: Specialized databases for different data types
+- **Provider Pattern**: Universal interface for multiple LLM providers
+- **Security-First**: Comprehensive permission system and secure defaults
 
-### Phase 1: Foundation (Weeks 1-2) - COMPLETED ✅
-**Goal**: Basic working system with core functionality
-- ✅ Multi-provider LLM interface (OpenAI, Claude, Gemini, Ollama)
-- ✅ Beautiful TUI REPL with Charmbracelet Bubble Tea
-- ✅ Complete database system with SQLite
-- ✅ TOML configuration system
-- ✅ Enhanced slash commands with visual feedback
-- ✅ MCP integration framework
-- ✅ Professional terminal interface with real-time streaming
+### Quality Standards
+- Comprehensive test coverage with race detection
+- Code quality enforcement with golangci-lint and gofumpt
+- Structured error handling with user-friendly messages
+- Performance monitoring and optimization
+- Security best practices throughout
 
-### Phase 2: Intelligence (Weeks 3-4) - FRAMEWORK COMPLETE 🚧
-**Goal**: Smart context management and autonomous capabilities
-- ✅ Task-aware context management framework (algorithms stubbed)
-- ✅ Autonomous web search framework (API integration pending)
-- ✅ Smart conversation compaction framework (algorithms stubbed)
-- ✅ AGENTS.md memory system framework (parsing pending)
-- ✅ Custom slash commands with visual templating
-- ✅ Enhanced TUI features with live status indicators
-- ✅ OpenAI provider with full API integration and streaming
-- ✅ Claude provider with Anthropic SDK and context caching
+---
 
-### Phase 3: Advanced Features (Weeks 5-6) - PARTIALLY COMPLETE 🚧
-**Goal**: Rich interface and extended provider support
-- ✅ Multi-scope MCP integration with visual management
-- ✅ Enhanced TUI with interactive panels and shortcuts
-- ✅ Output format system (JSON, markdown, streaming)
-- ✅ Advanced terminal integration (vim mode pending)
-- ✅ Multi-provider support with OpenAI and Claude complete
-- 🚧 Remaining provider APIs (Gemini, Ollama)
-- 🚧 Multimodal input implementation
-- 🚧 Live tool execution panels
+## Milestone Timeline
 
-### Phase 4: Enterprise (Weeks 7-8)
-**Goal**: Production-ready features for enterprise use
-- Git worktree integration
-- Health diagnostics and monitoring
-- Cost tracking and budget management
-- Auto-update with rollback
-- Advanced error recovery
+### Q1 2024: Foundation Complete ✅
+- All Phase 1 objectives achieved
+- Solid foundation for AI integration
 
-### Phase 5: Production (Weeks 9-10)
-**Goal**: Polish and distribution
+### Q2 2024: Intelligence Integration 🚧
+- Complete LLM provider implementations
+- Streaming response integration
+- Basic conversation functionality
+
+### Q3 2024: Context Management
+- File relevance scoring algorithms
+- Task detection and context assembly
+- Smart conversation compaction
+
+### Q4 2024: Tool Ecosystem
+- MCP integration and security framework
+- Core tool implementations
+- Web search and git integration
+
+### Q1 2025: Enterprise Features
+- Advanced monitoring and cost management
+- Team collaboration features
 - Performance optimization
+
+### Q2 2025: Production Release
 - Comprehensive testing and documentation
-- Package distribution (Homebrew, Scoop, Docker)
-- Enterprise deployment guides
-- Community features and plugin system
+- Distribution and auto-update system
+- Public beta and community feedback
 
-## AGENTS.md Memory System
-
-### Purpose
-AGENTS.md files serve as human-editable project memory for information that should be included in every conversation but isn't automatically handled by the database systems.
-
-### What Goes in AGENTS.md
-- **Programming language and framework versions**
-- **Coding style guides and conventions**
-- **Team-specific instructions and preferences**
-- **Architecture decisions and patterns**
-- **Frequently used commands**
-- **Project-specific terminology**
-
-### What's Handled Automatically
-- **File Index**: Relationships, dependencies, and metadata (file_index.db)
-- **Conversation History**: Previous conversations and context (conversations.db)
-- **Knowledge Base**: Learned patterns and solutions (knowledge.db)
-- **Project Analysis**: Auto-generated documentation of project structure, technology stack, and architecture patterns (`.aircher/project_analysis.md`)
-- **Documentation Discovery**: Automatic detection and analysis of README, SPEC, API docs, and other documentation files
-- **Technology Detection**: Automatic identification of programming languages, frameworks, build systems, and dependencies
-- **Architecture Pattern Recognition**: Detection of MVC, Clean Architecture, microservices, and other architectural patterns
-
-### Example AGENTS.md Structure
-```markdown
-# Project Name - Aircher Memory
-
-## Instructions
-- This project uses Go 1.24+ with Charmbracelet TUI framework
-- Follow Google Go style guide
-- Use testify for testing
-
-## Conventions
-- Use meaningful variable names
-- Add comments for complex logic
-- Error handling is mandatory
-
-## Commands
-- `make build` - Build the project
-- `make test` - Run all tests
-- `make lint` - Run linter
-
-## Architecture
-- Clean architecture with domain/service/repository layers
-- Use dependency injection
-- Database migrations in /migrations
-
-## Glossary
-- **Handler**: HTTP request handler functions
-- **Service**: Business logic layer
-- **Repository**: Data access layer
-```
-
-## Target Users
-
-### Individual Developers
-- **Solo Projects**: Enhanced productivity with intelligent assistance
-- **Learning**: Guidance on best practices and current solutions
-- **Debugging**: Automated error research and solution suggestions
-
-### Development Teams
-- **Shared Knowledge**: Team conventions in AGENTS.md files
-- **Onboarding**: New team members get instant project context
-- **Consistency**: Uniform coding practices across team members
-
-### Enterprise Organizations
-- **Self-Hosted**: Deploy in secure, air-gapped environments
-- **Cost Control**: Multi-provider cost optimization and budgets
-- **Compliance**: Audit logging and security controls
-- **Integration**: Custom tools via MCP protocol
+---
 
 ## Success Metrics
 
-### User Experience
-- Faster task completion compared to existing tools
-- Reduced context switching between documentation and code
-- Higher user satisfaction with AI assistance quality
+### Technical Metrics
+- **Test Coverage**: >90% across all components
+- **Performance**: <100ms response time for local operations
+- **Reliability**: <0.1% error rate for core functionality
+- **Security**: Zero critical vulnerabilities
 
-### Technical Performance  
-- Efficient token usage through smart context management
-- Fast response times with appropriate provider routing
-- Reliable autonomous search with high relevance scores
+### User Experience Metrics
+- **Developer Adoption**: Measurable improvement in development velocity
+- **User Satisfaction**: High ratings for terminal interface and AI quality
+- **Community Growth**: Active contribution to open-source ecosystem
+- **Enterprise Adoption**: Successful deployment in team environments
 
-### Adoption
-- Growing user base across individual developers and teams
-- Enterprise adoption for secure, self-hosted deployments
-- Community contributions and custom command sharing
+---
 
-This outline provides the comprehensive vision for Aircher while maintaining focus on our core differentiators: multi-provider support, intelligent context management, and autonomous web search capabilities.
+## Related Documentation
+
+- **Technical Specifications**: `docs/core/MASTER_SPEC.md` - Comprehensive architecture overview
+- **Development Standards**: `docs/core/DEVELOPER_GUIDE.md` - Coding patterns and practices
+- **Implementation Tasks**: `docs/core/TASKS.md` - Detailed task breakdown and progress tracking
+- **Technical Deep Dives**: `docs/technical/` - Component-specific implementation details
+
+---
+
+**Note**: This roadmap is actively maintained and updated as the project evolves. All progress tracking and detailed task management is centralized in `docs/core/TASKS.md` to ensure single source of truth for development status.
