@@ -2,12 +2,12 @@
 
 ## System Architecture Overview
 
-Aircher is an AI-powered terminal-based development assistant built with Go 1.24+ and Charmbracelet's Bubble Tea TUI framework. The system integrates multiple LLM providers and implements the Model Context Protocol (MCP) for extensible tool support.
+Aircher is an AI-powered terminal-based development assistant built with Rust 1.80+ and Ratatui TUI framework. The system integrates multiple LLM providers and implements the Model Context Protocol (MCP) for extensible tool support.
 
 ### Core Architecture Principles
 
 - **Clean Architecture**: Core business logic separated from external dependencies
-- **Interface-Based Design**: All major components implement interfaces for testability
+- **Trait-Based Design**: All major components implement traits for testability
 - **Multi-Database**: Separate SQLite databases optimized for different data types
 - **Provider Pattern**: Universal LLM provider interface supporting multiple backends
 - **Intelligent Context Management**: AI-driven file relevance scoring and task detection
@@ -16,7 +16,7 @@ Aircher is an AI-powered terminal-based development assistant built with Go 1.24
 ## Core Components
 
 ### 1. Command Line Interface (CLI)
-**Detailed Specification**: `docs/core/TASKS.md` (Deferred Features section)
+**Detailed Specification**: `docs/tasks/tasks.json` (Future phase tasks)
 
 **Service/Provider/Model Hierarchy**:
 - **Service**: API endpoint (OpenAI, Anthropic, OpenRouter, Ollama)
@@ -37,7 +37,7 @@ aircher auth status              # Show configured services
 aircher auth set                 # Set default service
 aircher auth remove openai       # Remove service
 
-# Model Management  
+# Model Management
 aircher model                    # Interactive model selection
 aircher model gpt-4              # Set specific model
 aircher model list               # List available models
@@ -52,7 +52,7 @@ aircher model list --provider deepseek  # Filter by provider (OpenRouter)
 - Unified chat interface following Claude Code patterns
 
 ### 2. Modern Terminal Interface (TUI)
-**Detailed Specification**: `docs/technical/01-ui-improvements.md`
+**Detailed Specification**: `docs/architecture/output/tui-improvements.md`
 
 ```go
 type Model struct {
@@ -70,13 +70,13 @@ type Model struct {
 ```
 
 **Key Features**:
-- Responsive terminal interface with Bubble Tea framework
+- Responsive terminal interface with Ratatui framework
 - Real-time streaming response display
 - Context-aware help and shortcuts
 - Vim-mode support and keyboard navigation
 
 ### 3. Multi-Database Storage Architecture
-**Detailed Specification**: `docs/technical/03-storage-architecture.md`
+**Detailed Specification**: `docs/architecture/storage-architecture.md`
 
 **Database Design**:
 - `conversations.db` - Chat history and interaction metadata
@@ -90,7 +90,7 @@ type Model struct {
 - **Specialized Indexes**: Vector embeddings for semantic search
 
 ### 4. Universal LLM Provider System
-**Detailed Specification**: `docs/technical/04-llm-providers.md`
+**Detailed Specification**: `docs/architecture/plugins/llm-providers.md`
 
 ```go
 type LLMProvider interface {
@@ -115,7 +115,7 @@ type LLMProvider interface {
 - 🚧 **Ollama**: Local model hosting with various open-source models
 
 ### 5. Intelligent Context Management
-**Detailed Specification**: `docs/technical/05-context-management.md`
+**Detailed Specification**: `docs/architecture/plugins/context-management.md`
 
 **Task Detection System**:
 ```go
@@ -153,7 +153,7 @@ type FileRelevanceEngine struct {
 - Configurable preservation rules for critical information
 
 ### 6. MCP (Model Context Protocol) Integration
-**Detailed Specification**: `docs/technical/06-mcp-integration.md`
+**Detailed Specification**: `docs/architecture/plugins/mcp-integration.md`
 
 ```go
 type MCPManager struct {
@@ -296,7 +296,7 @@ api_key = "AI..."
 
 ### ✅ Phase 1: Foundation (Completed)
 - Project setup and development environment
-- TUI framework with Bubble Tea implementation
+- TUI framework with Ratatui implementation
 - Multi-database architecture with migration system
 - Project Analysis System with auto-generated documentation
 - Basic configuration system
@@ -330,7 +330,7 @@ api_key = "AI..."
 ### ✅ Production Ready
 - **Project Analysis System**: Automatic analysis and documentation generation
 - **Multi-Database Architecture**: SQLite databases with migration system
-- **TUI Framework**: Responsive terminal interface with Bubble Tea
+- **TUI Framework**: Responsive terminal interface with Ratatui
 - **Configuration System**: TOML-based configuration management
 - **Basic Provider Interface**: OpenAI and Claude provider foundations
 
@@ -350,14 +350,13 @@ api_key = "AI..."
 
 ### Core Framework
 ```go
-// Core application framework
-github.com/charmbracelet/bubbletea    // TUI framework
-github.com/charmbracelet/lipgloss     // Terminal styling
-github.com/charmbracelet/log         // Logging
+# Core application framework
+ratatui = "0.24"                     # TUI framework
+crossterm = "0.27"                   # Terminal control
+tokio = { version = "1.34", features = ["full"] }  # Async runtime
 
-// Database and storage
-github.com/jmoiron/sqlx              // SQL extensions
-modernc.org/sqlite                   // Pure Go SQLite
+# Database and storage
+sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio-rustls"] }
 ```
 
 ### LLM Providers
@@ -370,40 +369,37 @@ cloud.google.com/go/aiplatform       // Gemini client
 
 ### Development Tools
 ```go
-// Development and testing (Go 1.24 tool management)
-golang.org/x/tools/cmd/goimports
-github.com/golangci/golangci-lint
-mvdan.cc/gofumpt
-github.com/stretchr/testify
+# Development and testing
+tracing = "0.1"                      # Structured logging
+serde = { version = "1.0", features = ["derive"] }  # Serialization
+toml = "0.8"                         # Configuration parsing
 ```
 
 ## Build Commands
 
 ```bash
-make build           # Build the aircher binary
-make dev            # Build and run development version
-make test           # Run all tests with race detection
-make test-coverage  # Generate coverage reports
-make lint           # Run golangci-lint
-make fmt            # Format code with gofumpt
-make tools          # Install all development tools
-make tools-update   # Update all development tools
+cargo build --release  # Build the aircher binary
+cargo run             # Build and run development version
+cargo test            # Run all tests
+cargo tarpaulin       # Generate coverage reports
+cargo clippy          # Run clippy linter
+cargo fmt             # Format code with rustfmt
 ```
 
 ## Related Documentation
 
 - **Developer Guide**: `docs/core/DEVELOPER_GUIDE.md` - Coding standards and patterns
-- **Tasks and Progress**: `docs/core/TASKS.md` - Current priorities and implementation status
+- **Tasks and Progress**: `docs/tasks/tasks.json` - Current priorities and implementation status (JSON-based task management)
 - **Project Roadmap**: `docs/core/PROJECT_ROADMAP.md` - Feature timeline and milestones
 
-### Technical Specifications
-- **UI/TUI Enhancements**: `docs/technical/01-ui-improvements.md`
-- **AI Agents Configuration**: `docs/technical/02-ai-agents-config.md`
-- **Storage Architecture**: `docs/technical/03-storage-architecture.md`
-- **LLM Provider System**: `docs/technical/04-llm-providers.md`
-- **Context Management**: `docs/technical/05-context-management.md`
-- **MCP Integration**: `docs/technical/06-mcp-integration.md`
+### Architecture Documentation
+- **CLI Commands**: `docs/architecture/commands/` - Command specifications and implementations
+- **Configuration System**: `docs/architecture/config/` - TOML configuration architecture
+- **TUI & Output**: `docs/architecture/output/` - Terminal interface and response streaming
+- **LLM Providers & MCP**: `docs/architecture/plugins/` - Provider integration and MCP tools
+- **Storage Architecture**: `docs/architecture/storage-architecture.md` - Database design patterns
+- **Development Workflow**: `docs/development/workflow/` - Git, testing, and AI agent configuration
 
 ---
 
-**Note**: This specification serves as the architectural overview. For detailed implementation specifics, refer to the individual technical specifications in `docs/technical/`. All task tracking and progress updates are maintained in `docs/core/TASKS.md`.
+**Note**: This specification serves as the architectural overview. For detailed implementation specifics, refer to the component-specific documentation in `docs/architecture/`. All task tracking and progress updates are maintained in `docs/tasks/tasks.json` using the revolutionary JSON-based task management system.

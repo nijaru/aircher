@@ -27,7 +27,7 @@ The project is organized into five distinct phases, progressing from foundationa
 **Objective**: Establish core infrastructure and development environment
 
 **Completed Features:**
-- ✅ **Modern TUI Framework**: Responsive terminal interface built with Charmbracelet Bubble Tea
+- ✅ **Modern TUI Framework**: Responsive terminal interface built with Ratatui
 - ✅ **Multi-Database Architecture**: Four specialized SQLite databases (conversations, knowledge, file_index, sessions)
 - ✅ **Project Analysis System**: Automatic project structure analysis with documentation generation in `.aircher/project_analysis.md`
 - ✅ **Configuration System**: MVP minimal configuration with smart defaults and secure credential management via `aircher login`
@@ -36,9 +36,9 @@ The project is organized into five distinct phases, progressing from foundationa
 - ✅ **Database Migrations**: Automatic schema migration system for database evolution
 
 **Technical Achievements:**
-- Go 1.24+ foundation with modern language features
-- Clean architecture with interface-based design
-- Comprehensive development toolchain with Go 1.24 tool management
+- Rust 1.80+ foundation with modern language features
+- Clean architecture with trait-based design
+- Comprehensive development toolchain with Cargo and Rust ecosystem
 - Solid foundation for all subsequent development phases
 
 ### Phase 2: Intelligence 🚧 **FRAMEWORK COMPLETE, API INTEGRATION PENDING**
@@ -95,7 +95,7 @@ The project is organized into five distinct phases, progressing from foundationa
 - **GitHub Integration**: Repository operations and issue tracking
 
 **Security Focus:**
-- Go 1.24 os.Root integration for secure filesystem operations
+- Rust std::fs integration for secure filesystem operations
 - Granular permission system with audit logging
 - Sandboxed tool execution environment
 - User-controlled security policies
@@ -164,9 +164,9 @@ The project is organized into five distinct phases, progressing from foundationa
 ## Technical Architecture Highlights
 
 ### Core Technologies
-- **Go 1.24+**: Modern language features including tool management and os.Root
-- **Charmbracelet Bubble Tea**: Industry-leading TUI framework
-- **SQLite + sqlx**: High-performance embedded database with SQL extensions
+- **Rust 1.80+**: Modern language features with memory safety and async/await
+- **Ratatui**: High-performance immediate-mode TUI framework
+- **SQLite + sqlx**: High-performance embedded database with async support
 - **zerolog**: Structured logging for debugging and monitoring
 - **Smart Configuration**: Minimal TOML preferences with intelligent defaults from models.dev API
 
@@ -179,7 +179,7 @@ The project is organized into five distinct phases, progressing from foundationa
 
 ### Quality Standards
 - Comprehensive test coverage with race detection
-- Code quality enforcement with golangci-lint and gofumpt
+- Code quality enforcement with clippy and rustfmt
 - Structured error handling with user-friendly messages
 - Performance monitoring and optimization
 - Security best practices throughout
@@ -239,9 +239,9 @@ The project is organized into five distinct phases, progressing from foundationa
 
 - **Technical Specifications**: `docs/core/MASTER_SPEC.md` - Comprehensive architecture overview
 - **Development Standards**: `docs/core/DEVELOPER_GUIDE.md` - Coding patterns and practices
-- **Implementation Tasks**: `docs/core/TASKS.md` - Detailed task breakdown and progress tracking
-- **Technical Deep Dives**: `docs/technical/` - Component-specific implementation details
+- **Implementation Tasks**: `docs/tasks/tasks.json` - JSON-based task management with programmatic updates
+- **Architecture Documentation**: `docs/architecture/` - CLI-specific component implementations
 
 ---
 
-**Note**: This roadmap is actively maintained and updated as the project evolves. All progress tracking and detailed task management is centralized in `docs/core/TASKS.md` to ensure single source of truth for development status.
+**Note**: This roadmap is actively maintained and updated as the project evolves. All progress tracking and detailed task management is centralized in `docs/tasks/tasks.json` using our revolutionary JSON-based task management system to ensure single source of truth for development status.

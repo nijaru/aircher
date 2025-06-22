@@ -1,51 +1,23 @@
 # Aircher Developer Guide
 
-## Overview
-
-This guide contains coding standards, development practices, and implementation patterns for the Aircher project. Follow these guidelines to ensure consistency, maintainability, and quality across the codebase.
+Coding standards and implementation patterns for the Aircher project built with Rust.
 
 ## Technology Stack
 
-### Core Technologies
-- **Go 1.24+**: Primary language with latest features
-- **Charmbracelet Bubble Tea**: TUI framework for terminal interface
-- **SQLite + sqlx**: Database operations with enhanced functionality
-- **zerolog**: Structured logging throughout the application
-- **TOML**: Configuration format (avoid JSON/YAML)
-
-### Go 1.24 Features
-- **Tool Management**: Development tools tracked in go.mod with `tool` directives
-- **os.Root**: Secure directory-limited filesystem access for MCP security
-- **Swiss Tables**: Improved map performance (2-3% runtime improvement)
-- **Enhanced Build Info**: JSON output and VCS info embedded in binaries
-- **Generic Type Aliases**: Available for future type system enhancements
-- **Improved Finalizers**: runtime.AddCleanup for better resource management
+- Rust 1.80+ with async/await and tokio runtime
+- Ratatui for TUI framework
+- SQLite + sqlx for database operations
+- tracing for structured logging
+- TOML configuration
 
 ## Development Setup
 
-### Required Tools (Go 1.24 Tool Management)
 ```bash
-make tools          # Install all development tools
-make tools-update    # Update all development tools
-go tool <toolname>   # Run development tools directly
-```
-
-### Development Tools
-- **golangci-lint**: Code linting and static analysis
-- **gofumpt**: Enhanced code formatting (better than gofmt)
-- **staticcheck**: Advanced static analysis
-- **air**: Live reload for development
-
-### Build Commands
-```bash
-make build           # Build the aircher binary
-make dev            # Build and run development version
-make test           # Run all tests with race detection
-make test-coverage  # Generate coverage reports
-make lint           # Run golangci-lint
-make fmt            # Format code with gofumpt
-make clean          # Clean build artifacts
-make release        # Build for multiple platforms
+cargo build --release  # Build binary
+cargo test             # Run tests
+cargo clippy           # Run linting
+cargo fmt              # Format code
+cargo tarpaulin        # Generate coverage reports
 ```
 
 ## Coding Standards
@@ -116,16 +88,16 @@ make release        # Build for multiple platforms
 
 ## TUI Development Guidelines
 
-### Bubble Tea Components
+### Ratatui Components
 - TUI components should be responsive and handle terminal resizing gracefully
-- Use Charmbracelet's ecosystem for consistency:
-  - Lipgloss for styling
-  - Bubbles for common UI components
-  - Harmonica for animations
-- Follow the Bubble Tea MVC pattern (Model-View-Controller)
+- Use Ratatui's widget ecosystem for consistency:
+  - Built-in styling with ratatui::style
+  - Standard widgets from ratatui::widgets
+  - Custom widgets following Ratatui patterns
+- Follow the Ratatui immediate-mode pattern
 
 ### Styling Standards
-- All styling uses centralized Lipgloss definitions
+- All styling uses centralized Ratatui style definitions
 - Define color constants for consistent theming
 - Support both light and dark terminal themes
 - Ensure accessibility with sufficient contrast ratios
@@ -204,7 +176,7 @@ internal/
 ## Security Considerations
 
 ### MCP Integration
-- Use Go 1.24's os.Root for secure filesystem operations
+- Use Rust's std::fs with proper permission checks for secure filesystem operations
 - Implement proper permission system for tool execution
 - Validate and sanitize all external inputs
 - Use secure defaults for all configurations
@@ -225,15 +197,15 @@ internal/
 
 ### Project Documentation Updates
 When completing features, always update:
-- `docs/core/TASKS.md`: Mark completion status and outcomes
+- `docs/tasks/tasks.json`: Mark completion status and outcomes using JSON structure
 - `docs/core/PROJECT_ROADMAP.md`: Update roadmap and milestones
 - `docs/core/MASTER_SPEC.md`: Update architectural overview
-- `docs/technical/`: Update relevant technical specifications
-  - `01-ui-improvements.md` for TUI components
-  - `03-storage-architecture.md` for database operations
-  - `04-llm-providers.md` for provider implementations
-  - `05-context-management.md` for context algorithms
-  - `06-mcp-integration.md` for MCP tools
+- `docs/architecture/`: Update relevant architecture documentation
+  - `output/` for TUI components and response streaming
+  - `storage-architecture.md` for database operations
+  - `plugins/` for LLM provider implementations
+  - `plugins/` for context management algorithms
+  - `plugins/` for MCP tool integration
 - `README.md`: Update usage examples and feature lists
 - `docs/core/STATUS.md`: Update project metrics and status
 
@@ -247,7 +219,7 @@ When completing features, always update:
 ## Glossary
 
 ### Technical Terms
-- **TUI**: Terminal User Interface built with Charmbracelet Bubble Tea
+- **TUI**: Terminal User Interface built with Ratatui
 - **Provider**: LLM service integration (OpenAI, Claude, Gemini, Ollama)
 - **MCP**: Model Context Protocol for extensible tool integration
 - **Context Engine**: Intelligent file and conversation context management
