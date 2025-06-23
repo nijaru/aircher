@@ -192,7 +192,7 @@ type ProjectAnalyzer struct {
 
 **Capabilities**:
 - Automatic project structure analysis
-- Documentation generation in `.aircher/project_analysis.md`
+- Documentation generation in `.agents/project_analysis.md`
 - Component detection and classification
 - Cross-reference mapping
 

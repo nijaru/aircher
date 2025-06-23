@@ -1,6 +1,6 @@
 # Aircher MVP Configuration
 # User preferences and non-sensitive settings
-# Copy to ~/.config/aircher/config.toml or project/.aircher/config.toml
+# Copy to ~/.config/aircher/config.toml or project/.agents/config.toml
 
 [providers]
 default = "auto"              # auto-detect best available provider

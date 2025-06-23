@@ -169,7 +169,7 @@ internal/
 ### Configuration Layers
 1. Default values in code
 2. Global user configuration (`~/.config/aircher/config.toml`)
-3. Project-specific configuration (`.aircher/config.toml`)
+3. Project-specific configuration (`.agents/config.toml`)
 4. Environment variables for sensitive values
 5. Command-line flags for overrides
 

@@ -29,7 +29,7 @@ The project is organized into five distinct phases, progressing from foundationa
 **Completed Features:**
 - ✅ **Modern TUI Framework**: Responsive terminal interface built with Ratatui
 - ✅ **Multi-Database Architecture**: Four specialized SQLite databases (conversations, knowledge, file_index, sessions)
-- ✅ **Project Analysis System**: Automatic project structure analysis with documentation generation in `.aircher/project_analysis.md`
+- ✅ **Project Analysis System**: Automatic project structure analysis with documentation generation in `.agents/project_analysis.md`
 - ✅ **Configuration System**: MVP minimal configuration with smart defaults and secure credential management via `aircher login`
 - ✅ **Development Infrastructure**: Complete build system with Makefile, linting, formatting, and testing
 - ✅ **Structured Logging**: Comprehensive logging system with zerolog

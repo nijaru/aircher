@@ -240,7 +240,7 @@ aircher config
 ```
 
 ### Configuration Locations
-- **Project-specific**: `.aircher/config.toml` 
+- **Project-specific**: `.agents/config.toml` 
 - **User-global**: `~/.config/aircher/config.toml`
 
 ### Key Configuration Options
@@ -361,7 +361,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - **Issues**: [GitHub Issues](https://github.com/aircher/aircher/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/aircher/aircher/discussions)
-- **Documentation**: [docs.aircher.ai](https://docs.aircher.ai)
+- **Documentation**: [docs.agents.ai](https://docs.agents.ai)
 
 ## Project Status
 

@@ -123,7 +123,7 @@ aircher analyze [OPTIONS] [PATH]
 ```
 
 #### Options
-- `--output, -o <PATH>` - Output file path (default: `.aircher/project_analysis.md`)
+- `--output, -o <PATH>` - Output file path (default: `.agents/project_analysis.md`)
 - `--format <FORMAT>` - Output format (markdown, json, yaml)
 - `--include <PATTERN>` - Include files matching pattern
 - `--exclude <PATTERN>` - Exclude files matching pattern

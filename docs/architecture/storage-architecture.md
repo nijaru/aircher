@@ -349,23 +349,26 @@ CREATE TABLE search_indexes (
 ### File System Storage Structure
 
 ```
-.aircher/
-├── databases/
-│   ├── conversations.db
-│   ├── knowledge.db
-│   ├── file_index.db
-│   └── sessions.db
+.agents/
+├── db/
+│   ├── core/                # Core operational databases
+│   │   ├── conversations.db
+│   │   └── sessions.db
+│   ├── knowledge/           # Knowledge and analysis databases
+│   │   ├── knowledge.db
+│   │   └── file_index.db
+│   └── cache/               # Temporary/computed data
 ├── content/
-│   ├── embeddings/           # Vector embeddings binary files
-│   ├── attachments/          # Message attachments
-│   ├── backups/             # Database backups
-│   └── cache/               # Temporary cache files
+│   ├── embeddings/          # Vector embeddings binary files
+│   ├── attachments/         # Message attachments
+│   ├── backups/            # Database backups
+│   └── cache/              # Temporary cache files
 ├── indexes/
-│   ├── faiss/               # FAISS indexes for similarity search
-│   └── search/              # Full-text search indexes
+│   ├── faiss/              # FAISS indexes for similarity search
+│   └── search/             # Full-text search indexes
 └── logs/
-    ├── storage.log          # Storage operation logs
-    └── performance.log      # Performance metrics
+    ├── storage.log         # Storage operation logs
+    └── performance.log     # Performance metrics
 ```
 
 ## Performance Optimization
@@ -460,7 +463,7 @@ slow_query_threshold = "1s"
 ### TOML Configuration Example
 ```toml
 [storage]
-data_dir = ".aircher"
+data_dir = ".agents"
 max_db_size = "1GB"
 backup_enabled = true
 backup_interval = "24h"

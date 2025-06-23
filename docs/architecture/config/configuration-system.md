@@ -25,7 +25,7 @@ Aircher implements a two-file configuration strategy that separates user prefere
 
 ### Configuration File (`config.toml`)
 
-**Location**: `~/.config/aircher/config.toml` or `project/.aircher/config.toml`
+**Location**: `~/.config/aircher/config.toml` or `project/.agents/config.toml`
 **Permissions**: 644 (standard user file)
 **Purpose**: Non-sensitive user preferences and overrides
 
