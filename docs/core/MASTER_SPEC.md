@@ -29,6 +29,7 @@ Aircher is an AI-powered terminal-based development assistant built with Rust 1.
 aircher                          # Start unified TUI
 aircher --service openai         # Start with specific service
 aircher --model claude-3-sonnet  # Start with specific model
+aircher --worktree feature-auth  # Start with specific worktree context
 
 # Service Authentication
 aircher auth                     # Interactive service setup
@@ -42,6 +43,16 @@ aircher model                    # Interactive model selection
 aircher model gpt-4              # Set specific model
 aircher model list               # List available models
 aircher model list --provider deepseek  # Filter by provider (OpenRouter)
+
+# Worktree Management
+aircher worktree list            # List all worktrees with status
+aircher worktree switch main     # Switch to main worktree context
+aircher worktree compare main feature-auth  # Compare insights between worktrees
+
+# Context Management
+aircher context status           # Show current context hierarchy
+aircher context insights         # Show cross-context insights
+aircher context transfer feature-auth main  # Transfer learnings between contexts
 ```
 
 **Key Features**:
@@ -79,15 +90,24 @@ type Model struct {
 **Detailed Specification**: `docs/architecture/storage-architecture.md`
 
 **Database Design**:
-- `conversations.db` - Chat history and interaction metadata
-- `knowledge.db` - Project analysis, documentation, learned patterns
-- `file_index.db` - File metadata, relationships, change tracking
-- `sessions.db` - User sessions, preferences, temporary state
+- `conversations.db` - Chat history with worktree context and interaction metadata
+- `knowledge.db` - Project analysis, cross-context insights, learned patterns
+- `file_index.db` - File metadata, relationships, context-aware change tracking
+- `sessions.db` - User sessions, context hierarchy, temporary state
 
 **Hybrid Storage Strategy**:
 - **SQLite**: Structured metadata and relationships
 - **File System**: Large content and binary data
 - **Specialized Indexes**: Vector embeddings for semantic search
+- **Hierarchical Context Storage**: Global → Project → Worktree → Session
+
+**Context Hierarchy**:
+```
+Global: ~/.config/aircher/global.db
+Project: .agents/db/core/
+Worktree: .agents/worktrees/{worktree-id}/
+Session: .agents/sessions/{session-id}/
+```
 
 ### 4. Universal LLM Provider System
 **Detailed Specification**: `docs/architecture/plugins/llm-providers.md`

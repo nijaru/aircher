@@ -19,13 +19,28 @@ Rather than a single monolithic database, Aircher uses specialized databases:
 - **file_index.db**: File metadata, relationships, and change tracking
 - **sessions.db**: User sessions, preferences, and temporary state
 
+### Hierarchical Context Architecture
+Aircher supports multiple levels of context isolation for parallel development workflows:
+- **Global Context**: User-wide settings and cross-project patterns
+- **Project Context**: Repository-specific knowledge and configurations
+- **Worktree Context**: Branch-specific conversations and file states
+- **Session Context**: Task-specific temporary state and active work
+
+### Context Inheritance Model
+```
+Global Knowledge (User patterns, preferences)
+└── Project Knowledge (Architecture, decisions, shared patterns)
+    └── Worktree Context (Branch-specific conversations, file states)
+        └── Session Context (Active task state, temporary cache)
+```
+
 ## Database Schemas
 
 ### Conversations Database (`conversations.db`)
 
 #### Core Tables
 ```sql
--- Conversation tracking
+-- Conversation tracking with context hierarchy
 CREATE TABLE conversations (
     id TEXT PRIMARY KEY,
     title TEXT,
@@ -36,10 +51,15 @@ CREATE TABLE conversations (
     total_tokens INTEGER DEFAULT 0,
     total_cost REAL DEFAULT 0.0,
     status TEXT DEFAULT 'active',
+    -- Context hierarchy
+    project_id TEXT,
+    worktree_id TEXT DEFAULT 'main',
+    session_id TEXT,
+    context_type TEXT DEFAULT 'general' CHECK (context_type IN ('general', 'debugging', 'feature', 'review', 'refactor')),
     metadata JSON
 );
 
--- Individual messages
+-- Individual messages with context inheritance
 CREATE TABLE messages (
     id TEXT PRIMARY KEY,
     conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
@@ -50,6 +70,10 @@ CREATE TABLE messages (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     tool_calls JSON,
     tool_results JSON,
+    -- Context inheritance from conversation
+    project_id TEXT,
+    worktree_id TEXT,
+    session_id TEXT,
     metadata JSON
 );
 
@@ -82,19 +106,52 @@ CREATE TABLE compaction_history (
 ```sql
 CREATE INDEX idx_conversations_updated_at ON conversations(updated_at);
 CREATE INDEX idx_conversations_provider ON conversations(provider);
+CREATE INDEX idx_conversations_context ON conversations(project_id, worktree_id, context_type);
+CREATE INDEX idx_conversations_worktree ON conversations(worktree_id);
 CREATE INDEX idx_messages_conversation_timestamp ON messages(conversation_id, timestamp);
 CREATE INDEX idx_messages_role ON messages(role);
+CREATE INDEX idx_messages_context ON messages(project_id, worktree_id);
 CREATE INDEX idx_attachments_message ON message_attachments(message_id);
 CREATE INDEX idx_compaction_conversation ON compaction_history(conversation_id);
 ```
 
 ### Knowledge Database (`knowledge.db`)
 
-#### Project Analysis Tables
+#### Context Management Tables
 ```sql
+-- Context hierarchy tracking
+CREATE TABLE contexts (
+    id TEXT PRIMARY KEY,
+    context_type TEXT NOT NULL CHECK (context_type IN ('global', 'project', 'worktree', 'session')),
+    parent_context_id TEXT REFERENCES contexts(id),
+    name TEXT NOT NULL,
+    path TEXT, -- file system path for project/worktree contexts
+    git_branch TEXT, -- for worktree contexts
+    git_commit TEXT, -- current commit for worktree contexts
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'archived')),
+    metadata JSON
+);
+
+-- Cross-context relationships and insights
+CREATE TABLE context_relationships (
+    id TEXT PRIMARY KEY,
+    source_context_id TEXT REFERENCES contexts(id),
+    target_context_id TEXT REFERENCES contexts(id),
+    relationship_type TEXT NOT NULL CHECK (relationship_type IN (
+        'parent_child', 'sibling', 'similar_task', 'shared_pattern', 'knowledge_transfer'
+    )),
+    strength REAL DEFAULT 1.0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    metadata JSON,
+    UNIQUE(source_context_id, target_context_id, relationship_type)
+);
+
 -- Project components and analysis
 CREATE TABLE project_components (
     id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
     component TEXT NOT NULL,
     type TEXT NOT NULL,
     description TEXT,
@@ -131,7 +188,7 @@ CREATE TABLE project_decisions (
     tags JSON
 );
 
--- Success pattern tracking
+-- Success pattern tracking with context awareness
 CREATE TABLE success_patterns (
     id TEXT PRIMARY KEY,
     pattern_type TEXT NOT NULL,
@@ -142,7 +199,28 @@ CREATE TABLE success_patterns (
     confidence_score REAL,
     usage_count INTEGER DEFAULT 0,
     last_successful TIMESTAMP,
-    effectiveness_rating REAL
+    effectiveness_rating REAL,
+    -- Context tracking
+    discovered_in_context TEXT REFERENCES contexts(id),
+    applicable_contexts JSON, -- list of context types/IDs where pattern works
+    cross_context_effectiveness JSON -- effectiveness scores per context type
+);
+
+-- Cross-context insights and learnings
+CREATE TABLE cross_context_insights (
+    id TEXT PRIMARY KEY,
+    insight_type TEXT NOT NULL CHECK (insight_type IN (
+        'pattern_reuse', 'similar_solution', 'anti_pattern', 'best_practice'
+    )),
+    source_context_id TEXT REFERENCES contexts(id),
+    target_context_id TEXT REFERENCES contexts(id),
+    description TEXT,
+    evidence JSON,
+    confidence_score REAL,
+    usage_count INTEGER DEFAULT 0,
+    last_applied TIMESTAMP,
+    effectiveness_rating REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -180,7 +258,7 @@ CREATE TABLE context_relevance_feedback (
 
 #### File Tracking and Relationships
 ```sql
--- Comprehensive file metadata
+-- Comprehensive file metadata with context awareness
 CREATE TABLE files (
     id TEXT PRIMARY KEY,
     path TEXT UNIQUE NOT NULL,
@@ -196,7 +274,10 @@ CREATE TABLE files (
     is_binary BOOLEAN DEFAULT FALSE,
     language TEXT,
     encoding TEXT,
-    line_count INTEGER
+    line_count INTEGER,
+    -- Context tracking
+    project_id TEXT,
+    discovered_in_worktree TEXT -- which worktree first discovered this file
 );
 
 -- File relationships and dependencies
@@ -247,20 +328,23 @@ CREATE TABLE file_access_patterns (
 
 #### Relevance and Scoring Tables
 ```sql
--- File relevance scoring
+-- File relevance scoring with context hierarchy
 CREATE TABLE file_relevance_scores (
     id TEXT PRIMARY KEY,
     file_id TEXT REFERENCES files(id) ON DELETE CASCADE,
+    context_id TEXT REFERENCES contexts(id),
     context_type TEXT NOT NULL,
     base_score REAL DEFAULT 0.0,
     frequency_score REAL DEFAULT 0.0,
     recency_score REAL DEFAULT 0.0,
     dependency_score REAL DEFAULT 0.0,
     success_correlation REAL DEFAULT 0.0,
+    cross_context_boost REAL DEFAULT 0.0, -- boost from similar contexts
     final_score REAL DEFAULT 0.0,
     calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP,
-    metadata JSON
+    metadata JSON,
+    UNIQUE(file_id, context_id, context_type)
 );
 
 -- File content snippets for quick access
@@ -282,7 +366,7 @@ CREATE TABLE file_snippets (
 
 #### Session Management
 ```sql
--- User sessions
+-- User sessions with context hierarchy
 CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
     user_id TEXT,
@@ -292,7 +376,13 @@ CREATE TABLE sessions (
     project_path TEXT,
     working_directory TEXT,
     environment_variables JSON,
-    preferences JSON
+    preferences JSON,
+    -- Context hierarchy
+    context_id TEXT REFERENCES contexts(id),
+    project_id TEXT,
+    worktree_id TEXT,
+    task_type TEXT CHECK (task_type IN ('debugging', 'feature', 'review', 'refactor', 'maintenance')),
+    task_description TEXT
 );
 
 -- Temporary state and caches
@@ -346,29 +436,49 @@ CREATE TABLE search_indexes (
 );
 ```
 
-### File System Storage Structure
+### Hierarchical File System Storage Structure
 
 ```
+# Global user-level storage
+~/.config/aircher/
+├── global.db               # Global user patterns and preferences
+├── credentials.toml        # API keys and authentication
+└── config.toml            # User-wide settings
+
+# Project-level storage
 .agents/
 ├── db/
-│   ├── core/                # Core operational databases
-│   │   ├── conversations.db
-│   │   └── sessions.db
-│   ├── knowledge/           # Knowledge and analysis databases
-│   │   ├── knowledge.db
-│   │   └── file_index.db
-│   └── cache/               # Temporary/computed data
+│   ├── core/               # Core operational databases
+│   │   ├── conversations.db    # All conversations (multi-worktree)
+│   │   ├── knowledge.db        # Project knowledge and patterns
+│   │   ├── file_index.db       # File metadata and relationships
+│   │   └── sessions.db         # Session and context management
+│   └── cache/              # Temporary/computed data
+├── worktrees/              # Per-worktree isolated data
+│   ├── main/               # Main branch context
+│   │   ├── context.json        # Worktree-specific context
+│   │   └── cache/             # Worktree-specific cache
+│   ├── feature-auth/       # Feature branch context
+│   │   ├── context.json
+│   │   └── cache/
+│   └── bugfix-login/       # Another branch context
+│       ├── context.json
+│       └── cache/
 ├── content/
-│   ├── embeddings/          # Vector embeddings binary files
-│   ├── attachments/         # Message attachments
-│   ├── backups/            # Database backups
-│   └── cache/              # Temporary cache files
+│   ├── embeddings/         # Vector embeddings binary files
+│   ├── attachments/        # Message attachments
+│   ├── backups/           # Database backups
+│   └── cache/             # Temporary cache files
 ├── indexes/
-│   ├── faiss/              # FAISS indexes for similarity search
-│   └── search/             # Full-text search indexes
+│   ├── faiss/             # FAISS indexes for similarity search
+│   └── search/            # Full-text search indexes
+├── sessions/              # Session-specific temporary data
+│   ├── {session-id}/      # Individual session data
+│   └── active/            # Currently active sessions
 └── logs/
-    ├── storage.log         # Storage operation logs
-    └── performance.log     # Performance metrics
+    ├── storage.log        # Storage operation logs
+    ├── worktree.log       # Worktree management logs
+    └── performance.log    # Performance metrics
 ```
 
 ## Performance Optimization
@@ -511,7 +621,77 @@ connection_pool_size = 5
 - Comprehensive monitoring system
 - Data lifecycle automation
 
+## Worktree and Multi-Context Management
+
+### Worktree Detection and Management
+```sql
+-- Worktree registry
+CREATE TABLE worktrees (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    branch_name TEXT NOT NULL,
+    worktree_path TEXT NOT NULL,
+    git_commit TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'stale')),
+    metadata JSON,
+    UNIQUE(project_id, worktree_path)
+);
+
+-- Context switching history
+CREATE TABLE context_switches (
+    id TEXT PRIMARY KEY,
+    from_context_id TEXT REFERENCES contexts(id),
+    to_context_id TEXT REFERENCES contexts(id),
+    switch_reason TEXT,
+    switched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    user_id TEXT,
+    metadata JSON
+);
+```
+
+### Cross-Context Query Patterns
+```sql
+-- Find conversations across all worktrees for a project
+SELECT c.*, w.branch_name, w.worktree_path
+FROM conversations c
+JOIN worktrees w ON c.worktree_id = w.id
+WHERE c.project_id = ? AND c.context_type = 'debugging'
+ORDER BY c.updated_at DESC;
+
+-- Get cross-context insights for current task
+SELECT cci.*, 
+       source_ctx.name as source_context,
+       target_ctx.name as target_context
+FROM cross_context_insights cci
+JOIN contexts source_ctx ON cci.source_context_id = source_ctx.id
+JOIN contexts target_ctx ON cci.target_context_id = target_ctx.id
+WHERE cci.insight_type = 'similar_solution'
+AND cci.confidence_score > 0.7
+ORDER BY cci.effectiveness_rating DESC;
+```
+
+### Context Management Commands
+```bash
+# Worktree management
+aircher worktree list
+aircher worktree switch feature-branch
+aircher worktree compare main feature-branch
+
+# Context insights
+aircher context insights
+aircher context patterns --across-worktrees
+aircher context transfer feature-branch main
+```
+
 ## Future Enhancements
+
+### Advanced Multi-Context Features
+- **Smart Context Switching**: Automatic context detection and switching
+- **Cross-Worktree Insights**: Learning propagation between parallel work streams
+- **Team Context Sharing**: Shared insights while maintaining conversation privacy
+- **Temporal Context**: Time-based context relevance and historical debugging
 
 ### Advanced Features
 - **Distributed Storage**: Support for multi-node deployments
@@ -524,3 +704,4 @@ connection_pool_size = 5
 - **Compression**: Advanced compression for historical data
 - **Partitioning**: Time-based partitioning for large datasets
 - **Caching**: Multi-level caching with Redis integration
+- **Context Prefetching**: Preload relevant context for faster switching
