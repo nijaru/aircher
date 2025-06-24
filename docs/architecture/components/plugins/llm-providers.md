@@ -72,6 +72,7 @@ type ChatRequest struct {
     ThinkingMode    bool                   `json:"thinking_mode,omitempty"`
     ContextWindow   int                    `json:"context_window,omitempty"`
     CostLimit       *float64               `json:"cost_limit,omitempty"`
+    TaskType        TaskType               `json:"task_type,omitempty"`
 }
 
 type Message struct {
@@ -309,6 +310,10 @@ type ProviderManager struct {
     config      ProviderConfig
     logger      *zerolog.Logger
     
+    // Task-specific model selection
+    taskModelMap map[TaskType]string
+    costOptimized bool
+    
     // Metrics and monitoring
     healthChecker *HealthChecker
     metrics      *ProviderMetrics
@@ -320,6 +325,51 @@ type ProviderConfig struct {
     FallbackOrder   []string                  `toml:"fallback_order"`
     HealthCheckInterval time.Duration         `toml:"health_check_interval"`
     Providers       map[string]interface{}    `toml:"providers"`
+    TaskModels      map[string]string         `toml:"task_models"`
+    CostOptimized   bool                      `toml:"prefer_cost_efficient"`
+}
+
+// Task types for intelligent model selection
+type TaskType string
+
+const (
+    TaskCommitMessage   TaskType = "commit_messages"
+    TaskSummary         TaskType = "summaries"
+    TaskCodeReview      TaskType = "code_review"
+    TaskDocumentation   TaskType = "documentation"
+    TaskRefactoring     TaskType = "refactoring"
+    TaskDebugging       TaskType = "debugging"
+    TaskQuickQuestion   TaskType = "quick_questions"
+    TaskCodeGeneration  TaskType = "code_generation"
+    TaskDefault         TaskType = "default"
+)
+
+// GetModelForTask returns the optimal model for a specific task type
+func (pm *ProviderManager) GetModelForTask(taskType TaskType) string {
+    // Check for task-specific override
+    if model, exists := pm.taskModelMap[taskType]; exists {
+        return model
+    }
+    
+    // Fall back to default model
+    return pm.config.Default
+}
+
+// SelectProviderForTask chooses the best provider/model combination for a task
+func (pm *ProviderManager) SelectProviderForTask(taskType TaskType) (string, string) {
+    model := pm.GetModelForTask(taskType)
+    
+    // Find which provider supports this model
+    for providerName, provider := range pm.providers {
+        for _, supportedModel := range provider.Models() {
+            if supportedModel == model {
+                return providerName, model
+            }
+        }
+    }
+    
+    // Fall back to default provider with its default model
+    return pm.defaultProvider, pm.GetModelForTask(TaskDefault)
 }
 
 type ProviderMetrics struct {
@@ -369,6 +419,232 @@ func (hc *HealthChecker) CheckProvider(ctx context.Context, provider LLMProvider
     }
     
     return status
+}
+```
+
+### Task Detection and Auto-Model Selection
+
+The provider system includes intelligent task detection and automatic model selection to optimize for both cost and performance based on the specific type of work being performed.
+
+#### Task Detection Engine
+```go
+type TaskDetector struct {
+    patterns        map[TaskType][]TaskPattern
+    contextAnalyzer *ContextAnalyzer
+    historyTracker  *HistoryTracker
+    logger          *zerolog.Logger
+}
+
+type TaskPattern struct {
+    Keywords        []string              `json:"keywords"`
+    MessagePatterns []string              `json:"message_patterns"`
+    FilePatterns    []string              `json:"file_patterns"`
+    GitPatterns     []string              `json:"git_patterns"`
+    Confidence      float64               `json:"confidence"`
+}
+
+type ContextAnalyzer struct {
+    fileWatcher     *FileWatcher
+    gitWatcher      *GitWatcher
+    commandHistory  []string
+    currentFiles    []string
+}
+
+// DetectTaskType analyzes the current context to determine the most likely task type
+func (td *TaskDetector) DetectTaskType(messages []Message, context *Context) TaskType {
+    scores := make(map[TaskType]float64)
+    
+    // Analyze message content
+    for _, msg := range messages {
+        content := strings.ToLower(msg.Content.(string))
+        for taskType, patterns := range td.patterns {
+            for _, pattern := range patterns {
+                score := td.calculatePatternScore(content, pattern)
+                scores[taskType] += score
+            }
+        }
+    }
+    
+    // Analyze file context
+    if context != nil {
+        td.analyzeFileContext(context, scores)
+        td.analyzeGitContext(context, scores)
+    }
+    
+    // Return highest scoring task type
+    return td.getBestMatch(scores)
+}
+
+// Example task detection patterns
+var defaultTaskPatterns = map[TaskType][]TaskPattern{
+    TaskCommitMessage: {
+        {
+            Keywords: []string{"commit", "git commit", "commit message", "changelog"},
+            MessagePatterns: []string{"write.*commit", "generate.*commit", "create.*commit"},
+            GitPatterns: []string{"staged_changes", "git_status"},
+            Confidence: 0.9,
+        },
+    },
+    TaskSummary: {
+        {
+            Keywords: []string{"summarize", "summary", "tldr", "overview", "brief"},
+            MessagePatterns: []string{"summarize.*", "give.*summary", "what.*about"},
+            FilePatterns: []string{"*.md", "*.txt", "*.log"},
+            Confidence: 0.8,
+        },
+    },
+    TaskCodeReview: {
+        {
+            Keywords: []string{"review", "code review", "feedback", "suggestions", "improvements"},
+            MessagePatterns: []string{"review.*code", "look.*code", "feedback.*on"},
+            FilePatterns: []string{"*.rs", "*.go", "*.py", "*.js", "*.ts"},
+            GitPatterns: []string{"diff", "changes", "modified"},
+            Confidence: 0.85,
+        },
+    },
+    TaskDebugging: {
+        {
+            Keywords: []string{"bug", "error", "debug", "fix", "problem", "issue", "broken"},
+            MessagePatterns: []string{"why.*not.*work", "error.*when", "debug.*", "fix.*"},
+            FilePatterns: []string{"*.log", "*.err"},
+            Confidence: 0.9,
+        },
+    },
+}
+```
+
+#### Smart Model Selection
+```go
+type ModelSelector struct {
+    taskModelMap    map[TaskType]ModelConfig
+    costOptimizer   *CostOptimizer
+    provider        *ProviderManager
+    preferences     ModelPreferences
+}
+
+type ModelConfig struct {
+    PreferredModel  string                 `json:"preferred_model"`
+    FallbackModels  []string               `json:"fallback_models"`
+    MaxCostPer1K    float64                `json:"max_cost_per_1k"`
+    MinQualityScore float64                `json:"min_quality_score"`
+    RequiredFeatures []string              `json:"required_features"`
+}
+
+type ModelPreferences struct {
+    PrioritizeCost      bool    `json:"prioritize_cost"`
+    PrioritizeSpeed     bool    `json:"prioritize_speed"`
+    PrioritizeQuality   bool    `json:"prioritize_quality"`
+    MaxCostPerRequest   float64 `json:"max_cost_per_request"`
+    MaxResponseTime     time.Duration `json:"max_response_time"`
+}
+
+// SelectOptimalModel chooses the best model for a given task and context
+func (ms *ModelSelector) SelectOptimalModel(taskType TaskType, context *RequestContext) (string, string, error) {
+    config, exists := ms.taskModelMap[taskType]
+    if !exists {
+        return ms.getDefaultModel()
+    }
+    
+    // Check if preferred model meets cost constraints
+    if ms.preferences.PrioritizeCost {
+        if cost := ms.costOptimizer.EstimateCost(config.PreferredModel, context); cost > ms.preferences.MaxCostPerRequest {
+            return ms.selectCostEfficientModel(taskType, context)
+        }
+    }
+    
+    // Verify model availability and health
+    provider, model := ms.findAvailableProvider(config.PreferredModel)
+    if provider != "" {
+        return provider, model, nil
+    }
+    
+    // Try fallback models
+    for _, fallbackModel := range config.FallbackModels {
+        if provider, model := ms.findAvailableProvider(fallbackModel); provider != "" {
+            return provider, model, nil
+        }
+    }
+    
+    return "", "", fmt.Errorf("no suitable model found for task type: %s", taskType)
+}
+
+// Default task-to-model mappings optimized for cost and performance
+var defaultTaskModelConfig = map[TaskType]ModelConfig{
+    TaskCommitMessage: {
+        PreferredModel: "gpt-3.5-turbo",
+        FallbackModels: []string{"claude-3-haiku", "gemini-pro"},
+        MaxCostPer1K: 0.002,
+        MinQualityScore: 0.7,
+        RequiredFeatures: []string{"chat"},
+    },
+    TaskSummary: {
+        PreferredModel: "claude-3-haiku",
+        FallbackModels: []string{"gpt-3.5-turbo", "gemini-pro"},
+        MaxCostPer1K: 0.001,
+        MinQualityScore: 0.8,
+        RequiredFeatures: []string{"chat", "long_context"},
+    },
+    TaskCodeReview: {
+        PreferredModel: "gpt-4",
+        FallbackModels: []string{"claude-3-5-sonnet", "gpt-4-turbo"},
+        MaxCostPer1K: 0.03,
+        MinQualityScore: 0.9,
+        RequiredFeatures: []string{"chat", "code_analysis"},
+    },
+    TaskDebugging: {
+        PreferredModel: "claude-3-5-sonnet",
+        FallbackModels: []string{"gpt-4", "gpt-4-turbo"},
+        MaxCostPer1K: 0.015,
+        MinQualityScore: 0.85,
+        RequiredFeatures: []string{"chat", "reasoning", "code_analysis"},
+    },
+    TaskCodeGeneration: {
+        PreferredModel: "gpt-4",
+        FallbackModels: []string{"claude-3-5-sonnet", "gpt-4-turbo"},
+        MaxCostPer1K: 0.03,
+        MinQualityScore: 0.9,
+        RequiredFeatures: []string{"chat", "code_generation"},
+    },
+    TaskQuickQuestion: {
+        PreferredModel: "gpt-3.5-turbo",
+        FallbackModels: []string{"claude-3-haiku", "gemini-pro"},
+        MaxCostPer1K: 0.002,
+        MinQualityScore: 0.7,
+        RequiredFeatures: []string{"chat"},
+    },
+}
+```
+
+#### Integration with Provider Manager
+The task detection and model selection integrates seamlessly with the existing provider management system:
+
+```go
+// Enhanced ChatWithTaskDetection method
+func (pm *ProviderManager) ChatWithTaskDetection(req *ChatRequest) (*ChatResponse, error) {
+    // Auto-detect task type if not specified
+    if req.TaskType == "" {
+        context := pm.buildRequestContext(req)
+        req.TaskType = pm.taskDetector.DetectTaskType(req.Messages, context)
+        pm.logger.Info().Str("detected_task", string(req.TaskType)).Msg("Auto-detected task type")
+    }
+    
+    // Select optimal provider and model for the task
+    if req.Provider == "" || req.Model == "" {
+        provider, model, err := pm.modelSelector.SelectOptimalModel(req.TaskType, nil)
+        if err != nil {
+            return nil, fmt.Errorf("model selection failed: %w", err)
+        }
+        req.Provider = provider
+        req.Model = model
+        pm.logger.Info().
+            Str("provider", provider).
+            Str("model", model).
+            Str("task", string(req.TaskType)).
+            Msg("Auto-selected optimal model")
+    }
+    
+    // Proceed with regular chat processing
+    return pm.Chat(req)
 }
 ```
 
@@ -464,11 +740,23 @@ keep_alive = "5m"
 temperature = 0.7
 num_ctx = 4096
 
+# Task-specific model overrides for cost optimization
+[models.tasks]
+commit_messages = "gpt-3.5-turbo"        # Fast, cheap for git commits
+summaries = "claude-3-haiku"             # Efficient for text summarization  
+code_review = "gpt-4"                    # High-quality for code analysis
+documentation = "claude-3-haiku"         # Good balance for docs
+refactoring = "gpt-4"                    # Complex reasoning needed
+debugging = "claude-3-5-sonnet"          # Strong analytical capabilities
+quick_questions = "gpt-3.5-turbo"        # Fast responses for simple queries
+code_generation = "gpt-4"                # High-quality code output
+
 [costs]
 monthly_budget = 100.0
 daily_limit = 10.0
 alert_threshold = 0.8
 track_by_provider = true
+prefer_cost_efficient = true             # Auto-select cheaper models when appropriate
 
 [costs.limits]
 openai_daily = 5.0
@@ -694,3 +982,133 @@ func (pts *ProviderTestSuite) TestStreamingChat(t *testing.T) {
 - Efficient streaming buffer management
 - Proper cleanup of completed streams
 - Monitor memory usage in long-running processes
+
+## Cost Optimization Strategies
+
+### Intelligent Model Selection for Common Tasks
+
+The multi-model configuration system enables significant cost savings by automatically selecting cheaper, faster models for routine tasks while preserving quality for complex operations.
+
+#### Cost-Effective Task Mappings
+```go
+// Real-world cost optimization examples
+var costOptimizedMappings = map[TaskType]CostStrategy{
+    TaskCommitMessage: {
+        Model:           "gpt-3.5-turbo",     // ~$0.001/1K tokens
+        ExpectedSavings: "90%",               // vs GPT-4
+        QualityLoss:     "minimal",
+        UseCase:        "Simple git commit message generation",
+    },
+    TaskSummary: {
+        Model:           "claude-3-haiku",    // ~$0.00025/1K tokens
+        ExpectedSavings: "95%",               // vs Claude-3-Opus
+        QualityLoss:     "low",
+        UseCase:        "Code/document summarization",
+    },
+    TaskQuickQuestion: {
+        Model:           "gpt-3.5-turbo",     // Fast + cheap
+        ExpectedSavings: "85%",
+        QualityLoss:     "minimal",
+        UseCase:        "Simple Q&A, syntax help",
+    },
+}
+```
+
+### Dynamic Cost Controls
+```go
+type CostOptimizer struct {
+    monthlyBudget   float64
+    dailyBudget     float64
+    currentSpend    float64
+    alertThresholds []float64
+    
+    // Auto-downgrade expensive models when approaching limits
+    autoDowngrade   bool
+    downgradePaths  map[string][]string
+}
+
+// Example downgrade paths for cost control
+var modelDowngradePaths = map[string][]string{
+    "gpt-4":                {"gpt-4-turbo", "gpt-3.5-turbo"},
+    "claude-3-opus":        {"claude-3-sonnet", "claude-3-haiku"},
+    "claude-3-5-sonnet":    {"claude-3-haiku", "gpt-3.5-turbo"},
+}
+```
+
+### Practical Cost Savings Examples
+
+#### Example 1: Git Workflow Optimization
+```toml
+# Before: All tasks use GPT-4 (~$30/month)
+# After: Task-specific models (~$8/month - 73% savings)
+
+[models.tasks]
+commit_messages = "gpt-3.5-turbo"        # $0.50/month
+summaries = "claude-3-haiku"             # $0.25/month  
+code_review = "gpt-4"                    # $5.00/month (keep quality)
+quick_questions = "gpt-3.5-turbo"        # $2.00/month
+documentation = "claude-3-haiku"         # $0.25/month
+```
+
+#### Example 2: Development Workflow
+```go
+// Typical development session cost breakdown
+type SessionCostBreakdown struct {
+    CodeReview:     "$0.15",  // 1-2 files, GPT-4
+    CommitMessages: "$0.01",  // 5-10 commits, GPT-3.5-Turbo
+    QuickQuestions: "$0.05",  // 10-15 questions, GPT-3.5-Turbo
+    Documentation: "$0.02",   // README updates, Claude-3-Haiku
+    TotalSession:   "$0.23",  // vs $1.20 with GPT-4 for everything
+}
+```
+
+### Configuration Best Practices
+
+#### Budget-Conscious Configuration
+```toml
+[costs]
+monthly_budget = 25.0                    # Conservative budget
+daily_limit = 1.5                       # Prevent surprise bills
+alert_threshold = 0.75                  # 75% budget warning
+prefer_cost_efficient = true            # Auto-select cheaper models
+auto_downgrade_on_limit = true          # Fallback to cheaper models
+
+[costs.task_budgets]
+commit_messages = 2.0                   # Max $2/month for commits
+summaries = 1.0                         # Max $1/month for summaries
+quick_questions = 5.0                   # Max $5/month for Q&A
+```
+
+#### Performance vs Cost Balance
+```toml
+[models.tasks]
+# High-quality tasks (worth the cost)
+code_review = "gpt-4"                   # Complex reasoning needed
+refactoring = "claude-3-5-sonnet"       # Architecture decisions
+debugging = "gpt-4"                     # Problem-solving critical
+
+# Cost-optimized tasks (quality sufficient)
+commit_messages = "gpt-3.5-turbo"       # Simple text generation
+summaries = "claude-3-haiku"            # Good comprehension, cheap
+documentation = "claude-3-haiku"        # Writing assistant
+quick_questions = "gpt-3.5-turbo"       # Fast responses
+```
+
+### Real-Time Cost Monitoring
+```go
+type CostMonitor struct {
+    realTimeTracking bool
+    costPerRequest   map[string]float64
+    budgetAlerts     []AlertRule
+    usageProjection  *UsageProjector
+}
+
+// Live cost feedback in TUI
+type CostDisplay struct {
+    CurrentSession:  "$0.23",
+    DailySpend:     "$1.45 / $2.00",
+    MonthlySpend:   "$18.50 / $25.00", 
+    ProjectedMonth: "$22.30",
+    SavingsToday:   "$0.85 (58%)",
+}
+```

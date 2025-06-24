@@ -274,6 +274,15 @@ auto_select = true            # intelligent model selection based on task
 openai_default = "gpt-4"      # smart defaults per provider
 anthropic_default = "claude-3-5-sonnet"
 
+# Task-specific model overrides for cost optimization
+[models.tasks]
+commit_messages = "gpt-3.5-turbo"        # Fast, cheap for git commits
+summaries = "claude-3-haiku"             # Efficient for text summarization
+code_review = "gpt-4"                    # High-quality for code analysis
+documentation = "claude-3-haiku"         # Good balance for docs
+refactoring = "gpt-4"                    # Complex reasoning needed
+debugging = "claude-3-5-sonnet"          # Strong analytical capabilities
+
 [interface]
 show_thinking = true          # show AI thinking process
 show_context_usage = true     # show token usage (e.g., "44k/200k")
@@ -286,6 +295,7 @@ auto_compaction = true       # automatic optimization
 [costs]
 monthly_budget = 100.0       # budget tracking and warnings
 track_usage = true
+prefer_cost_efficient = true # auto-select cheaper models when appropriate
 ```
 
 ### Credential Management via `aircher login`
@@ -356,6 +366,7 @@ api_key = "AI..."
 
 ### 🚧 Implementation Pending
 - **Actual LLM API Integration**: Complete provider implementations with streaming
+- **Task-Specific Model Selection**: Automatic cost-optimized model selection for different task types
 - **File Relevance Algorithms**: Intelligent context selection algorithms
 - **MCP Tool Execution**: Security-controlled tool execution system
 - **Smart Compaction**: Conversation optimization and summarization

@@ -1,7 +1,11 @@
 {
+	"priorities": {
+		"next_sequence": ["SPRINT-001", "SPRINT-002", "SPRINT-003"],
+		"current_focus": "Foundation & LLM Integration - Complete core LLM provider integrations with streaming support"
+	},
 	"project": {
 		"name": "Aircher",
-		"description": "AI-powered terminal-based development assistant with intelligent conversation, context management, and project analysis capabilities",
+		"description": "AI-powered terminal assistant built with Rust",
 		"version": "0.1.0-dev",
 		"technology_stack": [
 			"Rust 1.80+",
@@ -12,29 +16,14 @@
 		],
 		"last_updated": "December 2024",
 		"current_phase": "Phase 2 (LLM Provider Integration)",
-		"architecture": "CLI Tool",
-		"key_differentiators": [
-			"Terminal-native interface with responsive design",
-			"Multi-database architecture for different data types",
-			"Universal LLM provider interface (OpenAI, Claude, Gemini, Ollama)",
-			"Intelligent context management and file relevance scoring",
-			"Project analysis system with auto-generated documentation"
-		]
+		"architecture": "CLI Tool"
 	},
 	"metrics": {
-		"code_statistics": {
-			"total_rust_files": 45,
-			"lines_of_code": 8500,
-			"test_coverage": 35,
-			"database_schemas": 4
-		},
 		"phase_progress": {
 			"phase_1_foundation": 100,
 			"phase_2_intelligence": 40,
 			"phase_3_context_management": 0,
-			"phase_4_tool_integration": 15,
-			"phase_5_enterprise": 0,
-			"phase_6_production": 0
+			"phase_4_tool_integration": 15
 		},
 		"quality_targets": {
 			"test_coverage_goal": 80,
@@ -468,124 +457,64 @@
 			}
 		},
 		"SPRINT-001": {
+			"id": "SPRINT-001",
 			"title": "Complete OpenAI API Integration",
-			"phase": "Current Sprint",
 			"status": "pending",
-			"priority": "critical",
-			"description": "Implement actual OpenAI API calls with streaming support",
-			"sprint": "immediate",
-			"acceptance_criteria": {
-				"api_calls": {
-					"completed": false,
-					"description": "Implement actual API calls with proper error handling"
-				},
-				"streaming_integration": {
-					"completed": false,
-					"description": "Integrate streaming responses with TUI"
-				},
-				"authentication": {
-					"completed": false,
-					"description": "Secure API key management and authentication"
-				}
-			}
+			"description": "Implement actual OpenAI API calls with streaming support and TUI integration",
+			"files": ["src/providers/openai.rs", "src/providers/mod.rs", "src/tui/chat.rs"],
+			"acceptance_criteria": [
+				"Implement async OpenAI API client with proper authentication",
+				"Support streaming responses with SSE parsing",
+				"Integrate streaming responses with TUI chat component",
+				"Handle OpenAI-specific errors and rate limiting"
+			],
+			"dependencies": [],
+			"estimated_effort": "large"
 		},
 		"SPRINT-002": {
+			"id": "SPRINT-002",
 			"title": "Complete Claude API Integration",
-			"phase": "Current Sprint",
 			"status": "pending",
-			"priority": "critical",
-			"description": "Implement actual Claude API calls with streaming support",
-			"sprint": "immediate",
-			"acceptance_criteria": {
-				"api_calls": {
-					"completed": false,
-					"description": "Implement actual API calls with proper error handling"
-				},
-				"streaming_integration": {
-					"completed": false,
-					"description": "Integrate streaming responses with TUI"
-				},
-				"authentication": {
-					"completed": false,
-					"description": "Secure API key management and authentication"
-				}
-			}
+			"description": "Implement actual Claude API calls with streaming support and TUI integration",
+			"files": ["src/providers/claude.rs", "src/providers/mod.rs", "src/tui/chat.rs"],
+			"acceptance_criteria": [
+				"Implement async Claude API client with proper authentication",
+				"Support streaming responses with SSE parsing",
+				"Integrate streaming responses with TUI chat component",
+				"Handle Anthropic-specific errors and rate limiting"
+			],
+			"dependencies": [],
+			"estimated_effort": "large"
 		},
 		"SPRINT-003": {
+			"id": "SPRINT-003",
 			"title": "CLI Authentication System",
-			"phase": "Current Sprint",
 			"status": "in_progress",
-			"priority": "critical",
-			"description": "Interactive aircher auth for provider API key setup",
-			"sprint": "immediate",
-			"acceptance_criteria": {
-				"auth_command": {
-					"completed": false,
-					"description": "Implement aircher auth command with interactive setup"
-				},
-				"secure_storage": {
-					"completed": false,
-					"description": "Secure credential storage with proper file permissions"
-				},
-				"service_management": {
-					"completed": false,
-					"description": "Manage multiple service configurations"
-				},
-				"connection_testing": {
-					"completed": false,
-					"description": "Test service connections and health checks"
-				}
-			}
-		}
-	},
-	"current_sprint": {
-		"name": "LLM Integration Sprint",
-		"duration": "2 weeks",
-		"focus": "Complete core LLM provider integrations with streaming support",
-		"immediate_tasks": ["SPRINT-001", "SPRINT-002", "SPRINT-003"],
-		"medium_priority": ["PHASE2-004", "PHASE2-005", "PHASE2-006"],
-		"long_term": ["PHASE3-001", "PHASE3-002", "PHASE4-001"]
-	},
-	"blockers": {
-		"current": [
-			{
-				"task": "PHASE2-002",
-				"description": "Need OpenAI API key setup process",
-				"severity": "high"
-			},
-			{
-				"task": "PHASE2-003",
-				"description": "Need Anthropic API key setup process",
-				"severity": "high"
-			}
-		],
-		"external_dependencies": [
-			"OpenAI API access and billing setup",
-			"Anthropic API access and billing setup",
-			"Google AI API access (for Gemini)",
-			"Local Ollama installation for testing"
-		],
-		"technical_dependencies": [
-			"Streaming TUI integration requires careful state management",
-			"Token counting accuracy depends on provider tokenizer implementations",
-			"MCP security framework needs comprehensive security review"
-		]
-	},
-	"quality_gates": {
-		"code_quality": {
-			"test_coverage_minimum": 60,
-			"lint_passing": true,
-			"security_scan_passing": true
+			"description": "Interactive `aircher auth` command for provider API key setup with secure storage",
+			"files": ["src/commands/auth.rs", "src/config/credentials.rs", "src/config/mod.rs"],
+			"acceptance_criteria": [
+				"Implement `aircher auth` command with interactive setup",
+				"Secure credential storage with proper file permissions",
+				"Support multiple service configurations",
+				"Test service connections and health checks"
+			],
+			"dependencies": [],
+			"estimated_effort": "medium"
 		},
-		"user_experience": {
-			"response_time_max_ms": 200,
-			"error_recovery": true,
-			"cross_platform_support": true
-		},
-		"production_readiness": {
-			"documentation_complete": false,
-			"performance_benchmarks": false,
-			"security_audit": false
+		"SPRINT-004": {
+			"id": "SPRINT-004",
+			"title": "Multi-Model Task Configuration",
+			"status": "pending",
+			"description": "Configure faster, cheaper models for specific tasks like commit messages, summaries, etc.",
+			"files": ["src/config/models.rs", "src/providers/mod.rs", "examples/cost-optimized-config.toml"],
+			"acceptance_criteria": [
+				"Define model selection rules for different task types",
+				"Extend TOML configuration to support task-specific model overrides", 
+				"Implement automatic model selection for cost-sensitive operations",
+				"Smart fallback when preferred models are unavailable"
+			],
+			"dependencies": ["SPRINT-001", "SPRINT-002"],
+			"estimated_effort": "medium"
 		}
 	}
 }
