@@ -828,6 +828,831 @@ var CoreMCPServers = map[string]*ServerDefinition{
         },
     },
 }
+```
+
+## LLM-Database Interface Architecture
+
+### Database Context Discovery System
+
+The LLM needs automatic discovery of database structure and available operations. This system provides schema awareness and intelligent query generation.
+
+```rust
+pub struct DatabaseContextManager {
+    // Schema discovery
+    schema_cache: HashMap<String, DatabaseSchema>,
+    table_relationships: HashMap<String, Vec<TableRelation>>,
+    
+    // MCP integration
+    mcp_client: Arc<MCPClient>,
+    sqlite_server_name: String,
+    
+    // Query optimization
+    query_analyzer: QueryAnalyzer,
+    performance_monitor: QueryPerformanceMonitor,
+    
+    // Security
+    query_validator: QueryValidator,
+    allowed_operations: HashSet<DatabaseOperation>,
+    
+    logger: Arc<Logger>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DatabaseSchema {
+    pub database_name: String,
+    pub tables: HashMap<String, TableSchema>,
+    pub views: HashMap<String, ViewSchema>,
+    pub indexes: Vec<IndexInfo>,
+    pub last_updated: SystemTime,
+}
+
+#[derive(Debug, Clone)]
+pub struct TableSchema {
+    pub name: String,
+    pub columns: Vec<ColumnInfo>,
+    pub primary_keys: Vec<String>,
+    pub foreign_keys: Vec<ForeignKeyInfo>,
+    pub constraints: Vec<ConstraintInfo>,
+    pub row_count_estimate: Option<u64>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ColumnInfo {
+    pub name: String,
+    pub data_type: String,
+    pub nullable: bool,
+    pub default_value: Option<String>,
+    pub is_unique: bool,
+    pub description: Option<String>,
+    pub sample_values: Vec<String>, // For better LLM understanding
+}
+
+impl DatabaseContextManager {
+    pub async fn discover_schema(&mut self, database_path: &str) -> Result<DatabaseSchema> {
+        // Use MCP SQLite server to discover schema
+        let tables_result = self.mcp_client
+            .call_tool(&self.sqlite_server_name, "list_tables", json!({
+                "database": database_path
+            }))
+            .await?;
+        
+        let mut schema = DatabaseSchema {
+            database_name: database_path.to_string(),
+            tables: HashMap::new(),
+            views: HashMap::new(),
+            indexes: Vec::new(),
+            last_updated: SystemTime::now(),
+        };
+        
+        // Process each table
+        if let Some(tables) = tables_result.content.as_array() {
+            for table in tables {
+                if let Some(table_name) = table.as_str() {
+                    let table_schema = self.discover_table_schema(database_path, table_name).await?;
+                    schema.tables.insert(table_name.to_string(), table_schema);
+                }
+            }
+        }
+        
+        // Cache the schema
+        self.schema_cache.insert(database_path.to_string(), schema.clone());
+        
+        Ok(schema)
+    }
+    
+    async fn discover_table_schema(&self, database_path: &str, table_name: &str) -> Result<TableSchema> {
+        // Get table structure
+        let describe_result = self.mcp_client
+            .call_tool(&self.sqlite_server_name, "describe_table", json!({
+                "database": database_path,
+                "table": table_name
+            }))
+            .await?;
+        
+        // Get sample data for better LLM understanding
+        let sample_result = self.mcp_client
+            .call_tool(&self.sqlite_server_name, "read_query", json!({
+                "database": database_path,
+                "query": format!("SELECT * FROM {} LIMIT 5", table_name)
+            }))
+            .await?;
+        
+        // Parse and build table schema
+        let mut columns = Vec::new();
+        if let Some(table_info) = describe_result.content.as_array() {
+            for column_info in table_info {
+                let column = self.parse_column_info(column_info, &sample_result)?;
+                columns.push(column);
+            }
+        }
+        
+        Ok(TableSchema {
+            name: table_name.to_string(),
+            columns,
+            primary_keys: self.extract_primary_keys(&describe_result)?,
+            foreign_keys: self.extract_foreign_keys(database_path, table_name).await?,
+            constraints: Vec::new(),
+            row_count_estimate: self.estimate_row_count(database_path, table_name).await?,
+            description: None,
+        })
+    }
+    
+    pub async fn generate_schema_context(&self) -> String {
+        let mut context = String::new();
+        context.push_str("# Database Schema Information\n\n");
+        
+        for (db_name, schema) in &self.schema_cache {
+            context.push_str(&format!("## Database: {}\n\n", db_name));
+            
+            for (table_name, table) in &schema.tables {
+                context.push_str(&format!("### Table: {}\n", table_name));
+                if let Some(desc) = &table.description {
+                    context.push_str(&format!("Description: {}\n", desc));
+                }
+                context.push_str(&format!("Estimated rows: {}\n\n", 
+                    table.row_count_estimate.unwrap_or(0)));
+                
+                context.push_str("**Columns:**\n");
+                for column in &table.columns {
+                    context.push_str(&format!("- `{}` ({})", column.name, column.data_type));
+                    if !column.nullable {
+                        context.push_str(" NOT NULL");
+                    }
+                    if column.is_unique {
+                        context.push_str(" UNIQUE");
+                    }
+                    if let Some(default) = &column.default_value {
+                        context.push_str(&format!(" DEFAULT {}", default));
+                    }
+                    context.push('\n');
+                    
+                    // Add sample values for better understanding
+                    if !column.sample_values.is_empty() {
+                        context.push_str(&format!("  Sample values: {}\n", 
+                            column.sample_values.join(", ")));
+                    }
+                }
+                context.push('\n');
+                
+                // Add relationships
+                if !table.foreign_keys.is_empty() {
+                    context.push_str("**Foreign Keys:**\n");
+                    for fk in &table.foreign_keys {
+                        context.push_str(&format!("- {} → {}.{}\n", 
+                            fk.column, fk.referenced_table, fk.referenced_column));
+                    }
+                    context.push('\n');
+                }
+            }
+        }
+        
+        context
+    }
+}
+```
+
+### Query Generation and Validation System
+
+```rust
+pub struct QueryGenerator {
+    schema_manager: Arc<DatabaseContextManager>,
+    query_templates: HashMap<QueryType, Vec<QueryTemplate>>,
+    safety_checker: QuerySafetyChecker,
+}
+
+#[derive(Debug)]
+pub enum QueryType {
+    ConversationSearch,
+    KnowledgeRetrieval,
+    FileContextLookup,
+    SessionHistory,
+    MetricsQuery,
+    Custom,
+}
+
+#[derive(Debug)]
+pub struct QueryTemplate {
+    pub name: String,
+    pub description: String,
+    pub sql_template: String,
+    pub parameters: Vec<QueryParameter>,
+    pub safety_level: SafetyLevel,
+    pub estimated_performance: PerformanceLevel,
+}
+
+impl QueryGenerator {
+    pub async fn generate_query_suggestions(&self, intent: &str) -> Result<Vec<QuerySuggestion>> {
+        let mut suggestions = Vec::new();
+        
+        // Analyze intent to determine query type
+        let query_type = self.analyze_intent(intent).await?;
+        
+        // Get relevant templates
+        let templates = self.query_templates.get(&query_type).unwrap_or(&Vec::new());
+        
+        for template in templates {
+            if self.is_template_applicable(template, intent) {
+                let suggestion = QuerySuggestion {
+                    description: template.description.clone(),
+                    sql: template.sql_template.clone(),
+                    parameters: template.parameters.clone(),
+                    safety_level: template.safety_level,
+                    estimated_rows: self.estimate_result_size(&template.sql_template).await?,
+                };
+                suggestions.push(suggestion);
+            }
+        }
+        
+        Ok(suggestions)
+    }
+    
+    pub async fn validate_query(&self, sql: &str) -> Result<QueryValidation> {
+        let validation = QueryValidation {
+            is_safe: true,
+            issues: Vec::new(),
+            suggestions: Vec::new(),
+            estimated_performance: PerformanceLevel::Good,
+        };
+        
+        // Check for dangerous operations
+        if self.contains_dangerous_operations(sql) {
+            return Ok(QueryValidation {
+                is_safe: false,
+                issues: vec!["Query contains potentially dangerous operations".to_string()],
+                suggestions: vec!["Use read-only queries for data exploration".to_string()],
+                estimated_performance: PerformanceLevel::Unknown,
+            });
+        }
+        
+        // Performance analysis
+        let performance = self.analyze_query_performance(sql).await?;
+        
+        Ok(QueryValidation {
+            is_safe: true,
+            issues: Vec::new(),
+            suggestions: self.generate_optimization_suggestions(sql, &performance),
+            estimated_performance: performance.level,
+        })
+    }
+}
+```
+
+### Pre-built Database Tools for LLM
+
+```rust
+pub struct AircherDatabaseTools {
+    context_manager: Arc<DatabaseContextManager>,
+    mcp_client: Arc<MCPClient>,
+}
+
+impl AircherDatabaseTools {
+    pub async fn search_conversations(&self, query: &str, limit: Option<u32>) -> Result<Vec<ConversationResult>> {
+        let sql = format!(
+            "SELECT id, title, created_at, updated_at, message_count 
+             FROM conversations 
+             WHERE title LIKE ? OR content LIKE ? 
+             ORDER BY updated_at DESC 
+             LIMIT ?",
+        );
+        
+        let result = self.mcp_client
+            .call_tool("sqlite", "read_query", json!({
+                "database": "conversations.db",
+                "query": sql,
+                "params": [
+                    format!("%{}%", query),
+                    format!("%{}%", query),
+                    limit.unwrap_or(10)
+                ]
+            }))
+            .await?;
+        
+        self.parse_conversation_results(result)
+    }
+    
+    pub async fn get_file_context(&self, file_path: &str) -> Result<FileContext> {
+        let sql = 
+            "SELECT fc.*, fr.relevance_score, fr.last_accessed
+             FROM file_context fc
+             LEFT JOIN file_relevance fr ON fc.file_path = fr.file_path
+             WHERE fc.file_path = ?";
+        
+        let result = self.mcp_client
+            .call_tool("sqlite", "read_query", json!({
+                "database": "file_index.db",
+                "query": sql,
+                "params": [file_path]
+            }))
+            .await?;
+        
+        self.parse_file_context(result)
+    }
+    
+    pub async fn get_knowledge_related_to(&self, topic: &str) -> Result<Vec<KnowledgeEntry>> {
+        let sql = 
+            "SELECT ke.*, ks.relevance_score
+             FROM knowledge_entries ke
+             LEFT JOIN knowledge_search ks ON ke.id = ks.entry_id
+             WHERE ke.content LIKE ? OR ke.tags LIKE ?
+             ORDER BY ks.relevance_score DESC";
+        
+        let result = self.mcp_client
+            .call_tool("sqlite", "read_query", json!({
+                "database": "knowledge.db", 
+                "query": sql,
+                "params": [
+                    format!("%{}%", topic),
+                    format!("%{}%", topic)
+                ]
+            }))
+            .await?;
+        
+        self.parse_knowledge_entries(result)
+    }
+    
+    pub async fn update_file_relevance(&self, file_path: &str, relevance_score: f64) -> Result<()> {
+        let sql = 
+            "INSERT OR REPLACE INTO file_relevance (file_path, relevance_score, last_accessed)
+             VALUES (?, ?, datetime('now'))";
+        
+        self.mcp_client
+            .call_tool("sqlite", "write_query", json!({
+                "database": "file_index.db",
+                "query": sql,
+                "params": [file_path, relevance_score]
+            }))
+            .await?;
+        
+        Ok(())
+    }
+    
+    pub async fn save_conversation_insight(&self, conversation_id: &str, insight: &str, category: &str) -> Result<()> {
+        let sql = 
+            "INSERT INTO knowledge_entries (conversation_id, content, category, created_at)
+             VALUES (?, ?, ?, datetime('now'))";
+        
+        self.mcp_client
+            .call_tool("sqlite", "write_query", json!({
+                "database": "knowledge.db",
+                "query": sql,
+                "params": [conversation_id, insight, category]
+            }))
+            .await?;
+        
+        Ok(())
+    }
+}
+```
+
+### Tool Registration and Schema Exposure
+
+```rust
+impl AircherDatabaseTools {
+    pub fn register_mcp_tools(&self) -> Vec<ToolDefinition> {
+        vec![
+            ToolDefinition {
+                name: "search_conversations".to_string(),
+                description: "Search through conversation history".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query for conversation titles and content"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results (default: 10)",
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    },
+                    "required": ["query"]
+                }),
+            },
+            ToolDefinition {
+                name: "get_file_context".to_string(),
+                description: "Get context information for a specific file".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the file"
+                        }
+                    },
+                    "required": ["file_path"]
+                }),
+            },
+            ToolDefinition {
+                name: "get_knowledge_related_to".to_string(),
+                description: "Find knowledge entries related to a topic".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "topic": {
+                            "type": "string",
+                            "description": "Topic or keyword to search for"
+                        }
+                    },
+                    "required": ["topic"]
+                }),
+            },
+            ToolDefinition {
+                name: "get_database_schema".to_string(),
+                description: "Get database schema information for understanding data structure".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "database": {
+                            "type": "string",
+                            "description": "Database name (conversations, knowledge, file_index, sessions)",
+                            "enum": ["conversations", "knowledge", "file_index", "sessions"]
+                        }
+                    },
+                    "required": ["database"]
+                }),
+            },
+            ToolDefinition {
+                name: "execute_safe_query".to_string(),
+                description: "Execute a validated read-only SQL query".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "database": {
+                            "type": "string",
+                            "description": "Target database"
+                        },
+                        "query": {
+                            "type": "string",
+                            "description": "SQL SELECT query (read-only operations only)"
+                        }
+                    },
+                    "required": ["database", "query"]
+                }),
+            },
+        ]
+    }
+    
+    pub async fn generate_llm_context(&self) -> String {
+        let mut context = String::new();
+        
+        context.push_str("# Aircher Database Interface\n\n");
+        context.push_str("You have access to the following databases through MCP tools:\n\n");
+        
+        // Generate schema context
+        context.push_str(&self.context_manager.generate_schema_context().await);
+        
+        // Add available tools documentation
+        context.push_str("\n## Available Database Tools\n\n");
+        for tool in self.register_mcp_tools() {
+            context.push_str(&format!("### {}\n", tool.name));
+            context.push_str(&format!("{}\n\n", tool.description));
+            context.push_str("**Parameters:**\n");
+            context.push_str(&format!("```json\n{}\n```\n\n", serde_json::to_string_pretty(&tool.parameters).unwrap()));
+        }
+        
+        // Add usage examples
+        context.push_str(&self.generate_usage_examples());
+        
+        context
+    }
+    
+    fn generate_usage_examples(&self) -> String {
+        r#"
+## Usage Examples
+
+**Search for recent conversations about a topic:**
+```json
+{
+    "tool": "search_conversations",
+    "parameters": {
+        "query": "rust async",
+        "limit": 5
+    }
+}
+```
+
+**Get context for a specific file:**
+```json
+{
+    "tool": "get_file_context", 
+    "parameters": {
+        "file_path": "src/main.rs"
+    }
+}
+```
+
+**Find related knowledge entries:**
+```json
+{
+    "tool": "get_knowledge_related_to",
+    "parameters": {
+        "topic": "error handling"
+    }
+}
+```
+
+**Execute custom analysis query:**
+```json
+{
+    "tool": "execute_safe_query",
+    "parameters": {
+        "database": "conversations",
+        "query": "SELECT COUNT(*) as total_conversations, AVG(message_count) as avg_messages FROM conversations WHERE created_at > date('now', '-7 days')"
+    }
+}
+```
+"#.to_string()
+    }
+}
+```
+
+## Runtime Integration and LLM Context Injection
+
+### Startup Sequence for Database-Aware LLM
+
+```rust
+pub struct AircherLLMRuntime {
+    // Core components
+    llm_providers: HashMap<String, Box<dyn LLMProvider>>,
+    mcp_manager: Arc<MCPManager>,
+    database_tools: Arc<AircherDatabaseTools>,
+    context_manager: Arc<DatabaseContextManager>,
+    
+    // Runtime state
+    active_session: Option<SessionId>,
+    conversation_context: ConversationContext,
+    
+    logger: Arc<Logger>,
+}
+
+impl AircherLLMRuntime {
+    pub async fn initialize() -> Result<Self> {
+        let mut runtime = Self::new().await?;
+        
+        // Step 1: Initialize MCP infrastructure
+        runtime.setup_mcp_system().await?;
+        
+        // Step 2: Discover and register database schemas
+        runtime.discover_database_schemas().await?;
+        
+        // Step 3: Register database tools with MCP
+        runtime.register_database_tools().await?;
+        
+        // Step 4: Generate initial context for LLM
+        runtime.prepare_llm_context().await?;
+        
+        Ok(runtime)
+    }
+    
+    async fn setup_mcp_system(&mut self) -> Result<()> {
+        // Install core MCP servers if not present
+        let core_servers = vec!["sqlite", "filesystem", "git"];
+        for server_name in core_servers {
+            if !self.mcp_manager.is_server_installed(server_name).await? {
+                info!("Installing MCP server: {}", server_name);
+                self.mcp_manager.install_server(server_name, MCPScope::LocalScope).await?;
+            }
+        }
+        
+        // Start essential servers
+        self.mcp_manager.start_server("sqlite").await?;
+        self.mcp_manager.start_server("filesystem").await?;
+        
+        // Wait for servers to be ready
+        self.mcp_manager.wait_for_servers_ready(&["sqlite", "filesystem"], Duration::from_secs(10)).await?;
+        
+        Ok(())
+    }
+    
+    async fn discover_database_schemas(&mut self) -> Result<()> {
+        let databases = vec![
+            "conversations.db",
+            "knowledge.db", 
+            "file_index.db",
+            "sessions.db"
+        ];
+        
+        for db_path in databases {
+            if let Ok(schema) = self.context_manager.discover_schema(db_path).await {
+                info!("Discovered schema for database: {}", db_path);
+                debug!("Schema: {} tables found", schema.tables.len());
+            } else {
+                warn!("Failed to discover schema for database: {}", db_path);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    async fn register_database_tools(&mut self) -> Result<()> {
+        let tools = self.database_tools.register_mcp_tools();
+        
+        for tool in tools {
+            self.mcp_manager.register_custom_tool(tool).await?;
+            info!("Registered database tool: {}", tool.name);
+        }
+        
+        Ok(())
+    }
+    
+    async fn prepare_llm_context(&mut self) -> Result<()> {
+        // Generate comprehensive database context
+        let db_context = self.database_tools.generate_llm_context().await;
+        
+        // Add to conversation context
+        self.conversation_context.add_system_context("database_interface", db_context);
+        
+        // Generate schema summaries for efficiency
+        let schema_summary = self.context_manager.generate_schema_summary().await;
+        self.conversation_context.add_system_context("database_schemas", schema_summary);
+        
+        Ok(())
+    }
+    
+    pub async fn process_user_message(&mut self, message: &str) -> Result<String> {
+        // Add current context to the conversation
+        let mut messages = vec![
+            Message::system(self.conversation_context.build_system_prompt()),
+            Message::user(message.to_string()),
+        ];
+        
+        // Check if this might be a database query intent
+        if self.is_database_query_intent(message) {
+            // Add specific database context
+            let enhanced_context = self.generate_query_context(message).await?;
+            messages.insert(1, Message::system(enhanced_context));
+        }
+        
+        // Send to LLM provider with tool access
+        let response = self.llm_providers
+            .get("primary")
+            .unwrap()
+            .send_with_tools(messages, self.get_available_tools())
+            .await?;
+        
+        // Process any tool calls in the response
+        if let Some(tool_calls) = response.tool_calls {
+            let tool_results = self.execute_tool_calls(tool_calls).await?;
+            
+            // Continue conversation with tool results
+            messages.push(Message::assistant_with_tools(response.content, tool_results.clone()));
+            
+            let final_response = self.llm_providers
+                .get("primary")
+                .unwrap()
+                .send(messages)
+                .await?;
+                
+            return Ok(final_response.content);
+        }
+        
+        Ok(response.content)
+    }
+    
+    async fn execute_tool_calls(&self, tool_calls: Vec<ToolCall>) -> Result<Vec<ToolResult>> {
+        let mut results = Vec::new();
+        
+        for call in tool_calls {
+            let result = match call.tool_name.as_str() {
+                "search_conversations" => {
+                    let params: SearchParams = serde_json::from_value(call.parameters)?;
+                    let conversations = self.database_tools
+                        .search_conversations(&params.query, params.limit)
+                        .await?;
+                    ToolResult::success(serde_json::to_value(conversations)?)
+                }
+                "get_file_context" => {
+                    let params: FileParams = serde_json::from_value(call.parameters)?;
+                    let context = self.database_tools
+                        .get_file_context(&params.file_path)
+                        .await?;
+                    ToolResult::success(serde_json::to_value(context)?)
+                }
+                "get_knowledge_related_to" => {
+                    let params: TopicParams = serde_json::from_value(call.parameters)?;
+                    let knowledge = self.database_tools
+                        .get_knowledge_related_to(&params.topic)
+                        .await?;
+                    ToolResult::success(serde_json::to_value(knowledge)?)
+                }
+                "execute_safe_query" => {
+                    let params: QueryParams = serde_json::from_value(call.parameters)?;
+                    
+                    // Validate query safety first
+                    let validation = self.context_manager
+                        .query_generator
+                        .validate_query(&params.query)
+                        .await?;
+                    
+                    if !validation.is_safe {
+                        ToolResult::error("Query validation failed: unsafe operation detected")
+                    } else {
+                        // Execute through MCP SQLite server
+                        let result = self.mcp_manager
+                            .call_tool("sqlite", "read_query", json!({
+                                "database": params.database,
+                                "query": params.query
+                            }))
+                            .await?;
+                        ToolResult::success(result.content)
+                    }
+                }
+                _ => {
+                    // Delegate to MCP system for other tools
+                    self.mcp_manager.call_tool("", &call.tool_name, call.parameters).await?
+                }
+            };
+            
+            results.push(result);
+        }
+        
+        Ok(results)
+    }
+    
+    fn get_available_tools(&self) -> Vec<ToolDefinition> {
+        let mut tools = self.database_tools.register_mcp_tools();
+        
+        // Add other MCP tools
+        if let Ok(mcp_tools) = self.mcp_manager.list_available_tools() {
+            tools.extend(mcp_tools);
+        }
+        
+        tools
+    }
+    
+    async fn generate_query_context(&self, message: &str) -> Result<String> {
+        let mut context = String::new();
+        
+        // Add relevant schema information based on message content
+        if message.contains("conversation") {
+            context.push_str(&self.get_table_context("conversations").await);
+        }
+        if message.contains("file") || message.contains("code") {
+            context.push_str(&self.get_table_context("file_context").await);
+        }
+        if message.contains("knowledge") || message.contains("learn") {
+            context.push_str(&self.get_table_context("knowledge_entries").await);
+        }
+        
+        // Add query suggestions
+        if let Ok(suggestions) = self.context_manager
+            .query_generator
+            .generate_query_suggestions(message)
+            .await
+        {
+            context.push_str("\n## Suggested Queries:\n");
+            for suggestion in suggestions.iter().take(3) {
+                context.push_str(&format!("- {}: `{}`\n", 
+                    suggestion.description, suggestion.sql));
+            }
+        }
+        
+        Ok(context)
+    }
+}
+```
+
+### System Prompt Integration
+
+```rust
+impl DatabaseContextManager {
+    pub async fn generate_system_prompt_section(&self) -> String {
+        format!(r#"
+# Database Access
+
+You have access to Aircher's multi-database system through specialized tools:
+
+## Available Databases
+- **conversations.db**: Chat history, user interactions, conversation metadata
+- **knowledge.db**: Accumulated insights, learned patterns, topic associations  
+- **file_index.db**: File context, relevance scores, project structure analysis
+- **sessions.db**: User sessions, preferences, workspace state
+
+## Key Capabilities
+1. **Search Conversations**: Find past discussions, topics, solutions
+2. **Retrieve Knowledge**: Access accumulated insights and patterns
+3. **File Context**: Understand project structure and file relationships
+4. **Custom Queries**: Execute safe, read-only SQL for specific analysis
+
+## Database Schema Summary
+{}
+
+## Usage Guidelines
+- Use `search_conversations` for finding past discussions
+- Use `get_knowledge_related_to` for topic-based insights
+- Use `get_file_context` for understanding specific files
+- Use `execute_safe_query` for custom analysis (read-only only)
+- Always validate query safety before execution
+- Prefer specific tools over raw SQL when possible
+
+The database interface provides full context awareness for intelligent assistance.
+"#, self.generate_schema_context().await)
+    }
+}
+```
 
 var RecommendedMCPServers = map[string]*ServerDefinition{
     "puppeteer": {
