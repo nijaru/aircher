@@ -1,12 +1,12 @@
-[submodule "gemini-cli"]
-	path = gemini-cli
+[submodule "external/gemini-cli"]
+	path = external/gemini-cli
 	url = https://github.com/google-gemini/gemini-cli.git
-[submodule "codex"]
-	path = codex
+[submodule "external/codex"]
+	path = external/codex
 	url = https://github.com/openai/codex.git
-[submodule "oli"]
-	path = oli
+[submodule "external/oli"]
+	path = external/oli
 	url = https://github.com/amrit110/oli.git
-[submodule "opencode"]
-	path = opencode
+[submodule "external/opencode"]
+	path = external/opencode
 	url = https://github.com/sst/opencode.git
