@@ -446,7 +446,7 @@ CREATE TABLE search_indexes (
 └── config.toml            # User-wide settings
 
 # Project-level storage
-.agents/
+.aircher/
 ├── db/
 │   ├── core/               # Core operational databases
 │   │   ├── conversations.db    # All conversations (multi-worktree)
@@ -573,7 +573,7 @@ slow_query_threshold = "1s"
 ### TOML Configuration Example
 ```toml
 [storage]
-data_dir = ".agents"
+data_dir = ".aircher"
 max_db_size = "1GB"
 backup_enabled = true
 backup_interval = "24h"

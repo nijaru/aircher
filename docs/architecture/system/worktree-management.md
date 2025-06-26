@@ -135,7 +135,7 @@ aircher worktree transfer feature-auth main
 aircher context status
 # Output:
 # Global: /Users/dev/.config/aircher
-# Project: /path/to/project/.agents  
+# Project: /path/to/project/.aircher  
 # Worktree: feature-auth (branch: feature/authentication)
 # Session: debugging-session-123 (active 2h)
 
@@ -178,7 +178,7 @@ aircher insights recommend --task debugging
 └── config.toml           # User preferences
 
 # Project-level storage
-.agents/
+.aircher/
 ├── db/
 │   ├── conversations.db   # All conversations (multi-worktree)
 │   ├── knowledge.db      # Project knowledge

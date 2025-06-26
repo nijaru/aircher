@@ -6,15 +6,15 @@ This document outlines the strategic vision, key features, and implementation ph
 
 ## Project Vision
 
-Aircher aims to be an indispensable AI-powered development assistant, seamlessly integrated into the terminal. By combining a beautiful and intuitive TUI with intelligent context management, extensible tools, and multi-provider LLM support, Aircher will accelerate development workflows and provide developers with a powerful, context-aware coding partner.
+Aircher aims to be the **universal intelligent context layer** for AI-powered development, providing advanced context management that works across any AI tool or environment. By combining intelligent file relevance scoring, cross-project learning, and task detection with universal MCP compatibility, Aircher will accelerate developer workflows everywhere.
 
 **Key Differentiators:**
-- Terminal-native interface with responsive design optimized for developer workflows
-- Multi-database architecture for efficient data organization and retrieval
-- Universal LLM provider interface supporting OpenAI, Claude, Gemini, and Ollama
-- Intelligent context management with file relevance scoring and task detection
-- Model Context Protocol (MCP) integration for extensible tool ecosystem
-- Project analysis system with automatic documentation generation
+- **Universal Compatibility**: Works with Claude Desktop, VS Code, terminal, and any MCP-compatible tool
+- **Cross-Project Intelligence**: Pattern recognition and learning across entire codebase
+- **Intelligent Context Management**: AI-driven file relevance scoring and task detection
+- **Dual Architecture**: Both standalone terminal assistant and universal MCP server
+- **Pure Rust Performance**: Memory safety and native speed
+- **Enterprise-Ready**: Elastic License 2.0 with comprehensive security
 
 ---
 
@@ -29,7 +29,7 @@ The project is organized into five distinct phases, progressing from foundationa
 **Completed Features:**
 - ✅ **Modern TUI Framework**: Responsive terminal interface built with Ratatui
 - ✅ **Multi-Database Architecture**: Four specialized SQLite databases (conversations, knowledge, file_index, sessions)
-- ✅ **Project Analysis System**: Automatic project structure analysis with documentation generation in `.agents/project_analysis.md`
+- ✅ **Project Analysis System**: Automatic project structure analysis with documentation generation in `.aircher/project_analysis.md`
 - ✅ **Configuration System**: MVP minimal configuration with smart defaults and secure credential management via `aircher login`
 - ✅ **Development Infrastructure**: Complete build system with Makefile, linting, formatting, and testing
 - ✅ **Structured Logging**: Comprehensive logging system with zerolog
@@ -41,64 +41,77 @@ The project is organized into five distinct phases, progressing from foundationa
 - Comprehensive development toolchain with Cargo and Rust ecosystem
 - Solid foundation for all subsequent development phases
 
-### Phase 2: Intelligence 🚧 **FRAMEWORK COMPLETE, API INTEGRATION PENDING**
+### Phase 2: Intelligence Engine 🚧 **FRAMEWORK COMPLETE, IMPLEMENTATION PENDING**
 
-**Objective**: Implement core AI capabilities and LLM provider integration
+**Objective**: Build the universal Python MCP server with Rust performance modules for intelligent context management, targeting >75% SWE-bench success
 
 **Framework Completed:**
+- ✅ **MCP Architecture Design**: Complete Python server architecture and tool specifications
+- ✅ **Modular Performance Architecture**: Swappable Python/Rust backend design
+- ✅ **Context Management Algorithms**: TaskDetector and FileRelevanceEngine designed
+- ✅ **Multi-Database Foundation**: Specialized storage for conversations, knowledge, file index
 - ✅ **Universal LLM Provider Interface**: Complete interface design supporting all major providers
-- ✅ **Provider Foundations**: OpenAI and Claude provider structures implemented
-- ✅ **Context Management Architecture**: TaskDetector and FileRelevanceEngine designed
-- ✅ **Streaming Framework**: Infrastructure for real-time response streaming
+- ✅ **Warp Success Factor Analysis**: Sophisticated editing, PTY control, model fallbacks, planning-first
 
-**Pending Implementation:**
-- 🚧 **Actual LLM API Integration**: Complete API calls with error handling and streaming for all providers
-- 🚧 **CLI Authentication & Model Management**: Interactive `aircher auth` and `aircher model` commands for service authentication and model selection
-- 🚧 **Gemini and Ollama Providers**: Full implementation of Google Gemini and local Ollama support
-- 🚧 **Token Management**: Token counting, cost calculation, and usage tracking
-- 🚧 **Response Streaming**: Real-time TUI integration with LLM streaming responses
+**Pending Implementation (Prioritized by Warp's Success Factors):**
+- 🚧 **Sophisticated Editing Tools**: Multi-file edit_files with fuzzy matching, Jaro-Winkler similarity, detailed error recovery
+- 🚧 **Long-Running Command Support**: PTY control for REPLs, vim, interactive shells with same-agent tool restriction
+- 🚧 **Model Fallback Chains**: claude-4-sonnet → claude-3.7-sonnet → gemini-2.5-pro → gpt-4.1 with retry strategies
+- 🚧 **Context Window Management**: Smart file chunking (100 lines/file), scrollable results, context-dependent tools
+- 🚧 **Planning-First Workflows**: Auto-generate todo lists, force planning for complex tasks, update during execution
+- 🚧 **Python MCP Server**: Complete MCP protocol implementation with asyncio and uvx deployment
+- 🚧 **Rust Performance Modules**: File system operations, AST parsing, pattern matching via PyO3
+- 🚧 **Context Intelligence**: File relevance scoring, task detection, and dependency analysis
+- 🚧 **Cross-Project Learning**: Pattern recognition and success correlation algorithms
+- 🚧 **Benchmark Integration**: SWE-bench and Terminal-Bench compatibility from day one
+- 🚧 **Universal Compatibility**: Integration testing with Claude Desktop and VS Code
+
+**Technical Stack:**
+- **Python Core**: MCP protocol, AI model integration, business logic
+- **Rust Modules**: File walking, AST parsing, pattern matching (10-50x performance boost)
+- **uvx Deployment**: Modern Python CLI tool deployment with dependency management
+- **Modular Backends**: Protocol-based design for easy language swapping
 
 **Next Steps:**
-- Implement complete API integration for OpenAI and Claude providers
-- Build interactive CLI authentication and model management system with service/provider/model hierarchy support
-- Add unified TUI experience following Claude Code's design principles with context usage display
-- Add streaming response handling in TUI components
-- Implement token counting and cost management features
-- Complete Gemini and Ollama provider implementations
+- Implement Python MCP server with modular backend architecture
+- Build Rust performance modules for file operations and AST parsing
+- Develop file relevance scoring and task detection algorithms
+- Add cross-project learning and pattern recognition
+- Test universal compatibility with existing MCP clients
 
-### Phase 3: Context Intelligence ❌ **NOT STARTED** 
+### Phase 3: Terminal Assistant ❌ **NOT STARTED**
 
-**Objective**: Build intelligent context management and file relevance systems
+**Objective**: Build full-featured terminal interface using the intelligence engine
 
 **Planned Features:**
-- **Task Detection System**: Automatic detection of development tasks (debugging, feature development, refactoring, etc.)
-- **File Relevance Engine**: AI-driven scoring of file importance based on context and dependencies
-- **Smart Context Assembly**: Intelligent selection of relevant files and conversation history
-- **Dependency Graph Analysis**: Understanding of project structure and file relationships
-- **Conversation Compaction**: Automatic summarization to manage context window limits
+- **REPL-Style Interface**: Interactive terminal session with natural language commands
+- **Session Management**: Resumable conversations with unique session IDs
+- **Advanced Interaction**: Real-time steering, @-mention files, slash commands
+- **Streaming Integration**: Real-time response rendering in terminal UI
+- **Intelligence Integration**: Use MCP server for all context management
 
 **Technical Components:**
-- Advanced algorithms for file relevance scoring
-- Project dependency analysis and graph construction
-- Task-aware context optimization
-- Intelligent conversation summarization
+- Interactive terminal UI with Ratatui
+- Real-time streaming response handling
+- Session persistence and resumption
+- Integration with Aircher Intelligence Engine via MCP
 
-### Phase 4: Tool Integration ❌ **NOT STARTED**
+### Phase 4: Advanced Intelligence ❌ **NOT STARTED**
 
-**Objective**: Implement Model Context Protocol (MCP) and extensible tool ecosystem
+**Objective**: Enhance the intelligence engine with advanced features
 
 **Planned Features:**
-- **MCP Server Management**: Local, project, and user-scoped server management
-- **Security Framework**: Comprehensive permission system with user confirmation
-- **Core MCP Tools**: Filesystem, git, web search, and database operation tools
-- **Web Search Integration**: Automatic search triggers with Brave Search integration
-- **GitHub Integration**: Repository operations and issue tracking
+- **Advanced Pattern Recognition**: Machine learning models for context relevance
+- **Team Collaboration**: Shared insights while maintaining conversation privacy
+- **Temporal Intelligence**: Time-based context relevance and historical debugging
+- **Web Search Integration**: Automatic search triggers with multiple providers
+- **Performance Optimization**: Caching, predictive loading, distributed processing
 
-**Security Focus:**
-- Rust std::fs integration for secure filesystem operations
-- Granular permission system with audit logging
-- Sandboxed tool execution environment
-- User-controlled security policies
+**Advanced Intelligence:**
+- Semantic analysis using embeddings for deeper content understanding
+- Cross-project learning that scales across multiple repositories
+- Predictive context loading based on likely developer actions
+- Advanced success pattern correlation and recommendation
 
 ### Phase 5: Enterprise Features ❌ **NOT STARTED**
 
@@ -146,18 +159,19 @@ The project is organized into five distinct phases, progressing from foundationa
 - **Development Infrastructure**: Complete build system with quality gates
 
 ### 🚧 Active Development Areas
-- **LLM Provider Integration**: Framework complete, API implementation in progress
-- **Streaming Infrastructure**: TUI integration with real-time response rendering
-- **Provider Implementations**: OpenAI and Claude foundations ready for API integration
+- **MCP Server Architecture**: Protocol implementation and tool framework
+- **Context Intelligence Algorithms**: File relevance scoring and task detection
+- **Cross-Project Learning**: Pattern recognition across repositories
+- **Universal Compatibility**: Integration with existing MCP clients
 
 ### ❌ Future Development Priorities
-1. **Complete LLM API Integration**: Priority focus for immediate functionality
-2. **CLI Authentication & Model Management**: Interactive `aircher auth` and `aircher model` commands with service/provider/model hierarchy
-3. **Unified TUI Experience**: Claude Code-inspired interface with real-time context usage display (44k/200k tokens)
-4. **File Relevance Algorithms**: Core intelligence for context management
-5. **MCP Tool Framework**: Extensible tool ecosystem with security
-6. **Comprehensive Testing**: Quality assurance and reliability
-7. **Performance Optimization**: Scalability and user experience
+1. **MCP Intelligence Server**: Core universal context management implementation
+2. **Context Algorithms**: File relevance scoring and task detection systems
+3. **Cross-Project Learning**: Pattern recognition and success correlation
+4. **Terminal Assistant**: REPL interface consuming intelligence engine
+5. **Advanced Intelligence**: Machine learning and semantic analysis
+6. **Enterprise Features**: Team collaboration and advanced monitoring
+7. **Production Release**: Comprehensive testing and distribution
 
 ---
 
@@ -192,46 +206,66 @@ The project is organized into five distinct phases, progressing from foundationa
 - All Phase 1 objectives achieved
 - Solid foundation for AI integration
 
-### Q2 2024: Intelligence Integration 🚧
-- Complete LLM provider implementations
+### Q2 2024: Intelligence Engine 🚧
+- Universal MCP server implementation with Warp-inspired sophisticated editing
+- Long-running command support with PTY control (key Warp success factor)
+- Model fallback chains with retry strategies
+- Context intelligence algorithms with smart file chunking
+- Planning-first workflows with auto-generated todo lists
+- Cross-project learning foundation
+- Universal compatibility testing
+- Benchmark integration (SWE-bench, Terminal-Bench) for continuous validation
+
+### Q3 2024: Terminal Integration
+- REPL-style terminal interface
 - Streaming response integration
-- Basic conversation functionality
+- Session management and resumption
+- Intelligence engine integration
 
-### Q3 2024: Context Management
-- File relevance scoring algorithms
-- Task detection and context assembly
-- Smart conversation compaction
-
-### Q4 2024: Tool Ecosystem
-- MCP integration and security framework
-- Core tool implementations
-- Web search and git integration
-
-### Q1 2025: Enterprise Features
-- Advanced monitoring and cost management
+### Q4 2024: Advanced Intelligence
+- Machine learning model integration
+- Advanced pattern recognition
 - Team collaboration features
 - Performance optimization
 
-### Q2 2025: Production Release
-- Comprehensive testing and documentation
-- Distribution and auto-update system
-- Public beta and community feedback
+### Q1 2025: Production Readiness
+- Comprehensive testing and security audit
+- Enterprise features and monitoring
+- Documentation and user experience
+- Distribution system and auto-updates
+
+### Q2 2025: Ecosystem Growth
+- Community adoption and feedback
+- Plugin ecosystem development
+- Enterprise partnerships
+- Open source contribution program
 
 ---
 
 ## Success Metrics
 
+### Benchmark Performance Targets (Inspired by Warp's Success)
+- **SWE-bench Verified**: >75% success rate (vs Warp's 71%)
+- **Terminal-Bench**: >55% success rate (vs Warp's 52%)
+- **Universal Compatibility**: Works across Claude Desktop, VS Code, Cursor, and terminal
+- **Cross-Project Learning**: Demonstrate 10%+ performance improvement through pattern recognition
+
 ### Technical Metrics
 - **Test Coverage**: >90% across all components
 - **Performance**: <100ms response time for local operations
+- **Edit Tool Reliability**: >95% success rate with fuzzy matching and error recovery
+- **Interactive Command Support**: <200ms latency for PTY operations
+- **Model Fallback Chain**: <5s total failover time across entire chain
 - **Reliability**: <0.1% error rate for core functionality
 - **Security**: Zero critical vulnerabilities
 
 ### User Experience Metrics
-- **Developer Adoption**: Measurable improvement in development velocity
-- **User Satisfaction**: High ratings for terminal interface and AI quality
-- **Community Growth**: Active contribution to open-source ecosystem
-- **Enterprise Adoption**: Successful deployment in team environments
+- **Universal Adoption**: Integration across multiple AI tools and environments
+- **Developer Velocity**: Measurable improvement in development workflows
+- **Context Accuracy**: High relevance scores for intelligent context selection
+- **Cross-Project Value**: Demonstrable learning and insights across repositories
+- **Enterprise Integration**: Successful deployment in team and enterprise environments
+- **Planning-First Success**: >80% of complex tasks auto-generate useful todo lists
 
 ---
 

@@ -1,17 +1,27 @@
 # Aircher Developer Guide
 
-Coding standards and implementation patterns for the Aircher project built with Rust.
+Coding standards and implementation patterns for the Aircher dual-architecture project.
 
 ## Technology Stack
 
+### Aircher Terminal (Rust)
 - Rust 1.80+ with async/await and tokio runtime
 - Ratatui for TUI framework
 - SQLite + sqlx for database operations
 - tracing for structured logging
 - TOML configuration
 
+### Aircher Intelligence Engine (Python + Rust)
+- Python 3.11+ with asyncio and MCP protocol
+- Rust performance modules via PyO3 bindings
+- numpy/scipy for vector operations
+- sentence-transformers for embeddings
+- tree-sitter for AST parsing (Rust-accelerated)
+- uvx for deployment and dependency management
+
 ## Development Setup
 
+### Rust Terminal Client
 ```bash
 cargo build --release  # Build binary
 cargo test             # Run tests
@@ -20,52 +30,134 @@ cargo fmt              # Format code
 cargo tarpaulin        # Generate coverage reports
 ```
 
+### Python MCP Server
+```bash
+# Install with uvx for development
+uvx --from . --editable aircher-intelligence
+
+# Or traditional development
+pip install -e .[dev]
+
+# Run tests
+pytest tests/
+pytest --cov=aircher_intelligence tests/
+
+# Linting and formatting
+ruff check .
+ruff format .
+mypy aircher_intelligence/
+
+# Build Rust extensions (if present)
+maturin develop
+```
+
 ## Coding Standards
 
-### Package Organization
-- Follow Go standard project layout
-- Package names should be short, descriptive, and lowercase
-- Use meaningful directory structure under `internal/` for application logic
+### Rust Terminal Client
+
+#### Package Organization
+- Follow Rust standard project layout with `src/`, `tests/`, `examples/`
+- Module names should be short, descriptive, and snake_case
+- Use meaningful directory structure under `src/` for application logic
 - Separate concerns: UI, business logic, data access, external integrations
 
-### Naming Conventions
-- Use Go standard naming conventions
-- Interfaces should describe behavior (e.g., `Provider`, `Storage`)
-- Concrete types should be descriptive nouns
-- Functions should use verb-noun pattern when appropriate
-- Constants use CamelCase or ALL_CAPS for exported values
+#### Naming Conventions
+- Use Rust standard naming conventions (snake_case for functions/variables, PascalCase for types)
+- Traits should describe behavior (e.g., `LLMProvider`, `ContextStorage`)
+- Structs should be descriptive nouns
+- Functions should use verb_noun pattern when appropriate
+- Constants use SCREAMING_SNAKE_CASE
+
+### Python MCP Server
+
+#### Package Organization
+- Follow Python package structure with clear module separation
+- Package names should be short, descriptive, and snake_case
+- Use meaningful directory structure: `aircher_intelligence/backends/`, `aircher_intelligence/intelligence/`
+- Separate concerns: MCP protocol, intelligence algorithms, storage, performance modules
+
+#### Naming Conventions
+- Use Python PEP 8 naming conventions
+- Protocols should describe behavior (e.g., `FileSystemBackend`, `ASTBackend`)
+- Classes should be descriptive nouns in PascalCase
+- Functions should use verb_noun pattern in snake_case
+- Constants use SCREAMING_SNAKE_CASE
 
 ### Code Structure
-- **Implement interfaces first, then concrete types** for better testability
-- Use dependency injection for better testing and modularity
+
+#### Rust Patterns
+- **Implement traits first, then concrete types** for better testability
+- Use dependency injection via trait objects for modularity
 - Separate business logic from external dependencies (Clean Architecture)
 - Keep functions focused and single-purpose
+- Use Result<T, E> for all fallible operations
+
+#### Python Patterns  
+- **Implement protocols first, then concrete classes** for better testability
+- Use dependency injection and protocol-based design for modularity
+- Separate business logic from external dependencies (Clean Architecture)
+- Keep functions focused and single-purpose
+- Use modular backend architecture for performance optimization
 
 ### Error Handling
+
+#### Rust Error Handling
+- Use thiserror for custom error types
 - Error messages should be user-friendly and actionable
-- Provider implementations should return consistent error types
-- Use context.Context for all operations that might be cancelled
-- Wrap errors with meaningful context using `fmt.Errorf` or error wrapping
+- Provider implementations should return consistent Result types
+- Use tokio's cancellation for async operations
+- Chain errors with context using .with_context()
+
+#### Python Error Handling
+- Use custom exception hierarchies with clear inheritance
+- Error messages should be user-friendly and actionable
+- Backend implementations should return consistent result types
+- Use asyncio cancellation for async operations
+- Chain errors with meaningful context using exception chaining
 
 ### Context Usage
-- Use `context.Context` for all operations that might be cancelled
-- Pass context as the first parameter to functions
-- Handle context cancellation appropriately
+
+#### Rust Context Management
+- Use tokio::task cancellation for async operations
+- Pass context implicitly through async function chains
+- Handle cancellation appropriately with timeout wrappers
 - Set reasonable timeouts for external API calls
+
+#### Python Context Management
+- Use asyncio context and cancellation tokens
+- Pass context as first parameter to async functions
+- Handle cancellation appropriately with timeout wrappers
+- Set reasonable timeouts for external API calls and MCP operations
 
 ## Architecture Patterns
 
 ### Clean Architecture
+
+#### Rust Terminal Client
 - Core business logic separated from external dependencies
 - Domain layer should not depend on infrastructure
-- Use interfaces to define contracts between layers
-- Keep external concerns (UI, database, APIs) in outer layers
+- Use traits to define contracts between layers
+- Keep external concerns (TUI, database, APIs) in outer layers
+
+#### Python MCP Server
+- Core intelligence logic separated from MCP protocol and performance modules
+- Domain layer should not depend on infrastructure
+- Use protocols to define contracts between layers
+- Keep external concerns (MCP protocol, Rust modules, databases) in outer layers
 
 ### Interface-Based Design
-- All major components implement interfaces for testability
-- Define interfaces at the consumer level, not the provider level
-- Keep interfaces small and focused (Interface Segregation Principle)
+
+#### Rust Design
+- All major components implement traits for testability
+- Define traits at the consumer level, not the provider level
+- Keep traits small and focused (Interface Segregation Principle)
 - Use composition over inheritance where possible
+
+#### Python Design
+- All major components implement protocols for testability
+- Define protocols at the consumer level, not the implementation level
+- Keep protocols small and focused (Interface Segregation Principle)
+- Use composition and modular backends for performance optimization
 
 ### Multi-Database Pattern
 - Separate SQLite databases for different data types:
@@ -169,7 +261,7 @@ internal/
 ### Configuration Layers
 1. Default values in code
 2. Global user configuration (`~/.config/aircher/config.toml`)
-3. Project-specific configuration (`.agents/config.toml`)
+3. Project-specific configuration (`.aircher/config.toml`)
 4. Environment variables for sensitive values
 5. Command-line flags for overrides
 

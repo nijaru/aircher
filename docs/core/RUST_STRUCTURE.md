@@ -1,4 +1,6 @@
-# Rust Project Structure Guide
+# Rust Terminal Client Structure Guide
+
+**Note**: This document covers the Rust terminal client only. The Aircher Intelligence Engine MCP server is implemented in Python with Rust performance modules. See `docs/architecture/plugins/aircher-intelligence-mcp-server.md` for the Python server architecture.
 
 ## Workspace Layout
 
@@ -19,22 +21,24 @@ thiserror = "1.0"
 async-trait = "0.1"
 ```
 
-## Module Architecture
+## Terminal Client Module Architecture
+
+The Rust terminal client focuses on UI, user interaction, and MCP client functionality to communicate with the Python Intelligence Engine.
 
 ```rust
 src/
-├── main.rs                 # CLI entry point
+├── main.rs                 # CLI entry point for terminal client
 ├── lib.rs                  # Library root
 ├── core/
 │   ├── mod.rs
-│   ├── domain.rs           # Business logic
+│   ├── domain.rs           # Business logic for terminal operations
 │   ├── providers.rs        # LLM provider traits
 │   └── storage.rs          # Database layer
 ├── infrastructure/
 │   ├── mod.rs
-│   ├── tui/                # Terminal interface
-│   ├── config.rs           # Configuration
-│   └── mcp.rs              # MCP integration
+│   ├── tui/                # Terminal interface (Ratatui)
+│   ├── config.rs           # Configuration management
+│   └── mcp_client.rs       # MCP client to communicate with Python Intelligence Engine
 ├── application/
 │   ├── mod.rs
 │   ├── services.rs         # Application services
@@ -49,7 +53,7 @@ src/
 
 ## Core Traits
 
-### LLM Provider Interface
+### LLM Provider Interface (Terminal Client)
 ```rust
 #[async_trait]
 pub trait LLMProvider: Send + Sync + Debug {
@@ -63,6 +67,44 @@ pub trait LLMProvider: Send + Sync + Debug {
     fn count_tokens(&self, content: &str) -> Result<u32, LLMError>;
     fn name(&self) -> &str;
     fn models(&self) -> &[String];
+}
+```
+
+### MCP Client Interface (Terminal to Intelligence Engine)
+```rust
+#[async_trait]
+pub trait MCPClient: Send + Sync + Debug {
+    async fn call_tool(&self, tool_name: &str, params: serde_json::Value) -> Result<MCPResponse, MCPError>;
+    async fn list_tools(&self) -> Result<Vec<MCPTool>, MCPError>;
+    async fn list_resources(&self) -> Result<Vec<MCPResource>, MCPError>;
+    
+    fn is_connected(&self) -> bool;
+    async fn connect(&mut self) -> Result<(), MCPError>;
+    async fn disconnect(&mut self) -> Result<(), MCPError>;
+}
+
+// Integration with Python Intelligence Engine
+pub struct AircherIntelligenceClient {
+    // Connection to Python MCP server via stdio/http
+    transport: MCPTransport,
+    tool_registry: Vec<MCPTool>,
+}
+
+impl AircherIntelligenceClient {
+    pub async fn project_analyze(&self, path: &str) -> Result<ProjectAnalysis, MCPError> {
+        let params = serde_json::json!({ "path": path });
+        let response = self.call_tool("project_analyze", params).await?;
+        Ok(serde_json::from_value(response.result)?)
+    }
+    
+    pub async fn context_score_files(&self, files: &[String], task_context: &str) -> Result<Vec<FileRelevanceScore>, MCPError> {
+        let params = serde_json::json!({
+            "files": files,
+            "task_context": task_context
+        });
+        let response = self.call_tool("context_score_files", params).await?;
+        Ok(serde_json::from_value(response.result)?)
+    }
 }
 ```
 
@@ -82,7 +124,7 @@ pub struct DatabaseManager {
 pub struct Config {
     pub providers: ProvidersConfig,
     pub context_management: ContextConfig,
-    pub mcp: MCPConfig,
+    pub mcp_client: MCPClientConfig,
     pub storage: StorageConfig,
     pub tui: TUIConfig,
 }
@@ -109,6 +151,8 @@ pub enum AircherError {
     Provider(#[from] LLMError),
     #[error("TUI error: {0}")]
     TUI(#[from] std::io::Error),
+    #[error("MCP client error: {0}")]
+    MCP(#[from] MCPError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -175,4 +219,10 @@ cargo build --release
 cargo test
 cargo clippy
 cargo fmt
+
+# Warp-inspired benchmark testing
+cargo test --test swe_bench_integration
+cargo test --test terminal_bench_integration
+cargo bench --bench edit_performance
+cargo bench --bench interactive_command_latency
 ```

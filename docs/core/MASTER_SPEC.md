@@ -2,23 +2,29 @@
 
 ## System Architecture Overview
 
-Aircher is an AI-powered terminal-based development assistant built with Rust 1.80+ and Ratatui TUI framework. The system integrates multiple LLM providers and implements the Model Context Protocol (MCP) for extensible tool support.
+Aircher is a dual-architecture AI development system featuring a Rust terminal client and a Python MCP server with Rust performance modules. The system provides AI-powered development tools that work across any compatible environment with optimized performance for critical operations.
 
 ### Core Architecture Principles
 
-- **Rust-Native Architecture**: Pure Rust implementation optimized for terminal environments
+- **Dual Architecture**: Rust terminal assistant + Python MCP server for maximum compatibility
+- **Hybrid Performance**: Rust terminal client with Python MCP server featuring Rust performance modules
 - **Clean Architecture**: Domain-driven design with clear separation of concerns
-- **Trait-Based Design**: All major components implement traits for testability and extensibility
-- **Multi-Database**: Separate SQLite databases optimized for different data types and contexts
+- **Modular Design**: Trait-based design (Rust) and protocol-based backends (Python) for performance optimization
+- **Multi-Database Strategy**: Separate SQLite databases optimized for different data types and contexts
+- **Universal Compatibility**: MCP server works with Claude Desktop, VS Code, and any MCP-compatible tool
+- **Intelligent Context Management**: AI-driven file relevance scoring and cross-project learning
+- **Cross-Project Intelligence**: Pattern recognition and success correlation across entire codebase
 - **Provider-Agnostic Design**: Universal LLM provider interface supporting multiple authentication methods
 - **Hierarchical Configuration**: Profile-based configuration system with environment overrides
-- **Intelligent Context Management**: AI-driven file relevance scoring and task detection
-- **Extensible Tool System**: Abstract tool interface with validation and security controls
-- **MCP Integration**: Model Context Protocol for extensible tool ecosystem
 
 ## Core Components
 
-### 1. Command Line Interface (CLI)
+### 1. Dual Architecture Overview
+
+**Aircher Terminal** - Full-featured AI assistant with advanced terminal UI (Rust)
+**Aircher Intelligence Engine** - Universal MCP server providing intelligent context management (Python + Rust)
+
+### 2. Aircher Terminal (CLI)
 **Detailed Specification**: `docs/tasks/tasks.json` (Future phase tasks)
 
 **Service/Provider/Model Hierarchy** (inspired by Codex architecture):
@@ -83,7 +89,7 @@ aircher --thinking-mode        # Start with thinking mode enabled
 - **Web Search Integration**: Automatic and manual web search capabilities
 - **Image Processing**: Upload and analyze images within conversations
 
-### 2. Modern Terminal Interface (TUI)
+### 3. Modern Terminal Interface (TUI)
 **Detailed Specification**: `docs/architecture/output/tui-improvements.md`
 
 ```rust
@@ -149,7 +155,33 @@ pub struct MessageSteering {
 - **Image Upload Support**: Direct image processing and analysis capabilities
 - **Integrated Todo Management**: Built-in task tracking within the TUI
 
-### 3. Multi-Database Storage Architecture
+### 4. Aircher Intelligence Engine (MCP Server)
+**Detailed Specification**: `docs/architecture/plugins/aircher-intelligence-mcp-server.md`
+**Performance Architecture**: `docs/architecture/plugins/modular-performance-architecture.md`
+
+**Core MCP Tools**:
+- `project_analyze` - Automatic project structure analysis and component detection
+- `context_score_files` - AI-driven file relevance scoring for current task
+- `task_detect` - Identify current development task type (debugging, feature, etc.)
+- `dependency_graph` - Build and query file relationship networks
+- `success_patterns` - Learn and apply historical success patterns
+- `cross_project_insights` - Apply learnings from similar contexts across projects
+- `smart_context_assembly` - Optimize context for AI tools based on token limits
+
+**Technology Stack**:
+- **Python Core**: MCP protocol, async coordination, AI model integration
+- **Rust Performance Modules**: File system operations, AST parsing, pattern matching (via PyO3)
+- **uvx Deployment**: Modern Python CLI tool deployment with automatic dependency management
+- **Modular Backends**: Swappable Python/Rust/Mojo implementations for performance optimization
+
+**Universal Compatibility**:
+- Works with Claude Desktop, VS Code extensions, and any MCP-compatible tool
+- Provides intelligent context management as a service
+- Cross-project learning and pattern recognition
+- Automatic task detection and file relevance scoring
+- 10-50x performance improvements for critical operations
+
+### 5. Multi-Database Storage Architecture
 **Detailed Specification**: `docs/architecture/storage-architecture.md`
 
 **Database Design**:
@@ -167,10 +199,10 @@ pub struct MessageSteering {
 **Context Hierarchy** (enhanced with Claude Code session management):
 ```
 Global: ~/.config/aircher/global.db          # User preferences, auth tokens
-Project: .agents/db/core/                     # Project-wide knowledge and patterns
-Worktree: .agents/worktrees/{worktree-id}/    # Branch-specific context
-Session: .agents/sessions/{session-id}/       # Resumable conversation state
-Temp: .agents/temp/{timestamp}/               # Temporary uploads and processing
+Project: .aircher/db/core/                     # Project-wide knowledge and patterns
+Worktree: .aircher/worktrees/{worktree-id}/    # Branch-specific context
+Session: .aircher/sessions/{session-id}/       # Resumable conversation state
+Temp: .aircher/temp/{timestamp}/               # Temporary uploads and processing
 ```
 
 **Session Management** (Claude Code pattern):
@@ -190,7 +222,7 @@ pub struct SessionState {
 }
 ```
 
-### 4. Universal LLM Provider System
+### 6. Universal LLM Provider System
 **Detailed Specification**: `docs/architecture/plugins/llm-providers.md`
 
 ```rust
@@ -216,7 +248,7 @@ pub trait LLMProvider: Send + Sync {
     fn authentication_methods(&self) -> Vec<AuthMethod>;
 }
 
-// Enhanced model information structure
+// Enhanced model information structure with Warp-inspired fallback chains
 #[derive(Debug, Clone)]
 pub struct ModelInfo {
     pub id: String,
@@ -225,6 +257,24 @@ pub struct ModelInfo {
     pub cost_per_input_token: f64,
     pub cost_per_output_token: f64,
     pub capabilities: ModelCapabilities,
+    pub reliability_tier: ReliabilityTier,
+    pub fallback_priority: u8,
+}
+
+#[derive(Debug, Clone)]
+pub enum ReliabilityTier {
+    Primary,   // claude-4-sonnet
+    Fallback,  // claude-3.7-sonnet, gemini-2.5-pro
+    Emergency, // gpt-4.1, deepseek-r1
+}
+
+// Warp-inspired model fallback strategy
+#[derive(Debug, Clone)]
+pub struct ModelFallbackChain {
+    pub primary: String,
+    pub fallback_chain: Vec<String>,
+    pub retry_failed_tool_calls_with_different_model: bool,
+    pub max_retries_per_model: u32,
 }
 
 // Authentication method enumeration (enhanced from OpenCode)
@@ -277,7 +327,7 @@ impl GitHubOAuth {
 - 🚧 **OpenRouter**: Multi-provider aggregation with cost optimization
 - 🚧 **Custom Providers**: User-defined provider configurations
 
-### 5. Intelligent Context Management
+### 7. Intelligent Context Management
 **Detailed Specification**: `docs/architecture/plugins/context-management.md`
 
 **Task Detection System**:
@@ -345,7 +395,7 @@ impl FileRelevanceEngine {
 - Intelligent message importance scoring
 - Configurable preservation rules for critical information
 
-### 6. Advanced Tool System & MCP Integration
+### 8. Advanced Tool System & Security
 **Detailed Specification**: `docs/architecture/plugins/mcp-integration.md`
 
 ```rust
@@ -441,7 +491,7 @@ pub struct LinuxSandbox {
 - **Permission Scoping**: Global, project, and session-level permissions
 - **Safe Defaults**: Conservative security settings out-of-the-box
 
-### 7. Project Analysis System
+### 9. Project Analysis System
 **Status**: ✅ **Completed**
 
 ```rust
@@ -464,7 +514,7 @@ impl ProjectAnalyzer {
 
 **Capabilities**:
 - Automatic project structure analysis
-- Documentation generation in `.agents/project_analysis.md`
+- Documentation generation in `.aircher/project_analysis.md`
 - Component detection and classification
 - Cross-reference mapping
 
@@ -538,7 +588,7 @@ pub enum RelevanceType {
 
 - **User Configuration**: `~/.config/aircher/config.toml` - Global preferences and defaults
 - **Credentials**: `~/.config/aircher/credentials.toml` - API keys and authentication (600 permissions)
-- **Project Configuration**: `.agents/config.toml` - Project-specific overrides
+- **Project Configuration**: `.aircher/config.toml` - Project-specific overrides
 - **Profile System**: Named configuration sets for different workflows
 - **Environment Variables**: Override any configuration value
 
@@ -619,55 +669,53 @@ api_key = "AI..."
 - **MVP Configuration**: `docs/config/mvp-config-spec.toml`
 - **Credential Management**: `docs/config/credentials-spec.toml`
 
-## Implementation Phases (Revised Based on Reference Analysis)
+## Implementation Phases
 
 ### ✅ Phase 1: Foundation (Completed)
 - Project setup and development environment
 - TUI framework with Ratatui implementation
 - Multi-database architecture with migration system
 - Project Analysis System with auto-generated documentation
-- Basic configuration system
+- Configuration system with smart defaults
 
-### 🚧 Phase 2: Core REPL & User Experience (Claude Code Priority)
-**Priority**: Critical - User interaction must be exceptional
+### 🚧 Phase 2: Core Intelligence Engine
+**Priority**: Build the universal MCP server for intelligent context management
+- **MCP Server Framework**: Protocol implementation and tool architecture
+- **Context Intelligence**: File relevance scoring and task detection algorithms
+- **Cross-Project Learning**: Pattern recognition and success correlation
+- **Universal Compatibility**: Works with Claude Desktop, VS Code, any MCP tool
+- **LLM Provider Integration**: OpenAI and Claude API implementations
+
+### 🚧 Phase 3: Terminal Assistant
+**Dependencies**: Phase 2 intelligence foundation
 - **REPL-Style Interface**: Interactive terminal session with natural language
 - **Session Management**: Resumable conversations with unique session IDs
-- **Slash Command System**: /help, /clear, /resume, /switch-model, /web-search
-- **@-Mention Integration**: Direct file and directory referencing
-- **ESC Key Interruption**: Real-time response interruption capability
-- **Basic LLM Integration**: OpenAI and Claude providers with streaming
+- **Advanced Interaction**: Real-time steering, @-mention files, slash commands
+- **Streaming Integration**: Real-time response rendering in terminal UI
+- **Intelligence Integration**: Use MCP server for context management
 
-### 🚧 Phase 3: Advanced Interaction Features (Claude Code Innovations)
-**Dependencies**: Phase 2 REPL foundation
-- **Real-Time Message Steering**: Send messages while AI is responding
-- **Thinking Mode**: Optional AI reasoning visualization
+### 🚧 Phase 4: Advanced Features
+**Dependencies**: Phase 2-3 core functionality
+- **Security Framework**: Comprehensive permissions and audit logging
 - **Web Search Integration**: Automatic and manual search capabilities
-- **Image Processing**: Upload and analyze images within conversations
-- **Integrated Todo Management**: /todo commands and task tracking
-- **Context File Integration**: Smart file relevance and @-mention support
-
-### 🚧 Phase 4: Security & Tool Ecosystem
-**Dependencies**: Phase 2-3 user experience
-- **Security Model**: Sandbox implementation (macOS Seatbelt, Linux Landlock)
-- **Approval Policies**: Never/Ask/Auto system with command classification
-- **Tool System**: Abstract interface with validation and security controls
-- **MCP Integration**: Protocol implementation with granular permissions
-- **Advanced Authentication**: OAuth for GitHub Copilot and enterprise providers
+- **Cross-Project Insights**: Learnings and patterns across entire codebase
+- **Team Collaboration**: Shared insights while maintaining privacy
+- **Performance Optimization**: Caching, connection pooling, async processing
 
 ### ❌ Phase 5: Production & Distribution
 **Dependencies**: All previous phases
-- **Auto-Update System**: Seamless version management
-- **Distribution**: Homebrew, cargo install, direct download
-- **Performance Optimization**: Connection pooling, caching, async processing
 - **Comprehensive Testing**: Security, performance, integration tests
-- **Monitoring & Analytics**: Usage metrics and health monitoring
+- **Distribution**: Homebrew, cargo install, direct download
+- **Auto-Update System**: Seamless version management
+- **Enterprise Features**: Advanced monitoring and cost management
+- **Documentation**: Complete user guides and API documentation
 
-### Phase Rationale Changes (Claude Code Analysis):
-1. **User Experience First**: Claude Code's success stems from exceptional UX - prioritize REPL interaction
-2. **REPL Foundation**: Interactive session management and conversation resumption are critical
-3. **Incremental Feature Addition**: Start with core interaction, then add advanced features
-4. **Security as Enhancement**: Security important but shouldn't block core user experience development
-5. **Claude Code Innovation Priority**: Real-time steering, thinking mode, and @-mention are differentiators
+### Phase Rationale:
+1. **Intelligence First**: The MCP server provides the core differentiator - intelligent context management
+2. **Universal Compatibility**: Focus on working everywhere rather than just terminal
+3. **Cross-Project Learning**: This is the key value proposition that competitors can't easily replicate
+4. **Terminal as Consumer**: Terminal assistant uses the same intelligence engine as other tools
+5. **Incremental Rollout**: Start with universal intelligence, then add terminal-specific features
 
 ## Current Implementation Status
 

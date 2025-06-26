@@ -19,17 +19,18 @@
 ## Project Context
 
 ### What is Aircher?
-**"AI-powered terminal assistant built with Rust"** - Intelligent command-line interface with multi-LLM support
-- **Core Function**: Terminal-native TUI with streaming LLM integration
-- **Target Users**: Developers seeking AI-enhanced terminal workflows
-- **Key Differentiators**: Multi-database architecture, MCP protocol support, provider-agnostic LLM interface
+**"Dual-architecture AI development system with hybrid performance design"**
+- **Aircher Terminal**: Advanced terminal-native TUI built in Rust with streaming LLM integration
+- **Aircher Intelligence Engine**: Universal MCP server built in Python with Rust performance modules
+- **Target Users**: Developers seeking AI-enhanced workflows across all tools
+- **Key Differentiators**: Cross-project learning, universal compatibility, intelligent context assembly, modular performance optimization
 
-### Current Status: Foundation & LLM Integration
-**Focus**: Build robust Rust-based AI terminal assistant
-- OpenAI API Integration with streaming (`SPRINT-001`)
-- Claude API Integration with streaming (`SPRINT-002`)
-- CLI Authentication System (`SPRINT-003`)
-- **Success Metrics**: Working streaming chat, authenticated API access, responsive TUI
+### Current Status: Foundation & Intelligence Engine
+**Focus**: Build dual-architecture system with terminal assistant and Python MCP server
+- LLM Provider Integration (Rust Terminal) (`SPRINT-001`)
+- Python MCP Intelligence Server with Rust performance modules (`SPRINT-002`) 
+- Context Management Engine with modular backends (`SPRINT-003`)
+- **Success Metrics**: Working terminal chat, universal MCP compatibility, intelligent context scoring, 10x performance improvements
 
 ## Task Management & Autonomous Work
 
@@ -64,10 +65,12 @@ jq '.priorities.current_focus' docs/tasks/tasks.json
 | **CLI Commands** | `docs/architecture/commands/` | `docs/core/MASTER_SPEC.md` | Command specifications |
 | **TUI Components** | `docs/architecture/output/` | `docs/core/DEVELOPER_GUIDE.md` | UI patterns |
 | **LLM Integration** | `docs/architecture/plugins/llm-providers.md` | `docs/core/MASTER_SPEC.md` | Provider interfaces |
+| **MCP Server** | `docs/architecture/plugins/aircher-intelligence-mcp-server.md` | `docs/architecture/plugins/mcp-integration.md` | Python intelligence engine |
+| **Performance Architecture** | `docs/architecture/plugins/modular-performance-architecture.md` | `docs/core/MASTER_SPEC.md` | Modular Python/Rust backends |
+| **Context Management** | `docs/architecture/plugins/context-management.md` | `docs/core/MASTER_SPEC.md` | Intelligence algorithms |
 | **Database Operations** | `docs/architecture/storage-architecture.md` | `docs/core/MASTER_SPEC.md` | Multi-DB patterns |
 | **Testing** | `docs/development/workflow/` | `docs/reference/validation/` | Test strategies |
 | **Configuration** | `docs/architecture/config/` | `docs/core/DEVELOPER_GUIDE.md` | TOML specs |
-| **MCP Integration** | `docs/architecture/plugins/mcp-integration.md` | `docs/core/MASTER_SPEC.md` | Protocol impl |
 
 ### Core References (Always Available)
 - `docs/core/MASTER_SPEC.md` - Complete technical architecture
@@ -96,18 +99,27 @@ cargo fmt               # Format code
 
 ## Technology Stack
 
-**Core Technologies:**
+**Terminal Client (Rust):**
 - Rust 1.80+ with async/await, tokio runtime
 - Ratatui for terminal UI framework
 - SQLite + sqlx for database operations
 - tracing for structured logging
 - TOML configuration system
 
+**Intelligence Engine (Python + Rust):**
+- Python 3.11+ with asyncio, MCP protocol
+- Rust performance modules via PyO3 bindings
+- numpy/scipy for vector operations
+- sentence-transformers for embeddings
+- tree-sitter for AST parsing (Rust-accelerated)
+
 **Architecture Principles:**
-- Clean Architecture with trait-based design
+- Clean Architecture with trait-based design (Rust) and protocol-based design (Python)
+- Dual-architecture: Rust terminal assistant + Python MCP server with Rust performance cores
 - Multi-database pattern (conversations, knowledge, file_index, sessions)
 - Provider pattern for LLM integration
-- MCP protocol implementation for tool extensibility
+- Modular backend architecture for language-agnostic performance optimization
+- Intelligent context management with cross-project learning
 
 ## Documentation Structure
 
