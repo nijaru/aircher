@@ -9,7 +9,9 @@
       "Bash(git submodule:*)",
       "Bash(git rm:*)",
       "Bash(grep:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(uv add:*)",
+      "Bash(uv run:*)"
     ],
     "deny": []
   }
