@@ -1,69 +1,61 @@
-# Aircher
+# Aircher (pronounced "archer")
 
-Next-generation AI coding assistant with multi-provider support, intelligent context management, and autonomous web search.
+AI-powered terminal assistant built with Rust - Intelligent command-line interface with multi-LLM support, real-time interaction, and extensible tool ecosystem.
 
 ## Overview
 
-Aircher is a command-line AI coding assistant designed to work with any LLM provider while providing superior context management, autonomous web search, and intelligent automation. Unlike single-provider tools, Aircher offers true multi-provider support, cost optimization, and enterprise-ready features.
+Aircher is a pure Rust terminal-based AI assistant with multi-provider LLM support. Features REPL-style interaction, real-time message steering, session resumption, and an extensible MCP tool ecosystem.
 
 ## Key Features
 
-### 🎨 Modern Terminal Interface
-- **Beautiful TUI**: Powered by Charmbracelet's Bubble Tea framework
-- **Real-time Streaming**: Watch AI responses appear live with smooth animations
-- **Rich Formatting**: Markdown rendering with syntax highlighting
-- **Interactive Panels**: Context sidebar, help system, and status indicators
-- **Responsive Design**: Adapts seamlessly to any terminal size
+### 🎯 REPL-Style Terminal Interface
+- **Interactive Sessions**: Direct terminal-based AI assistant with natural language commands
+- **Real-Time Steering**: Send messages while AI is responding to guide output
+- **Session Resumption**: Seamless conversation continuation with `aircher --resume`
+- **ESC Key Interruption**: Immediate response interruption capability
+- **Context Usage Display**: Real-time token usage (e.g., "44k/200k tokens")
+- **Ratatui TUI**: Pure Rust terminal interface with smooth streaming
+
+### 🔧 Advanced Interaction Features
+- **Slash Command System**: `/help`, `/clear`, `/resume`, `/switch-model`, `/web-search`, `/thinking`
+- **@-Mention Integration**: Reference files and directories directly (`@README.md`, `@src/`)
+- **Thinking Mode**: Optional AI reasoning visualization
+- **Image Processing**: Upload and analyze images within conversations
+- **Integrated Todo Management**: Built-in task tracking with `/todo` commands
+- **Web Search Integration**: Automatic and manual search capabilities
 
 ### 🔄 Multi-Provider LLM Support
-### 🚀 Go 1.24 Enhanced Performance
-- **Swiss Tables Maps**: 2-3% CPU performance improvement with Go 1.24's new map implementation
-- **Secure Filesystem**: Uses Go 1.24's os.Root for secure, sandboxed MCP operations
-- **Enhanced Cryptography**: Ready for post-quantum cryptography with ML-KEM support
-- **Tool Management**: Modern development workflow with Go 1.24 tool directives
-- **Runtime Optimizations**: Better memory management and garbage collection performance
-
-### 🔄 Multi-Provider LLM Support
-- **Universal Interface**: Seamlessly switch between OpenAI, Claude, Gemini, Ollama
-- **Production Ready**: OpenAI and Claude fully integrated with real API calls and streaming
-- **Context Caching**: Claude integration includes advanced context caching for efficient token usage
-- **Provider Selection**: Explicit provider choice via CLI flags (--provider claude/openai)
-- **Intelligent Routing**: Automatically select optimal provider based on cost, features, availability
-- **Provider-Specific Features**: Function calling, thinking mode, image support where available
-- **Fallback Support**: Automatic failover when providers are unavailable with graceful stub modes
-- **Cost Optimization**: Track usage and costs across all providers
+- **Universal Interface**: OpenAI, Claude, Gemini, GitHub Copilot, Ollama
+- **Provider Abstraction**: Trait-based design with multiple authentication methods
+- **Smart Model Selection**: Task-specific model optimization for cost efficiency
+- **Streaming Support**: Real-time response streaming across all providers
+- **Fallback System**: Automatic provider failover with graceful degradation
+- **Cost Tracking**: Real-time usage monitoring and budget management
 
 ### 🧠 Intelligent Context Management
-- **Task-Aware Context**: Automatically detects current task (debugging, feature development, refactoring)
-- **Smart File Relevance**: Dynamic scoring based on task context, dependencies, and usage patterns
-- **Quality-Based Compaction**: Preserves important context while managing token limits intelligently
-- **Project Knowledge Persistence**: Long-term understanding of architecture and decisions
+- **File Relevance Engine**: AI-driven scoring based on task context, dependencies, and access patterns
+- **Task Detection**: Automatic identification of current work (debugging, feature development, refactoring)
+- **Smart Conversation Compaction**: Preserve important context while optimizing token usage
+- **Hierarchical Storage**: Global → Project → Worktree → Session context organization
 
-### 🔍 Autonomous Web Search
-- **Temporal Awareness**: Automatically searches for current documentation and solutions
-- **Smart Triggers**: Detects when queries need fresh information ("latest", "current", version mentions)
-- **Error Recovery**: Proactive search for solutions to encountered errors
-- **Multi-Provider Search**: Brave, DuckDuckGo, and custom search providers
+### 🔍 Web Search & Information Retrieval
+- **Automatic Search Triggers**: Detects when queries need fresh information
+- **Multi-Provider Search**: Brave, Google, DuckDuckGo integration
+- **Temporal Awareness**: Prioritizes current documentation and solutions
+- **Error Solution Search**: Proactive search for encountered error solutions
 
-### 🎨 Beautiful Terminal Interface
-- **Modern TUI**: Built with Charmbracelet's Bubble Tea framework
-- **Real-time Streaming**: Live updates as AI responds
-- **Rich Markdown Rendering**: Code highlighting and formatted responses
-- **Interactive Panels**: Context sidebar, help system, status indicators
-- **Keyboard Shortcuts**: Efficient navigation with vim-like controls
+### 🛠️ Security & Tool Ecosystem
+- **Platform-Specific Sandboxing**: macOS Seatbelt, Linux Landlock, Windows Job Objects
+- **Approval Policies**: Never/Ask/Auto system with command risk analysis
+- **MCP Integration**: Model Context Protocol for extensible tool support
+- **Built-in Tools**: Filesystem, Git, Web Search, Database, Image processing
+- **Security by Design**: Comprehensive audit logging and permission scoping
 
-### 🛠️ MCP Integration & Tools
-- **Core Development Tools**: Filesystem, Git, GitHub/GitLab integration
-- **Database Tools**: PostgreSQL, MySQL, SQLite, Redis support
-- **Web Tools**: Documentation retrieval, search integration
-- **Development Environment**: Docker, terminal, build tool integration
-- **Extensibility**: Support for 200+ community MCP servers
-
-### 📝 Project Memory System
-- **AGENTS.md Files**: Human-editable project memory for team-shared knowledge
-- **Automatic Database**: File indexes, conversation history, and knowledge base
-- **Instant Memory**: `#` prefix for quick memory additions from chat
-- **Sync System**: Changes to AGENTS.md automatically update internal databases
+### 📝 Multi-Database Storage Architecture
+- **Specialized Databases**: Conversations, knowledge, file_index, sessions
+- **Context Hierarchy**: Global, project, worktree, and session-specific storage
+- **Session Management**: Resumable conversations with unique session IDs
+- **Hybrid Storage**: SQLite for metadata, filesystem for large content
 
 ## Installation
 
@@ -72,121 +64,124 @@ Aircher is a command-line AI coding assistant designed to work with any LLM prov
 ```bash
 git clone https://github.com/aircher/aircher.git
 cd aircher
-go build -o aircher ./cmd/aircher
-sudo mv aircher /usr/local/bin/
+cargo build --release
+sudo mv target/release/aircher /usr/local/bin/
 ```
 
-### Using Go Install
+### Using Cargo
 
 ```bash
-go install github.com/aircher/aircher/cmd/aircher@latest
+cargo install aircher
+```
+
+### Pre-built Binaries
+
+```bash
+# macOS/Linux
+curl -L https://github.com/aircher/aircher/releases/latest/download/aircher-$(uname -s)-$(uname -m) -o aircher
+chmod +x aircher
+sudo mv aircher /usr/local/bin/
 ```
 
 ## Quick Start
 
-### 1. Initialize a Project
+### 1. Authentication Setup
 
 ```bash
-cd your-project
-aircher init
+# Interactive provider setup
+aircher login
+
+# Or configure specific providers
+aircher login openai
+aircher login claude
 ```
 
-### 2. Configure Providers
-
-Set up API keys for your preferred providers:
+### 2. Start REPL Session
 
 ```bash
-export OPENAI_API_KEY="your-openai-key"
-export ANTHROPIC_API_KEY="your-claude-key"
-export GOOGLE_API_KEY="your-gemini-key"
-export BRAVE_API_KEY="your-brave-search-key"  # Optional
-```
-
-### 3. Start Interactive Mode
-
-```bash
+# Start interactive session
 aircher
+
+# Resume previous conversation
+aircher --resume
+
+# Start with specific provider
+aircher --service openai
 ```
 
-### 4. Or Use Non-Interactive Mode
+### 3. Interactive Commands
 
 ```bash
-aircher -p "explain this codebase"
-cat main.go | aircher -p "review this code"
+# In the REPL session:
+/help                    # Show available commands
+@README.md explain this  # Reference files with @-mentions
+/web-search rust async   # Manual web search
+/thinking                # Toggle AI reasoning display
+/todo add "fix bug"      # Add todo item
 ```
 
 ## Usage Examples
 
-### Beautiful Interactive Interface
+### REPL-Style Terminal Interface
 ```bash
 $ aircher
-┌─ 🏹 Aircher ──────────────────────────── Provider: ollama • 🤖 Ready ─┐
-│                                                                        │
-│ ℹ️ System [14:32:15]                                                   │
-│ Welcome to Aircher! 🏹                                                │
-│                                                                        │
-│ ℹ️ System [14:32:15]                                                   │
-│ Type your question or use /help for commands.                         │
-│                                                                        │
-│ 👤 You [14:32:20]                                                     │
-│ explain the authentication system                                     │
-│                                                                        │
-│ 🤖 Aircher via ollama [14:32:21]                                      │
-│ # Authentication System Overview                                      │
-│                                                                        │
-│ Based on your project structure, I can see you're using JWT-based     │
-│ authentication with the following components:                         │
-│                                                                        │
-│ ```go                                                                  │
-│ // JWT middleware implementation                                       │
-│ func AuthMiddleware(next http.Handler) http.Handler {                 │
-│     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-│         // Token validation logic...                                   │
-│     })                                                                 │
-│ }                                                                      │
-│ ```                                                                    │
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
-┌─ > Type your message...                                              ─┐
-└─ Ctrl+H: Help • Ctrl+T: Context • Ctrl+C: Exit ─────────────────────────┘
+┌─ 🏹 Aircher ────────────────────────── Session: abc123 ─┐
+│ Provider: claude-4-sonnet • Tokens: 44k/200k • 🟢 Ready        │
+│                                                                │
+│ 👤 You [14:32:20]                                             │
+│ @src/auth.rs explain the authentication system                 │
+│                                                                │
+│ 🤖 Claude [14:32:21] 🧠 Thinking...                          │
+│ Looking at your auth.rs file, I can see a JWT-based system... │
+│                                                                │
+│ ```rust                                                        │
+│ // JWT middleware implementation                               │
+│ pub fn auth_middleware() -> impl Filter<Extract = ...> {      │
+│     warp::header::<String>("authorization")                    │
+│         .and_then(validate_jwt)                                │
+│ }                                                              │
+│ ```                                                            │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+┌─ > /thinking on                                              ─┐
+└─ ESC: Interrupt • /help: Commands • Ctrl+C: Exit ────────────────┘
 ```
 
-### Real-time Interaction
+### Advanced Interaction Features
 ```bash
-> /help                          # Toggle help panel
-> /clear                         # Clear conversation  
-> /think                         # Enable thinking mode
-> Ctrl+T                         # Toggle context panel
-> Ctrl+H                         # Toggle help
+# Session management
+> aircher --resume              # Resume last conversation
+> /resume abc123               # Resume specific session
+> ESC                          # Interrupt AI mid-response
+
+# File integration
+> @README.md what does this project do?
+> @src/ show me the main modules
+> @git:HEAD~1 what changed?
+
+# Real-time steering
+> explain rust ownership [while AI responds: "focus on borrowing"]
+
+# Slash commands
+> /thinking                     # Toggle reasoning display
+> /web-search rust async 2024  # Manual web search
+> /todo add "implement auth"    # Task management
+> /switch-model gpt-4          # Change model mid-conversation
 ```
 
-### Provider Selection
+### Tool Integration & MCP
 ```bash
-# Use Claude provider specifically
-$ aircher -p "Write a haiku about coding" --provider claude
+# Built-in tools (no setup required)
+> show me the database schema
+> create a git branch for this feature
+> search for "rust async patterns" on the web
+> analyze this image @screenshot.png
 
-# Use OpenAI provider
-$ aircher -p "Explain this function" --provider openai
-
-# Interactive provider switching
-$ aircher
-> /provider claude
-> Hello Claude, can you help me debug this Go function?
-```
-
-### MCP Tool Usage
-```bash
-# Database operations
-> show me the user table schema in our postgres database
-
-# Git operations  
-> create a new branch for the authentication fix
-
-# Web documentation
-> fetch the latest Next.js 14 routing documentation
-
-# GitHub integration
+# MCP server integration
+> aircher mcp install github    # Install GitHub MCP server
 > create a pull request for the current branch
+> aircher mcp install postgres  # Database integration
+> show me recent migrations
 ```
 
 ### Interactive Commands & Shortcuts
@@ -195,7 +190,7 @@ $ aircher
 ```bash
 /help                    # Toggle help panel
 /clear                   # Clear conversation
-/config                  # Settings management  
+/config                  # Settings management
 /cost                    # Show usage statistics
 /memory                  # Edit AGENTS.md memory
 /search [query]          # Force web search
@@ -240,75 +235,83 @@ aircher config
 ```
 
 ### Configuration Locations
-- **Project-specific**: `.agents/config.toml` 
 - **User-global**: `~/.config/aircher/config.toml`
+- **Project-specific**: `.agents/config.toml`
+- **Credentials**: `~/.config/aircher/credentials.toml` (secure)
 
 ### Key Configuration Options
 
 ```toml
+# ~/.config/aircher/config.toml
 [providers]
-default = "openai"
+default = "anthropic"         # Claude models as primary
+fallback_enabled = true       # Automatic failover
 
-[providers.openai]
-api_key_env = "OPENAI_API_KEY"
-model = "gpt-4"
-max_tokens = 4096
+[models]
+auto_select = true            # Task-based model selection
+anthropic_default = "claude-4-sonnet"
+google_default = "gemini-2.5-pro"
+openai_default = "gpt-4o"
+openrouter_default = "deepseek-r1-0528"
 
-[providers.claude]
-api_key_env = "ANTHROPIC_API_KEY"
-model = "claude-3-sonnet-20240229"
+# Task-specific optimization
+[models.tasks]
+summaries = "claude-3.5-haiku"        # Fast tasks: commits, docs, context compression
+coding = "claude-4-sonnet"            # Main development: review, debug, implement, test
+research = "claude-4-opus"            # Complex reasoning: architecture, exploration
 
-[context_management]
-auto_compaction.enabled = true
-auto_compaction.token_threshold = 8000
+[interface]
+show_thinking = true          # Show AI reasoning
+show_context_usage = true     # Display token usage
+streaming = true             # Real-time responses
 
-[search]
-enabled = true
-auto_search = true
-providers = ["brave"]
+[context]
+max_files = 20               # Intelligent management
+auto_compaction = true       # Automatic optimization
 
 [costs]
-monthly_budget = 100.0
-daily_limit = 10.0
+monthly_budget = 100.0       # Budget tracking
+track_usage = true
+prefer_cost_efficient = true # Auto cost optimization
 ```
 
 ## Project Memory (AGENTS.md)
 
-Create an `AGENTS.md` file in your project root for team-shared knowledge:
+Create an `AGENTS.md` file in your project root for AI agent knowledge:
 
 ```markdown
-# Project Name - Aircher Memory
+# Project Name - AI Agent Memory
 
 ## Instructions
-- This project uses Go 1.24+ with Charmbracelet TUI framework
-- Follow Google Go style guide
-- Use testify for testing
+- This project uses Rust 1.80+ with Ratatui TUI framework
+- Follow Rust best practices and clippy recommendations
+- Use tokio for async operations
 
 ## Conventions
-- Use meaningful variable names
-- Add comments for complex logic
-- Error handling is mandatory
+- Use snake_case for functions and variables
+- Implement traits for testability
+- Error handling with Result<T, E>
 
 ## Commands
-- `make build` - Build the project
-- `make test` - Run all tests
-- `make lint` - Run linter
+- `cargo build --release` - Build optimized binary
+- `cargo test` - Run all tests
+- `cargo clippy` - Run linter
 
 ## Architecture
-- Clean architecture with domain/service/repository layers
-- Use dependency injection
-- Database migrations in /migrations
+- Clean architecture with trait-based design
+- Multi-database pattern (conversations, knowledge, sessions)
+- Provider abstraction for LLM integration
 
 ## Glossary
-- **Handler**: HTTP request handler functions
-- **Service**: Business logic layer
-- **Repository**: Data access layer
+- **Provider**: LLM service abstraction (OpenAI, Claude, etc.)
+- **Session**: Resumable conversation state
+- **Context**: File and conversation relevance system
 ```
 
 ## Development
 
 ### Requirements
-- Go 1.24+ (leverages Swiss Tables, os.Root security, and tool management)
+- Rust 1.80+ (leverages latest async/await and trait features)
 - SQLite (included)
 - Node.js (for MCP servers)
 - Modern terminal with color support
@@ -319,24 +322,25 @@ Create an `AGENTS.md` file in your project root for team-shared knowledge:
 ```bash
 git clone https://github.com/aircher/aircher.git
 cd aircher
-go mod download
-make build  # Uses Go 1.24 optimizations and tool management
+cargo build --release  # Optimized build with all features
 ```
 
-### Go 1.24 Features
+### Rust Features Used
 
-Aircher leverages the latest Go 1.24 features for enhanced performance and security:
+Aircher leverages modern Rust features for performance and safety:
 
-- **Swiss Tables**: Automatic map performance improvements (2-3% faster)
-- **Secure Filesystem**: `os.Root` for sandboxed MCP server operations  
-- **Tool Management**: Development tools managed in go.mod
-- **Enhanced Crypto**: Post-quantum cryptography support
-- **Runtime Improvements**: Better memory allocation and garbage collection
+- **Async/Await**: Tokio runtime for concurrent operations
+- **Trait System**: Provider abstraction and extensibility
+- **Memory Safety**: Zero-cost abstractions without garbage collection
+- **Error Handling**: Comprehensive Result<T, E> error management
+- **Performance**: Native speed with Ratatui TUI framework
 
 ### Running Tests
 
 ```bash
-go test ./...
+cargo test
+cargo clippy  # Linting
+cargo fmt     # Code formatting
 ```
 
 ### Health Check
@@ -365,61 +369,17 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Project Status
 
-🚀 **Production Ready Core** - Aircher has a solid foundation with beautiful TUI interface, multi-provider LLM support, and extensible architecture. OpenAI and Claude providers are fully functional with real API integration.
+🚀 **Foundation Complete** - Aircher has a solid Rust foundation with multi-database architecture, TUI framework, and LLM provider abstractions. Ready for core REPL implementation.
 
-### Current Capabilities
-- ✅ **Beautiful Terminal Interface**: Modern TUI with Charmbracelet Bubble Tea
-- ✅ **Multi-Provider Support**: OpenAI and Claude fully implemented with streaming
-- ✅ **Real-time Streaming**: Live AI responses with rich markdown rendering
-- ✅ **Interactive Panels**: Context sidebar, help system, keyboard shortcuts
-- ✅ **MCP Integration**: Framework complete for extensible tool support
-- ✅ **Project Memory**: AGENTS.md system for team knowledge
-- 🚧 **Web Search**: Framework ready, API integration pending
-- 🚧 **Context Intelligence**: File relevance and smart compaction algorithms pending
-
-## Key Features
-
-### 🎨 Modern Terminal Interface
-- **Beautiful TUI**: Powered by Charmbracelet's Bubble Tea framework
-- **Real-time Streaming**: Watch AI responses appear live with smooth animations
-- **Rich Formatting**: Markdown rendering with syntax highlighting
-- **Interactive Panels**: Context sidebar, help system, and status indicators
-- **Responsive Design**: Adapts seamlessly to any terminal size
-
-### 🔄 Multi-Provider LLM Support
-- **Universal Interface**: Seamlessly switch between OpenAI, Claude, Gemini, Ollama
-- **Production Ready**: OpenAI and Claude fully integrated with real API calls and streaming
-- **Context Caching**: Claude integration includes advanced context caching for efficient token usage
-- **Provider Selection**: Explicit provider choice via CLI flags (--provider claude/openai)
-- **Intelligent Routing**: Automatically select optimal provider based on cost, features, availability
-- **Provider-Specific Features**: Function calling, thinking mode, image support where available
-- **Fallback Support**: Automatic failover when providers are unavailable with graceful stub modes
-- **Cost Optimization**: Track usage and costs across all providers
-
-### 🧠 Intelligent Context Management
-- **Task-Aware Context**: Automatically detects current task (debugging, feature development, refactoring)
-- **Smart File Relevance**: Dynamic scoring based on task context, dependencies, and usage patterns
-- **Quality-Based Compaction**: Preserves important context while managing token limits intelligently
-- **Project Knowledge Persistence**: Long-term understanding of architecture and decisions
-
-### 🔍 Autonomous Web Search
-- **Temporal Awareness**: Automatically searches for current documentation and solutions
-- **Smart Triggers**: Detects when queries need fresh information ("latest", "current", version mentions)
-- **Error Recovery**: Proactive search for solutions to encountered errors
-- **Multi-Provider Search**: Brave, DuckDuckGo, and custom search providers
-
-### 🛠️ MCP Integration & Tools
-- **Core Development Tools**: Filesystem, Git, GitHub/GitLab integration
-- **Database Tools**: PostgreSQL, MySQL, SQLite, Redis support
-- **Web Tools**: Documentation retrieval, search integration
-- **Development Environment**: Docker, terminal, build tool integration
-- **Extensibility**: Support for 200+ community MCP servers
-
-### 📝 Project Memory System
-- **AGENTS.md Files**: Human-editable project memory for team-shared knowledge
-- **Automatic Database**: File indexes, conversation history, and knowledge base
-- **Instant Memory**: `#` prefix for quick memory additions from chat
-- **Sync System**: Changes to AGENTS.md automatically update internal databases
+### Implementation Status
+- ✅ **Multi-Database Architecture**: SQLite databases with migration system
+- ✅ **TUI Framework**: Ratatui-based terminal interface foundation
+- ✅ **Provider Abstractions**: Trait-based LLM provider system
+- ✅ **Configuration System**: TOML-based hierarchical configuration
+- ✅ **Project Analysis**: Automatic documentation generation
+- 🚧 **REPL Interface**: Interactive session management and streaming
+- 🚧 **LLM Integration**: OpenAI and Claude API implementations
+- 🚧 **Advanced Features**: Real-time steering, @-mentions, session resumption
 
 ## Documentation
 
@@ -431,16 +391,17 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Key Differentiators
 
-**vs Claude Code:**
-- Multi-provider support (not just Claude)
-- Autonomous web search with temporal awareness
-- Task-aware context management vs token-limit based
-- Cost optimization across providers
+**vs Commercial AI Assistants:**
+- Multi-provider support with intelligent routing
+- Pure Rust performance and memory safety
+- Self-hosted and air-gapped deployment options
+- Cost optimization across multiple providers
 
-**vs Other AI Assistants:**
-- Provider-agnostic with consistent interface
-- Intelligent automation without extensive configuration
-- Enterprise-ready features (self-hosted, air-gapped)
+**vs Other Terminal Tools:**
+- REPL-style interaction with session resumption
+- Real-time message steering and interruption
+- Advanced context management with file relevance scoring
+- Extensible MCP tool ecosystem
 
 ## Contributing
 

@@ -6,85 +6,148 @@ Aircher is an AI-powered terminal-based development assistant built with Rust 1.
 
 ### Core Architecture Principles
 
-- **Clean Architecture**: Core business logic separated from external dependencies
-- **Trait-Based Design**: All major components implement traits for testability
-- **Multi-Database**: Separate SQLite databases optimized for different data types
-- **Provider Pattern**: Universal LLM provider interface supporting multiple backends
+- **Rust-Native Architecture**: Pure Rust implementation optimized for terminal environments
+- **Clean Architecture**: Domain-driven design with clear separation of concerns
+- **Trait-Based Design**: All major components implement traits for testability and extensibility
+- **Multi-Database**: Separate SQLite databases optimized for different data types and contexts
+- **Provider-Agnostic Design**: Universal LLM provider interface supporting multiple authentication methods
+- **Hierarchical Configuration**: Profile-based configuration system with environment overrides
 - **Intelligent Context Management**: AI-driven file relevance scoring and task detection
-- **MCP Integration**: Extensible tool ecosystem via Model Context Protocol
+- **Extensible Tool System**: Abstract tool interface with validation and security controls
+- **MCP Integration**: Model Context Protocol for extensible tool ecosystem
 
 ## Core Components
 
 ### 1. Command Line Interface (CLI)
 **Detailed Specification**: `docs/tasks/tasks.json` (Future phase tasks)
 
-**Service/Provider/Model Hierarchy**:
-- **Service**: API endpoint (OpenAI, Anthropic, OpenRouter, Ollama)
-- **Provider**: Entity hosting model (Anthropic, DeepSeek, Meta, etc.)
-- **Model**: Specific model (gpt-4, claude-3-sonnet, llama-3.1-8b)
+**Service/Provider/Model Hierarchy** (inspired by Codex architecture):
+- **Service**: API endpoint with authentication (OpenAI, Anthropic, OpenRouter, Ollama)
+- **Provider**: Entity hosting model with specific capabilities (Anthropic, DeepSeek, Meta)
+- **Model**: Specific model with cost/performance characteristics (claude-4-sonnet, claude-4-opus, o3, gpt-4o, gemini-2.5-pro, deepseek/deepseek-r1-0528)
+- **Authentication**: Multiple methods (API keys, OAuth, local hosting) per provider
 
-**Core Commands**:
+**Core Commands** (inspired by Claude Code patterns):
 ```bash
-# Main Interface (Claude Code-inspired)
-aircher                          # Start unified TUI
+# Main Interface - Direct REPL-style interaction
+aircher                          # Start interactive terminal session
+aircher --resume                 # Resume previous conversation
 aircher --service openai         # Start with specific service
-aircher --model claude-3-sonnet  # Start with specific model
-aircher --worktree feature-auth  # Start with specific worktree context
+aircher --model claude-4-sonnet  # Start with specific model
+aircher --profile production     # Start with specific profile
 
-# Service Authentication
-aircher auth                     # Interactive service setup
-aircher auth openai              # Configure specific service
-aircher auth status              # Show configured services
-aircher auth set                 # Set default service
-aircher auth remove openai       # Remove service
+# Interactive Session Commands (Claude Code-inspired slash commands)
+/help                           # Show available commands and shortcuts
+/exit                           # Exit session
+/clear                          # Clear conversation history
+/resume [session-id]            # Resume specific session
+/switch-model gpt-4             # Switch model mid-conversation
+/web-search [query]             # Trigger web search
+/upload-image [path]            # Upload and analyze image
+/thinking                       # Toggle thinking mode display
 
-# Model Management
-aircher model                    # Interactive model selection
-aircher model gpt-4              # Set specific model
-aircher model list               # List available models
-aircher model list --provider deepseek  # Filter by provider (OpenRouter)
+# Service Authentication & Management
+aircher login                   # Interactive authentication setup
+aircher login openai            # Configure specific service with guided flow
+aircher login --check           # Validate all configured services
+aircher logout openai           # Remove service authentication
+aircher auth status             # Show configured services with health
 
-# Worktree Management
-aircher worktree list            # List all worktrees with status
-aircher worktree switch main     # Switch to main worktree context
-aircher worktree compare main feature-auth  # Compare insights between worktrees
+# Context & File Integration (Claude Code @-mention pattern)
+@README.md                      # Reference specific file in conversation
+@src/                          # Reference entire directory
+@git:HEAD~1                    # Reference git commit or diff
+@search:function_name          # Search and reference code patterns
 
-# Context Management
-aircher context status           # Show current context hierarchy
-aircher context insights         # Show cross-context insights
-aircher context transfer feature-auth main  # Transfer learnings between contexts
+# Task & Todo Management (Claude Code pattern)
+/todo add "Implement OAuth"     # Add todo item
+/todo list                     # Show current todos
+/todo complete 1               # Mark todo as complete
+/todo clear                    # Clear completed todos
+
+# Advanced Features
+aircher --web-search           # Enable web search for session
+aircher --image-support        # Enable image upload capability
+aircher --thinking-mode        # Start with thinking mode enabled
 ```
 
-**Key Features**:
-- Clean service → provider → model hierarchy
-- Secure API key management with validation
-- OpenRouter provider filtering support
-- Context usage display in TUI (44k/200k tokens)
-- Unified chat interface following Claude Code patterns
+**Key Features** (enhanced with Claude Code patterns):
+- **REPL-Style Interaction**: Direct terminal-based AI assistant with natural language commands
+- **Real-Time Steering**: Send messages while AI is working to guide responses
+- **Contextual File Integration**: @-mention files, directories, and git references
+- **Slash Command System**: In-session commands for model switching, web search, and task management
+- **Conversation Resumption**: Seamless session continuation with `--resume`
+- **Thinking Mode**: Optional display of AI reasoning process
+- **Interrupt Capability**: ESC key interruption during AI processing
+- **Context Usage Display**: Real-time token usage (44k/200k tokens)
+- **Web Search Integration**: Automatic and manual web search capabilities
+- **Image Processing**: Upload and analyze images within conversations
 
 ### 2. Modern Terminal Interface (TUI)
 **Detailed Specification**: `docs/architecture/output/tui-improvements.md`
 
-```go
-type Model struct {
-    input         textinput.Model
-    viewport      viewport.Model
-    messages      []Message
-    width, height int
-    ready         bool
-    streaming     bool
-    showHelp      bool
-    showContext   bool
-    styles        Styles
-    renderer      *lipgloss.Renderer
+```rust
+// Pure Rust TUI implementation with Ratatui (Claude Code-inspired)
+use ratatui::prelude::*;
+use crossterm::event::{KeyCode, KeyEvent};
+
+#[derive(Debug, Clone)]
+pub struct AppState {
+    pub input: String,
+    pub messages: Vec<Message>,
+    pub viewport_offset: usize,
+    pub streaming: bool,
+    pub interrupted: bool,          // ESC key interrupt capability
+    pub show_help: bool,
+    pub show_context: bool,
+    pub show_thinking: bool,        // Thinking mode display
+    pub current_model: String,
+    pub token_usage: TokenUsage,
+    pub web_search_enabled: bool,   // Web search capability
+    pub image_support: bool,        // Image processing support
+    pub todos: Vec<TodoItem>,       // Integrated todo management
+    pub session_id: String,         // Session resumption support
+}
+
+// Enhanced interaction modes (Claude Code pattern)
+#[derive(Debug, Clone)]
+pub enum InteractionMode {
+    Chat,                          // Standard conversation
+    Thinking,                      // Show AI reasoning
+    WebSearch,                     // Web search active
+    FileReference,                 // @-mention file mode
+    SlashCommand,                  // Command processing
+}
+
+pub struct App {
+    state: AppState,
+    llm_client: Arc<dyn LLMProvider>,
+    config: Config,
+    mode: InteractionMode,
+    command_processor: CommandProcessor,  // Slash command handling
+    file_referencer: FileReferencer,      // @-mention support
+    web_searcher: WebSearcher,           // Web search integration
+}
+
+// Real-time steering capability (Claude Code innovation)
+pub struct MessageSteering {
+    pub active_stream: Option<StreamHandle>,
+    pub steering_buffer: String,
+    pub can_interrupt: bool,
 }
 ```
 
-**Key Features**:
-- Responsive terminal interface with Ratatui framework
-- Real-time streaming response display
-- Context-aware help and shortcuts
-- Vim-mode support and keyboard navigation
+**Key Features** (enhanced with Claude Code innovations):
+- **REPL-Style Terminal Interface**: Interactive session with natural language commands
+- **Real-Time Message Steering**: Send messages while AI is responding to guide output
+- **ESC Key Interruption**: Immediate response interruption capability
+- **Thinking Mode Display**: Optional AI reasoning visualization
+- **@-Mention File Integration**: Direct file and directory referencing in conversation
+- **Slash Command System**: In-session commands for model switching, search, and task management
+- **Session Resumption**: Seamless conversation continuation with unique session IDs
+- **Vim-Mode Navigation**: Advanced keyboard shortcuts and navigation patterns
+- **Image Upload Support**: Direct image processing and analysis capabilities
+- **Integrated Todo Management**: Built-in task tracking within the TUI
 
 ### 3. Multi-Database Storage Architecture
 **Detailed Specification**: `docs/architecture/storage-architecture.md`
@@ -101,69 +164,179 @@ type Model struct {
 - **Specialized Indexes**: Vector embeddings for semantic search
 - **Hierarchical Context Storage**: Global → Project → Worktree → Session
 
-**Context Hierarchy**:
+**Context Hierarchy** (enhanced with Claude Code session management):
 ```
-Global: ~/.config/aircher/global.db
-Project: .agents/db/core/
-Worktree: .agents/worktrees/{worktree-id}/
-Session: .agents/sessions/{session-id}/
+Global: ~/.config/aircher/global.db          # User preferences, auth tokens
+Project: .agents/db/core/                     # Project-wide knowledge and patterns
+Worktree: .agents/worktrees/{worktree-id}/    # Branch-specific context
+Session: .agents/sessions/{session-id}/       # Resumable conversation state
+Temp: .agents/temp/{timestamp}/               # Temporary uploads and processing
+```
+
+**Session Management** (Claude Code pattern):
+```rust
+#[derive(Debug, Clone)]
+pub struct SessionState {
+    pub id: String,
+    pub created_at: DateTime<Utc>,
+    pub last_active: DateTime<Utc>,
+    pub conversation_history: Vec<Message>,
+    pub current_model: String,
+    pub context_files: Vec<PathBuf>,
+    pub todos: Vec<TodoItem>,
+    pub thinking_mode: bool,
+    pub web_search_enabled: bool,
+    pub resume_token: String,
+}
 ```
 
 ### 4. Universal LLM Provider System
 **Detailed Specification**: `docs/architecture/plugins/llm-providers.md`
 
-```go
-type LLMProvider interface {
-    Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error)
-    ChatStream(ctx context.Context, req *ChatRequest) (<-chan *ChatResponse, error)
-    SupportsFunctions() bool
-    SupportsSystemMessages() bool
-    SupportsImages() bool
-    SupportsThinking() bool
-    GetTokenLimit(model string) int
-    CountTokens(content string) (int, error)
-    CalculateCost(tokens int, model string) (float64, error)
-    Name() string
-    Models() []string
+```rust
+// Enhanced provider interface based on Codex/Oli patterns
+pub trait LLMProvider: Send + Sync {
+    async fn chat(&self, req: &ChatRequest) -> Result<ChatResponse, ProviderError>;
+    async fn stream_chat(&self, req: &ChatRequest) -> Result<impl Stream<Item = ChatResponse>, ProviderError>;
+    
+    // Capability detection
+    fn supports_functions(&self) -> bool;
+    fn supports_system_messages(&self) -> bool;
+    fn supports_images(&self) -> bool;
+    fn supports_thinking(&self) -> bool;
+    
+    // Token and cost management
+    fn get_token_limit(&self, model: &str) -> Option<usize>;
+    async fn count_tokens(&self, content: &str) -> Result<usize, ProviderError>;
+    fn calculate_cost(&self, tokens: usize, model: &str) -> Result<f64, ProviderError>;
+    
+    // Provider metadata
+    fn name(&self) -> &str;
+    fn models(&self) -> Vec<ModelInfo>;
+    fn authentication_methods(&self) -> Vec<AuthMethod>;
+}
+
+// Enhanced model information structure
+#[derive(Debug, Clone)]
+pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+    pub context_length: usize,
+    pub cost_per_input_token: f64,
+    pub cost_per_output_token: f64,
+    pub capabilities: ModelCapabilities,
+}
+
+// Authentication method enumeration (enhanced from OpenCode)
+#[derive(Debug, Clone)]
+pub enum AuthMethod {
+    ApiKey { 
+        env_var: String,
+        validation_endpoint: Option<String>,
+    },
+    OAuth { 
+        scopes: Vec<String>,
+        client_id: String,
+        auth_url: String,
+        token_url: String,
+    },
+    LocalModel { 
+        path: String,
+        model_type: LocalModelType,
+    },
+    GitHubCopilot {
+        device_flow: bool,  // GitHub device flow for CLI
+    },
+}
+
+// OAuth implementation for GitHub Copilot (inspired by OpenCode)
+#[derive(Debug)]
+pub struct GitHubOAuth {
+    client_id: String,
+    device_code: Option<String>,
+    access_token: Option<String>,
+}
+
+impl GitHubOAuth {
+    pub async fn start_device_flow(&mut self) -> Result<DeviceFlowResponse, OAuthError> {
+        // Implement GitHub device flow for CLI authentication
+    }
+    
+    pub async fn poll_for_token(&mut self, device_code: &str) -> Result<AccessToken, OAuthError> {
+        // Poll GitHub for access token
+    }
 }
 ```
 
-**Supported Providers**:
-- ✅ **OpenAI**: GPT-3.5, GPT-4, GPT-4 Turbo models
-- ✅ **Anthropic Claude**: Claude-3 Haiku, Sonnet, Opus models
-- 🚧 **Google Gemini**: Gemini Pro, Gemini Pro Vision
-- 🚧 **Ollama**: Local model hosting with various open-source models
+**Supported Providers** (enhanced from reference implementations):
+- ✅ **OpenAI**: GPT-3.5, GPT-4, GPT-4 Turbo models with API key authentication
+- ✅ **Anthropic Claude**: Claude-3 Haiku, Sonnet, Opus models with API key authentication
+- 🚧 **Google Gemini**: Gemini Pro, Gemini Pro Vision with OAuth and API key support
+- 🚧 **GitHub Copilot**: Integration via OAuth (inspired by OpenCode)
+- 🚧 **Ollama**: Local model hosting with automatic discovery
+- 🚧 **OpenRouter**: Multi-provider aggregation with cost optimization
+- 🚧 **Custom Providers**: User-defined provider configurations
 
 ### 5. Intelligent Context Management
 **Detailed Specification**: `docs/architecture/plugins/context-management.md`
 
 **Task Detection System**:
-```go
-type TaskDetector struct {
-    patterns        []TaskPattern
-    fileWatcher     *FileWatcher
-    gitWatcher      *GitWatcher
-    behaviorAnalyzer *BehaviorAnalyzer
+```rust
+use notify::Watcher;
+use std::sync::Arc;
+
+pub struct TaskDetector {
+    patterns: Vec<TaskPattern>,
+    file_watcher: Arc<FileWatcher>,
+    git_watcher: Arc<GitWatcher>,
+    behavior_analyzer: Arc<BehaviorAnalyzer>,
 }
 
-type TaskType string
-const (
-    TaskDebugging      TaskType = "debugging"
-    TaskFeatureDev     TaskType = "feature_development"
-    TaskRefactoring    TaskType = "refactoring"
-    TaskDocumentation  TaskType = "documentation"
-    TaskTesting        TaskType = "testing"
-    TaskMaintenance    TaskType = "maintenance"
-)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TaskType {
+    Debugging,
+    FeatureDevelopment,
+    Refactoring,
+    Documentation,
+    Testing,
+    Maintenance,
+}
+
+impl TaskType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TaskType::Debugging => "debugging",
+            TaskType::FeatureDevelopment => "feature_development",
+            TaskType::Refactoring => "refactoring",
+            TaskType::Documentation => "documentation",
+            TaskType::Testing => "testing",
+            TaskType::Maintenance => "maintenance",
+        }
+    }
+}
 ```
 
 **File Relevance Engine**:
-```go
-type FileRelevanceEngine struct {
-    dependencyGraph    *DependencyGraph
-    accessPatterns     *AccessPatternAnalyzer
-    taskContext        *TaskContext
-    relevanceScorer    *RelevanceScorer
+```rust
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+pub struct FileRelevanceEngine {
+    dependency_graph: Arc<DependencyGraph>,
+    access_patterns: Arc<AccessPatternAnalyzer>,
+    task_context: Arc<TaskContext>,
+    relevance_scorer: Arc<RelevanceScorer>,
+}
+
+impl FileRelevanceEngine {
+    pub async fn score_files(&self, files: &[PathBuf]) -> Result<HashMap<PathBuf, f64>, RelevanceError> {
+        // Implementation for intelligent file relevance scoring
+        todo!()
+    }
+    
+    pub fn update_access_pattern(&self, file: &PathBuf, access_type: AccessType) {
+        // Track file access patterns for learning
+    }
 }
 ```
 
@@ -172,41 +345,120 @@ type FileRelevanceEngine struct {
 - Intelligent message importance scoring
 - Configurable preservation rules for critical information
 
-### 6. MCP (Model Context Protocol) Integration
+### 6. Advanced Tool System & MCP Integration
 **Detailed Specification**: `docs/architecture/plugins/mcp-integration.md`
 
-```go
-type MCPManager struct {
-    localServers    map[string]*MCPServer
-    projectServers  map[string]*MCPServer
-    userServers     map[string]*MCPServer
-    client          *MCPClient
-    registry        *MCPRegistry
-    installer       *MCPInstaller
-    permissionSystem *MCPPermissionSystem
+```rust
+// Enhanced tool system inspired by Gemini CLI
+pub trait Tool: Send + Sync {
+    async fn execute(&self, params: ToolParams) -> Result<ToolResult, ToolError>;
+    fn validate_params(&self, params: &ToolParams) -> Result<(), ValidationError>;
+    fn requires_confirmation(&self, params: &ToolParams) -> bool;
+    fn security_level(&self) -> SecurityLevel;
+    fn name(&self) -> &str;
+    fn description(&self) -> &str;
+}
+
+// MCP integration with enhanced security
+pub struct MCPManager {
+    local_servers: HashMap<String, MCPServer>,
+    project_servers: HashMap<String, MCPServer>,
+    user_servers: HashMap<String, MCPServer>,
+    permission_system: PermissionSystem,
+    sandbox_manager: SandboxManager,
+}
+
+// Security levels for tool execution
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SecurityLevel {
+    Safe,        // Read-only operations
+    Moderate,    // Limited write operations
+    Dangerous,   // Destructive operations
+    System,      // System-level changes
 }
 ```
 
-**Core MCP Servers**:
-- **filesystem**: File operations and management
-- **brave-search**: Web search capabilities
-- **git**: Git repository operations
-- **github**: GitHub API integration
-- **postgres/sqlite**: Database operations
+**Enhanced Tool Ecosystem** (inspired by reference implementations):
+
+**Built-in Tools** (enhanced with Claude Code patterns):
+- **filesystem**: File operations with @-mention integration and validation
+- **web-search**: Automatic and manual search with multiple providers (Brave, Google)
+- **git**: Repository operations with safety checks and diff analysis
+- **github**: API integration with OAuth and issue management
+- **database**: SQLite/PostgreSQL operations with query validation
+- **shell**: Command execution with platform-specific sandboxing
+- **memory**: Conversation and context management with session resumption
+- **image**: Image upload, processing, and analysis capabilities
+- **todo**: Integrated task management with /todo slash commands
+- **thinking**: AI reasoning display and interleaved thinking mode
+
+**Comprehensive Security Model** (inspired by Codex):
+
+```rust
+// Security policy configuration
+#[derive(Debug, Clone, PartialEq)]
+pub enum ApprovalPolicy {
+    Never,      // Never execute without explicit approval
+    Ask,        // Prompt user for each execution
+    Auto,       // Auto-approve based on safety analysis
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SecurityLevel {
+    Safe,       // Read-only operations (ls, cat, grep)
+    Moderate,   // Limited write operations (mkdir, touch)
+    Dangerous,  // Destructive operations (rm, mv, git reset)
+    System,     // System-level changes (sudo, chmod +x)
+}
+
+// Platform-specific sandboxing
+pub trait SandboxProvider {
+    async fn execute_sandboxed(&self, command: &Command, policy: &SecurityPolicy) -> Result<Output, SandboxError>;
+    fn supported_on_platform(&self) -> bool;
+}
+
+// macOS Seatbelt implementation
+pub struct MacOSSandbox {
+    seatbelt_profile: String,
+    allowed_paths: Vec<PathBuf>,
+}
+
+// Linux Landlock implementation  
+pub struct LinuxSandbox {
+    landlock_ruleset: LandlockRuleset,
+    allowed_paths: Vec<PathBuf>,
+}
+```
 
 **Security Features**:
-- Comprehensive permission system with user confirmation
-- Scoped access control (local, project, user)
-- Audit logging and security monitoring
+- **Approval Policies**: Never/Ask/Auto based on command risk analysis
+- **Platform-Specific Sandboxing**: 
+  - macOS: Seatbelt profiles for process isolation
+  - Linux: Landlock filesystem restrictions
+  - Windows: Job objects and restricted tokens
+- **Command Analysis**: Pre-execution safety classification
+- **Audit Logging**: Complete execution history with timestamps
+- **Permission Scoping**: Global, project, and session-level permissions
+- **Safe Defaults**: Conservative security settings out-of-the-box
 
 ### 7. Project Analysis System
 **Status**: ✅ **Completed**
 
-```go
-type ProjectAnalyzer struct {
-    projectRoot    string
-    storageEngine  *StorageEngine
-    logger         *zerolog.Logger
+```rust
+use tracing::info;
+use sqlx::SqlitePool;
+
+pub struct ProjectAnalyzer {
+    project_root: PathBuf,
+    storage_engine: Arc<StorageEngine>,
+    db_pool: SqlitePool,
+}
+
+impl ProjectAnalyzer {
+    pub async fn analyze_project(&self) -> Result<ProjectAnalysis, AnalysisError> {
+        info!("Starting project analysis for {:?}", self.project_root);
+        // Implementation
+    }
 }
 ```
 
@@ -219,69 +471,114 @@ type ProjectAnalyzer struct {
 ## Key Data Structures
 
 ### Chat Communication
-```go
-type ChatRequest struct {
-    Messages    []Message     `json:"messages"`
-    Tools       []Tool        `json:"tools,omitempty"`
-    MaxTokens   *int          `json:"max_tokens,omitempty"`
-    Temperature *float64      `json:"temperature,omitempty"`
-    Stream      bool          `json:"stream,omitempty"`
-    Model       string        `json:"model"`
-    Provider    string        `json:"provider"`
+```rust
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatRequest {
+    pub messages: Vec<Message>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<Tool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f64>,
+    #[serde(default)]
+    pub stream: bool,
+    pub model: String,
+    pub provider: String,
 }
 
-type ChatResponse struct {
-    Message   *Message              `json:"message,omitempty"`
-    Stream    *StreamResponse       `json:"stream,omitempty"`
-    TokensUsed TokenUsage           `json:"usage"`
-    Cost       float64              `json:"cost"`
-    Duration   time.Duration        `json:"duration"`
-    Provider   string               `json:"provider"`
-    Model      string               `json:"model"`
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<Message>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream: Option<StreamResponse>,
+    pub tokens_used: TokenUsage,
+    pub cost: f64,
+    pub duration: Duration,
+    pub provider: String,
+    pub model: String,
 }
 ```
 
 ### File Relevance
-```go
-type FileRelevance struct {
-    Path              string             `json:"path"`
-    Score             float64            `json:"score"`
-    LastAccessed      time.Time          `json:"last_accessed"`
-    AccessFrequency   int                `json:"access_frequency"`
-    Dependencies      []string           `json:"dependencies"`
-    RelevanceType     RelevanceType      `json:"relevance_type"`
-    ConfidenceScore   float64            `json:"confidence_score"`
+```rust
+use chrono::{DateTime, Utc};
+use std::path::PathBuf;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileRelevance {
+    pub path: PathBuf,
+    pub score: f64,
+    pub last_accessed: DateTime<Utc>,
+    pub access_frequency: u32,
+    pub dependencies: Vec<PathBuf>,
+    pub relevance_type: RelevanceType,
+    pub confidence_score: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum RelevanceType {
+    Direct,        // Directly modified or accessed
+    Dependency,    // Import/dependency relationship
+    Similar,       // Similar file type or content
+    Related,       // Same directory or project area
 }
 ```
 
 ## Configuration System
 
-**Architecture**: Minimal configuration with intelligent defaults and secure credential management
+**Architecture**: Hierarchical configuration system inspired by Codex with intelligent defaults and secure credential management
 
-### Two-File Strategy
-- **Configuration**: `~/.config/aircher/config.toml` - User preferences, no secrets
-- **Credentials**: `~/.config/aircher/credentials.toml` - API keys, restricted permissions (600)
+### Multi-Level Configuration Strategy (Codex Pattern)
+**Precedence Order**: CLI args → profiles → project config → user config → defaults
+
+- **User Configuration**: `~/.config/aircher/config.toml` - Global preferences and defaults
+- **Credentials**: `~/.config/aircher/credentials.toml` - API keys and authentication (600 permissions)
+- **Project Configuration**: `.agents/config.toml` - Project-specific overrides
+- **Profile System**: Named configuration sets for different workflows
+- **Environment Variables**: Override any configuration value
+
+### Profile System
+```toml
+# ~/.config/aircher/config.toml
+[profiles.development]
+model = "claude-3.5-haiku"  # Cost-efficient for dev work
+auto_approval = false
+sandbox_policy = "strict"
+
+[profiles.production]
+model = "claude-4-sonnet"   # Premier coding model
+auto_approval = true
+sandbox_policy = "relaxed"
+
+[profiles.research]
+model = "claude-4-opus"     # Top-tier reasoning model
+web_search = true
+```
 
 ### MVP Configuration Approach
 ```toml
 # ~/.config/aircher/config.toml - Minimal user preferences
 [providers]
-default = "auto"              # auto-detect best available provider
+default = "anthropic"         # Claude models as primary
 fallback_enabled = true       # automatically fallback if primary fails
 
 [models]
 auto_select = true            # intelligent model selection based on task
-openai_default = "gpt-4"      # smart defaults per provider
-anthropic_default = "claude-3-5-sonnet"
+anthropic_default = "claude-4-sonnet"    # Premier coding model
+google_default = "gemini-2.5-pro"        # High-performance alternative
+openai_default = "gpt-4o"                # General purpose
+openrouter_default = "deepseek/deepseek-r1-0528"  # Latest reasoning model
 
-# Task-specific model overrides for cost optimization
+# Task-specific model overrides
 [models.tasks]
-commit_messages = "gpt-3.5-turbo"        # Fast, cheap for git commits
-summaries = "claude-3-haiku"             # Efficient for text summarization
-code_review = "gpt-4"                    # High-quality for code analysis
-documentation = "claude-3-haiku"         # Good balance for docs
-refactoring = "gpt-4"                    # Complex reasoning needed
-debugging = "claude-3-5-sonnet"          # Strong analytical capabilities
+summaries = "claude-3.5-haiku"          # Fast tasks: commits, docs, context compression
+coding = "claude-4-sonnet"              # Main development: review, debug, implement, test
+research = "claude-4-opus"              # Complex reasoning: architecture, exploration
 
 [interface]
 show_thinking = true          # show AI thinking process
@@ -314,7 +611,7 @@ api_key = "AI..."
 ### Smart Defaults Strategy
 - **Model Parameters**: Auto-detected from models.dev API (max_tokens, temperature, context limits)
 - **Provider Selection**: Auto-detect from available credentials
-- **Model Selection**: Intelligent defaults (GPT-4, Claude-3.5-Sonnet, Gemini-2.5-Pro)
+- **Model Selection**: Intelligent defaults (Claude-4-Sonnet, Claude-4-Opus, o3, GPT-4o, Gemini-2.5-Pro, DeepSeek-R1)
 - **Context Management**: File relevance scoring with automatic optimization
 - **Cost Tracking**: Real-time pricing from models.dev API
 
@@ -322,7 +619,7 @@ api_key = "AI..."
 - **MVP Configuration**: `docs/config/mvp-config-spec.toml`
 - **Credential Management**: `docs/config/credentials-spec.toml`
 
-## Implementation Phases
+## Implementation Phases (Revised Based on Reference Analysis)
 
 ### ✅ Phase 1: Foundation (Completed)
 - Project setup and development environment
@@ -331,29 +628,46 @@ api_key = "AI..."
 - Project Analysis System with auto-generated documentation
 - Basic configuration system
 
-### 🚧 Phase 2: Intelligence (Framework Complete)
-- LLM provider interfaces and OpenAI/Claude implementations
-- Context management system architecture
-- Task detection framework
-- File relevance scoring foundation
+### 🚧 Phase 2: Core REPL & User Experience (Claude Code Priority)
+**Priority**: Critical - User interaction must be exceptional
+- **REPL-Style Interface**: Interactive terminal session with natural language
+- **Session Management**: Resumable conversations with unique session IDs
+- **Slash Command System**: /help, /clear, /resume, /switch-model, /web-search
+- **@-Mention Integration**: Direct file and directory referencing
+- **ESC Key Interruption**: Real-time response interruption capability
+- **Basic LLM Integration**: OpenAI and Claude providers with streaming
 
-### 🚧 Phase 3: Advanced Features (Partially Complete)
-- MCP integration framework
-- Smart conversation compaction
-- Web search integration
-- Enhanced security and permissions
+### 🚧 Phase 3: Advanced Interaction Features (Claude Code Innovations)
+**Dependencies**: Phase 2 REPL foundation
+- **Real-Time Message Steering**: Send messages while AI is responding
+- **Thinking Mode**: Optional AI reasoning visualization
+- **Web Search Integration**: Automatic and manual search capabilities
+- **Image Processing**: Upload and analyze images within conversations
+- **Integrated Todo Management**: /todo commands and task tracking
+- **Context File Integration**: Smart file relevance and @-mention support
 
-### ❌ Phase 4: Enterprise Features
-- Advanced monitoring and health checks
-- Cost management and budgeting
-- Git workflow integration
-- Performance optimization
+### 🚧 Phase 4: Security & Tool Ecosystem
+**Dependencies**: Phase 2-3 user experience
+- **Security Model**: Sandbox implementation (macOS Seatbelt, Linux Landlock)
+- **Approval Policies**: Never/Ask/Auto system with command classification
+- **Tool System**: Abstract interface with validation and security controls
+- **MCP Integration**: Protocol implementation with granular permissions
+- **Advanced Authentication**: OAuth for GitHub Copilot and enterprise providers
 
-### ❌ Phase 5: Production Ready
-- Comprehensive test coverage
-- Documentation completion
-- Auto-update system
-- Distribution and packaging
+### ❌ Phase 5: Production & Distribution
+**Dependencies**: All previous phases
+- **Auto-Update System**: Seamless version management
+- **Distribution**: Homebrew, cargo install, direct download
+- **Performance Optimization**: Connection pooling, caching, async processing
+- **Comprehensive Testing**: Security, performance, integration tests
+- **Monitoring & Analytics**: Usage metrics and health monitoring
+
+### Phase Rationale Changes (Claude Code Analysis):
+1. **User Experience First**: Claude Code's success stems from exceptional UX - prioritize REPL interaction
+2. **REPL Foundation**: Interactive session management and conversation resumption are critical
+3. **Incremental Feature Addition**: Start with core interaction, then add advanced features
+4. **Security as Enhancement**: Security important but shouldn't block core user experience development
+5. **Claude Code Innovation Priority**: Real-time steering, thinking mode, and @-mention are differentiators
 
 ## Current Implementation Status
 
@@ -379,8 +693,8 @@ api_key = "AI..."
 
 ## Technical Dependencies
 
-### Core Framework
-```go
+### Core Framework (Pure Rust Implementation)
+```toml
 # Core application framework
 ratatui = "0.24"                     # TUI framework
 crossterm = "0.27"                   # Terminal control
@@ -388,34 +702,185 @@ tokio = { version = "1.34", features = ["full"] }  # Async runtime
 
 # Database and storage
 sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio-rustls"] }
+
+# LLM provider clients
+reqwest = { version = "0.11", features = ["json", "stream"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Configuration and serialization  
+toml = "0.8"                         # Configuration parsing
+config = "0.13"                      # Hierarchical configuration
+
+# Security and sandboxing (critical for Phase 2)
+nix = "0.27"                         # Unix system calls
+landlock = "0.3"                     # Linux sandboxing (requires kernel 5.13+)
+libc = "0.2"                         # Low-level system interface
+
+# Authentication and OAuth
+oauth2 = "4.4"                       # OAuth2 client implementation
+url = "2.4"                          # URL parsing
+base64 = "0.21"                      # Base64 encoding for tokens
+
+# Error handling and logging
+thiserror = "1.0"                    # Error derive macros
+tracing = "0.1"                      # Structured logging
+tracing-subscriber = "0.3"           # Log output formatting
+
+# Performance and caching
+dashmap = "5.5"                      # Concurrent hashmap
+lru = "0.12"                         # LRU cache implementation
+
+# Terminal UI enhancements
+syntect = "5.0"                      # Syntax highlighting
+unicode-width = "0.1"                # Text width calculation
 ```
 
-### LLM Providers
-```go
-// Provider implementations
-github.com/sashabaranov/go-openai    // OpenAI client
-github.com/anthropics/anthropic-sdk-go // Claude client
-cloud.google.com/go/aiplatform       // Gemini client
-```
 
 ### Development Tools
-```go
+```toml
 # Development and testing
-tracing = "0.1"                      # Structured logging
-serde = { version = "1.0", features = ["derive"] }  # Serialization
-toml = "0.8"                         # Configuration parsing
+cargo-tarpaulin = "0.27"             # Code coverage
+cargo-dist = "0.4"                   # Release distribution
+cargo-deny = "0.14"                  # Security and license auditing
+cargo-audit = "0.18"                 # Security vulnerability scanning
 ```
+
+## Performance Targets
+
+### Response Time Requirements
+- **Startup Time**: < 100ms cold start, < 50ms warm start
+- **First Token**: < 500ms for streaming responses  
+- **Terminal Rendering**: 60fps for smooth scrolling
+- **Context Loading**: < 200ms for typical projects (< 10MB)
+- **Model Switch**: < 100ms provider/model switching
+
+### Resource Usage Limits
+- **Memory**: < 50MB baseline, < 200MB with large contexts
+- **CPU**: < 5% idle, burst to 100% during LLM calls
+- **Disk**: < 100MB for databases and cache
+- **Network**: Efficient connection pooling and reuse
+
+## Installation & Distribution
+
+### Installation Methods
+```bash
+# Cargo (Rust users)
+cargo install aircher
+
+# Homebrew (macOS/Linux)
+brew install aircher
+
+# Direct download (all platforms)
+curl -L https://github.com/user/aircher/releases/latest/download/aircher-$(uname -s)-$(uname -m) -o aircher
+```
+
+### Auto-Update System
+```rust
+pub struct UpdateManager {
+    current_version: semver::Version,
+    update_channel: UpdateChannel,  // Stable, Beta, Nightly
+    auto_check: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum UpdateChannel {
+    Stable,   // Weekly releases
+    Beta,     // Daily releases
+    Nightly,  // Every commit
+}
+```
+
+## Testing Strategy
+
+### Test Coverage Requirements
+- **Unit Tests**: > 80% line coverage for core logic
+- **Integration Tests**: All LLM provider implementations
+- **End-to-End Tests**: Key user workflows (chat, file operations)
+- **Security Tests**: Sandbox bypass attempts, privilege escalation
+- **Performance Tests**: Load testing with large contexts
+
+### Test Structure
+```rust
+// Unit tests co-located with implementation
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_provider_fallback() {
+        // Test provider failover logic
+    }
+}
+
+// Integration tests in tests/ directory
+// tests/integration/llm_providers.rs
+// tests/integration/security_sandbox.rs
+// tests/integration/config_management.rs
+```
+
+## Error Handling & Recovery
+
+### Error Hierarchy
+```rust
+#[derive(thiserror::Error, Debug)]
+pub enum AircherError {
+    #[error("LLM provider error: {0}")]
+    Provider(#[from] ProviderError),
+    
+    #[error("Configuration error: {0}")]
+    Config(#[from] ConfigError),
+    
+    #[error("Security violation: {0}")]
+    Security(#[from] SecurityError),
+    
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+}
+```
+
+### Recovery Strategies
+- **Provider Failures**: Automatic fallback to secondary providers
+- **Network Issues**: Exponential backoff with circuit breaker
+- **Configuration Errors**: Safe defaults with user notification
+- **Security Violations**: Immediate termination with audit log
 
 ## Build Commands
 
 ```bash
-cargo build --release  # Build the aircher binary
-cargo run             # Build and run development version
-cargo test            # Run all tests
-cargo tarpaulin       # Generate coverage reports
-cargo clippy          # Run clippy linter
-cargo fmt             # Format code with rustfmt
+# Development
+cargo build --release    # Build optimized binary
+cargo run               # Run development version
+cargo test              # Run all tests
+cargo clippy            # Lint with clippy
+cargo fmt               # Format code
+cargo tarpaulin         # Coverage reports
+
+# Release
+cargo dist build        # Build release artifacts
+cargo dist upload       # Upload to GitHub releases
 ```
+
+## Reference Architecture Analysis
+
+Based on comprehensive analysis of leading AI coding assistants, our architecture incorporates proven patterns:
+
+### Reference Repositories (see `external/`)
+- **Codex** (`external/codex/`): Rust + TypeScript hybrid with sophisticated provider system
+- **Oli** (`external/oli/`): Modern Rust backend with React/Ink frontend  
+- **OpenCode** (`external/opencode/`): Go TUI with TypeScript server architecture
+- **Gemini CLI** (`external/gemini-cli/`): TypeScript with comprehensive tool system
+- **Claude Code**: Commercial AI terminal assistant (analyzed via changelog + docs)
+
+### Key Architectural Insights Applied
+1. **REPL-First Design (Claude Code)**: Interactive terminal session as primary interface
+2. **Real-Time Interaction (Claude Code)**: Message steering while AI is responding
+3. **Context Integration (Claude Code)**: @-mention files, slash commands, thinking mode
+4. **Session Management (Claude Code)**: Resumable conversations with unique IDs
+5. **Provider Abstraction (Codex/Oli)**: Multiple authentication methods and fallback systems
+6. **Pure Rust Performance (Oli)**: Native terminal performance without hybrid complexity
+7. **Security by Design (Codex)**: Platform-specific sandboxing and approval policies
+8. **Tool Ecosystem (Gemini CLI)**: Extensible tool system with MCP integration
 
 ## Related Documentation
 
