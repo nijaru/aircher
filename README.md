@@ -1,66 +1,65 @@
 # Aircher (pronounced "archer")
 
-AI-powered terminal assistant built with Rust - Intelligent command-line interface with multi-LLM support, real-time interaction, and extensible tool ecosystem.
+**AI-powered terminal assistant built with Rust** - Intelligent command-line interface with multi-LLM support, real-time interaction, and extensible tool ecosystem.
 
-## Overview
+## What is Aircher?
 
-Aircher is a pure Rust terminal-based AI assistant with multi-provider LLM support. Features REPL-style interaction, real-time message steering, session resumption, and an extensible MCP tool ecosystem.
+Aircher is a **pure Rust terminal-based AI assistant** that brings the power of multiple LLM providers directly to your command line. Think of it as your personal AI coding assistant that lives in your terminal, with advanced features like real-time message steering, session resumption, and an extensible tool ecosystem.
 
-## Key Features
+## ✨ Key Features
 
-### 🎯 REPL-Style Terminal Interface
-- **Interactive Sessions**: Direct terminal-based AI assistant with natural language commands
-- **Real-Time Steering**: Send messages while AI is responding to guide output
-- **Session Resumption**: Seamless conversation continuation with `aircher --resume`
-- **ESC Key Interruption**: Immediate response interruption capability
-- **Context Usage Display**: Real-time token usage (e.g., "44k/200k tokens")
-- **Ratatui TUI**: Pure Rust terminal interface with smooth streaming
+### 🚀 **REPL-Style Terminal Interface**
+- **Interactive Sessions** → Direct terminal-based AI assistant with natural language commands
+- **Real-Time Steering** → Send messages while AI is responding to guide output
+- **Session Resumption** → Seamless conversation continuation with `aircher --resume`
+- **ESC Key Interruption** → Immediate response interruption capability
+- **Context Usage Display** → Real-time token usage (e.g., "44k/200k tokens")
+- **Pure Rust Performance** → Ratatui TUI with smooth streaming responses
 
-### 🔧 Advanced Interaction Features
-- **Slash Command System**: `/help`, `/clear`, `/resume`, `/switch-model`, `/web-search`, `/thinking`
-- **@-Mention Integration**: Reference files and directories directly (`@README.md`, `@src/`)
-- **Thinking Mode**: Optional AI reasoning visualization
-- **Image Processing**: Upload and analyze images within conversations
-- **Integrated Todo Management**: Built-in task tracking with `/todo` commands
-- **Web Search Integration**: Automatic and manual search capabilities
+### 🎯 **Advanced Interaction Features**
+- **Slash Commands** → `/help`, `/clear`, `/resume`, `/switch-model`, `/web-search`, `/thinking`
+- **@-Mention Integration** → Reference files and directories directly (`@README.md`, `@src/`)
+- **Thinking Mode** → Optional AI reasoning visualization
+- **Image Processing** → Upload and analyze images within conversations
+- **Todo Management** → Built-in task tracking with `/todo` commands
+- **Web Search** → Automatic and manual search capabilities
 
-### 🔄 Multi-Provider LLM Support
-- **Universal Interface**: OpenAI, Claude, Gemini, GitHub Copilot, Ollama
-- **Provider Abstraction**: Trait-based design with multiple authentication methods
-- **Smart Model Selection**: Task-specific model optimization for cost efficiency
-- **Streaming Support**: Real-time response streaming across all providers
-- **Fallback System**: Automatic provider failover with graceful degradation
-- **Cost Tracking**: Real-time usage monitoring and budget management
+### 🤖 **Multi-Provider LLM Support**
+- **Universal Interface** → OpenAI, Claude, Gemini, GitHub Copilot, Ollama
+- **Provider Abstraction** → Trait-based design with multiple authentication methods
+- **Smart Model Selection** → Task-specific optimization for cost efficiency
+- **Streaming Support** → Real-time responses across all providers
+- **Fallback System** → Automatic provider failover with graceful degradation
+- **Cost Tracking** → Real-time usage monitoring and budget management
 
-### 🧠 Intelligent Context Management
-- **File Relevance Engine**: AI-driven scoring based on task context, dependencies, and access patterns
-- **Task Detection**: Automatic identification of current work (debugging, feature development, refactoring)
-- **Smart Conversation Compaction**: Preserve important context while optimizing token usage
-- **Hierarchical Storage**: Global → Project → Worktree → Session context organization
+### 🧠 **Intelligent Context Management**
+- **File Relevance Engine** → AI-driven scoring based on task context and dependencies
+- **Task Detection** → Automatic identification of current work (debugging, features, refactoring)
+- **Smart Compaction** → Preserve important context while optimizing token usage
+- **Hierarchical Storage** → Global → Project → Worktree → Session organization
 
-### 🔍 Web Search & Information Retrieval
-- **Automatic Search Triggers**: Detects when queries need fresh information
-- **Multi-Provider Search**: Brave, Google, DuckDuckGo integration
-- **Temporal Awareness**: Prioritizes current documentation and solutions
-- **Error Solution Search**: Proactive search for encountered error solutions
+### 🔍 **Web Search & Information Retrieval**
+- **Auto Search Triggers** → Detects when queries need fresh information
+- **Multi-Provider Search** → Brave, Google, DuckDuckGo integration
+- **Temporal Awareness** → Prioritizes current documentation and solutions
+- **Error Solution Search** → Proactive search for encountered errors
 
-### 🛠️ Security & Tool Ecosystem
-- **Platform-Specific Sandboxing**: macOS Seatbelt, Linux Landlock, Windows Job Objects
-- **Approval Policies**: Never/Ask/Auto system with command risk analysis
-- **MCP Integration**: Model Context Protocol for extensible tool support
-- **Built-in Tools**: Filesystem, Git, Web Search, Database, Image processing
-- **Security by Design**: Comprehensive audit logging and permission scoping
+### 🛠️ **Security & Tool Ecosystem**
+- **Platform Sandboxing** → macOS Seatbelt, Linux Landlock, Windows Job Objects
+- **Approval Policies** → Never/Ask/Auto system with command risk analysis
+- **MCP Integration** → Model Context Protocol for extensible tool support
+- **Built-in Tools** → Filesystem, Git, Web Search, Database, Image processing
+- **Security by Design** → Comprehensive audit logging and permission scoping
 
-### 📝 Multi-Database Storage Architecture
-- **Specialized Databases**: Conversations, knowledge, file_index, sessions
-- **Context Hierarchy**: Global, project, worktree, and session-specific storage
-- **Session Management**: Resumable conversations with unique session IDs
-- **Hybrid Storage**: SQLite for metadata, filesystem for large content
+### 📊 **Multi-Database Storage**
+- **Specialized Databases** → Conversations, knowledge, file_index, sessions
+- **Context Hierarchy** → Global, project, worktree, and session-specific storage
+- **Session Management** → Resumable conversations with unique session IDs
+- **Hybrid Storage** → SQLite for metadata, filesystem for large content
 
-## Installation
+## 🚀 Installation
 
-### From Source
-
+### **From Source (Currently Only Option)**
 ```bash
 git clone https://github.com/aircher/aircher.git
 cd aircher
@@ -68,49 +67,27 @@ cargo build --release
 sudo mv target/release/aircher /usr/local/bin/
 ```
 
-### Using Cargo
+> **Note**: Cargo install and pre-built binaries will be available once the project reaches initial release.
 
+## ⚡ Quick Start
+
+### **Step 1: Authentication**
 ```bash
-cargo install aircher
+# Authentication system in development
+aircher login         # (planned)
+aircher login openai  # (planned)
+aircher login claude  # (planned)
 ```
 
-### Pre-built Binaries
-
+### **Step 2: Start Session**
 ```bash
-# macOS/Linux
-curl -L https://github.com/aircher/aircher/releases/latest/download/aircher-$(uname -s)-$(uname -m) -o aircher
-chmod +x aircher
-sudo mv aircher /usr/local/bin/
+# REPL interface in development
+aircher                 # (in development)
+aircher --resume        # (planned)
+aircher --service openai # (planned)
 ```
 
-## Quick Start
-
-### 1. Authentication Setup
-
-```bash
-# Interactive provider setup
-aircher login
-
-# Or configure specific providers
-aircher login openai
-aircher login claude
-```
-
-### 2. Start REPL Session
-
-```bash
-# Start interactive session
-aircher
-
-# Resume previous conversation
-aircher --resume
-
-# Start with specific provider
-aircher --service openai
-```
-
-### 3. Interactive Commands
-
+### **Step 3: Start Chatting**
 ```bash
 # In the REPL session:
 /help                    # Show available commands
@@ -120,9 +97,9 @@ aircher --service openai
 /todo add "fix bug"      # Add todo item
 ```
 
-## Usage Examples
+## 💡 Usage Examples
 
-### REPL-Style Terminal Interface
+### **REPL-Style Terminal Interface**
 ```bash
 $ aircher
 ┌─ 🏹 Aircher ────────────────────────── Session: abc123 ─┐
@@ -147,7 +124,7 @@ $ aircher
 └─ ESC: Interrupt • /help: Commands • Ctrl+C: Exit ────────────────┘
 ```
 
-### Advanced Interaction Features
+### **Advanced Interaction Features**
 ```bash
 # Session management
 > aircher --resume              # Resume last conversation
@@ -169,7 +146,7 @@ $ aircher
 > /switch-model gpt-4          # Change model mid-conversation
 ```
 
-### Tool Integration & MCP
+### **Tool Integration & MCP**
 ```bash
 # Built-in tools (no setup required)
 > show me the database schema
@@ -184,9 +161,9 @@ $ aircher
 > show me recent migrations
 ```
 
-### Interactive Commands & Shortcuts
+### **Interactive Commands & Shortcuts**
 
-#### Slash Commands
+#### **Slash Commands**
 ```bash
 /help                    # Toggle help panel
 /clear                   # Clear conversation
@@ -199,7 +176,7 @@ $ aircher
 /tools                   # List available MCP tools
 ```
 
-#### Keyboard Shortcuts
+#### **Keyboard Shortcuts**
 ```bash
 Ctrl+H                   # Toggle help panel
 Ctrl+T                   # Toggle context sidebar
@@ -207,14 +184,14 @@ Ctrl+C / Esc            # Exit Aircher
 Enter                    # Send message
 ```
 
-#### TUI Features
+#### **TUI Features**
 - **Live Streaming**: See responses appear in real-time
 - **Markdown Rendering**: Beautiful code highlighting and formatting
 - **Context Panel**: View session info, costs, and available tools
 - **Status Indicators**: Visual feedback for thinking/searching states
 - **Responsive Layout**: Adapts to terminal size automatically
 
-### Automation & Scripting
+### **Automation & Scripting**
 ```bash
 # Code review automation
 git diff | aircher -p "review this code" --output-format json
@@ -226,20 +203,21 @@ find . -name "*.go" | xargs -I {} aircher -p "add error handling to {}"
 aircher -p "check test coverage" --max-turns 1
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-Aircher uses TOML configuration files. Initialize with default settings:
+Aircher uses **TOML configuration files** with intelligent defaults. Initialize with:
 
 ```bash
-aircher config
+# Configuration system in development
+aircher config  # (planned)
 ```
 
-### Configuration Locations
+### **Configuration Locations**
 - **User-global**: `~/.config/aircher/config.toml`
-- **Project-specific**: `.agents/config.toml`
-- **Credentials**: `~/.config/aircher/credentials.toml` (secure)
+- **Project-specific**: `.agents/config.toml` (planned)
+- **Credentials**: `~/.config/aircher/credentials.toml` (planned)
 
-### Key Configuration Options
+### **Key Configuration Options**
 
 ```toml
 # ~/.config/aircher/config.toml
@@ -275,9 +253,9 @@ track_usage = true
 prefer_cost_efficient = true # Auto cost optimization
 ```
 
-## Project Memory (AGENTS.md)
+## 🧠 Project Memory (AGENTS.md)
 
-Create an `AGENTS.md` file in your project root for AI agent knowledge:
+Create an **`AGENTS.md`** file in your project root for AI agent knowledge:
 
 ```markdown
 # Project Name - AI Agent Memory
@@ -308,16 +286,16 @@ Create an `AGENTS.md` file in your project root for AI agent knowledge:
 - **Context**: File and conversation relevance system
 ```
 
-## Development
+## 🛠️ Development
 
-### Requirements
+### **Requirements**
 - Rust 1.80+ (leverages latest async/await and trait features)
 - SQLite (included)
 - Node.js (for MCP servers)
 - Modern terminal with color support
 - Recommended: Terminal with Unicode support for best experience
 
-### Building from Source
+### **Building from Source**
 
 ```bash
 git clone https://github.com/aircher/aircher.git
@@ -325,7 +303,7 @@ cd aircher
 cargo build --release  # Optimized build with all features
 ```
 
-### Rust Features Used
+### **Rust Features Used**
 
 Aircher leverages modern Rust features for performance and safety:
 
@@ -335,7 +313,7 @@ Aircher leverages modern Rust features for performance and safety:
 - **Error Handling**: Comprehensive Result<T, E> error management
 - **Performance**: Native speed with Ratatui TUI framework
 
-### Running Tests
+### **Running Tests**
 
 ```bash
 cargo test
@@ -343,70 +321,60 @@ cargo clippy  # Linting
 cargo fmt     # Code formatting
 ```
 
-### Health Check
+### **Health Check**
 
 ```bash
-aircher doctor
+aircher doctor  # (planned)
 ```
 
-## Contributing
+## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+1. **Fork** the repository
+2. **Create** a feature branch
+3. **Make** your changes
+4. **Add** tests
+5. **Submit** a pull request
 
-## License
+## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+**AGPL v3** - see [LICENSE](LICENSE) for details.
 
-## Support
+## 💬 Support
 
-- **Issues**: [GitHub Issues](https://github.com/aircher/aircher/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/aircher/aircher/discussions)
-- **Documentation**: [docs.agents.ai](https://docs.agents.ai)
+- **Issues** → [GitHub Issues](https://github.com/aircher/aircher/issues)
+- **Documentation** → See `docs/` directory in this repository
 
-## Project Status
+## 📊 Project Status
 
-🚀 **Foundation Complete** - Aircher has a solid Rust foundation with multi-database architecture, TUI framework, and LLM provider abstractions. Ready for core REPL implementation.
+🏗️ **Early Development** - Aircher is in active development with foundational architecture in place. Core REPL functionality is the current focus.
 
-### Implementation Status
-- ✅ **Multi-Database Architecture**: SQLite databases with migration system
-- ✅ **TUI Framework**: Ratatui-based terminal interface foundation
-- ✅ **Provider Abstractions**: Trait-based LLM provider system
-- ✅ **Configuration System**: TOML-based hierarchical configuration
-- ✅ **Project Analysis**: Automatic documentation generation
-- 🚧 **REPL Interface**: Interactive session management and streaming
-- 🚧 **LLM Integration**: OpenAI and Claude API implementations
-- 🚧 **Advanced Features**: Real-time steering, @-mentions, session resumption
+### **Implementation Status**
+- ✅ **Multi-Database Architecture** → SQLite databases with migration system
+- ✅ **TUI Framework** → Ratatui-based terminal interface foundation
+- ✅ **Provider Abstractions** → Trait-based LLM provider system
+- ✅ **Configuration System** → TOML-based hierarchical configuration
+- ✅ **Project Analysis** → Automatic documentation generation
+- 🚧 **REPL Interface** → Interactive session management and streaming
+- 🚧 **LLM Integration** → OpenAI and Claude API implementations
+- 🚧 **Advanced Features** → Real-time steering, @-mentions, session resumption
 
-## Documentation
+## 📚 Documentation
 
-- [**DOCS.md**](DOCS.md) - Complete documentation reference guide
-- [**OUTLINE.md**](OUTLINE.md) - Project vision, features, and roadmap
-- [**SPEC.md**](SPEC.md) - Technical specification and architecture
-- [**STATUS.md**](STATUS.md) - Current implementation status and progress
-- [**TASKS.md**](TASKS.md) - Implementation task list and progress tracking
+- [**MASTER_SPEC.md**](docs/core/MASTER_SPEC.md) → Technical specification and architecture
+- [**DEVELOPER_GUIDE.md**](docs/core/DEVELOPER_GUIDE.md) → Development workflows and patterns
+- [**tasks.json**](docs/tasks/tasks.json) → Current implementation tasks and progress
+- [**AGENTS.md**](AGENTS.md) → Project memory for AI development
 
-## Key Differentiators
+## 🎯 Why Aircher?
 
-**vs Commercial AI Assistants:**
-- Multi-provider support with intelligent routing
-- Pure Rust performance and memory safety
-- Self-hosted and air-gapped deployment options
-- Cost optimization across multiple providers
+### **vs Commercial AI Assistants**
+- ✅ **Multi-provider support** with intelligent routing
+- ✅ **Pure Rust performance** and memory safety
+- ✅ **Self-hosted** and air-gapped deployment options
+- ✅ **Cost optimization** across multiple providers
 
-**vs Other Terminal Tools:**
-- REPL-style interaction with session resumption
-- Real-time message steering and interruption
-- Advanced context management with file relevance scoring
-- Extensible MCP tool ecosystem
-
-## Contributing
-
-Aircher welcomes contributions! The core framework is complete with opportunities to enhance provider integrations, context algorithms, and MCP tools.
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
+### **vs Other Terminal Tools**
+- ✅ **REPL-style interaction** with session resumption
+- ✅ **Real-time message steering** and interruption
+- ✅ **Advanced context management** with file relevance scoring
+- ✅ **Extensible MCP tool ecosystem**
