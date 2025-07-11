@@ -59,7 +59,7 @@
 ## Quick Start for AI Agents
 
 ### Essential Files
-- `CLAUDE.md` - AI agent instructions and workflow
+- `AGENT.md` - AI agent instructions and workflow (universal compatibility)
 - `docs/ARCHITECTURE.md` - Technical implementation details
 - `docs/DEVELOPMENT.md` - Development patterns and setup
 - `docs/tasks/tasks.json` - Current task priorities and status

@@ -87,9 +87,9 @@ jq '.tasks["TASK-001"].notes = "Implemented basic structure"' docs/tasks/tasks.j
 jq '.tasks["TASK-001"].status = "completed"' docs/tasks/tasks.json > tmp.json && mv tmp.json docs/tasks/tasks.json
 ```
 
-## CLAUDE.md Integration
+## AGENT.md Integration
 
-Add to your CLAUDE.md:
+Add to your AGENT.md:
 ```markdown
 ## Task Management
 **CRITICAL**: Use `docs/tasks/tasks.json` as SINGLE SOURCE OF TRUTH

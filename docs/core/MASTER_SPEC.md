@@ -25,10 +25,11 @@
 │  │  ├─ Gemini API              │  ✅ Complete
 │  │  ├─ OpenRouter              │  ✅ Complete
 │  │  └─ Host abstraction        │  ✅ Complete
-│  ├─ Intelligence Engine        │  ← FUTURE
-│  │  ├─ Context analysis        │
-│  │  ├─ File scoring            │
-│  │  └─ Cost optimization       │
+│  ├─ Intelligence Engine        │  ← REDESIGNED  
+│  │  ├─ Contextual relevance    │  🚧 SPRINT-004 (Tool Interface)
+│  │  ├─ Development narrative   │  🚧 Learning from task patterns
+│  │  ├─ Conversational memory   │  🚧 Agent effectiveness tracking
+│  │  └─ Predictive assembly     │  🚧 Context anticipation
 │  └─ Session Management         │  ← FUTURE
 │     ├─ Persistence             │
 │     └─ Analytics               │
@@ -370,11 +371,20 @@ aircher --configure
 ## Future Extensibility
 
 ### Intelligence Engine (Phase 1)
-Once we have working UI, add:
-- File relevance scoring with git2
-- Context optimization with tree-sitter
-- Cost optimization with usage analytics
-- Pattern learning with SQLite
+**Context-aware development assistant that transforms raw codebase data into actionable insights for AI agents**
+
+**Core Innovation**: Multi-layered relevance scoring based on development narrative, not just file metrics
+
+Key Components:
+- **Tool-based interface** for seamless AI agent integration  
+- **Contextual relevance engine** with immediate/sequential/dependent/reference scoring
+- **Development narrative tracker** maintaining project story and architectural decisions
+- **Conversational memory system** learning from interaction outcomes
+- **Predictive context assembly** anticipating what context will be needed next
+
+**Goal**: Transform Aircher from chat tool into development partner that understands codebase context
+
+See `docs/architecture/intelligence-engine.md` for full specification.
 
 ### Additional Providers (Phase 2)
 - OpenAI (GPT-4, GPT-4o)

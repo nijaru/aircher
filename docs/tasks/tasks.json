@@ -187,26 +187,35 @@
     },
     "SPRINT-004": {
       "id": "SPRINT-004",
-      "title": "Pure Rust Intelligence Engine - Core",
+      "title": "Intelligence Engine - Contextual Development Assistant",
       "status": "pending",
       "priority": "high",
-      "description": "Implement core intelligence components in Pure Rust",
+      "description": "Implement context-aware development assistant that provides intelligent insights for AI agents",
       "files": [
-        "src/intelligence/analyzer.rs",
-        "src/intelligence/scorer.rs",
-        "src/intelligence/mod.rs"
+        "src/intelligence/mod.rs",
+        "src/intelligence/context.rs",
+        "src/intelligence/narrative.rs",
+        "src/intelligence/memory.rs",
+        "src/intelligence/tools.rs"
       ],
       "acceptance_criteria": [
-        "Implement ProjectAnalyzer using tree-sitter for AST parsing",
-        "Implement FileRelevanceScorer using git2 and heuristics",
-        "Implement ContextOptimizer for smart conversation truncation",
-        "Integrate with SQLite for pattern tracking and analytics",
-        "Git status analysis and recent edits tracking"
+        "Implement tool-based interface for AI agent integration",
+        "Build contextual relevance engine with multi-layered scoring",
+        "Create development narrative tracker for project story",
+        "Implement basic conversational memory system",
+        "Add predictive context assembly capabilities",
+        "Integrate with git2 for development momentum tracking",
+        "Use tree-sitter for AST analysis and dependency mapping",
+        "Store learning models in SQLite for pattern recognition",
+        "Provide dynamic system prompt component integration",
+        "Achieve <100ms response time for context queries"
       ],
       "dependencies": [
-        "SPRINT-001"
+        "TUI-001",
+        "INTEGRATION-001"
       ],
-      "estimated_effort": "large"
+      "estimated_effort": "large",
+      "notes": "Redesigned as agent-centric tool interface based on task management system insights. Focus on contextual relevance over raw metrics. See docs/architecture/intelligence-engine.md for full specification."
     },
     "SPRINT-005": {
       "id": "SPRINT-005",
@@ -303,6 +312,59 @@
         "SPRINT-003"
       ],
       "estimated_effort": "medium"
+    },
+    "SPRINT-010": {
+      "id": "SPRINT-010",
+      "title": "Intelligence Engine - Learning System",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Advanced learning capabilities for the Intelligence Engine",
+      "files": [
+        "src/intelligence/learning.rs",
+        "src/intelligence/patterns.rs",
+        "src/intelligence/prediction.rs"
+      ],
+      "acceptance_criteria": [
+        "Implement advanced conversational memory with outcome tracking",
+        "Build pattern recognition system for successful context assemblies",
+        "Add predictive context assembly with confidence scoring",
+        "Create learning models that improve over time",
+        "Implement cross-conversation learning patterns",
+        "Add context effectiveness metrics and feedback loops",
+        "Build automated context suggestion refinement",
+        "Achieve 10% monthly improvement in relevance accuracy"
+      ],
+      "dependencies": [
+        "SPRINT-004"
+      ],
+      "estimated_effort": "large",
+      "notes": "Phase 2 of Intelligence Engine focusing on learning and prediction capabilities"
+    },
+    "SPRINT-015": {
+      "id": "SPRINT-015", 
+      "title": "Intelligence Engine - Advanced Features",
+      "status": "pending",
+      "priority": "low",
+      "description": "Advanced intelligence features for cross-project learning and architectural guidance",
+      "files": [
+        "src/intelligence/architectural.rs",
+        "src/intelligence/cross_project.rs",
+        "src/intelligence/guidance.rs"
+      ],
+      "acceptance_criteria": [
+        "Implement cross-project intelligence and pattern sharing",
+        "Add architectural guidance and refactoring suggestions",
+        "Build real-time development assistance capabilities",
+        "Create team intelligence for multi-developer patterns",
+        "Implement automated documentation generation",
+        "Add IDE integration capabilities",
+        "Build CI/CD integration for context-aware code review"
+      ],
+      "dependencies": [
+        "SPRINT-010"
+      ],
+      "estimated_effort": "large",
+      "notes": "Phase 3 of Intelligence Engine with advanced cross-project and team features"
     },
     "CLI-001": {
       "id": "CLI-001",

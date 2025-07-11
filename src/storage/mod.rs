@@ -1,6 +1,7 @@
 use crate::config::ConfigManager;
 use anyhow::Result;
 
+#[derive(Clone)]
 pub struct DatabaseManager {
     _config: ConfigManager,
 }
