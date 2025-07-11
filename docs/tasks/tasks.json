@@ -1,34 +1,36 @@
 {
 	"priorities": {
-		"next_sequence": ["SPRINT-001", "SPRINT-002", "SPRINT-003"],
-		"current_focus": "Foundation & LLM Integration - Complete core LLM provider integrations with streaming support"
+		"next_sequence": ["SPRINT-001", "SPRINT-001B", "SPRINT-002", "SPRINT-003"],
+		"current_focus": "LLM Provider Integration - Priority: Claude API, Claude Pro/Max subscriptions, then Gemini, OpenRouter, OpenAI, Ollama"
 	},
 	"project": {
 		"name": "Aircher",
-		"description": "AI-powered terminal assistant built with Rust",
+		"description": "Advanced AI terminal assistant with intelligent context management",
 		"version": "0.1.0-dev",
 		"technology_stack": [
 			"Rust 1.80+",
 			"Ratatui TUI",
-			"SQLite",
-			"tracing",
-			"TOML"
+			"SQLite + sqlx",
+			"tree-sitter",
+			"git2",
+			"tiktoken-rs",
+			"tracing"
 		],
-		"last_updated": "December 2024",
+		"last_updated": "January 2025",
 		"current_phase": "Phase 2 (LLM Provider Integration)",
-		"architecture": "CLI Tool"
+		"architecture": "Pure Rust Single Binary"
 	},
 	"metrics": {
 		"phase_progress": {
 			"phase_1_foundation": 100,
-			"phase_2_intelligence": 40,
-			"phase_3_context_management": 0,
-			"phase_4_tool_integration": 15
+			"phase_2_providers": 30,
+			"phase_3_intelligence": 0,
+			"phase_4_advanced_features": 0
 		},
 		"quality_targets": {
 			"test_coverage_goal": 80,
-			"performance_target": "< 200ms response time",
-			"memory_usage_limit": "< 50MB baseline"
+			"performance_target": "< 100ms startup, < 50ms response",
+			"memory_usage_limit": "< 50MB baseline, < 200MB with context"
 		}
 	},
 	"tasks": {
@@ -47,26 +49,14 @@
 					"completed": true,
 					"description": "Set up Cargo build system with comprehensive commands"
 				},
-				"tool_management": {
-					"completed": true,
-					"description": "Set up Rust toolchain and development tools"
-				},
-				"linting": {
-					"completed": true,
-					"description": "Configure clippy, rustfmt, and development tools"
-				},
 				"directory_structure": {
 					"completed": true,
 					"description": "Establish project directory structure following Rust standards"
-				},
-				"git_config": {
-					"completed": true,
-					"description": "Create .gitignore and repository configuration"
 				}
 			}
 		},
 		"PHASE1-002": {
-			"title": "Configuration System",
+			"title": "Configuration System", 
 			"phase": "Phase 1: Foundation",
 			"status": "completed",
 			"priority": "critical",
@@ -76,19 +66,15 @@
 					"completed": true,
 					"description": "Design hierarchical TOML configuration system"
 				},
-				"config_specs": {
+				"provider_host_hierarchy": {
 					"completed": true,
-					"description": "Create configuration specifications"
-				},
-				"env_overrides": {
-					"completed": true,
-					"description": "Support environment variable overrides for sensitive values"
+					"description": "Support Provider → Model → Host selection hierarchy"
 				}
 			}
 		},
 		"PHASE1-003": {
 			"title": "Multi-Database Architecture",
-			"phase": "Phase 1: Foundation",
+			"phase": "Phase 1: Foundation", 
 			"status": "completed",
 			"priority": "critical",
 			"description": "Implement separate SQLite databases for different data types",
@@ -97,423 +83,192 @@
 					"completed": true,
 					"description": "Design separate databases (conversations, knowledge, file_index, sessions)"
 				},
-				"migration_system": {
-					"completed": true,
-					"description": "Implement database migration system with versioning"
-				},
 				"sqlx_integration": {
 					"completed": true,
-					"description": "Integrate sqlx for type-safe database operations"
-				},
-				"connection_pooling": {
-					"completed": true,
-					"description": "Implement database connection pooling and lifecycle management"
+					"description": "Integrate sqlx for type-safe async database operations"
 				}
 			}
 		},
 		"PHASE1-004": {
 			"title": "Terminal User Interface (TUI)",
 			"phase": "Phase 1: Foundation",
-			"status": "completed",
+			"status": "completed", 
 			"priority": "critical",
 			"description": "Build responsive TUI framework with Ratatui",
 			"acceptance_criteria": {
 				"ratatui": {
 					"completed": true,
-					"description": "Implement Ratatui TUI framework"
+					"description": "Implement Ratatui TUI framework with async support"
 				},
-				"responsive_design": {
+				"model_selection_ui": {
 					"completed": true,
-					"description": "Create responsive layout handling terminal resizing"
+					"description": "Provider → Model → Host selection modal design"
 				},
 				"component_system": {
 					"completed": true,
-					"description": "Build modular component system (chat, sidebar, status)"
-				},
-				"styling": {
-					"completed": true,
-					"description": "Implement consistent styling with Ratatui styling system"
-				},
-				"navigation": {
-					"completed": true,
-					"description": "Add keyboard navigation and shortcuts"
-				}
-			}
-		},
-		"PHASE1-005": {
-			"title": "Logging and Error Handling",
-			"phase": "Phase 1: Foundation",
-			"status": "completed",
-			"priority": "high",
-			"description": "Implement structured logging and error handling",
-			"acceptance_criteria": {
-				"tracing": {
-					"completed": true,
-					"description": "Integrate tracing crate for structured logging"
-				},
-				"log_levels": {
-					"completed": true,
-					"description": "Configure appropriate log levels and output formatting"
-				},
-				"error_types": {
-					"completed": true,
-					"description": "Define custom error types for different failure modes"
-				},
-				"user_friendly_errors": {
-					"completed": true,
-					"description": "Implement user-friendly error messages and recovery"
-				}
-			}
-		},
-		"PHASE1-006": {
-			"title": "Project Analysis System",
-			"phase": "Phase 1: Foundation",
-			"status": "completed",
-			"priority": "medium",
-			"description": "Automatic project structure analysis and documentation generation",
-			"acceptance_criteria": {
-				"file_discovery": {
-					"completed": true,
-					"description": "Implement recursive file discovery and categorization"
-				},
-				"structure_analysis": {
-					"completed": true,
-					"description": "Analyze project structure and generate insights"
-				},
-				"auto_documentation": {
-					"completed": true,
-					"description": "Auto-generate project analysis documentation"
-				},
-				"gitignore_respect": {
-					"completed": true,
-					"description": "Respect .gitignore patterns during analysis"
-				}
-			}
-		},
-		"PHASE2-001": {
-			"title": "Universal LLM Provider System - Interface Design",
-			"phase": "Phase 2: Intelligence",
-			"status": "completed",
-			"priority": "critical",
-			"description": "Design universal interface for all LLM providers",
-			"acceptance_criteria": {
-				"provider_interface": {
-					"completed": true,
-					"description": "Define Provider interface with Send/Stream methods"
-				},
-				"message_types": {
-					"completed": true,
-					"description": "Implement Message, MessageRole, and StreamChunk types"
-				},
-				"error_handling": {
-					"completed": true,
-					"description": "Define consistent error types across providers"
-				},
-				"config_structure": {
-					"completed": true,
-					"description": "Design provider configuration structure"
-				}
-			}
-		},
-		"PHASE2-002": {
-			"title": "OpenAI Provider Implementation",
-			"phase": "Phase 2: Intelligence",
-			"status": "in_progress",
-			"priority": "critical",
-			"description": "Complete OpenAI API integration with async streaming support",
-			"acceptance_criteria": {
-				"api_client": {
-					"completed": false,
-					"description": "Implement async OpenAI API client with reqwest and proper authentication"
-				},
-				"streaming": {
-					"completed": false,
-					"description": "Support async streaming responses with SSE parsing using tokio"
-				},
-				"error_handling": {
-					"completed": false,
-					"description": "Handle OpenAI-specific errors and rate limiting"
-				},
-				"token_counting": {
-					"completed": false,
-					"description": "Implement accurate token counting for cost management"
-				},
-				"model_support": {
-					"completed": false,
-					"description": "Support multiple OpenAI models (GPT-4, GPT-3.5, etc.)"
-				}
-			}
-		},
-		"PHASE2-003": {
-			"title": "Claude (Anthropic) Provider Implementation",
-			"phase": "Phase 2: Intelligence",
-			"status": "in_progress",
-			"priority": "critical",
-			"description": "Complete Claude API integration with async streaming support",
-			"acceptance_criteria": {
-				"api_client": {
-					"completed": false,
-					"description": "Implement async Claude API client with reqwest and proper authentication"
-				},
-				"streaming": {
-					"completed": false,
-					"description": "Support async streaming responses with SSE parsing using tokio"
-				},
-				"error_handling": {
-					"completed": false,
-					"description": "Handle Anthropic-specific errors and rate limiting"
-				},
-				"token_counting": {
-					"completed": false,
-					"description": "Implement accurate token counting for cost management"
-				},
-				"model_support": {
-					"completed": false,
-					"description": "Support multiple Claude models (Sonnet, Opus, Haiku)"
-				}
-			}
-		},
-		"PHASE2-004": {
-			"title": "Gemini Provider Implementation",
-			"phase": "Phase 2: Intelligence",
-			"status": "pending",
-			"priority": "high",
-			"description": "Implement Google AI Gemini provider integration",
-			"acceptance_criteria": {
-				"api_client": {
-					"completed": false,
-					"description": "Implement Gemini API client with proper authentication"
-				},
-				"streaming": {
-					"completed": false,
-					"description": "Support streaming responses"
-				},
-				"error_handling": {
-					"completed": false,
-					"description": "Handle Google AI-specific errors and rate limiting"
-				},
-				"token_counting": {
-					"completed": false,
-					"description": "Implement accurate token counting"
-				},
-				"model_support": {
-					"completed": false,
-					"description": "Support multiple Gemini models"
-				}
-			}
-		},
-		"PHASE2-005": {
-			"title": "Ollama Provider Implementation",
-			"phase": "Phase 2: Intelligence",
-			"status": "pending",
-			"priority": "high",
-			"description": "Implement local Ollama model support",
-			"acceptance_criteria": {
-				"api_client": {
-					"completed": false,
-					"description": "Implement Ollama API client for local communication"
-				},
-				"streaming": {
-					"completed": false,
-					"description": "Support streaming responses from local models"
-				},
-				"error_handling": {
-					"completed": false,
-					"description": "Handle Ollama-specific errors and connection issues"
-				},
-				"model_discovery": {
-					"completed": false,
-					"description": "Discover and list available local models"
-				},
-				"health_checks": {
-					"completed": false,
-					"description": "Implement Ollama service health checking"
-				}
-			}
-		},
-		"PHASE2-006": {
-			"title": "Response Streaming Integration",
-			"phase": "Phase 2: Intelligence",
-			"status": "pending",
-			"priority": "critical",
-			"description": "Integrate streaming responses with TUI for real-time display",
-			"acceptance_criteria": {
-				"tui_streaming": {
-					"completed": false,
-					"description": "Integrate streaming responses with TUI viewport"
-				},
-				"real_time_rendering": {
-					"completed": false,
-					"description": "Real-time response rendering with proper text wrapping"
-				},
-				"streaming_state": {
-					"completed": false,
-					"description": "Handle streaming state (loading, partial, complete, error)"
-				},
-				"cancellation": {
-					"completed": false,
-					"description": "Support stream cancellation and cleanup"
-				}
-			}
-		},
-		"PHASE2-007": {
-			"title": "Token Management System",
-			"phase": "Phase 2: Intelligence",
-			"status": "pending",
-			"priority": "high",
-			"description": "Implement comprehensive token counting and cost management",
-			"acceptance_criteria": {
-				"token_counting": {
-					"completed": false,
-					"description": "Accurate token counting for all supported models"
-				},
-				"cost_calculation": {
-					"completed": false,
-					"description": "Calculate costs based on current provider pricing"
-				},
-				"usage_tracking": {
-					"completed": false,
-					"description": "Track usage statistics per provider and model"
-				},
-				"budget_alerts": {
-					"completed": false,
-					"description": "Budget alerts and usage notifications"
-				}
-			}
-		},
-		"PHASE3-001": {
-			"title": "Context Extraction Engine",
-			"phase": "Phase 3: Context Intelligence",
-			"status": "pending",
-			"priority": "high",
-			"description": "Extract and categorize relevant information from various file types",
-			"acceptance_criteria": {
-				"file_parsing": {
-					"completed": false,
-					"description": "Parse and extract content from code files, docs, configs"
-				},
-				"content_categorization": {
-					"completed": false,
-					"description": "Categorize content types (code, documentation, config, tests)"
-				},
-				"metadata_extraction": {
-					"completed": false,
-					"description": "Extract metadata (functions, classes, imports, dependencies)"
-				},
-				"change_detection": {
-					"completed": false,
-					"description": "Track file changes and update context accordingly"
-				}
-			}
-		},
-		"PHASE3-002": {
-			"title": "File Relevance Engine",
-			"phase": "Phase 3: Context Intelligence",
-			"status": "pending",
-			"priority": "high",
-			"description": "Intelligent scoring system for file relevance to conversations",
-			"acceptance_criteria": {
-				"relevance_scoring": {
-					"completed": false,
-					"description": "Develop relevance scoring algorithms"
-				},
-				"keyword_analysis": {
-					"completed": false,
-					"description": "Keyword and semantic analysis for relevance"
-				},
-				"dependency_mapping": {
-					"completed": false,
-					"description": "Map file dependencies and relationships"
-				},
-				"temporal_relevance": {
-					"completed": false,
-					"description": "Consider recent changes and access patterns"
-				}
-			}
-		},
-		"PHASE4-001": {
-			"title": "MCP Core Infrastructure",
-			"phase": "Phase 4: Tool Integration",
-			"status": "in_progress",
-			"priority": "high",
-			"description": "Implement Model Context Protocol framework",
-			"acceptance_criteria": {
-				"protocol_implementation": {
-					"completed": false,
-					"description": "Implement MCP protocol specification"
-				},
-				"tool_discovery": {
-					"completed": false,
-					"description": "Tool discovery and registration system"
-				},
-				"execution_framework": {
-					"completed": false,
-					"description": "Secure tool execution framework"
-				},
-				"result_handling": {
-					"completed": false,
-					"description": "Handle tool execution results and errors"
+					"description": "Build modular component system (chat, selection, status)"
 				}
 			}
 		},
 		"SPRINT-001": {
 			"id": "SPRINT-001",
-			"title": "Complete OpenAI API Integration",
+			"title": "Claude API Provider Implementation",
 			"status": "pending",
-			"description": "Implement actual OpenAI API calls with streaming support and TUI integration",
-			"files": ["src/providers/openai.rs", "src/providers/mod.rs", "src/tui/chat.rs"],
+			"priority": "critical",
+			"description": "Complete Anthropic API integration with streaming support - PRIORITY #1",
+			"files": ["src/providers/claude_api.rs", "src/providers/mod.rs", "src/ui/chat.rs"],
 			"acceptance_criteria": [
-				"Implement async OpenAI API client with proper authentication",
-				"Support streaming responses with SSE parsing",
-				"Integrate streaming responses with TUI chat component",
-				"Handle OpenAI-specific errors and rate limiting"
+				"Implement async Anthropic API client with reqwest",
+				"Support streaming responses with SSE parsing using tokio", 
+				"Integrate with Provider → Model → Host hierarchy",
+				"Handle Anthropic-specific errors and rate limiting",
+				"Support multiple Claude models (Claude-3.5-Sonnet, Claude-3-Haiku, Claude-3-Opus)",
+				"Implement accurate token counting for per-token cost management",
+				"API key authentication with environment variable support"
 			],
 			"dependencies": [],
 			"estimated_effort": "large"
 		},
-		"SPRINT-002": {
-			"id": "SPRINT-002",
-			"title": "Complete Claude API Integration",
+		"SPRINT-001B": {
+			"id": "SPRINT-001B",
+			"title": "Claude Pro/Max Subscription Integration",
 			"status": "pending",
-			"description": "Implement actual Claude API calls with streaming support and TUI integration",
-			"files": ["src/providers/claude.rs", "src/providers/mod.rs", "src/tui/chat.rs"],
+			"priority": "high",
+			"description": "Integrate Claude Pro/Max subscription usage like Claude Code - requires client registration",
+			"files": ["src/providers/claude_subscription.rs", "src/providers/mod.rs", "src/ui/usage.rs"],
 			"acceptance_criteria": [
-				"Implement async Claude API client with proper authentication",
-				"Support streaming responses with SSE parsing",
-				"Integrate streaming responses with TUI chat component",
-				"Handle Anthropic-specific errors and rate limiting"
+				"Implement session-based authentication for Claude Pro/Max subscriptions",
+				"Track usage against subscription limits (not token costs)",
+				"Display usage like Claude Code: '44k/200k' style indicators",
+				"Support Pro vs Max tier detection and different usage limits",
+				"Handle subscription renewal and limit reset cycles",
+				"Warning notifications when approaching usage limits",
+				"Graceful fallback when subscription limits exceeded"
 			],
-			"dependencies": [],
+			"dependencies": ["SPRINT-001"],
+			"estimated_effort": "large",
+			"notes": "Requires Anthropic client registration - cannot complete without this step"
+		},
+		"SPRINT-002": {
+			"id": "SPRINT-002", 
+			"title": "Gemini Provider Implementation",
+			"status": "pending",
+			"priority": "high",
+			"description": "Complete Google Gemini API integration with streaming support",
+			"files": ["src/providers/gemini.rs", "src/providers/mod.rs", "src/ui/chat.rs"],
+			"acceptance_criteria": [
+				"Implement async Gemini API client with reqwest",
+				"Support streaming responses with SSE parsing using tokio", 
+				"Integrate with Provider → Model → Host hierarchy",
+				"Handle Google AI-specific errors and rate limiting",
+				"Support multiple Gemini models (Gemini-2.0-Flash, Gemini-1.5-Pro, etc.)",
+				"Implement accurate token counting for cost management"
+			],
+			"dependencies": ["SPRINT-001"],
 			"estimated_effort": "large"
 		},
 		"SPRINT-003": {
 			"id": "SPRINT-003",
-			"title": "CLI Authentication System",
-			"status": "in_progress",
-			"description": "Interactive `aircher auth` command for provider API key setup with secure storage",
-			"files": ["src/commands/auth.rs", "src/config/credentials.rs", "src/config/mod.rs"],
+			"title": "Host Integration (OpenRouter)",
+			"status": "pending", 
+			"priority": "high",
+			"description": "Implement OpenRouter host integration for cost optimization",
+			"files": ["src/providers/hosts.rs", "src/config/hosts.rs"],
 			"acceptance_criteria": [
-				"Implement `aircher auth` command with interactive setup",
-				"Secure credential storage with proper file permissions",
-				"Support multiple service configurations",
-				"Test service connections and health checks"
+				"Implement OpenRouter API client integration",
+				"Support Provider → Model → Host selection in UI",
+				"Real-time cost comparison between Direct API vs OpenRouter",
+				"Dynamic pricing updates and cost optimization suggestions",
+				"Fallback mechanisms when hosts are unavailable"
 			],
-			"dependencies": [],
+			"dependencies": ["SPRINT-001", "SPRINT-002"],
 			"estimated_effort": "medium"
 		},
 		"SPRINT-004": {
 			"id": "SPRINT-004",
-			"title": "Multi-Model Task Configuration",
+			"title": "Pure Rust Intelligence Engine - Core",
 			"status": "pending",
-			"description": "Configure faster, cheaper models for specific tasks like commit messages, summaries, etc.",
-			"files": ["src/config/models.rs", "src/providers/mod.rs", "examples/cost-optimized-config.toml"],
+			"priority": "high", 
+			"description": "Implement core intelligence components in Pure Rust",
+			"files": ["src/intelligence/analyzer.rs", "src/intelligence/scorer.rs", "src/intelligence/mod.rs"],
 			"acceptance_criteria": [
-				"Define model selection rules for different task types",
-				"Extend TOML configuration to support task-specific model overrides", 
-				"Implement automatic model selection for cost-sensitive operations",
-				"Smart fallback when preferred models are unavailable"
+				"Implement ProjectAnalyzer using tree-sitter for AST parsing",
+				"Implement FileRelevanceScorer using git2 and heuristics", 
+				"Implement ContextOptimizer for smart conversation truncation",
+				"Integrate with SQLite for pattern tracking and analytics",
+				"Git status analysis and recent edits tracking"
+			],
+			"dependencies": ["SPRINT-001"],
+			"estimated_effort": "large"
+		},
+		"SPRINT-005": {
+			"id": "SPRINT-005",
+			"title": "Session Management and Persistence",
+			"status": "pending",
+			"priority": "medium",
+			"description": "Implement conversation persistence and session management",
+			"files": ["src/sessions/mod.rs", "src/storage/conversations.rs"],
+			"acceptance_criteria": [
+				"Save and restore conversation sessions",
+				"Session search and organization",
+				"Export conversations to various formats",
+				"Session cost tracking and analytics",
+				"Resume interrupted conversations"
+			], 
+			"dependencies": ["SPRINT-001", "SPRINT-002"],
+			"estimated_effort": "medium"
+		},
+		"SPRINT-006": {
+			"id": "SPRINT-006", 
+			"title": "OpenAI Provider Implementation",
+			"status": "pending",
+			"priority": "high",
+			"description": "Complete OpenAI API integration with streaming support",
+			"files": ["src/providers/openai.rs", "src/providers/mod.rs", "src/ui/chat.rs"],
+			"acceptance_criteria": [
+				"Implement async OpenAI API client with reqwest",
+				"Support streaming responses with SSE parsing using tokio",
+				"Integrate with Provider → Model → Host hierarchy",
+				"Handle OpenAI-specific errors and rate limiting",
+				"Support multiple OpenAI models (GPT-4o, GPT-4o-mini, o1-preview, etc.)",
+				"Implement accurate token counting for cost management"
 			],
 			"dependencies": ["SPRINT-001", "SPRINT-002"],
+			"estimated_effort": "large"
+		},
+		"SPRINT-007": {
+			"id": "SPRINT-007", 
+			"title": "Ollama Local Provider Implementation",
+			"status": "pending",
+			"priority": "medium",
+			"description": "Complete Ollama local model integration",
+			"files": ["src/providers/ollama.rs", "src/providers/mod.rs"],
+			"acceptance_criteria": [
+				"Implement async Ollama API client for local communication",
+				"Support streaming responses from local models",
+				"Integrate with Provider → Model → Host hierarchy",
+				"Handle Ollama-specific connection and model management",
+				"Support model discovery and health checking",
+				"Implement free cost tracking (local models)"
+			],
+			"dependencies": ["SPRINT-001", "SPRINT-002"],
+			"estimated_effort": "medium"
+		},
+		"SPRINT-008": {
+			"id": "SPRINT-008", 
+			"title": "Cost Optimization and Tracking",
+			"status": "pending",
+			"priority": "medium",
+			"description": "Comprehensive cost management and optimization",
+			"files": ["src/intelligence/cost.rs", "src/providers/pricing.rs"],
+			"acceptance_criteria": [
+				"Real-time cost tracking per provider/model/host",
+				"Budget alerts and spending limits",
+				"Task-specific model recommendations for cost optimization",
+				"Usage analytics and cost projection",
+				"Automatic model downgrading when approaching limits"
+			],
+			"dependencies": ["SPRINT-001", "SPRINT-002", "SPRINT-003"],
 			"estimated_effort": "medium"
 		}
 	}
