@@ -6,6 +6,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 pub mod claude_api;
+pub mod gemini;
 
 use crate::config::ConfigManager;
 
@@ -163,6 +164,12 @@ impl ProviderManager {
         if let Some(claude_config) = config.get_provider("claude") {
             let claude_provider = claude_api::ClaudeApiProvider::new(claude_config.clone()).await?;
             providers.insert("claude".to_string(), Box::new(claude_provider));
+        }
+
+        // Initialize Gemini provider
+        if let Some(gemini_config) = config.get_provider("gemini") {
+            let gemini_provider = gemini::GeminiProvider::new(gemini_config.clone()).await?;
+            providers.insert("gemini".to_string(), Box::new(gemini_provider));
         }
 
         Ok(Self {
