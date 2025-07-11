@@ -37,12 +37,12 @@ docs/tasks/
     "priority": "critical|high|medium|low",
     "description": "Detailed task description",
     "sprint": "immediate|medium|long_term", // Optional
-    "acceptance_criteria": {
-      "criterion_name": {
-        "completed": boolean,
-        "description": "What needs to be done"
-      }
-    }
+    "acceptance_criteria": [
+      "Criterion 1: Specific requirement",
+      "Criterion 2: Another requirement"
+    ],
+    "files": ["src/file1.rs", "src/file2.rs"],
+    "notes": "Optional progress notes"
   }
 }
 ```
@@ -111,8 +111,12 @@ jq '.current_sprint.immediate_tasks[] as $id | .tasks[$id]' tasks.json
 # Mark task as in progress
 jq '.tasks["TASK-ID"].status = "in_progress"' tasks.json > tmp.json && mv tmp.json tasks.json
 
-# Complete an acceptance criterion
-jq '.tasks["TASK-ID"].acceptance_criteria["criterion_name"].completed = true' tasks.json > tmp.json && mv tmp.json tasks.json
+# Add progress notes
+jq '.tasks["TASK-ID"].notes = "Progress update"' tasks.json > tmp.json && mv tmp.json tasks.json
+
+# Or use Makefile helpers
+make current-tasks  # Show active work
+make progress      # Show overall status
 ```
 
 ### 3. Task Completion
@@ -193,19 +197,24 @@ This task system integrates with the broader documentation structure:
 
 ## Common Queries
 
-### Find Tasks by Status
+### Using Makefile (Recommended)
 ```bash
+make current-tasks   # Show in-progress and high-priority pending
+make progress       # Show status summary and next priorities
+make validate-tasks # Check JSON is valid
+make new-task      # Create new task interactively
+```
+
+### Using jq Directly
+```bash
+# Find tasks by status
 jq '.tasks | to_entries | map(select(.value.status == "in_progress"))' tasks.json
-```
 
-### Calculate Phase Progress
-```bash
-jq '.tasks | to_entries | group_by(.value.phase) | map({phase: .[0].value.phase, total: length, completed: map(select(.value.status == "completed")) | length})' tasks.json
-```
-
-### Get High Priority Tasks
-```bash
+# Get high priority tasks
 jq '.tasks | to_entries | map(select(.value.priority == "critical" or .value.priority == "high"))' tasks.json
+
+# Calculate phase progress
+jq '.tasks | to_entries | group_by(.value.phase) | map({phase: .[0].value.phase, total: length, completed: map(select(.value.status == "completed")) | length})' tasks.json
 ```
 
 ## Migration from Markdown

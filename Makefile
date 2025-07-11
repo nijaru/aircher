@@ -1,162 +1,83 @@
-.PHONY: build test clean install lint fmt vet deps docker release help
+.PHONY: build test clean lint fmt release help validate-tasks new-task progress
 
-# Variables
-BINARY_NAME=aircher
-MAIN_PACKAGE=./cmd/aircher
-BUILD_DIR=build
-VERSION?=dev
-COMMIT?=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-LDFLAGS=-ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUILD_DATE)"
-
-# Go parameters
-GOCMD=go
-GOBUILD=$(GOCMD) build
-GOCLEAN=$(GOCMD) clean
-GOTEST=$(GOCMD) test
-GOGET=$(GOCMD) get
-GOMOD=$(GOCMD) mod
-GOFMT=gofmt
-GOVET=$(GOCMD) vet
-
-# Default target
-all: clean deps fmt vet lint test build
-
-# Build the binary
+# Rust build commands
 build:
-	@echo "Building $(BINARY_NAME)..."
-	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PACKAGE)
+	cargo build
 
-# Install the binary to $GOPATH/bin or $GOBIN
-install:
-	@echo "Installing $(BINARY_NAME)..."
-	$(GOBUILD) $(LDFLAGS) -o $(GOPATH)/bin/$(BINARY_NAME) $(MAIN_PACKAGE)
+build-release:
+	cargo build --release
 
-# Run tests
 test:
-	@echo "Running tests..."
-	$(GOTEST) -v -race -coverprofile=coverage.out ./...
+	cargo test --all
 
-# Run tests with coverage
-test-coverage: test
-	@echo "Generating coverage report..."
-	$(GOCMD) tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report generated: coverage.html"
-
-# Clean build artifacts
-clean:
-	@echo "Cleaning..."
-	$(GOCLEAN)
-	rm -rf $(BUILD_DIR)
-	rm -f coverage.out coverage.html
-
-# Download dependencies
-deps:
-	@echo "Downloading dependencies..."
-	$(GOMOD) download
-	$(GOMOD) tidy
-
-# Format code (uses gofumpt for better formatting)
-fmt:
-	@echo "Formatting code..."
-	@which gofumpt > /dev/null || (echo "gofumpt not found. Install with: go install mvdan.cc/gofumpt@latest" && exit 1)
-	gofumpt -w .
-
-# Format code (fallback to standard gofmt)
-fmt-std:
-	@echo "Formatting code with standard gofmt..."
-	$(GOFMT) -s -w .
-
-# Vet code
-vet:
-	@echo "Vetting code..."
-	$(GOVET) ./...
-
-# Lint code (requires golangci-lint)
 lint:
-	@echo "Linting code..."
-	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest" && exit 1)
-	golangci-lint run
+	cargo clippy --all-targets --all-features
 
-# Run development version
-dev: build
-	@echo "Running development version..."
-	./$(BUILD_DIR)/$(BINARY_NAME)
+fmt:
+	cargo fmt
 
-# Build for multiple platforms
-release:
-	@echo "Building release binaries..."
-	@mkdir -p $(BUILD_DIR)/release
-	
-	# Linux amd64
-	GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/release/$(BINARY_NAME)-linux-amd64 $(MAIN_PACKAGE)
-	
-	# Linux arm64
-	GOOS=linux GOARCH=arm64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/release/$(BINARY_NAME)-linux-arm64 $(MAIN_PACKAGE)
-	
-	# macOS amd64
-	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/release/$(BINARY_NAME)-darwin-amd64 $(MAIN_PACKAGE)
-	
-	# macOS arm64
-	GOOS=darwin GOARCH=arm64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/release/$(BINARY_NAME)-darwin-arm64 $(MAIN_PACKAGE)
-	
-	# Windows amd64
-	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/release/$(BINARY_NAME)-windows-amd64.exe $(MAIN_PACKAGE)
-	
-	@echo "Release binaries built in $(BUILD_DIR)/release/"
+check: fmt lint test
 
-# Build Docker image
-docker:
-	@echo "Building Docker image..."
-	docker build -t $(BINARY_NAME):$(VERSION) .
-	docker tag $(BINARY_NAME):$(VERSION) $(BINARY_NAME):latest
+# Task management utilities
+validate-tasks:
+	@echo "Validating tasks.json structure..."
+	@jq empty docs/tasks/tasks.json && echo "✅ Valid JSON" || (echo "❌ Invalid JSON" && exit 1)
 
-# Run quality checks
-check: fmt vet lint test
+new-task:
+	@read -p "Task ID: " id; \
+	read -p "Title: " title; \
+	read -p "Priority (critical/high/medium/low): " priority; \
+	read -p "Description: " description; \
+	jq --arg id "$$id" --arg title "$$title" --arg priority "$$priority" --arg description "$$description" \
+	'.tasks[$$id] = {"title": $$title, "status": "pending", "priority": $$priority, "description": $$description, "acceptance_criteria": []}' \
+	docs/tasks/tasks.json > tmp.json && mv tmp.json docs/tasks/tasks.json && \
+	echo "✅ Task $$id created"
 
-# Initialize development environment
-init:
-	@echo "Initializing development environment..."
-	$(GOMOD) download
-	@echo "Installing development tools..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install mvdan.cc/gofumpt@latest
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	@echo "Development environment ready!"
+progress:
+	@echo "📊 Current Task Status:"
+	@jq -r '.tasks | to_entries | group_by(.value.status) | map("\(.[0].value.status): \(length) tasks") | .[]' docs/tasks/tasks.json
+	@echo ""
+	@echo "🎯 Next Priority Tasks:"
+	@jq -r '.priorities.next_sequence[] as $$id | .tasks[$$id] | select(.status != "completed") | "- \(.title) (\(.status))"' docs/tasks/tasks.json
 
-# Install all development tools
-tools:
-	@echo "Installing development tools..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install mvdan.cc/gofumpt@latest
-	go install honnef.co/go/tools/cmd/staticcheck@latest
+current-tasks:
+	@echo "📋 Tasks In Progress:"
+	@jq -r '.tasks | to_entries | map(select(.value.status == "in_progress")) | .[] | "- \(.key): \(.value.title)"' docs/tasks/tasks.json
+	@echo ""
+	@echo "⏳ Pending High Priority:"
+	@jq -r '.tasks | to_entries | map(select(.value.status == "pending" and (.value.priority == "critical" or .value.priority == "high"))) | .[] | "- \(.key): \(.value.title)"' docs/tasks/tasks.json
 
-# Update all development tools
-tools-update:
-	@echo "Updating development tools..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install mvdan.cc/gofumpt@latest
-	go install honnef.co/go/tools/cmd/staticcheck@latest
+# Git hooks setup
+setup-hooks:
+	@echo "Setting up git hooks..."
+	@echo '#!/bin/bash\n# Validate tasks.json before commit\nif [ -f docs/tasks/tasks.json ]; then\n  jq empty docs/tasks/tasks.json || {\n    echo "Error: Invalid JSON in docs/tasks/tasks.json"\n    exit 1\n  }\nfi' > .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "✅ Pre-commit hook installed"
 
-# Show help
+# Development setup
+dev-setup: setup-hooks
+	@echo "Setting up development environment..."
+	@rustup update stable
+	@echo "✅ Development environment ready"
+
 help:
-	@echo "Available targets:"
-	@echo "  build         - Build the binary"
-	@echo "  test          - Run tests"
-	@echo "  test-coverage - Run tests with coverage report"
-	@echo "  clean         - Clean build artifacts"
-	@echo "  deps          - Download dependencies"
-	@echo "  fmt           - Format code with gofumpt"
-	@echo "  fmt-std       - Format code with standard gofmt"
-	@echo "  vet           - Vet code"
-	@echo "  lint          - Lint code (requires golangci-lint)"
-	@echo "  install       - Install binary to GOPATH/bin"
-	@echo "  dev           - Build and run development version"
-	@echo "  release       - Build for multiple platforms"
-	@echo "  docker        - Build Docker image"
-	@echo "  check         - Run all quality checks"
-	@echo "  init          - Initialize development environment"
-	@echo "  tools         - Install all development tools"
-	@echo "  tools-update  - Update all development tools"
+	@echo "🛠️  Aircher Development Commands:"
+	@echo ""
+	@echo "Build & Test:"
+	@echo "  build         - Build debug version"
+	@echo "  build-release - Build optimized release version"
+	@echo "  test          - Run all tests"
+	@echo "  lint          - Run clippy linting"
+	@echo "  fmt           - Format code"
+	@echo "  check         - Run fmt + lint + test"
+	@echo ""
+	@echo "Task Management:"
+	@echo "  validate-tasks - Check tasks.json is valid JSON"
+	@echo "  new-task      - Create new task interactively"
+	@echo "  progress      - Show overall progress summary"
+	@echo "  current-tasks - Show active and priority tasks"
+	@echo ""
+	@echo "Development:"
+	@echo "  setup-hooks   - Install git pre-commit hooks"
+	@echo "  dev-setup     - Complete development environment setup"
 	@echo "  help          - Show this help"
