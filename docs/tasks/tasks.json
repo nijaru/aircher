@@ -1,12 +1,12 @@
 {
   "priorities": {
     "next_sequence": [
-      "SPRINT-001B",
-      "SPRINT-004",
-      "SPRINT-005",
-      "SPRINT-006"
+      "CLI-001",
+      "CLI-002", 
+      "TUI-001",
+      "TUI-002"
     ],
-    "current_focus": "LLM Provider Integration - Priority: Claude API, Claude Pro/Max subscriptions, then Gemini, OpenRouter, OpenAI, Ollama"
+    "current_focus": "Working User Interface - Priority: Basic CLI functionality, then TUI, then advanced features"
   },
   "project": {
     "name": "Aircher",
@@ -22,11 +22,12 @@
       "tracing"
     ],
     "last_updated": "January 2025",
-    "current_phase": "Phase 2 (LLM Provider Integration)",
+    "current_phase": "Phase 0 (Working User Interface)",
     "architecture": "Pure Rust Single Binary"
   },
   "metrics": {
     "phase_progress": {
+      "phase_0_user_interface": 0,
       "phase_1_foundation": 100,
       "phase_2_providers": 70,
       "phase_3_intelligence": 0,
@@ -302,6 +303,134 @@
         "SPRINT-003"
       ],
       "estimated_effort": "medium"
+    },
+    "CLI-001": {
+      "id": "CLI-001",
+      "title": "Basic CLI Functionality",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Create a working CLI that can handle one-shot chat requests",
+      "files": [
+        "src/cli/mod.rs",
+        "src/main.rs",
+        "src/app/mod.rs"
+      ],
+      "acceptance_criteria": [
+        "Handle command line arguments with clap",
+        "Support basic usage: aircher 'hello world'",
+        "Return response from Claude API (single provider focus)",
+        "Graceful error handling for missing API keys",
+        "Simple configuration loading (API key from env)",
+        "Basic help and version information",
+        "Exit codes for success/failure scenarios"
+      ],
+      "dependencies": [
+        "SPRINT-001"
+      ],
+      "estimated_effort": "small",
+      "notes": "Focus on simplicity - get ONE working use case before expanding"
+    },
+    "CLI-002": {
+      "id": "CLI-002", 
+      "title": "Interactive CLI Chat Mode",
+      "status": "pending",
+      "priority": "high",
+      "description": "Add interactive chat mode for back-and-forth conversations",
+      "files": [
+        "src/cli/interactive.rs",
+        "src/cli/mod.rs"
+      ],
+      "acceptance_criteria": [
+        "Interactive mode: aircher --interactive",
+        "Conversation loop with > prompt",
+        "Message history within session",
+        "Ctrl+C to exit gracefully",
+        "Basic commands: /help, /quit, /clear",
+        "Show token usage and cost after each response",
+        "Support for different models: --model flag"
+      ],
+      "dependencies": [
+        "CLI-001"
+      ],
+      "estimated_effort": "medium",
+      "notes": "Build the core chat experience that users actually want"
+    },
+    "TUI-001": {
+      "id": "TUI-001",
+      "title": "Basic TUI Chat Interface",
+      "status": "pending", 
+      "priority": "high",
+      "description": "Implement a working TUI for richer chat experience",
+      "files": [
+        "src/ui/chat.rs",
+        "src/ui/components/mod.rs",
+        "src/ui/mod.rs"
+      ],
+      "acceptance_criteria": [
+        "Replace placeholder TUI with working Ratatui interface",
+        "Chat area showing conversation history",
+        "Input box for typing messages",
+        "Status bar showing current model and cost",
+        "Keyboard shortcuts: Enter to send, Ctrl+C to quit",
+        "Scrollable chat history",
+        "Responsive layout for different terminal sizes"
+      ],
+      "dependencies": [
+        "CLI-002"
+      ],
+      "estimated_effort": "large",
+      "notes": "This is where the magic happens - the core user experience"
+    },
+    "TUI-002": {
+      "id": "TUI-002",
+      "title": "TUI Model Selection & Settings",
+      "status": "pending",
+      "priority": "medium", 
+      "description": "Add model selection and configuration UI to TUI",
+      "files": [
+        "src/ui/selection.rs",
+        "src/ui/settings.rs",
+        "src/ui/mod.rs"
+      ],
+      "acceptance_criteria": [
+        "Model selection modal: Tab to open, list available models",
+        "Provider selection: Claude, Gemini, OpenRouter",
+        "Settings panel for API keys and preferences", 
+        "Cost tracking display and budget warnings",
+        "Keyboard navigation for all UI elements",
+        "Help panel with keyboard shortcuts",
+        "Configuration persistence across sessions"
+      ],
+      "dependencies": [
+        "TUI-001"
+      ],
+      "estimated_effort": "large",
+      "notes": "This leverages our provider architecture but focuses on usability"
+    },
+    "INTEGRATION-001": {
+      "id": "INTEGRATION-001",
+      "title": "Provider Integration Testing",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Test and fix our provider implementations with real usage",
+      "files": [
+        "tests/integration/providers.rs",
+        "src/providers/*/mod.rs"
+      ],
+      "acceptance_criteria": [
+        "Integration tests for Claude, Gemini, OpenRouter",
+        "Error handling verification with invalid API keys",
+        "Streaming response testing",
+        "Cost calculation accuracy testing",
+        "Provider fallback mechanisms",
+        "Health check validation",
+        "Load testing for concurrent requests"
+      ],
+      "dependencies": [
+        "TUI-001"
+      ],
+      "estimated_effort": "medium",
+      "notes": "Validate our complex provider system actually works reliably"
     }
   }
 }

@@ -36,17 +36,25 @@
 
 ## Current Status
 
-### Phase Progress
-- ✅ **Foundation** (100%): Project setup, Rust architecture
-- 🚧 **LLM Integration** (60%): Claude API complete, subscription pending
-- ⏳ **Intelligence Engine** (0%): Context analysis, optimization
-- ⏳ **Advanced Features** (0%): TUI, session management
+### The Reality Check
+**We built sophisticated provider architecture but no working user interface**
 
-### Priority Sequence
-1. ✅ **SPRINT-001**: Claude API Provider Implementation (Complete)
-2. 🚧 **SPRINT-001B**: Claude Pro/Max Subscription Integration
-3. ⏳ **SPRINT-002**: Gemini Provider Implementation
-4. ⏳ **SPRINT-003**: OpenRouter Host Integration
+- ✅ **Provider Architecture** (70%): Claude, Gemini, OpenRouter complete
+- ❌ **User Interface** (0%): No working CLI or TUI - users can't interact with system
+- ⏳ **Intelligence Engine** (0%): Context analysis, optimization
+- ⏳ **Advanced Features** (0%): Session management, cost tracking
+
+### New CLI-First Priority Sequence
+**Phase 0: Working User Interface (CLI → TUI)**
+1. 🚧 **CLI-001**: Basic CLI Functionality - `aircher 'hello world'`
+2. ⏳ **CLI-002**: Interactive CLI Chat Mode - `aircher --interactive`
+3. ⏳ **TUI-001**: Basic TUI Chat Interface - Rich terminal experience
+4. ⏳ **TUI-002**: TUI Model Selection & Settings - Leverage provider architecture
+
+**Phase 1: Integration & Polish**
+5. ⏳ **INTEGRATION-001**: Provider Integration Testing - Fix what we built
+6. ⏳ **SPRINT-004**: Intelligence Engine - Smart features
+7. ⏳ **SPRINT-005**: Session Management - Persistence
 
 ## Quick Start for AI Agents
 
@@ -74,18 +82,19 @@ jq '.tasks["TASK-ID"].status = "in_progress"' docs/tasks/tasks.json > tmp.json &
 
 ## Goals & Success Metrics
 
-### Primary Goals
-1. **Fast AI terminal**: <100ms startup, smooth 60fps rendering
-2. **Cost optimization**: 30-50% savings via smart provider/model selection
-3. **Intelligent context**: AI-driven file relevance and pattern recognition
-4. **Multi-provider support**: OpenAI, Anthropic, OpenRouter, local models
+### Primary Goals (Revised)
+1. **Working user interface**: CLI then TUI that users can actually use
+2. **Provider integration**: Use our sophisticated backend architecture
+3. **Cost optimization**: 30-50% savings via smart provider/model selection
+4. **Fast AI terminal**: <100ms startup, smooth 60fps rendering
 
 ### Success Metrics
-- Working terminal with streaming LLM responses
-- Provider → Model → Host selection UI
-- Cost tracking and optimization
-- Session persistence and management
-- Intelligent file context suggestions
+- ✅ **CLI**: `aircher 'hello world'` returns AI response
+- ✅ **Interactive Chat**: `aircher --interactive` for conversations
+- ✅ **TUI**: Rich terminal interface for power users
+- ✅ **Provider Selection**: Use our Claude/Gemini/OpenRouter architecture
+- ⏳ **Cost Tracking**: Real-time usage and optimization
+- ⏳ **Intelligence**: Context management and file suggestions
 
 ## Business Model & Positioning
 
@@ -101,11 +110,11 @@ jq '.tasks["TASK-ID"].status = "in_progress"' docs/tasks/tasks.json > tmp.json &
 
 ## Key Architectural Decisions
 
-### Why Integrated (Not MCP First)
-- **User acquisition**: Easier to explain and adopt complete solution
-- **Development speed**: Single build/test/deploy cycle, faster iteration
-- **Performance**: Direct function calls vs JSON-RPC overhead
-- **User experience**: Optimized for Aircher's specific needs
+### Why CLI-First (Not Advanced Features First)
+- **User value**: People need to use the system before caring about advanced features
+- **Validation**: Test our provider architecture with real usage
+- **Feedback loop**: Users can provide input on what matters most
+- **Marketing**: Working demo is better than sophisticated architecture docs
 
 ### Why Pure Rust (Not Rust + Python)
 - **Simplicity**: Single language, toolchain, and runtime
