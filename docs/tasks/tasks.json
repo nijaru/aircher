@@ -27,7 +27,7 @@
   },
   "metrics": {
     "phase_progress": {
-      "phase_0_user_interface": 0,
+      "phase_0_user_interface": 25,
       "phase_1_foundation": 100,
       "phase_2_providers": 70,
       "phase_3_intelligence": 0,
@@ -307,7 +307,7 @@
     "CLI-001": {
       "id": "CLI-001",
       "title": "Basic CLI Functionality",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "critical",
       "description": "Create a working CLI that can handle one-shot chat requests",
       "files": [
@@ -328,7 +328,7 @@
         "SPRINT-001"
       ],
       "estimated_effort": "small",
-      "notes": "Focus on simplicity - get ONE working use case before expanding"
+      "notes": "✅ Working CLI with clap argument parsing\\n✅ One-shot mode: aircher 'message'\\n✅ Help and version commands\\n✅ Graceful error handling for missing API keys\\n✅ Clean error messages without panic traces\\n✅ Provider and model selection flags\\n✅ Lazy provider loading (only when needed)\\n⏳ Next: CLI-002 (Interactive Chat Mode)"
     },
     "CLI-002": {
       "id": "CLI-002", 

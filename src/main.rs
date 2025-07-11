@@ -1,7 +1,9 @@
 use anyhow::Result;
+use std::env;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod app;
+mod cli;
 mod config;
 mod intelligence;
 mod providers;
@@ -9,27 +11,25 @@ mod storage;
 mod ui;
 mod utils;
 
-use app::ArcherApp;
+use cli::CliApp;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging
+    // Initialize logging (quieter for CLI usage)
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "aircher=info".into()),
+                .unwrap_or_else(|_| "aircher=warn".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    tracing::info!("Starting Aircher - AI Development Terminal");
+    // Get command line arguments
+    let args: Vec<String> = env::args().collect();
 
-    // Initialize application
-    let mut app = ArcherApp::new().await?;
+    // Initialize and run CLI application
+    let mut app = CliApp::new().await?;
+    app.run(args).await?;
 
-    // Run the application
-    app.run().await?;
-
-    tracing::info!("Aircher terminated successfully");
     Ok(())
 }
