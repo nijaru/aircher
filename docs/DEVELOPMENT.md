@@ -39,7 +39,7 @@ aircher/
 │   └── opencode/          # OpenCode terminal tools
 ├── private/                # Local development files (gitignored)
 ├── Cargo.toml             # Rust project configuration
-├── CLAUDE.md              # AI agent instructions and workflow
+├── AGENT.md               # AI agent instructions and workflow (universal compatibility)
 └── README.md              # Project overview
 ```
 
