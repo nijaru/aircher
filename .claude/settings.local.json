@@ -19,7 +19,8 @@
       "Bash(make:*)",
       "Bash(cargo:*)",
       "Bash(git commit:*)",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Bash(./target/release/aircher:*)"
     ],
     "deny": []
   }
