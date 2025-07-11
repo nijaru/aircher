@@ -307,7 +307,7 @@
     "CLI-001": {
       "id": "CLI-001",
       "title": "Basic CLI Functionality",
-      "status": "pending",
+      "status": "in_progress",
       "priority": "critical",
       "description": "Create a working CLI that can handle one-shot chat requests",
       "files": [
@@ -341,7 +341,7 @@
         "src/cli/mod.rs"
       ],
       "acceptance_criteria": [
-        "Interactive mode: aircher --interactive",
+        "Interactive mode: aircher (no arguments)",
         "Conversation loop with > prompt",
         "Message history within session",
         "Ctrl+C to exit gracefully",
