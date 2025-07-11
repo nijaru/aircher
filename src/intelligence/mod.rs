@@ -112,6 +112,13 @@ pub struct ContextualRelevance {
     pub historical: f64,
 }
 
+impl ContextualRelevance {
+    /// Calculate total relevance score across all dimensions
+    pub fn total_score(&self) -> f64 {
+        self.immediate + self.sequential + self.dependent + self.reference + self.historical
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ContextualInsight {
     pub development_phase: String,
@@ -153,8 +160,7 @@ pub struct Pattern {
 pub struct Action {
     pub action_type: String,
     pub description: String,
-    pub priority: f64,
-    pub estimated_effort: String,
+    pub confidence: f64,
 }
 
 #[derive(Debug, Clone)]

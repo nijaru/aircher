@@ -41,17 +41,19 @@ aircher --help
 **Working Features:**
 - ✅ **One-shot chat** - Send a message, get a response
 - ✅ **Interactive chat** - Back-and-forth conversations with history
-- ✅ **TUI interface** - Rich terminal UI with real-time chat
-- ✅ **Multi-provider support** - Claude, Gemini, OpenRouter
+- ✅ **TUI interface** - Rich terminal UI with real-time chat and model selection
+- ✅ **Multi-provider support** - Claude, Gemini, OpenRouter with cost optimization
+- ✅ **Intelligence Engine** - Context-aware development assistant with git integration
+- ✅ **Provider testing** - Comprehensive integration and unit test coverage
 - ✅ **Clean error handling** - Helpful messages for missing API keys
 - ✅ **Professional CLI** - Help, version, parameter support
 
 ## 🚧 Coming Next
 
-- **TUI model selection** - Choose providers and models from the TUI
-- **Session management** - Save and resume conversations
-- **Intelligent context** - File analysis and smart context assembly
-- **Integration testing** - Comprehensive provider testing
+- **Session management** - Save and resume conversations with persistence
+- **Advanced intelligence** - Cross-project learning and architectural guidance
+- **MCP server** - Universal Model Context Protocol server implementation
+- **Performance optimization** - Enhanced caching and response times
 
 ## 🚀 Quick Setup
 

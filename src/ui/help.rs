@@ -153,7 +153,7 @@ impl HelpModal {
         let items: Vec<ListItem> = help_items
             .iter()
             .enumerate()
-            .map(|(i, (key, description))| {
+            .map(|(_i, (key, description))| {
                 if key.starts_with("🎯") || key.starts_with("🔧") || key.starts_with("📡") || 
                    key.starts_with("⚙️") || key.starts_with("🤖") || key.starts_with("💰") || 
                    key.starts_with("🎨") || key.starts_with("🔑") || key.starts_with("📚") || 
