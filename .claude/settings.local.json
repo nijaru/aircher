@@ -18,7 +18,8 @@
       "Bash(rm:*)",
       "Bash(make:*)",
       "Bash(cargo:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(jq:*)"
     ],
     "deny": []
   }
