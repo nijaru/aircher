@@ -299,6 +299,16 @@ impl Default for ConfigManager {
             features: vec!["official".to_string(), "reliable".to_string()],
         });
 
+        // OpenRouter host - universal model access with cost optimization
+        hosts.insert("openrouter".to_string(), HostConfig {
+            name: "OpenRouter".to_string(),
+            description: "Universal model access with cost optimization and fallbacks".to_string(),
+            base_url: "https://openrouter.ai/api/v1".to_string(),
+            api_key_env: "OPENROUTER_API_KEY".to_string(),
+            pricing_multiplier: 1.0, // OpenRouter uses same pricing as providers
+            features: vec!["universal".to_string(), "cost_optimization".to_string(), "fallbacks".to_string()],
+        });
+
         let data_dir = dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join(".aircher");

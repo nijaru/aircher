@@ -2,9 +2,9 @@
   "priorities": {
     "next_sequence": [
       "SPRINT-001B",
-      "SPRINT-003",
       "SPRINT-004",
-      "SPRINT-005"
+      "SPRINT-005",
+      "SPRINT-006"
     ],
     "current_focus": "LLM Provider Integration - Priority: Claude API, Claude Pro/Max subscriptions, then Gemini, OpenRouter, OpenAI, Ollama"
   },
@@ -28,7 +28,7 @@
   "metrics": {
     "phase_progress": {
       "phase_1_foundation": 100,
-      "phase_2_providers": 50,
+      "phase_2_providers": 70,
       "phase_3_intelligence": 0,
       "phase_4_advanced_features": 0
     },
@@ -163,12 +163,12 @@
     "SPRINT-003": {
       "id": "SPRINT-003",
       "title": "Host Integration (OpenRouter)",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "description": "Implement OpenRouter host integration for cost optimization",
       "files": [
         "src/providers/hosts.rs",
-        "src/config/hosts.rs"
+        "src/config/mod.rs"
       ],
       "acceptance_criteria": [
         "Implement OpenRouter API client integration",
@@ -181,7 +181,8 @@
         "SPRINT-001",
         "SPRINT-002"
       ],
-      "estimated_effort": "medium"
+      "estimated_effort": "medium",
+      "notes": "✅ Complete OpenRouter host implementation with async/streaming support\\n✅ Integration with Provider → Model → Host hierarchy\\n✅ Configuration system with OpenRouter host\\n✅ Model discovery and dynamic pricing support\\n✅ Cost comparison and optimization features\\n✅ Streaming implementation with SSE parsing\\n⏳ Next: Move to SPRINT-004 (Pure Rust Intelligence Engine)"
     },
     "SPRINT-004": {
       "id": "SPRINT-004",
