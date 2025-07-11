@@ -341,7 +341,7 @@
       "notes": "Phase 2 of Intelligence Engine focusing on learning and prediction capabilities"
     },
     "SPRINT-015": {
-      "id": "SPRINT-015", 
+      "id": "SPRINT-015",
       "title": "Intelligence Engine - Advanced Features",
       "status": "pending",
       "priority": "low",
@@ -393,7 +393,7 @@
       "notes": "✅ Working CLI with clap argument parsing\\n✅ One-shot mode: aircher 'message'\\n✅ Help and version commands\\n✅ Graceful error handling for missing API keys\\n✅ Clean error messages without panic traces\\n✅ Provider and model selection flags\\n✅ Lazy provider loading (only when needed)\\n⏳ Next: CLI-002 (Interactive Chat Mode)"
     },
     "CLI-002": {
-      "id": "CLI-002", 
+      "id": "CLI-002",
       "title": "Interactive CLI Chat Mode",
       "status": "completed",
       "priority": "high",
@@ -420,7 +420,7 @@
     "TUI-001": {
       "id": "TUI-001",
       "title": "Basic TUI Chat Interface",
-      "status": "completed", 
+      "status": "completed",
       "priority": "high",
       "description": "Implement a working TUI for richer chat experience",
       "files": [
@@ -446,8 +446,8 @@
     "TUI-002": {
       "id": "TUI-002",
       "title": "TUI Model Selection & Settings",
-      "status": "pending",
-      "priority": "medium", 
+      "status": "completed",
+      "priority": "medium",
       "description": "Add model selection and configuration UI to TUI",
       "files": [
         "src/ui/selection.rs",
@@ -457,7 +457,7 @@
       "acceptance_criteria": [
         "Model selection modal: Tab to open, list available models",
         "Provider selection: Claude, Gemini, OpenRouter",
-        "Settings panel for API keys and preferences", 
+        "Settings panel for API keys and preferences",
         "Cost tracking display and budget warnings",
         "Keyboard navigation for all UI elements",
         "Help panel with keyboard shortcuts",
@@ -467,7 +467,7 @@
         "TUI-001"
       ],
       "estimated_effort": "large",
-      "notes": "This leverages our provider architecture but focuses on usability"
+      "notes": "✅ Complete TUI Model Selection & Settings implementation\n✅ Model selection modal with Tab key to open\n✅ Provider selection with keyboard navigation\n✅ Settings panel for API keys and preferences (F2)\n✅ Cost tracking display and budget warnings\n✅ Comprehensive keyboard navigation for all UI elements\n✅ Help panel with keyboard shortcuts (F1)\n✅ Configuration persistence and real-time updates\n✅ All acceptance criteria met\n⏳ Next: INTEGRATION-001 (Provider Integration Testing)"
     },
     "INTEGRATION-001": {
       "id": "INTEGRATION-001",
