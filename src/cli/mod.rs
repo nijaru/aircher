@@ -212,11 +212,14 @@ impl CliApp {
         // Check if we have API key first
         self.check_api_key(provider_name)?;
 
-        // Create TUI manager first
-        let mut tui_manager = TuiManager::new(&self.config).await?;
+        // Clone config first
+        let config = self.config.clone();
 
         // Get providers
         let providers = self.get_providers().await?;
+
+        // Create TUI manager
+        let mut tui_manager = TuiManager::new(&config, providers).await?;
 
         // Verify provider exists
         if providers.get_provider_or_host(provider_name).is_none() {

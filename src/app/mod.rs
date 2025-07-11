@@ -39,7 +39,7 @@ impl ArcherApp {
         info!("Intelligence engine initialized");
 
         // Initialize TUI
-        let ui = TuiManager::new(&config).await?;
+        let ui = TuiManager::new(&config, &providers).await?;
         info!("TUI initialized");
 
         Ok(Self {
