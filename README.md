@@ -1,202 +1,105 @@
 # Aircher
 
-**AI-powered terminal assistant built with Rust** - Intelligent command-line interface with multi-LLM support and universal context management.
+**AI-powered terminal assistant built with Rust** - Chat with Claude, Gemini, and OpenRouter from your command line.
 
-## What is Aircher?
+## ✅ What Works Now
 
-Aircher is a **dual-architecture AI development system** built in pure Rust:
+**CLI-001 Complete!** You can now chat with AI:
 
-1. **Aircher Terminal** - Full-featured AI assistant with advanced terminal UI
-2. **Aircher Intelligence Engine** - Universal MCP server providing intelligent context management to any AI tool
-
-Think of it as your intelligent coding companion that works everywhere - from your terminal to Claude Desktop to VS Code extensions.
-
-## ✨ Core Features
-
-### 🏹 **Aircher Terminal**
-- **REPL-Style Interface** → Interactive terminal sessions with natural language commands
-- **Multi-Provider Support** → OpenAI, Claude, Gemini, GitHub Copilot, Ollama with intelligent routing
-- **Real-Time Streaming** → See responses appear as they're generated
-- **Session Management** → Resume conversations with `aircher --resume`
-- **Advanced Interaction** → @-mention files, slash commands, thinking mode display
-
-### 🧠 **Aircher Intelligence Engine (MCP Server)**
-- **Universal Compatibility** → Works with Claude Desktop, VS Code, and any MCP-compatible tool
-- **Intelligent Context** → AI-driven file relevance scoring based on current task
-- **Task Detection** → Automatic identification of development work (debugging, features, refactoring)
-- **Cross-Project Learning** → Pattern recognition and success correlation across projects
-- **Smart Assembly** → Optimize context for AI tools based on token limits
-- **Dependency Analysis** → Build and query file relationship networks
-
-### 🔒 **Security & Performance**
-- **Pure Rust** → Memory safety and native performance
-- **Multi-Database Architecture** → Specialized SQLite databases for different data types
-- **Hierarchical Storage** → Global → Project → Worktree → Session organization
-- **Elastic License 2.0** → Enterprise-friendly with protection against exploitation
-
-## 🚀 Installation
-
-### From Source (Current)
 ```bash
-git clone https://github.com/aircher/aircher.git
+# One-shot conversations
+aircher "How do I write a Rust function?"
+aircher "Explain async/await in simple terms"
+
+# Choose your provider
+aircher --provider gemini "What's the weather like?"
+aircher --provider openrouter "Help me debug this code"
+
+# Select specific models
+aircher --model claude-3-5-sonnet-20241022 "Write a poem"
+
+# Get help
+aircher --help
+```
+
+**Working Features:**
+- ✅ **One-shot chat** - Send a message, get a response
+- ✅ **Multi-provider support** - Claude, Gemini, OpenRouter
+- ✅ **Clean error handling** - Helpful messages for missing API keys
+- ✅ **Professional CLI** - Help, version, parameter support
+
+## 🚧 Coming Next
+
+- **Interactive mode** - Chat back-and-forth (`aircher` → conversation loop)
+- **Terminal UI** - Rich interface with Ratatui
+- **Session management** - Save and resume conversations
+- **Intelligent context** - File analysis and smart context assembly
+
+## 🚀 Quick Setup
+
+### 1. Build from Source
+```bash
+git clone https://github.com/nijaru/aircher.git
 cd aircher
 cargo build --release
-sudo mv target/release/aircher /usr/local/bin/
 ```
 
-*Note: Pre-built binaries and package managers will be available at initial release.*
-
-## ⚡ Quick Start
-
-### Terminal Assistant
+### 2. Set API Keys
 ```bash
-# Start interactive session (in development)
-aircher
+# For Claude (required for default provider)
+export ANTHROPIC_API_KEY=your_key_here
 
-# With specific provider/model (planned)
-aircher --service openai --model gpt-4
+# For Gemini (optional)
+export GOOGLE_API_KEY=your_key_here
 
-# Resume previous conversation (planned)
-aircher --resume
+# For OpenRouter (optional)
+export OPENROUTER_API_KEY=your_key_here
 ```
 
-### MCP Intelligence Server
+### 3. Start Chatting!
 ```bash
-# Start MCP server (planned)
-aircher-mcp --port 3000
-
-# Use with Claude Desktop, VS Code, etc.
-# Server provides intelligent context tools to any MCP-compatible AI tool
+./target/release/aircher "Hello, how are you?"
 ```
 
-## 💡 Usage Examples
+## 💡 Current Examples
 
-### Terminal Interface
 ```bash
-# Reference files directly
-> @README.md explain this project
+# Basic chat
+aircher "Explain Rust ownership"
 
-# Use slash commands
-> /thinking on               # Show AI reasoning
-> /web-search rust async     # Manual web search
-> /switch-model claude-4     # Change model
+# Different providers
+aircher --provider gemini "Write a Python function"
+aircher --provider openrouter "Help me debug this error"
 
-# Real-time steering
-> explain ownership [while AI responds: "focus on borrowing"]
+# Specific models
+aircher --model claude-3-5-sonnet-20241022 "Write documentation"
+
+# Get help
+aircher --help
 ```
 
-### MCP Tools (Any Compatible AI Tool)
-- `project_analyze` → Automatic project structure analysis
-- `context_score_files` → AI-driven file relevance for current task
-- `task_detect` → Identify current development task type
-- `dependency_graph` → Build and query file relationships
-- `success_patterns` → Learn from historical patterns
-- `smart_context_assembly` → Optimize context for token limits
+## 🏗️ Architecture
 
-## ⚙️ Configuration
-
-```toml
-# ~/.config/aircher/config.toml
-[providers]
-default = "anthropic"
-fallback_enabled = true
-
-[models]
-anthropic_default = "claude-4-sonnet"
-openai_default = "gpt-4o"
-auto_select = true  # Task-based model selection
-
-[interface]
-show_thinking = true
-show_context_usage = true
-streaming = true
-
-[context]
-max_files = 20
-auto_compaction = true
-
-[costs]
-monthly_budget = 100.0
-track_usage = true
-```
-
-## 🛠️ Development
-
-### Requirements
-- Rust 1.80+
-- SQLite (included)
-- Modern terminal with color support
-
-### Building
-```bash
-cargo build --release
-cargo test
-cargo clippy
-```
-
-### Project Structure
-```
-aircher/
-├── src/                    # Rust source code
-├── docs/                   # Architecture and specifications
-│   ├── core/              # Technical specifications
-│   ├── tasks/             # Task management
-│   └── architecture/      # Component designs
-├── tests/                 # Test suites
-└── examples/              # Usage demonstrations
-```
+**Pure Rust single binary** with:
+- **Provider abstraction** - Unified interface for Claude, Gemini, OpenRouter
+- **Async architecture** - Tokio runtime with streaming support  
+- **Clean error handling** - User-friendly messages, no panic traces
+- **Lazy loading** - Providers initialized only when needed
 
 ## 📊 Project Status
 
-**Early Development** - Core architecture established, implementing LLM integration.
+- **Phase 0: User Interface** - 25% complete (CLI-001 ✅)
+- **Phase 1: Foundation** - 100% complete  
+- **Phase 2: Providers** - 70% complete (Claude, Gemini, OpenRouter)
+- **Phase 3: Intelligence** - 0% complete
+- **Phase 4: Advanced Features** - 0% complete
 
-### ✅ Completed
-- Multi-database architecture with SQLite
-- Terminal UI framework with Ratatui
-- Project analysis and documentation generation
-- Configuration system with smart defaults
-- Development infrastructure and tooling
+**Next**: CLI-002 (Interactive chat mode)
 
-### 🚧 In Progress
-- LLM provider implementations (OpenAI, Claude)
-- MCP server architecture and protocol
-- Interactive terminal interface
-- Intelligent context management algorithms
+## 🤝 Contributing
 
-### 📋 Planned
-- Cross-project learning and pattern recognition
-- Advanced security framework
-- Web search integration
-- Team collaboration features
-
-## 🎯 Why Aircher?
-
-### Universal Intelligence
-- **Works Everywhere** → Terminal, Claude Desktop, VS Code, any MCP tool
-- **Cross-Project Learning** → Insights and patterns across your entire codebase
-- **Task-Aware Context** → Understands what you're working on and provides relevant context
-
-### Developer-First Design
-- **Pure Rust Performance** → Native speed with memory safety
-- **Multi-Provider Support** → Best model for each task with automatic fallback
-- **Self-Hosted Options** → Full control over your data and AI interactions
-
-### Enterprise Ready
-- **Elastic License 2.0** → Open source with commercial use protection
-- **Security by Design** → Comprehensive permissions and audit logging
-- **Cost Optimization** → Intelligent model selection and budget management
+This project is in active development. Check `docs/tasks/tasks.json` for current priorities.
 
 ## 📄 License
 
-**Elastic License 2.0** - see [LICENSE](LICENSE) for details.
-
-Allows broad commercial use while protecting against unauthorized SaaS offerings.
-
-## 💬 Support
-
-- **Issues** → [GitHub Issues](https://github.com/aircher/aircher/issues)
-- **Documentation** → `docs/` directory in this repository
-
----
-
-**Vision**: Aircher aims to be the intelligent context layer for AI-powered development, providing universal compatibility and cross-project learning to accelerate developer workflows everywhere.
+MIT License - see LICENSE file for details.
