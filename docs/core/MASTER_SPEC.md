@@ -2,24 +2,24 @@
 
 ## Executive Summary
 
-**Major Breakthrough**: CLI-001 completed! Users can now chat with AI through our system.
+**Major Breakthrough**: CLI-001, CLI-002, and TUI-001 completed! Users can now chat with AI through multiple interfaces.
 
-**Current Status**: Working one-shot CLI interface with graceful error handling and multi-provider support.
+**Current Status**: Working one-shot CLI, interactive CLI, and TUI interfaces with graceful error handling and multi-provider support.
 
-**Next Priority**: Interactive chat mode for back-and-forth conversations.
+**Next Priority**: TUI model selection and settings interface.
 
 ## Architecture Overview
 
 ### Pure Rust Single Binary
 ```
 ┌─ Aircher Terminal (Pure Rust) ─┐
-│  ├─ CLI Interface (Phase 0)    │  ← 25% COMPLETE
+│  ├─ CLI Interface (Phase 0)    │  ← 100% COMPLETE
 │  │  ├─ One-shot mode           │  ✅ CLI-001 Complete
-│  │  └─ Interactive mode        │  🚧 CLI-002 Next
-│  ├─ TUI Interface (Phase 0)    │  ← NEW PRIORITY
-│  │  ├─ Chat view               │
-│  │  ├─ Model selection         │
-│  │  └─ Settings panel          │
+│  │  └─ Interactive mode        │  ✅ CLI-002 Complete
+│  ├─ TUI Interface (Phase 0)    │  ← 50% COMPLETE
+│  │  ├─ Chat view               │  ✅ TUI-001 Complete
+│  │  ├─ Model selection         │  🚧 TUI-002 Next
+│  │  └─ Settings panel          │  🚧 TUI-002 Next
 │  ├─ Provider Architecture      │  ← ALREADY BUILT
 │  │  ├─ Claude API              │  ✅ Complete
 │  │  ├─ Gemini API              │  ✅ Complete
@@ -42,10 +42,10 @@
 
 | Task | Status | Description |
 |------|--------|-------------|
-| CLI-001 | Pending | Basic CLI: `aircher 'hello world'` |
-| CLI-002 | Pending | Interactive CLI: `aircher --interactive` |
-| TUI-001 | Pending | Basic TUI chat interface |
-| TUI-002 | Pending | TUI model selection & settings |
+| CLI-001 | ✅ Complete | Basic CLI: `aircher 'hello world'` |
+| CLI-002 | ✅ Complete | Interactive CLI: `aircher` |
+| TUI-001 | ✅ Complete | Basic TUI chat interface: `aircher --tui` |
+| TUI-002 | 🚧 Next | TUI model selection & settings |
 
 ### Phase 1: Integration & Polish
 **Goal**: Fix and test our existing provider architecture
@@ -308,9 +308,9 @@ show_cost = true
 ## Success Metrics
 
 ### Phase 0 Success Criteria
-- [ ] CLI-001: `aircher 'hello world'` returns AI response
-- [ ] CLI-002: `aircher --interactive` works for conversations
-- [ ] TUI-001: Rich terminal interface launches and works
+- [x] CLI-001: `aircher 'hello world'` returns AI response
+- [x] CLI-002: `aircher` works for interactive conversations
+- [x] TUI-001: Rich terminal interface launches and works with `aircher --tui`
 - [ ] TUI-002: Model selection modal works with our providers
 
 ### Quality Targets

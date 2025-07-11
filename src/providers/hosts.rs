@@ -124,7 +124,7 @@ impl OpenRouterHost {
             HeaderValue::from_static("https://github.com/nijaru/aircher"),
         );
         headers.insert(
-            "X-Title", 
+            "X-Title",
             HeaderValue::from_static("Aircher Terminal Assistant"),
         );
 
@@ -153,7 +153,8 @@ impl OpenRouterHost {
         info!("Refreshing OpenRouter model list");
 
         let url = format!("{}/models", self.config.base_url);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .send()
             .await
@@ -162,10 +163,16 @@ impl OpenRouterHost {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(anyhow!("OpenRouter models request failed with status {}: {}", status, error_text));
+            return Err(anyhow!(
+                "OpenRouter models request failed with status {}: {}",
+                status,
+                error_text
+            ));
         }
 
-        let models_response: OpenRouterModelsResponse = response.json().await
+        let models_response: OpenRouterModelsResponse = response
+            .json()
+            .await
             .context("Failed to parse OpenRouter models response")?;
 
         self.model_cache.clear();
@@ -183,7 +190,7 @@ impl OpenRouterHost {
             .map(|msg| OpenRouterMessage {
                 role: match msg.role {
                     MessageRole::System => "system".to_string(),
-                    MessageRole::User => "user".to_string(), 
+                    MessageRole::User => "user".to_string(),
                     MessageRole::Assistant => "assistant".to_string(),
                     MessageRole::Tool => "user".to_string(), // Treat tool as user message
                 },
@@ -207,16 +214,21 @@ impl OpenRouterHost {
         }
     }
 
-    fn calculate_cost_for_model(&self, model: &str, input_tokens: u32, output_tokens: u32) -> Option<f64> {
+    fn calculate_cost_for_model(
+        &self,
+        model: &str,
+        input_tokens: u32,
+        output_tokens: u32,
+    ) -> Option<f64> {
         let model_info = self.model_cache.get(model)?;
-        
+
         // Parse pricing strings (format: "0.000001" per token)
         let input_cost_per_token: f64 = model_info.pricing.prompt.parse().ok()?;
         let output_cost_per_token: f64 = model_info.pricing.completion.parse().ok()?;
-        
+
         let input_cost = input_tokens as f64 * input_cost_per_token;
         let output_cost = output_tokens as f64 * output_cost_per_token;
-        
+
         Some(input_cost + output_cost)
     }
 
@@ -230,10 +242,10 @@ impl OpenRouterHost {
 
     pub async fn get_model_pricing(&self, model: &str) -> Option<PricingInfo> {
         let model_info = self.model_cache.get(model)?;
-        
+
         let input_cost_per_token: f64 = model_info.pricing.prompt.parse().ok()?;
         let output_cost_per_token: f64 = model_info.pricing.completion.parse().ok()?;
-        
+
         Some(PricingInfo {
             input_cost_per_1m: input_cost_per_token * 1_000_000.0,
             output_cost_per_1m: output_cost_per_token * 1_000_000.0,
@@ -242,10 +254,10 @@ impl OpenRouterHost {
     }
 
     pub async fn compare_costs(
-        &self, 
-        model: &str, 
-        input_tokens: u32, 
-        output_tokens: u32
+        &self,
+        model: &str,
+        input_tokens: u32,
+        output_tokens: u32,
     ) -> Result<f64> {
         self.calculate_cost_for_model(model, input_tokens, output_tokens)
             .ok_or_else(|| anyhow!("Model {} not found in OpenRouter", model))
@@ -262,7 +274,7 @@ impl LLMProvider for OpenRouterHost {
         debug!("Making OpenRouter API request for model: {}", req.model);
 
         let messages = self.convert_messages(&req.messages);
-        
+
         let openrouter_req = OpenRouterRequest {
             model: req.model.clone(),
             messages,
@@ -273,8 +285,9 @@ impl LLMProvider for OpenRouterHost {
         };
 
         let url = format!("{}/chat/completions", self.config.base_url);
-        
-        let response = self.client
+
+        let response = self
+            .client
             .post(&url)
             .json(&openrouter_req)
             .send()
@@ -284,16 +297,25 @@ impl LLMProvider for OpenRouterHost {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            
+
             // Try to parse as OpenRouter error
             if let Ok(openrouter_error) = serde_json::from_str::<OpenRouterError>(&error_text) {
-                return Err(anyhow!("OpenRouter API error: {}", openrouter_error.error.message));
+                return Err(anyhow!(
+                    "OpenRouter API error: {}",
+                    openrouter_error.error.message
+                ));
             }
-            
-            return Err(anyhow!("OpenRouter API request failed with status {}: {}", status, error_text));
+
+            return Err(anyhow!(
+                "OpenRouter API request failed with status {}: {}",
+                status,
+                error_text
+            ));
         }
 
-        let openrouter_response: OpenRouterResponse = response.json().await
+        let openrouter_response: OpenRouterResponse = response
+            .json()
+            .await
             .context("Failed to parse OpenRouter API response")?;
 
         // Extract text content from first choice
@@ -304,11 +326,13 @@ impl LLMProvider for OpenRouterHost {
         let choice = &openrouter_response.choices[0];
         let content = choice.message.content.clone();
 
-        let input_tokens = openrouter_response.usage
+        let input_tokens = openrouter_response
+            .usage
             .as_ref()
             .map(|u| u.prompt_tokens)
             .unwrap_or(0);
-        let output_tokens = openrouter_response.usage
+        let output_tokens = openrouter_response
+            .usage
             .as_ref()
             .map(|u| u.completion_tokens)
             .unwrap_or(0);
@@ -329,10 +353,13 @@ impl LLMProvider for OpenRouterHost {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<ResponseStream> {
-        debug!("Making streaming OpenRouter API request for model: {}", req.model);
+        debug!(
+            "Making streaming OpenRouter API request for model: {}",
+            req.model
+        );
 
         let messages = self.convert_messages(&req.messages);
-        
+
         let openrouter_req = OpenRouterRequest {
             model: req.model.clone(),
             messages,
@@ -343,8 +370,9 @@ impl LLMProvider for OpenRouterHost {
         };
 
         let url = format!("{}/chat/completions", self.config.base_url);
-        
-        let response = self.client
+
+        let response = self
+            .client
             .post(&url)
             .json(&openrouter_req)
             .send()
@@ -354,12 +382,16 @@ impl LLMProvider for OpenRouterHost {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(anyhow!("OpenRouter streaming request failed with status {}: {}", status, error_text));
+            return Err(anyhow!(
+                "OpenRouter streaming request failed with status {}: {}",
+                status,
+                error_text
+            ));
         }
 
         let (tx, rx) = tokio::sync::mpsc::channel(32);
         let mut stream = response.bytes_stream();
-        
+
         tokio::spawn(async move {
             use futures::StreamExt;
             use std::str;
@@ -367,12 +399,12 @@ impl LLMProvider for OpenRouterHost {
             let mut accumulated_content = String::new();
             let mut response_id = String::new();
             let mut buffer = Vec::new();
-            
+
             while let Some(chunk_result) = stream.next().await {
                 match chunk_result {
                     Ok(chunk) => {
                         buffer.extend_from_slice(&chunk);
-                        
+
                         // Try to parse complete SSE events
                         if let Ok(content) = str::from_utf8(&buffer) {
                             let lines: Vec<&str> = content.lines().collect();
@@ -386,7 +418,7 @@ impl LLMProvider for OpenRouterHost {
 
                                 if line.starts_with("data: ") {
                                     let data = &line[6..]; // Remove "data: " prefix
-                                    
+
                                     if data == "[DONE]" {
                                         // Send final chunk
                                         let final_chunk = StreamChunk {
@@ -410,7 +442,7 @@ impl LLMProvider for OpenRouterHost {
                                                 let delta_content = choice.message.content.clone();
                                                 if !delta_content.is_empty() {
                                                     accumulated_content.push_str(&delta_content);
-                                                    
+
                                                     let chunk = StreamChunk {
                                                         id: response_id.clone(),
                                                         content: delta_content,
@@ -418,7 +450,7 @@ impl LLMProvider for OpenRouterHost {
                                                         tokens_used: None,
                                                         finish_reason: None,
                                                     };
-                                                    
+
                                                     if tx.send(Ok(chunk)).await.is_err() {
                                                         return;
                                                     }
@@ -430,13 +462,19 @@ impl LLMProvider for OpenRouterHost {
                                                         id: response_id.clone(),
                                                         content: accumulated_content.clone(),
                                                         delta: false,
-                                                        tokens_used: response.usage.map(|u| u.total_tokens),
-                                                        finish_reason: Some(match finish_reason.as_str() {
-                                                            "stop" => FinishReason::Stop,
-                                                            "length" => FinishReason::Length,
-                                                            "content_filter" => FinishReason::ContentFilter,
-                                                            _ => FinishReason::Error,
-                                                        }),
+                                                        tokens_used: response
+                                                            .usage
+                                                            .map(|u| u.total_tokens),
+                                                        finish_reason: Some(
+                                                            match finish_reason.as_str() {
+                                                                "stop" => FinishReason::Stop,
+                                                                "length" => FinishReason::Length,
+                                                                "content_filter" => {
+                                                                    FinishReason::ContentFilter
+                                                                }
+                                                                _ => FinishReason::Error,
+                                                            },
+                                                        ),
                                                     };
                                                     let _ = tx.send(Ok(final_chunk)).await;
                                                     return;
@@ -451,7 +489,7 @@ impl LLMProvider for OpenRouterHost {
                                 }
                                 processed_lines += 1;
                             }
-                            
+
                             // Keep unprocessed content in buffer
                             if processed_lines < lines.len() {
                                 let remaining = lines[processed_lines..].join("\n");
@@ -524,7 +562,7 @@ impl LLMProvider for OpenRouterHost {
     async fn health_check(&self) -> Result<bool> {
         // Make a minimal request to check if OpenRouter is accessible
         let url = format!("{}/models", self.config.base_url);
-        
+
         match self.client.get(&url).send().await {
             Ok(response) => Ok(response.status().is_success()),
             Err(_) => Ok(false),

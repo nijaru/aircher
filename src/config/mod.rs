@@ -242,39 +242,43 @@ impl Default for ConfigManager {
         );
 
         // Gemini provider configuration
-        providers.insert("gemini".to_string(), ProviderConfig {
-            name: "Gemini".to_string(),
-            api_key_env: "GOOGLE_API_KEY".to_string(),
-            base_url: "https://generativelanguage.googleapis.com/v1beta/models/{model}".to_string(),
-            models: vec![
-                ModelConfig {
-                    name: "gemini-2.0-flash-exp".to_string(),
-                    context_window: 1_000_000,
-                    input_cost_per_1m: 0.075,
-                    output_cost_per_1m: 0.30,
-                    supports_streaming: true,
-                    supports_tools: true,
-                },
-                ModelConfig {
-                    name: "gemini-1.5-pro".to_string(),
-                    context_window: 2_000_000,
-                    input_cost_per_1m: 1.25,
-                    output_cost_per_1m: 5.0,
-                    supports_streaming: true,
-                    supports_tools: true,
-                },
-                ModelConfig {
-                    name: "gemini-1.5-flash".to_string(),
-                    context_window: 1_000_000,
-                    input_cost_per_1m: 0.075,
-                    output_cost_per_1m: 0.30,
-                    supports_streaming: true,
-                    supports_tools: true,
-                },
-            ],
-            timeout_seconds: 60,
-            max_retries: 3,
-        });
+        providers.insert(
+            "gemini".to_string(),
+            ProviderConfig {
+                name: "Gemini".to_string(),
+                api_key_env: "GOOGLE_API_KEY".to_string(),
+                base_url: "https://generativelanguage.googleapis.com/v1beta/models/{model}"
+                    .to_string(),
+                models: vec![
+                    ModelConfig {
+                        name: "gemini-2.0-flash-exp".to_string(),
+                        context_window: 1_000_000,
+                        input_cost_per_1m: 0.075,
+                        output_cost_per_1m: 0.30,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "gemini-1.5-pro".to_string(),
+                        context_window: 2_000_000,
+                        input_cost_per_1m: 1.25,
+                        output_cost_per_1m: 5.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "gemini-1.5-flash".to_string(),
+                        context_window: 1_000_000,
+                        input_cost_per_1m: 0.075,
+                        output_cost_per_1m: 0.30,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                ],
+                timeout_seconds: 60,
+                max_retries: 3,
+            },
+        );
 
         // Direct Anthropic host
         hosts.insert(
@@ -290,24 +294,36 @@ impl Default for ConfigManager {
         );
 
         // Direct Google AI host
-        hosts.insert("google".to_string(), HostConfig {
-            name: "Google AI".to_string(),
-            description: "Direct Google AI API access".to_string(),
-            base_url: "https://generativelanguage.googleapis.com/v1beta/models/{model}".to_string(),
-            api_key_env: "GOOGLE_API_KEY".to_string(),
-            pricing_multiplier: 1.0,
-            features: vec!["official".to_string(), "reliable".to_string()],
-        });
+        hosts.insert(
+            "google".to_string(),
+            HostConfig {
+                name: "Google AI".to_string(),
+                description: "Direct Google AI API access".to_string(),
+                base_url: "https://generativelanguage.googleapis.com/v1beta/models/{model}"
+                    .to_string(),
+                api_key_env: "GOOGLE_API_KEY".to_string(),
+                pricing_multiplier: 1.0,
+                features: vec!["official".to_string(), "reliable".to_string()],
+            },
+        );
 
         // OpenRouter host - universal model access with cost optimization
-        hosts.insert("openrouter".to_string(), HostConfig {
-            name: "OpenRouter".to_string(),
-            description: "Universal model access with cost optimization and fallbacks".to_string(),
-            base_url: "https://openrouter.ai/api/v1".to_string(),
-            api_key_env: "OPENROUTER_API_KEY".to_string(),
-            pricing_multiplier: 1.0, // OpenRouter uses same pricing as providers
-            features: vec!["universal".to_string(), "cost_optimization".to_string(), "fallbacks".to_string()],
-        });
+        hosts.insert(
+            "openrouter".to_string(),
+            HostConfig {
+                name: "OpenRouter".to_string(),
+                description: "Universal model access with cost optimization and fallbacks"
+                    .to_string(),
+                base_url: "https://openrouter.ai/api/v1".to_string(),
+                api_key_env: "OPENROUTER_API_KEY".to_string(),
+                pricing_multiplier: 1.0, // OpenRouter uses same pricing as providers
+                features: vec![
+                    "universal".to_string(),
+                    "cost_optimization".to_string(),
+                    "fallbacks".to_string(),
+                ],
+            },
+        );
 
         let data_dir = dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))

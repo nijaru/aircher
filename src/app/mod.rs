@@ -56,14 +56,7 @@ impl ArcherApp {
         info!("Starting main application loop");
 
         // Start the TUI
-        self.ui
-            .run(
-                &mut self.providers,
-                &mut self.storage,
-                &mut self.intelligence,
-                self.running.clone(),
-            )
-            .await?;
+        self.ui.run(&self.providers).await?;
 
         info!("Application loop completed");
         Ok(())

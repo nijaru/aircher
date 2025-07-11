@@ -104,7 +104,10 @@ impl GeminiProvider {
         })
     }
 
-    fn convert_messages(&self, messages: &[Message]) -> (Option<GeminiContent>, Vec<GeminiContent>) {
+    fn convert_messages(
+        &self,
+        messages: &[Message],
+    ) -> (Option<GeminiContent>, Vec<GeminiContent>) {
         let mut system_instruction = None;
         let mut gemini_contents = Vec::new();
 
@@ -149,12 +152,17 @@ impl GeminiProvider {
         (system_instruction, gemini_contents)
     }
 
-    fn calculate_cost_for_model(&self, model: &str, input_tokens: u32, output_tokens: u32) -> Option<f64> {
+    fn calculate_cost_for_model(
+        &self,
+        model: &str,
+        input_tokens: u32,
+        output_tokens: u32,
+    ) -> Option<f64> {
         let model_config = self.config.models.iter().find(|m| m.name == model)?;
-        
+
         let input_cost = (input_tokens as f64 / 1_000_000.0) * model_config.input_cost_per_1m;
         let output_cost = (output_tokens as f64 / 1_000_000.0) * model_config.output_cost_per_1m;
-        
+
         Some(input_cost + output_cost)
     }
 
@@ -180,7 +188,7 @@ impl LLMProvider for GeminiProvider {
         debug!("Making Gemini API request for model: {}", req.model);
 
         let (system_instruction, contents) = self.convert_messages(&req.messages);
-        
+
         let gemini_req = GeminiRequest {
             contents,
             system_instruction,
@@ -191,12 +199,14 @@ impl LLMProvider for GeminiProvider {
         };
 
         // Gemini API URLs include the model and action
-        let url = format!("{}:generateContent?key={}", 
-            self.config.base_url.replace("{model}", &req.model), 
+        let url = format!(
+            "{}:generateContent?key={}",
+            self.config.base_url.replace("{model}", &req.model),
             self.api_key
         );
-        
-        let response = self.client
+
+        let response = self
+            .client
             .post(&url)
             .json(&gemini_req)
             .send()
@@ -206,16 +216,22 @@ impl LLMProvider for GeminiProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            
+
             // Try to parse as Gemini error
             if let Ok(gemini_error) = serde_json::from_str::<GeminiError>(&error_text) {
                 return Err(anyhow!("Gemini API error: {}", gemini_error.error.message));
             }
-            
-            return Err(anyhow!("Gemini API request failed with status {}: {}", status, error_text));
+
+            return Err(anyhow!(
+                "Gemini API request failed with status {}: {}",
+                status,
+                error_text
+            ));
         }
 
-        let gemini_response: GeminiResponse = response.json().await
+        let gemini_response: GeminiResponse = response
+            .json()
+            .await
             .context("Failed to parse Gemini API response")?;
 
         // Extract text content from first candidate
@@ -224,17 +240,21 @@ impl LLMProvider for GeminiProvider {
         }
 
         let candidate = &gemini_response.candidates[0];
-        let content = candidate.content.parts
+        let content = candidate
+            .content
+            .parts
             .iter()
             .map(|part| part.text.clone())
             .collect::<Vec<_>>()
             .join("");
 
-        let input_tokens = gemini_response.usage_metadata
+        let input_tokens = gemini_response
+            .usage_metadata
             .as_ref()
             .and_then(|u| u.prompt_token_count)
             .unwrap_or(0);
-        let output_tokens = gemini_response.usage_metadata
+        let output_tokens = gemini_response
+            .usage_metadata
             .as_ref()
             .and_then(|u| u.candidates_token_count)
             .unwrap_or(0);
@@ -255,10 +275,13 @@ impl LLMProvider for GeminiProvider {
     }
 
     async fn stream(&self, req: &ChatRequest) -> Result<ResponseStream> {
-        debug!("Making streaming Gemini API request for model: {}", req.model);
+        debug!(
+            "Making streaming Gemini API request for model: {}",
+            req.model
+        );
 
         let (system_instruction, contents) = self.convert_messages(&req.messages);
-        
+
         let gemini_req = GeminiRequest {
             contents,
             system_instruction,
@@ -269,12 +292,14 @@ impl LLMProvider for GeminiProvider {
         };
 
         // Gemini streaming API uses streamGenerateContent
-        let url = format!("{}:streamGenerateContent?key={}", 
-            self.config.base_url.replace("{model}", &req.model), 
+        let url = format!(
+            "{}:streamGenerateContent?key={}",
+            self.config.base_url.replace("{model}", &req.model),
             self.api_key
         );
-        
-        let response = self.client
+
+        let response = self
+            .client
             .post(&url)
             .json(&gemini_req)
             .send()
@@ -284,24 +309,28 @@ impl LLMProvider for GeminiProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(anyhow!("Gemini streaming request failed with status {}: {}", status, error_text));
+            return Err(anyhow!(
+                "Gemini streaming request failed with status {}: {}",
+                status,
+                error_text
+            ));
         }
 
         let (tx, rx) = mpsc::channel(32);
         let mut stream = response.bytes_stream();
-        
+
         tokio::spawn(async move {
             use futures::StreamExt;
 
             let mut accumulated_content = String::new();
             let response_id = Uuid::new_v4().to_string();
             let mut buffer = Vec::new();
-            
+
             while let Some(chunk_result) = stream.next().await {
                 match chunk_result {
                     Ok(chunk) => {
                         buffer.extend_from_slice(&chunk);
-                        
+
                         // Try to parse complete JSON objects separated by newlines
                         if let Ok(content) = String::from_utf8(buffer.clone()) {
                             for line in content.lines() {
@@ -312,7 +341,9 @@ impl LLMProvider for GeminiProvider {
                                 match serde_json::from_str::<GeminiResponse>(line) {
                                     Ok(response) => {
                                         if let Some(candidate) = response.candidates.get(0) {
-                                            let text = candidate.content.parts
+                                            let text = candidate
+                                                .content
+                                                .parts
                                                 .iter()
                                                 .map(|part| part.text.clone())
                                                 .collect::<Vec<_>>()
@@ -320,7 +351,7 @@ impl LLMProvider for GeminiProvider {
 
                                             if !text.is_empty() {
                                                 accumulated_content.push_str(&text);
-                                                
+
                                                 let chunk = StreamChunk {
                                                     id: response_id.clone(),
                                                     content: text,
@@ -328,7 +359,7 @@ impl LLMProvider for GeminiProvider {
                                                     tokens_used: None,
                                                     finish_reason: None,
                                                 };
-                                                
+
                                                 if tx.send(Ok(chunk)).await.is_err() {
                                                     return;
                                                 }
@@ -340,17 +371,22 @@ impl LLMProvider for GeminiProvider {
                                                     id: response_id.clone(),
                                                     content: accumulated_content.clone(),
                                                     delta: false,
-                                                    tokens_used: response.usage_metadata
+                                                    tokens_used: response
+                                                        .usage_metadata
                                                         .and_then(|u| u.total_token_count),
-                                                    finish_reason: Some(match finish_reason.as_str() {
-                                                        "STOP" => FinishReason::Stop,
-                                                        "MAX_TOKENS" => FinishReason::Length,
-                                                        "SAFETY" => FinishReason::ContentFilter,
-                                                        "RECITATION" => FinishReason::ContentFilter,
-                                                        _ => FinishReason::Error,
-                                                    }),
+                                                    finish_reason: Some(
+                                                        match finish_reason.as_str() {
+                                                            "STOP" => FinishReason::Stop,
+                                                            "MAX_TOKENS" => FinishReason::Length,
+                                                            "SAFETY" => FinishReason::ContentFilter,
+                                                            "RECITATION" => {
+                                                                FinishReason::ContentFilter
+                                                            }
+                                                            _ => FinishReason::Error,
+                                                        },
+                                                    ),
                                                 };
-                                                
+
                                                 let _ = tx.send(Ok(final_chunk)).await;
                                                 return;
                                             }
@@ -362,7 +398,7 @@ impl LLMProvider for GeminiProvider {
                                     }
                                 }
                             }
-                            
+
                             // Keep the last incomplete line in buffer
                             if let Some(last_newline) = content.rfind('\n') {
                                 let remaining = &content[last_newline + 1..];
@@ -396,7 +432,7 @@ impl LLMProvider for GeminiProvider {
 
     fn pricing_model(&self) -> PricingModel {
         PricingModel::PerToken {
-            input_cost_per_1m: 0.075,  // Gemini 2.0 Flash pricing
+            input_cost_per_1m: 0.075, // Gemini 2.0 Flash pricing
             output_cost_per_1m: 0.30,
             currency: "USD".to_string(),
         }
@@ -443,15 +479,17 @@ impl LLMProvider for GeminiProvider {
             },
         };
 
-        let url = format!("{}:generateContent?key={}", 
-            self.config.base_url.replace("{model}", "gemini-2.0-flash-exp"), 
+        let url = format!(
+            "{}:generateContent?key={}",
+            self.config
+                .base_url
+                .replace("{model}", "gemini-2.0-flash-exp"),
             self.api_key
         );
-        
+
         match self.client.post(&url).json(&test_req).send().await {
             Ok(response) => Ok(response.status().is_success()),
             Err(_) => Ok(false),
         }
     }
 }
-

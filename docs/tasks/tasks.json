@@ -1,12 +1,12 @@
 {
   "priorities": {
     "next_sequence": [
-      "CLI-001",
-      "CLI-002", 
       "TUI-001",
-      "TUI-002"
+      "TUI-002",
+      "INTEGRATION-001",
+      "SPRINT-004"
     ],
-    "current_focus": "Working User Interface - Priority: Basic CLI functionality, then TUI, then advanced features"
+    "current_focus": "Working User Interface - Priority: TUI implementation, then integration testing, then advanced features"
   },
   "project": {
     "name": "Aircher",
@@ -27,7 +27,7 @@
   },
   "metrics": {
     "phase_progress": {
-      "phase_0_user_interface": 25,
+      "phase_0_user_interface": 75,
       "phase_1_foundation": 100,
       "phase_2_providers": 70,
       "phase_3_intelligence": 0,
@@ -333,7 +333,7 @@
     "CLI-002": {
       "id": "CLI-002", 
       "title": "Interactive CLI Chat Mode",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "description": "Add interactive chat mode for back-and-forth conversations",
       "files": [
@@ -353,12 +353,12 @@
         "CLI-001"
       ],
       "estimated_effort": "medium",
-      "notes": "Build the core chat experience that users actually want"
+      "notes": "✅ Complete interactive CLI chat mode implementation\\n✅ Conversation loop with > prompt\\n✅ Message history within session\\n✅ Commands: /help, /quit, /clear, /history, /model\\n✅ Token usage and cost display\\n✅ Support for different models and providers\\n✅ Graceful error handling\\n⏳ Next: TUI-001 (Basic TUI Chat Interface)"
     },
     "TUI-001": {
       "id": "TUI-001",
       "title": "Basic TUI Chat Interface",
-      "status": "pending", 
+      "status": "completed", 
       "priority": "high",
       "description": "Implement a working TUI for richer chat experience",
       "files": [
@@ -379,7 +379,7 @@
         "CLI-002"
       ],
       "estimated_effort": "large",
-      "notes": "This is where the magic happens - the core user experience"
+      "notes": "✅ Complete TUI implementation with Ratatui framework\\n✅ Working chat interface with conversation history\\n✅ Input box with real-time typing\\n✅ Status bar showing provider, model, cost, and tokens\\n✅ Keyboard shortcuts: Enter to send, Ctrl+C to quit, Up/Down to scroll\\n✅ Responsive layout with proper terminal UI components\\n✅ Clean error handling and graceful shutdown\\n✅ CLI integration with --tui flag\\n⏳ Next: TUI-002 (Model Selection & Settings)"
     },
     "TUI-002": {
       "id": "TUI-002",
