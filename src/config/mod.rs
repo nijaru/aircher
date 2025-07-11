@@ -166,14 +166,14 @@ impl ConfigManager {
     fn resolve_env_vars(&mut self) -> Result<()> {
         // Resolve environment variables in provider configs
         for provider in self.providers.values_mut() {
-            if let Ok(api_key) = env::var(&provider.api_key_env) {
+            if let Ok(_api_key) = env::var(&provider.api_key_env) {
                 debug!("Resolved API key for provider: {}", provider.name);
             }
         }
 
         // Resolve environment variables in host configs
         for host in self.hosts.values_mut() {
-            if let Ok(api_key) = env::var(&host.api_key_env) {
+            if let Ok(_api_key) = env::var(&host.api_key_env) {
                 debug!("Resolved API key for host: {}", host.name);
             }
         }

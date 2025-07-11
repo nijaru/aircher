@@ -5,11 +5,10 @@ use reqwest::{
     Client,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::env;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 use uuid::Uuid;
 
 use super::{

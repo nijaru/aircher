@@ -23,11 +23,12 @@
 - **Differentiators**: Multi-provider support, cost transparency, intelligent context
 
 ### Current Status: LLM Integration Phase
-- ✅ **Foundation** (100%): Project setup, basic TUI
-- 🚧 **LLM Integration** (40%): Provider system, streaming  
+- ✅ **Foundation** (100%): Project setup, Rust architecture
+- 🚧 **LLM Integration** (60%): Claude API complete, subscription pending
 - ⏳ **Intelligence Engine** (0%): Context analysis, optimization
+- ⏳ **Advanced Features** (0%): TUI, session management
 
-### Priority: Claude API (SPRINT-001) → Claude Pro/Max (SPRINT-001B) → Gemini → OpenRouter → OpenAI → Ollama
+### Priority: ✅ Claude API → 🚧 Claude Pro/Max → Gemini → OpenRouter → OpenAI → Ollama
 
 ## Essential Resources
 
@@ -41,13 +42,18 @@
 ### Quick Commands
 ```bash
 # Development
-cargo build && cargo test && cargo clippy
+make check  # runs fmt + lint + test
 
 # Task management  
-jq '.tasks | to_entries | map(select(.value.status == "pending"))' docs/tasks/tasks.json
+make current-tasks    # Show active work
+make progress        # Show overall status
+make validate-tasks  # Check JSON is valid
 
 # Update task status
 jq '.tasks["TASK-ID"].status = "in_progress"' docs/tasks/tasks.json > tmp.json && mv tmp.json docs/tasks/tasks.json
+
+# Add notes to task
+jq '.tasks["TASK-ID"].notes = "Progress update"' docs/tasks/tasks.json > tmp.json && mv tmp.json docs/tasks/tasks.json
 ```
 
 ## Architecture Summary
