@@ -88,7 +88,7 @@
     "SPRINT-001": {
       "id": "SPRINT-001",
       "title": "Claude API Provider Implementation",
-      "status": "in_progress",
+      "status": "completed",
       "priority": "critical",
       "description": "Complete Anthropic API integration with streaming support - PRIORITY #1",
       "files": [
@@ -106,7 +106,8 @@
         "API key authentication with environment variable support"
       ],
       "dependencies": [],
-      "estimated_effort": "large"
+      "estimated_effort": "large",
+      "notes": "✅ Core Rust project structure implemented\n✅ Claude API provider implemented with async/streaming support\n✅ Configuration system with TOML support\n✅ Provider → Model → Host hierarchy designed\n✅ Basic error handling and logging\n⏳ Next: Add TUI implementation and testing"
     },
     "SPRINT-001B": {
       "id": "SPRINT-001B",
@@ -131,7 +132,6 @@
       "dependencies": [
         "SPRINT-001"
       ],
-      "estimated_effort": "large",
       "estimated_effort": "large",
       "notes": "Requires Anthropic client registration - cannot complete without this step"
     },

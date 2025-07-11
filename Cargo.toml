@@ -1,0 +1,83 @@
+[package]
+name = "aircher"
+version = "0.1.0"
+edition = "2021"
+description = "Advanced AI terminal assistant with intelligent context management"
+authors = ["Nick Russo <nijaru7@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/nijaru/aircher"
+keywords = ["ai", "terminal", "assistant", "tui", "llm"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# HTTP client for API calls
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Terminal UI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+
+# Git integration
+git2 = "0.19"
+
+# AST parsing
+tree-sitter = "0.24"
+
+# Token counting
+tiktoken-rs = "0.6"
+
+# Configuration
+toml = "0.8"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# UUID generation
+uuid = { version = "1.0", features = ["v4"] }
+
+# Date/time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Environment variables
+dotenvy = "0.15"
+
+# Futures utilities
+futures = "0.3"
+
+# HTTP event streaming
+eventsource-stream = "0.2"
+
+# Async trait support
+async-trait = "0.1"
+
+# Directory utilities
+dirs = "5.0"
+
+[dev-dependencies]
+tempfile = "3.0"
+tokio-test = "0.4"
+
+[[bin]]
+name = "aircher"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
