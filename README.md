@@ -1,6 +1,6 @@
 # Aircher
 
-**AI-powered terminal assistant built with Rust** - Chat with Claude, Gemini, and OpenRouter from your command line.
+**AI-powered terminal assistant built with Rust** - Chat with Claude, Gemini, OpenAI, and OpenRouter from your command line.
 
 ## ✅ What Works Now
 
@@ -29,10 +29,13 @@ aircher --tui
 
 # Choose your provider
 aircher --provider gemini "What's the weather like?"
-aircher --provider openrouter "Help me debug this code"
+aircher --provider openai "Help me debug this code"
+aircher --provider openrouter "Find the best model for my task"
 
 # Select specific models
 aircher --model claude-3-5-sonnet-20241022 "Write a poem"
+aircher --model gpt-4o "Analyze this code"
+aircher --model gpt-4o-mini "Quick question about syntax"
 
 # Get help
 aircher --help
@@ -42,7 +45,7 @@ aircher --help
 - ✅ **One-shot chat** - Send a message, get a response
 - ✅ **Interactive chat** - Back-and-forth conversations with history
 - ✅ **TUI interface** - Rich terminal UI with real-time chat and model selection
-- ✅ **Multi-provider support** - Claude, Gemini, OpenRouter with cost optimization
+- ✅ **Multi-provider support** - Claude, Gemini, OpenAI, OpenRouter with cost optimization
 - ✅ **Intelligence Engine** - Context-aware development assistant with git integration
 - ✅ **Provider testing** - Comprehensive integration and unit test coverage
 - ✅ **Clean error handling** - Helpful messages for missing API keys
@@ -71,6 +74,9 @@ export ANTHROPIC_API_KEY=your_key_here
 
 # For Gemini (optional)
 export GOOGLE_API_KEY=your_key_here
+
+# For OpenAI (optional)
+export OPENAI_API_KEY=your_key_here
 
 # For OpenRouter (optional)
 export OPENROUTER_API_KEY=your_key_here
@@ -101,7 +107,8 @@ aircher --tui
 
 # Different providers
 aircher --provider gemini "Write a Python function"
-aircher --provider openrouter "Help me debug this error"
+aircher --provider openai "Help me debug this error"
+aircher --provider openrouter "Find the cheapest model for my task"
 
 # Specific models
 aircher --model claude-3-5-sonnet-20241022 "Write documentation"
@@ -113,7 +120,7 @@ aircher --help
 ## 🏗️ Architecture
 
 **Pure Rust single binary** with:
-- **Provider abstraction** - Unified interface for Claude, Gemini, OpenRouter
+- **Provider abstraction** - Unified interface for Claude, Gemini, OpenAI, OpenRouter
 - **Async architecture** - Tokio runtime with streaming support  
 - **Clean error handling** - User-friendly messages, no panic traces
 - **Lazy loading** - Providers initialized only when needed
@@ -122,7 +129,7 @@ aircher --help
 
 - **Phase 0: User Interface** - 75% complete (CLI-001 ✅, CLI-002 ✅, TUI-001 ✅)
 - **Phase 1: Foundation** - 100% complete  
-- **Phase 2: Providers** - 70% complete (Claude, Gemini, OpenRouter)
+- **Phase 2: Providers** - 85% complete (Claude, Gemini, OpenAI, OpenRouter)
 - **Phase 3: Intelligence** - 0% complete
 - **Phase 4: Advanced Features** - 0% complete
 
