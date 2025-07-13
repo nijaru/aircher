@@ -280,6 +280,76 @@ impl Default for ConfigManager {
             },
         );
 
+        // OpenAI provider configuration
+        providers.insert(
+            "openai".to_string(),
+            ProviderConfig {
+                name: "OpenAI".to_string(),
+                api_key_env: "OPENAI_API_KEY".to_string(),
+                base_url: "https://api.openai.com/v1".to_string(),
+                models: vec![
+                    ModelConfig {
+                        name: "gpt-4o".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 5.0,
+                        output_cost_per_1m: 15.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "gpt-4o-mini".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 0.15,
+                        output_cost_per_1m: 0.6,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "gpt-4-turbo".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 10.0,
+                        output_cost_per_1m: 30.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "gpt-4".to_string(),
+                        context_window: 8_192,
+                        input_cost_per_1m: 30.0,
+                        output_cost_per_1m: 60.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "gpt-3.5-turbo".to_string(),
+                        context_window: 16_385,
+                        input_cost_per_1m: 0.5,
+                        output_cost_per_1m: 1.5,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "o1-preview".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 15.0,
+                        output_cost_per_1m: 60.0,
+                        supports_streaming: false,
+                        supports_tools: false,
+                    },
+                    ModelConfig {
+                        name: "o1-mini".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 3.0,
+                        output_cost_per_1m: 12.0,
+                        supports_streaming: false,
+                        supports_tools: false,
+                    },
+                ],
+                timeout_seconds: 120,
+                max_retries: 3,
+            },
+        );
+
         // Direct Anthropic host
         hosts.insert(
             "anthropic".to_string(),
