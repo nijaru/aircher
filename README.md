@@ -30,6 +30,7 @@ aircher
 aircher --provider gemini "What's the current development focus?"
 aircher --provider openai "Help me implement this feature"
 aircher --provider openrouter "Find the best model for code review"
+aircher --provider ollama "Local model for privacy-focused development"
 
 # Session management
 aircher session list                    # List all sessions
@@ -51,7 +52,7 @@ aircher session export session_id --format markdown
   - Background file monitoring with change detection
   - Rich context injection into every conversation
   - TUI tools interface for seamless integration
-- ✅ **Multi-provider support** - Claude, Gemini, OpenAI, OpenRouter with cost optimization
+- ✅ **Multi-provider support** - Claude, Gemini, OpenAI, OpenRouter, Ollama with cost optimization
 - ✅ **Smart context injection** - Every conversation includes project context, file purposes, and recent changes
 - ✅ **Background file monitoring** - Automatically detects and analyzes file changes
 - ✅ **Export capabilities** - Sessions can be exported in JSON, Markdown, CSV, or plain text
@@ -91,6 +92,9 @@ export OPENAI_API_KEY=your_key_here
 
 # For OpenRouter (optional)
 export OPENROUTER_API_KEY=your_key_here
+
+# For Ollama (optional) - requires Ollama running locally or via Tailscale
+# No API key needed - configure base URL in config if not using localhost:11434
 ```
 
 ### 3. Start Chatting!
@@ -120,6 +124,7 @@ aircher --tui
 aircher --provider gemini "Write a Python function"
 aircher --provider openai "Help me debug this error"
 aircher --provider openrouter "Find the cheapest model for my task"
+aircher --provider ollama "Local model for privacy and zero costs"
 
 # Specific models
 aircher --model claude-3-5-sonnet-20241022 "Write documentation"
@@ -131,7 +136,7 @@ aircher --help
 ## 🏗️ Architecture
 
 **Pure Rust single binary** with:
-- **Provider abstraction** - Unified interface for Claude, Gemini, OpenAI, OpenRouter
+- **Provider abstraction** - Unified interface for Claude, Gemini, OpenAI, OpenRouter, Ollama
 - **Async architecture** - Tokio runtime with streaming support  
 - **Clean error handling** - User-friendly messages, no panic traces
 - **Lazy loading** - Providers initialized only when needed
@@ -145,7 +150,7 @@ aircher --help
 
 - **Phase 0: User Interface** - 100% complete (CLI-001 ✅, CLI-002 ✅, TUI-001 ✅, TUI-002 ✅)
 - **Phase 1: Foundation** - 100% complete  
-- **Phase 2: Providers** - 95% complete (Claude, Gemini, OpenAI, OpenRouter)
+- **Phase 2: Providers** - 100% complete (Claude, Gemini, OpenAI, OpenRouter, Ollama)
 - **Phase 3: Intelligence** - 90% complete (SPRINT-004 ✅, SPRINT-005 ✅, SPRINT-006 ✅)
 - **Phase 4: Advanced Features** - 75% complete (Session management ✅, File monitoring ✅, TUI Integration ✅, Testing Framework ✅)
 
