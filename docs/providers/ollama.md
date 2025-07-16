@@ -14,25 +14,52 @@ The Ollama provider enables local model execution with zero API costs and comple
 
 ## Configuration
 
-### Basic Configuration (localhost)
+### Auto-Discovery (Recommended)
+
+Aircher automatically discovers Ollama instances! No configuration needed:
 
 ```bash
-# Default configuration - no setup required if Ollama is running on localhost:11434
+# Aircher will automatically find Ollama on:
+# 1. localhost:11434 (default)
+# 2. Your Tailscale network (detected automatically)
+# 3. Common local network IPs
 aircher --provider ollama "Hello, world!"
 ```
 
-### Tailscale/Remote Configuration
+### Manual Configuration
 
-Create `~/.config/aircher/config.toml`:
+Override auto-discovery with explicit configuration:
+
+```toml
+# ~/.config/aircher/config.toml
+[providers.ollama]
+base_url = "http://100.64.0.1:11434"  # Your specific Tailscale IP
+model = "llama3.3"
+timeout_seconds = 120
+```
+
+### Fallback URLs Configuration
+
+Configure multiple fallback URLs for auto-discovery:
 
 ```toml
 [providers.ollama]
-base_url = "http://100.64.0.1:11434"  # Your Tailscale IP
-model = "llama3.3"
-max_tokens = 4096
-temperature = 0.7
-timeout_seconds = 120
+base_url = ""  # Empty enables auto-discovery
+fallback_urls = [
+    "http://localhost:11434",
+    "http://100.64.0.1:11434",    # Your Tailscale IP
+    "http://192.168.1.100:11434", # Your local network IP
+]
 ```
+
+### Discovery Priority
+
+Auto-discovery tries URLs in this order:
+1. **Configured fallback_urls** (if any)
+2. **localhost:11434** and **127.0.0.1:11434**
+3. **Tailscale network** (detected via `tailscale ip` command)
+4. **Docker**: `host.docker.internal:11434`
+5. **Common local IPs**: 192.168.1.100, 192.168.0.100, 10.0.0.100
 
 ### Docker Configuration
 
@@ -139,7 +166,7 @@ ollama list
 
 ## Tailscale Setup
 
-If you're running Ollama on a remote machine via Tailscale:
+Aircher automatically discovers Ollama on your Tailscale network! 
 
 ### 1. On the Ollama Host
 
@@ -152,20 +179,30 @@ ollama serve
 ### 2. On the Client Machine
 
 ```bash
-# Find your Tailscale IP
-tailscale ip
+# No configuration needed! Auto-discovery will find it
+aircher --provider ollama "Hello from Tailscale!"
 
-# Test connection
+# Optional: Verify Tailscale connectivity
+tailscale ip
 curl http://YOUR_TAILSCALE_IP:11434/api/version
 ```
 
-### 3. Configure Aircher
+### 3. Manual Override (if needed)
 
 ```toml
-# ~/.config/aircher/config.toml
+# ~/.config/aircher/config.toml - only if auto-discovery fails
 [providers.ollama]
 base_url = "http://YOUR_TAILSCALE_IP:11434"
 ```
+
+### How Auto-Discovery Works
+
+1. **Detects your Tailscale IP** using `tailscale ip -4`
+2. **Scans the network range** for Ollama instances
+3. **Tests connectivity** to each candidate
+4. **Selects the first working instance**
+
+This means it works seamlessly across your Tailscale network without manual configuration!
 
 ## Performance Optimization
 
