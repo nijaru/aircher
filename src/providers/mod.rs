@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub mod claude_api;
 pub mod gemini;
 pub mod hosts;
+pub mod ollama;
 pub mod openai;
 
 use crate::config::ConfigManager;
@@ -180,6 +181,12 @@ impl ProviderManager {
         if let Some(openai_config) = config.get_provider("openai") {
             let openai_provider = openai::OpenAIProvider::new(openai_config.clone())?;
             providers.insert("openai".to_string(), Box::new(openai_provider));
+        }
+
+        // Initialize Ollama provider
+        if let Some(ollama_config) = config.get_provider("ollama") {
+            let ollama_provider = ollama::OllamaProvider::new(ollama_config.clone()).await?;
+            providers.insert("ollama".to_string(), Box::new(ollama_provider));
         }
 
         // Initialize OpenRouter host

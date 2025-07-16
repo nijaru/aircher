@@ -350,6 +350,68 @@ impl Default for ConfigManager {
             },
         );
 
+        // Ollama provider configuration
+        providers.insert(
+            "ollama".to_string(),
+            ProviderConfig {
+                name: "Ollama".to_string(),
+                api_key_env: "".to_string(), // No API key needed for local
+                base_url: "http://localhost:11434".to_string(),
+                models: vec![
+                    ModelConfig {
+                        name: "llama3.3".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: false,
+                    },
+                    ModelConfig {
+                        name: "llama3.1".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: false,
+                    },
+                    ModelConfig {
+                        name: "mistral".to_string(),
+                        context_window: 32_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: false,
+                    },
+                    ModelConfig {
+                        name: "codellama".to_string(),
+                        context_window: 16_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: false,
+                    },
+                    ModelConfig {
+                        name: "phi3".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: false,
+                    },
+                    ModelConfig {
+                        name: "qwen2.5".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: false,
+                    },
+                ],
+                timeout_seconds: 120,
+                max_retries: 3,
+            },
+        );
+
         // Direct Anthropic host
         hosts.insert(
             "anthropic".to_string(),
@@ -391,6 +453,24 @@ impl Default for ConfigManager {
                     "universal".to_string(),
                     "cost_optimization".to_string(),
                     "fallbacks".to_string(),
+                ],
+            },
+        );
+
+        // Ollama host - local model access
+        hosts.insert(
+            "ollama".to_string(),
+            HostConfig {
+                name: "Ollama".to_string(),
+                description: "Local model access with zero costs and privacy".to_string(),
+                base_url: "http://localhost:11434".to_string(),
+                api_key_env: "".to_string(), // No API key needed
+                pricing_multiplier: 0.0, // Free local models
+                features: vec![
+                    "local".to_string(),
+                    "free".to_string(),
+                    "privacy".to_string(),
+                    "offline".to_string(),
                 ],
             },
         );
