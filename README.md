@@ -4,59 +4,65 @@
 
 ## ✅ What Works Now
 
-**CLI-001 & CLI-002 & TUI-001 Complete!** You can now chat with AI:
+**SPRINT-004 & SPRINT-005 & SPRINT-006 & TUI Integration Complete!** Full-featured AI development assistant:
 
 ```bash
-# One-shot conversations
-aircher "How do I write a Rust function?"
-aircher "Explain async/await in simple terms"
-
-# Interactive chat mode
+# Launch intelligent TUI (primary mode)
 aircher
-> hello world
-🤖 Hello! How can I help you today?
-> /help
-📖 Available Commands:
-  /help     - Show this help message
-  /quit     - Exit interactive mode
-  /clear    - Clear conversation history
-  /history  - Show conversation history
-  /model    - Show current model information
+# Auto-detects project, creates .aircher/ directory, starts session
+
+# One-shot conversations with project context
+aircher "How do I refactor this function?"
+aircher "Explain the architecture of this project"
+
+# Interactive chat with session persistence
+aircher
+> hello world  
+🤖 Hello! I can see you're working on the Aircher project...
+> what files are most important?
+🤖 Based on your project structure, here are the key files:
+   - src/main.rs: Application entry point
+   - src/ui/mod.rs: TUI implementation with session management
+   - src/intelligence/: Intelligence engine for context-aware assistance
 > /quit
 
-# TUI mode (rich terminal interface)
-aircher --tui
+# Different providers with same intelligent context
+aircher --provider gemini "What's the current development focus?"
+aircher --provider openai "Help me implement this feature"
+aircher --provider openrouter "Find the best model for code review"
 
-# Choose your provider
-aircher --provider gemini "What's the weather like?"
-aircher --provider openai "Help me debug this code"
-aircher --provider openrouter "Find the best model for my task"
-
-# Select specific models
-aircher --model claude-3-5-sonnet-20241022 "Write a poem"
-aircher --model gpt-4o "Analyze this code"
-aircher --model gpt-4o-mini "Quick question about syntax"
-
-# Get help
-aircher --help
+# Session management
+aircher session list                    # List all sessions
+aircher session new "Feature work"      # Create new session
+aircher session export session_id --format markdown
 ```
 
 **Working Features:**
-- ✅ **One-shot chat** - Send a message, get a response
-- ✅ **Interactive chat** - Back-and-forth conversations with history
-- ✅ **TUI interface** - Rich terminal UI with real-time chat and model selection
+- ✅ **Project-aware TUI** - Automatically detects and initializes `.aircher/` projects
+- ✅ **Intelligent TUI Integration** - TUI with full intelligence engine integration:
+  - Project detection and automatic `.aircher/` directory management
+  - Background file monitoring and analysis
+  - Context injection system for rich system prompts
+  - File tree walking and project scanning capabilities
+- ✅ **Session persistence** - SQLite storage with conversation history and analytics
+- ✅ **Intelligence Engine** - Context-aware development assistant with:
+  - File purpose analysis and relevance scoring
+  - Architectural decision tracking
+  - Background file monitoring with change detection
+  - Rich context injection into every conversation
+  - TUI tools interface for seamless integration
 - ✅ **Multi-provider support** - Claude, Gemini, OpenAI, OpenRouter with cost optimization
-- ✅ **Intelligence Engine** - Context-aware development assistant with git integration
-- ✅ **Provider testing** - Comprehensive integration and unit test coverage
-- ✅ **Clean error handling** - Helpful messages for missing API keys
-- ✅ **Professional CLI** - Help, version, parameter support
+- ✅ **Smart context injection** - Every conversation includes project context, file purposes, and recent changes
+- ✅ **Background file monitoring** - Automatically detects and analyzes file changes
+- ✅ **Export capabilities** - Sessions can be exported in JSON, Markdown, CSV, or plain text
+- ✅ **One session per project** - Simple, predictable session management
 
 ## 🚧 Coming Next
 
-- **Session management** - Save and resume conversations with persistence
-- **Advanced intelligence** - Cross-project learning and architectural guidance
-- **MCP server** - Universal Model Context Protocol server implementation
+- **Advanced intelligence patterns** - Cross-project learning and pattern recognition
 - **Performance optimization** - Enhanced caching and response times
+- **MCP server** - Universal Model Context Protocol server implementation
+- **Team collaboration** - Shared intelligence (if needed)
 
 ## 🚀 Quick Setup
 
@@ -124,16 +130,21 @@ aircher --help
 - **Async architecture** - Tokio runtime with streaming support  
 - **Clean error handling** - User-friendly messages, no panic traces
 - **Lazy loading** - Providers initialized only when needed
+- **Project-aware intelligence** - Local `.aircher/` directory with:
+  - `AGENT.md` - AI assistant configuration and project context
+  - `sessions/` - SQLite database for conversation persistence
+  - `intelligence/` - Cached project analysis and insights
+  - Background file monitoring for automatic context updates
 
 ## 📊 Project Status
 
-- **Phase 0: User Interface** - 75% complete (CLI-001 ✅, CLI-002 ✅, TUI-001 ✅)
+- **Phase 0: User Interface** - 100% complete (CLI-001 ✅, CLI-002 ✅, TUI-001 ✅, TUI-002 ✅)
 - **Phase 1: Foundation** - 100% complete  
-- **Phase 2: Providers** - 85% complete (Claude, Gemini, OpenAI, OpenRouter)
-- **Phase 3: Intelligence** - 0% complete
-- **Phase 4: Advanced Features** - 0% complete
+- **Phase 2: Providers** - 95% complete (Claude, Gemini, OpenAI, OpenRouter)
+- **Phase 3: Intelligence** - 90% complete (SPRINT-004 ✅, SPRINT-005 ✅, SPRINT-006 ✅)
+- **Phase 4: Advanced Features** - 60% complete (Session management ✅, File monitoring ✅, TUI Integration ✅)
 
-**Next**: TUI-002 (Model selection & settings)
+**Next**: Performance optimization and advanced intelligence patterns
 
 ## 🤝 Contributing
 

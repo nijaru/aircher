@@ -5,6 +5,8 @@ use tracing::{error, info};
 
 use crate::config::ConfigManager;
 use crate::providers::{ChatRequest, Message, ProviderManager};
+use crate::sessions::{SessionFilter, ExportFormat, SessionManager, MessageRole};
+use crate::storage::DatabaseManager;
 use crate::ui::TuiManager;
 
 mod interactive;
@@ -27,7 +29,8 @@ impl CliApp {
 
     async fn get_providers(&mut self) -> Result<&ProviderManager> {
         if self.providers.is_none() {
-            self.providers = Some(ProviderManager::new(&self.config).await?);
+            let provider_manager = ProviderManager::new(&self.config).await?;
+            self.providers = Some(provider_manager);
         }
         Ok(self.providers.as_ref().unwrap())
     }
@@ -80,7 +83,79 @@ impl CliApp {
                     .help("Launch TUI interface")
                     .action(clap::ArgAction::SetTrue),
             )
+            .subcommand(
+                Command::new("session")
+                    .about("Session management commands")
+                    .subcommand(
+                        Command::new("list")
+                            .about("List all sessions")
+                            .arg(
+                                Arg::new("provider")
+                                    .long("provider")
+                                    .help("Filter by provider")
+                                    .value_name("PROVIDER"),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("new")
+                            .about("Create a new session")
+                            .arg(
+                                Arg::new("title")
+                                    .help("Session title")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("provider")
+                                    .long("provider")
+                                    .short('p')
+                                    .help("Provider to use")
+                                    .default_value("claude"),
+                            )
+                            .arg(
+                                Arg::new("model")
+                                    .long("model")
+                                    .short('m')
+                                    .help("Model to use")
+                                    .default_value("claude-3-5-sonnet-20241022"),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("load")
+                            .about("Load an existing session")
+                            .arg(
+                                Arg::new("id")
+                                    .help("Session ID")
+                                    .required(true)
+                                    .index(1),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("export")
+                            .about("Export a session")
+                            .arg(
+                                Arg::new("id")
+                                    .help("Session ID")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("format")
+                                    .long("format")
+                                    .short('f')
+                                    .help("Export format")
+                                    .value_name("FORMAT")
+                                    .default_value("json")
+                                    .value_parser(["json", "markdown", "csv", "plain"]),
+                            )
+                    )
+            )
             .get_matches_from(args);
+
+        // Handle session subcommands first
+        if let Some(session_matches) = matches.subcommand_matches("session") {
+            return self.handle_session_commands(session_matches).await;
+        }
 
         let message = matches.get_one::<String>("message");
         let tui_mode = matches.get_flag("tui");
@@ -254,8 +329,133 @@ impl CliApp {
         Ok(())
     }
 
-    pub async fn available_providers(&mut self) -> Result<Vec<String>> {
-        let providers = self.get_providers().await?;
-        Ok(providers.list_all())
+
+    async fn handle_session_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
+
+        // Create session manager directly
+        let database_manager = DatabaseManager::new(&self.config).await?;
+        let session_manager = SessionManager::new(&database_manager).await?;
+
+        match matches.subcommand() {
+            Some(("list", sub_matches)) => {
+                let mut filter = SessionFilter::default();
+                if let Some(provider) = sub_matches.get_one::<String>("provider") {
+                    filter.provider = Some(provider.clone());
+                }
+
+                let sessions = session_manager.search_sessions(&filter, Some(50)).await?;
+                
+                if sessions.is_empty() {
+                    println!("No sessions found.");
+                    return Ok(());
+                }
+
+                println!("{:<36} {:<20} {:<15} {:<20} {:<8} {:<10}", 
+                    "ID", "Title", "Provider", "Model", "Messages", "Cost");
+                println!("{}", "-".repeat(120));
+                
+                for session in sessions {
+                    println!("{:<36} {:<20} {:<15} {:<20} {:<8} ${:<10.4}", 
+                        session.id,
+                        if session.title.len() > 20 { 
+                            format!("{}...", &session.title[..17])
+                        } else { 
+                            session.title 
+                        },
+                        session.provider,
+                        if session.model.len() > 20 { 
+                            format!("{}...", &session.model[..17])
+                        } else { 
+                            session.model 
+                        },
+                        session.message_count,
+                        session.total_cost
+                    );
+                }
+            }
+            
+            Some(("new", sub_matches)) => {
+                let title = sub_matches.get_one::<String>("title").unwrap();
+                let provider = sub_matches.get_one::<String>("provider").unwrap();
+                let model = sub_matches.get_one::<String>("model").unwrap();
+
+                let session = session_manager.create_session(
+                    title.clone(),
+                    provider.clone(),
+                    model.clone(),
+                    None,
+                    vec![]
+                ).await?;
+
+                println!("✅ Created new session:");
+                println!("   ID: {}", session.id);
+                println!("   Title: {}", session.title);
+                println!("   Provider: {}", session.provider);
+                println!("   Model: {}", session.model);
+            }
+            
+            Some(("load", sub_matches)) => {
+                let session_id = sub_matches.get_one::<String>("id").unwrap();
+                
+                if let Some(session) = session_manager.load_session(session_id).await? {
+                    println!("✅ Loaded session:");
+                    println!("   ID: {}", session.id);
+                    println!("   Title: {}", session.title);
+                    println!("   Provider: {}", session.provider);
+                    println!("   Model: {}", session.model);
+                    println!("   Messages: {}", session.message_count);
+                    println!("   Total cost: ${:.4}", session.total_cost);
+                    
+                    // Load and display recent messages
+                    let messages = session_manager.load_session_messages(session_id).await?;
+                    if !messages.is_empty() {
+                        println!("\n📝 Recent messages:");
+                        for (_i, msg) in messages.iter().rev().take(5).enumerate() {
+                            let role = match msg.role {
+                                MessageRole::User => "User",
+                                MessageRole::Assistant => "Assistant",
+                                MessageRole::System => "System",
+                                MessageRole::Tool => "Tool",
+                            };
+                            let content = if msg.content.len() > 100 {
+                                format!("{}...", &msg.content[..97])
+                            } else {
+                                msg.content.clone()
+                            };
+                            println!("   {}: {}", role, content);
+                        }
+                    }
+                } else {
+                    eprintln!("❌ Session not found: {}", session_id);
+                    std::process::exit(1);
+                }
+            }
+            
+            Some(("export", sub_matches)) => {
+                let session_id = sub_matches.get_one::<String>("id").unwrap();
+                let format_str = sub_matches.get_one::<String>("format").unwrap();
+                
+                let format = match format_str.as_str() {
+                    "json" => ExportFormat::Json,
+                    "markdown" => ExportFormat::Markdown,
+                    "csv" => ExportFormat::Csv,
+                    "plain" => ExportFormat::Plain,
+                    _ => {
+                        eprintln!("❌ Unknown format: {}", format_str);
+                        std::process::exit(1);
+                    }
+                };
+
+                let exported_data = session_manager.export_session(session_id, format).await?;
+                println!("{}", exported_data);
+            }
+            
+            _ => {
+                eprintln!("❌ Unknown session subcommand");
+                std::process::exit(1);
+            }
+        }
+
+        Ok(())
     }
 }
