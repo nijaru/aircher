@@ -8,3 +8,6 @@ pub mod sessions;
 pub mod storage;
 pub mod ui;
 pub mod utils;
+
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;

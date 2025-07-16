@@ -26,6 +26,7 @@ pub struct Message {
 }
 
 use crate::storage::DatabaseManager;
+use async_trait::async_trait;
 
 /// Represents a conversation session with metadata and persistence
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -587,6 +588,55 @@ impl SessionManager {
                 Ok(output)
             }
         }
+    }
+}
+
+/// Trait abstraction for SessionManager to enable testing
+#[async_trait]
+pub trait SessionManagerTrait: Send + Sync {
+    async fn create_session(
+        &self,
+        title: String,
+        provider: String,
+        model: String,
+        description: Option<String>,
+        tags: Vec<String>,
+    ) -> Result<Session>;
+
+    async fn load_session(&self, session_id: &str) -> Result<Option<Session>>;
+    async fn add_message(&self, session_id: &str, message: &Message) -> Result<()>;
+    async fn load_session_messages(&self, session_id: &str) -> Result<Vec<SessionMessage>>;
+    async fn save_session(&self, session: &Session) -> Result<()>;
+}
+
+/// Implement the trait for the real SessionManager
+#[async_trait]
+impl SessionManagerTrait for SessionManager {
+    async fn create_session(
+        &self,
+        title: String,
+        provider: String,
+        model: String,
+        description: Option<String>,
+        tags: Vec<String>,
+    ) -> Result<Session> {
+        self.create_session(title, provider, model, description, tags).await
+    }
+
+    async fn load_session(&self, session_id: &str) -> Result<Option<Session>> {
+        self.load_session(session_id).await
+    }
+
+    async fn add_message(&self, session_id: &str, message: &Message) -> Result<()> {
+        self.add_message(session_id, message).await
+    }
+
+    async fn load_session_messages(&self, session_id: &str) -> Result<Vec<SessionMessage>> {
+        self.load_session_messages(session_id).await
+    }
+
+    async fn save_session(&self, session: &Session) -> Result<()> {
+        self.save_session(session).await
     }
 }
 
