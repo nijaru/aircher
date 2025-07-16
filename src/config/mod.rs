@@ -31,6 +31,8 @@ pub struct ProviderConfig {
     pub name: String,
     pub api_key_env: String,
     pub base_url: String,
+    #[serde(default)]
+    pub fallback_urls: Vec<String>,
     pub models: Vec<ModelConfig>,
     pub timeout_seconds: u64,
     pub max_retries: u32,
@@ -210,6 +212,7 @@ impl Default for ConfigManager {
                 name: "Claude".to_string(),
                 api_key_env: "ANTHROPIC_API_KEY".to_string(),
                 base_url: "https://api.anthropic.com/v1".to_string(),
+                fallback_urls: vec![],
                 models: vec![
                     ModelConfig {
                         name: "claude-3-5-sonnet-20241022".to_string(),
@@ -249,6 +252,7 @@ impl Default for ConfigManager {
                 api_key_env: "GOOGLE_API_KEY".to_string(),
                 base_url: "https://generativelanguage.googleapis.com/v1beta/models/{model}"
                     .to_string(),
+                fallback_urls: vec![],
                 models: vec![
                     ModelConfig {
                         name: "gemini-2.0-flash-exp".to_string(),
@@ -287,6 +291,7 @@ impl Default for ConfigManager {
                 name: "OpenAI".to_string(),
                 api_key_env: "OPENAI_API_KEY".to_string(),
                 base_url: "https://api.openai.com/v1".to_string(),
+                fallback_urls: vec![],
                 models: vec![
                     ModelConfig {
                         name: "gpt-4o".to_string(),
@@ -356,7 +361,11 @@ impl Default for ConfigManager {
             ProviderConfig {
                 name: "Ollama".to_string(),
                 api_key_env: "".to_string(), // No API key needed for local
-                base_url: "http://localhost:11434".to_string(),
+                base_url: "".to_string(), // Empty to enable auto-discovery
+                fallback_urls: vec![
+                    "http://localhost:11434".to_string(),
+                    "http://100.64.0.1:11434".to_string(), // Common Tailscale IP
+                ],
                 models: vec![
                     ModelConfig {
                         name: "llama3.3".to_string(),

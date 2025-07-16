@@ -110,16 +110,19 @@ type OllamaResponseStream = mpsc::Receiver<Result<StreamChunk>>;
 
 impl OllamaProvider {
     pub async fn new(config: ProviderConfig) -> Result<Self> {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5)) // Shorter timeout for discovery
+            .build()
+            .context("Failed to create HTTP client")?;
+
         let base_url = if config.base_url.is_empty() {
-            "http://localhost:11434".to_string()
+            Self::discover_ollama_url(&client, &config.fallback_urls).await
+                .unwrap_or_else(|| "http://localhost:11434".to_string())
         } else {
             config.base_url.clone()
         };
 
-        let client = Client::builder()
-            .timeout(Duration::from_secs(30))
-            .build()
-            .context("Failed to create HTTP client")?;
+        info!("Using Ollama at: {}", base_url);
 
         let mut provider = Self {
             client,
@@ -132,6 +135,107 @@ impl OllamaProvider {
         provider.refresh_models().await?;
 
         Ok(provider)
+    }
+
+    async fn discover_ollama_url(client: &Client, fallback_urls: &[String]) -> Option<String> {
+        let mut candidate_urls = Vec::new();
+        
+        // 1. First try configured fallback URLs
+        candidate_urls.extend(fallback_urls.iter().cloned());
+        
+        // 2. Then try auto-discovered URLs
+        candidate_urls.extend(Self::get_candidate_urls().await);
+        
+        for url in candidate_urls {
+            debug!("Trying Ollama at: {}", url);
+            
+            let version_url = format!("{}/api/version", url);
+            if let Ok(response) = client.get(&version_url).send().await {
+                if response.status().is_success() {
+                    if let Ok(version_info) = response.json::<OllamaVersionResponse>().await {
+                        info!("Found Ollama {} at: {}", version_info.version, url);
+                        return Some(url);
+                    }
+                }
+            }
+        }
+        
+        None
+    }
+
+    async fn get_candidate_urls() -> Vec<String> {
+        let mut urls = Vec::new();
+        
+        // 1. Always try localhost first
+        urls.push("http://localhost:11434".to_string());
+        urls.push("http://127.0.0.1:11434".to_string());
+        
+        // 2. Try common Tailscale patterns
+        if let Some(tailscale_urls) = Self::get_tailscale_candidates().await {
+            urls.extend(tailscale_urls);
+        }
+        
+        // 3. Try Docker default
+        urls.push("http://host.docker.internal:11434".to_string());
+        
+        // 4. Try common local IPs
+        urls.push("http://192.168.1.100:11434".to_string());
+        urls.push("http://192.168.0.100:11434".to_string());
+        urls.push("http://10.0.0.100:11434".to_string());
+        
+        urls
+    }
+
+    async fn get_tailscale_candidates() -> Option<Vec<String>> {
+        // Try to detect Tailscale IPs
+        let mut candidates = Vec::new();
+        
+        // Check for tailscale command
+        if let Ok(output) = tokio::process::Command::new("tailscale")
+            .args(["ip", "-4"])
+            .output()
+            .await
+        {
+            if output.status.success() {
+                if let Ok(ip_output) = String::from_utf8(output.stdout) {
+                    for line in ip_output.lines() {
+                        let ip = line.trim();
+                        if ip.starts_with("100.") {
+                            // This is likely our Tailscale IP, but we want to find other machines
+                            // Try common Tailscale IP patterns around our IP
+                            if let Some(base_ip) = Self::get_tailscale_network_base(ip) {
+                                for i in 1..=254 {
+                                    if i % 50 == 0 || i <= 10 || i >= 240 {
+                                        // Sample some IPs to avoid too many requests
+                                        candidates.push(format!("http://{}.{}:11434", base_ip, i));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Also try some common Tailscale IP patterns
+        candidates.push("http://100.64.0.1:11434".to_string());
+        candidates.push("http://100.100.100.100:11434".to_string());
+        candidates.push("http://100.101.101.101:11434".to_string());
+        
+        if candidates.is_empty() {
+            None
+        } else {
+            Some(candidates)
+        }
+    }
+
+    fn get_tailscale_network_base(ip: &str) -> Option<String> {
+        let parts: Vec<&str> = ip.split('.').collect();
+        if parts.len() == 4 && parts[0] == "100" {
+            Some(format!("{}.{}.{}", parts[0], parts[1], parts[2]))
+        } else {
+            None
+        }
     }
 
     async fn refresh_models(&mut self) -> Result<()> {
