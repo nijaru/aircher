@@ -31,11 +31,15 @@ temperature = 0.7
 location = "us-central1"
 
 [providers.ollama]
-base_url = "http://localhost:11434"
-model = "llama2"                         # Free local model for experimentation
-keep_alive = "5m"
+# Auto-discovery enabled by default (empty base_url)
+base_url = ""
+# Optional: Configure fallback URLs for faster discovery
+fallback_urls = [
+    "http://localhost:11434",
+    "http://100.64.0.1:11434",     # Common Tailscale IP
+]
+model = "llama3.3"                       # Latest free local model
 temperature = 0.7
-num_ctx = 4096
 
 # Task-specific model overrides for cost optimization
 # These selections can save 60-90% on LLM costs compared to using GPT-4 for everything

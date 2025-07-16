@@ -154,7 +154,19 @@ aircher --help
 - **Phase 3: Intelligence** - 90% complete (SPRINT-004 ✅, SPRINT-005 ✅, SPRINT-006 ✅)
 - **Phase 4: Advanced Features** - 75% complete (Session management ✅, File monitoring ✅, TUI Integration ✅, Testing Framework ✅)
 
-**Next**: Performance optimization and advanced intelligence patterns
+**Next**: Cost optimization and advanced intelligence patterns
+
+## 🔥 Latest: Ollama Auto-Discovery
+
+Perfect for Tailscale users! Ollama provider now automatically discovers instances:
+
+```bash
+# Zero configuration - automatically finds Ollama on:
+# • localhost:11434 (default)
+# • Your Tailscale network (detected automatically)
+# • Common local network patterns
+aircher --provider ollama "Hello from anywhere!"
+```
 
 ## 🤝 Contributing
 
