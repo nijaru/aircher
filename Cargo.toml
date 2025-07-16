@@ -9,6 +9,10 @@ repository = "https://github.com/nijaru/aircher"
 keywords = ["ai", "terminal", "assistant", "tui", "llm"]
 categories = ["command-line-utilities", "development-tools"]
 
+[features]
+default = []
+testing = []
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }

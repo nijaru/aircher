@@ -20,7 +20,8 @@
       "Bash(cargo:*)",
       "Bash(git commit:*)",
       "Bash(jq:*)",
-      "Bash(./target/release/aircher:*)"
+      "Bash(./target/release/aircher:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
