@@ -66,7 +66,7 @@ struct OpenRouterUsage {
 }
 
 #[derive(Debug, Deserialize)]
-struct OpenRouterModel {
+pub struct OpenRouterModel {
     id: String,
     name: String,
     description: Option<String>,

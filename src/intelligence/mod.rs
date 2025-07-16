@@ -8,6 +8,8 @@ pub mod context;
 pub mod narrative;
 pub mod memory;
 pub mod tools;
+pub mod tui_tools;
+pub mod file_monitor;
 
 pub use context::*;
 pub use narrative::*;

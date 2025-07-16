@@ -275,6 +275,7 @@ impl Message {
     pub fn assistant(content: String) -> Self {
         Self::new(MessageRole::Assistant, content)
     }
+
 }
 
 impl ChatRequest {
