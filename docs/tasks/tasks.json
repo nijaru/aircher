@@ -1,12 +1,12 @@
 {
   "priorities": {
     "next_sequence": [
-      "TUI-001",
-      "TUI-002",
-      "INTEGRATION-001",
-      "SPRINT-004"
+      "SPRINT-007",
+      "SPRINT-008",
+      "SPRINT-001B",
+      "SPRINT-010"
     ],
-    "current_focus": "Working User Interface - Priority: TUI implementation, then integration testing, then advanced features"
+    "current_focus": "Advanced Features - Priority: Ollama provider, cost optimization, Claude Pro/Max auth, then intelligence learning"
   },
   "project": {
     "name": "Aircher",
@@ -22,16 +22,16 @@
       "tracing"
     ],
     "last_updated": "January 2025",
-    "current_phase": "Phase 0 (Working User Interface)",
+    "current_phase": "Phase 4 (Advanced Features)",
     "architecture": "Pure Rust Single Binary"
   },
   "metrics": {
     "phase_progress": {
-      "phase_0_user_interface": 75,
+      "phase_0_user_interface": 100,
       "phase_1_foundation": 100,
-      "phase_2_providers": 85,
-      "phase_3_intelligence": 0,
-      "phase_4_advanced_features": 0
+      "phase_2_providers": 95,
+      "phase_3_intelligence": 90,
+      "phase_4_advanced_features": 75
     },
     "quality_targets": {
       "test_coverage_goal": 80,
@@ -134,7 +134,7 @@
         "SPRINT-001"
       ],
       "estimated_effort": "large",
-      "notes": "Requires Anthropic client registration - cannot complete without this step"
+      "notes": "✅ BREAKTHROUGH: OpenCode uses Claude Code's OAuth flow (shows 'claude code' in browser)\\n✅ Infrastructure ready: PricingModel::Subscription and SubscriptionTier enums\\n✅ No separate Anthropic registration needed - can reuse Claude Code OAuth client\\n🔄 Next: Research OpenCode's implementation of Claude Code OAuth flow\\n📋 Implementation approach: Mirror OpenCode's session-based auth system"
     },
     "SPRINT-002": {
       "id": "SPRINT-002",
@@ -220,25 +220,31 @@
     "SPRINT-005": {
       "id": "SPRINT-005",
       "title": "Session Management and Persistence",
-      "status": "pending",
+      "status": "completed",
       "priority": "medium",
       "description": "Implement conversation persistence and session management",
       "files": [
         "src/sessions/mod.rs",
-        "src/storage/conversations.rs"
+        "src/storage/mod.rs",
+        "src/project/mod.rs",
+        "tests/session_tests.rs"
       ],
       "acceptance_criteria": [
         "Save and restore conversation sessions",
         "Session search and organization",
-        "Export conversations to various formats",
+        "Export conversations to various formats (JSON, Markdown, CSV, Plain)",
         "Session cost tracking and analytics",
-        "Resume interrupted conversations"
+        "Resume interrupted conversations",
+        "SQLite-based persistence with full CRUD operations",
+        "CLI commands for session management",
+        "Project-based session management with .aircher/ directories"
       ],
       "dependencies": [
         "SPRINT-001",
         "SPRINT-002"
       ],
-      "estimated_effort": "medium"
+      "estimated_effort": "medium",
+      "notes": "✅ Complete session management implementation with SQLite persistence\\n✅ Full CRUD operations for sessions and messages\\n✅ Multi-format export capabilities (JSON, Markdown, CSV, Plain)\\n✅ Session analytics and cost tracking\\n✅ CLI integration with session commands\\n✅ Project-based session management with .aircher/ directory detection\\n✅ Comprehensive test suite with 12 test functions\\n✅ Integration with TUI and Intelligence Engine\\n⏳ Next: SPRINT-007 (Ollama Provider) or SPRINT-001B (Claude Pro/Max Auth)"
     },
     "SPRINT-006": {
       "id": "SPRINT-006",
@@ -494,6 +500,62 @@
       ],
       "estimated_effort": "medium",
       "notes": "✅ Comprehensive testing infrastructure implemented\n✅ Unit tests for configuration, providers, and message handling (19 tests passing)\n✅ Integration test framework with error handling validation\n✅ Provider initialization and health check testing\n✅ Cost calculation accuracy testing without API calls\n✅ Error handling verification with invalid API keys\n✅ Test structure: unit tests (fast), integration tests (with/without API keys)\n✅ Library structure added to Cargo.toml for testing\n✅ All acceptance criteria met for testing infrastructure\n⏳ Next: SPRINT-004 (Intelligence Engine Implementation)"
+    },
+    "TUI-INTEGRATION": {
+      "id": "TUI-INTEGRATION",
+      "title": "TUI Intelligence Engine Integration",
+      "status": "completed",
+      "priority": "high",
+      "description": "Complete TUI integration with Intelligence Engine and Session Management",
+      "files": [
+        "src/ui/mod.rs",
+        "src/intelligence/tui_tools.rs",
+        "src/intelligence/file_monitor.rs",
+        "src/project/mod.rs"
+      ],
+      "acceptance_criteria": [
+        "Project detection and .aircher/ directory management",
+        "Intelligence Engine tools interface for TUI integration",
+        "Session management fully integrated into TUI workflow",
+        "Background file monitoring and analysis system",
+        "Context injection system for rich system prompts",
+        "File tree walking and project scanning capabilities",
+        "One session per project with automatic initialization"
+      ],
+      "dependencies": [
+        "SPRINT-004",
+        "SPRINT-005",
+        "TUI-002"
+      ],
+      "estimated_effort": "large",
+      "notes": "✅ Complete TUI integration with Intelligence Engine\\n✅ Project detection and .aircher/ directory management\\n✅ Intelligence Engine tools interface for TUI\\n✅ Session management integration into TUI workflow\\n✅ Background file monitoring and analysis\\n✅ Context injection system for rich system prompts\\n✅ File tree walking and project scanning capabilities\\n✅ One session per project with automatic initialization\\n✅ Comprehensive implementation ready for production use"
+    },
+    "TESTING-FRAMEWORK": {
+      "id": "TESTING-FRAMEWORK",
+      "title": "Comprehensive TUI Testing Framework",
+      "status": "completed",
+      "priority": "high",
+      "description": "Implement dependency injection testing framework for TUI components",
+      "files": [
+        "src/testing/mod.rs",
+        "tests/tui_integration_tests.rs",
+        "docs/TESTING.md",
+        "Cargo.toml"
+      ],
+      "acceptance_criteria": [
+        "Dependency injection system with trait abstractions",
+        "Mock implementations for all major components",
+        "Integration tests for complete TUI workflows",
+        "Session persistence and error handling validation",
+        "Performance and multi-provider testing scenarios",
+        "Testing framework documentation and examples"
+      ],
+      "dependencies": [
+        "TUI-INTEGRATION",
+        "SPRINT-005"
+      ],
+      "estimated_effort": "medium",
+      "notes": "✅ Complete testing framework with dependency injection\\n✅ Mock implementations for providers, intelligence, and sessions\\n✅ Integration tests for complete TUI workflows\\n✅ Session persistence and error handling validation\\n✅ Performance and multi-provider testing scenarios\\n✅ Comprehensive documentation with examples\\n✅ Testing feature flag and trait abstractions\\n✅ All TUI code paths now testable without external dependencies"
     }
   }
 }
