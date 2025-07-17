@@ -83,6 +83,12 @@ walkdir = "2.0"
 # Command line argument parsing
 clap = { version = "4.5", features = ["derive"] }
 
+# ONNX Runtime for embedded models (will be re-enabled in next iteration)
+# ort = { version = "2.0.0-rc.10", features = ["download-binaries"] }
+
+# Tokenizers for text processing (will be re-enabled in next iteration)  
+# tokenizers = "0.20"
+
 # System information
 num_cpus = "1.0"
 

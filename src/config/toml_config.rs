@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// TOML-based configuration for Aircher
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -376,9 +376,9 @@ mod tests {
         let mut config = ArcherConfig::default();
         
         config.set_value("ui.theme", "light").unwrap();
-        assert_eq!(config.get_value("ui.theme").unwrap(), "light");
+        assert_eq!(config.get_value("ui.theme").unwrap(), Some("light".to_string()));
         
         config.set_value("providers.claude.default_model", "claude-3-opus").unwrap();
-        assert_eq!(config.get_value("providers.claude.default_model").unwrap(), "claude-3-opus");
+        assert_eq!(config.get_value("providers.claude.default_model").unwrap(), Some("claude-3-opus".to_string()));
     }
 }
