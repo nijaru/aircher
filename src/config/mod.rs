@@ -6,6 +6,8 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::{debug, info};
 
+use crate::cost::CostConfig;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigManager {
     pub global: GlobalConfig,
@@ -14,6 +16,7 @@ pub struct ConfigManager {
     pub ui: UiConfig,
     pub database: DatabaseConfig,
     pub intelligence: IntelligenceConfig,
+    pub cost: CostConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -500,6 +503,7 @@ impl Default for ConfigManager {
                 sessions_db: data_dir.join("sessions.db"),
             },
             intelligence: IntelligenceConfig::default(),
+            cost: CostConfig::default(),
         }
     }
 }

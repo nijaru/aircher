@@ -4,12 +4,18 @@
 
 ## ✅ What Works Now
 
-**SPRINT-004 & SPRINT-005 & SPRINT-006 & TUI Integration Complete!** Full-featured AI development assistant:
+**Full-featured AI development assistant with semantic code search:**
 
 ```bash
 # Launch intelligent TUI (primary mode)
 aircher
 # Auto-detects project, creates .aircher/ directory, starts session
+
+# Semantic code search (NEW!)
+aircher search query "error handling patterns"    # Finds conceptually similar code
+aircher search query "database connection logic"  # Works across languages
+aircher search index                              # Index current directory
+aircher embedding setup                           # Configure embedding models
 
 # One-shot conversations with project context
 aircher "How do I refactor this function?"
@@ -39,6 +45,16 @@ aircher session export session_id --format markdown
 ```
 
 **Working Features:**
+- ✅ **Semantic Code Search** - Revolutionary AI-powered code understanding:
+  - Find code by concept, not just text matching ("error handling patterns")
+  - Cross-language semantic similarity detection
+  - Intelligent code chunking and embedding generation
+  - Works with Ollama (nomic-embed-text) for local, private search
+- ✅ **Embedding Management** - Full embedding model lifecycle:
+  - Auto-detection and setup of embedding models
+  - Ollama integration for local models
+  - Fallback to text search when embeddings unavailable
+  - Smart model selection based on system capabilities
 - ✅ **Project-aware TUI** - Automatically detects and initializes `.aircher/` projects
 - ✅ **Intelligent TUI Integration** - TUI with full intelligence engine integration:
   - Project detection and automatic `.aircher/` directory management
@@ -65,10 +81,11 @@ aircher session export session_id --format markdown
 
 ## 🚧 Coming Next
 
-- **Advanced intelligence patterns** - Cross-project learning and pattern recognition
-- **Performance optimization** - Enhanced caching and response times
+- 🔥 **SweRankEmbed-Small Integration** - Embed best open source code model (137M params)
+- **Advanced embedding features** - Model auto-selection, download-on-demand with resume
+- **CodeXEmbed Integration** - SOTA code performance via ONNX Runtime (for power users)
+- **Enhanced semantic search** - Cross-file relationship detection, architecture analysis
 - **MCP server** - Universal Model Context Protocol server implementation
-- **Team collaboration** - Shared intelligence (if needed)
 
 ## 🚀 Quick Setup
 
@@ -151,22 +168,32 @@ aircher --help
 - **Phase 0: User Interface** - 100% complete (CLI-001 ✅, CLI-002 ✅, TUI-001 ✅, TUI-002 ✅)
 - **Phase 1: Foundation** - 100% complete  
 - **Phase 2: Providers** - 100% complete (Claude, Gemini, OpenAI, OpenRouter, Ollama)
-- **Phase 3: Intelligence** - 90% complete (SPRINT-004 ✅, SPRINT-005 ✅, SPRINT-006 ✅)
-- **Phase 4: Advanced Features** - 75% complete (Session management ✅, File monitoring ✅, TUI Integration ✅, Testing Framework ✅)
+- **Phase 3: Intelligence** - 100% complete (SPRINT-004 ✅, SPRINT-005 ✅, SPRINT-006 ✅)
+- **Phase 4: Advanced Features** - 100% complete (Session management ✅, File monitoring ✅, TUI Integration ✅, Testing Framework ✅)
+- **Phase 5: Semantic Search** - 85% complete (Ollama integration ✅, Semantic search ✅, Embedding management ✅)
 
-**Next**: Cost optimization and advanced intelligence patterns
+**Next**: SweRankEmbed-Small integration for embedded model support
 
-## 🔥 Latest: Ollama Auto-Discovery
+## 🔥 Latest: Semantic Code Search
 
-Perfect for Tailscale users! Ollama provider now automatically discovers instances:
+Revolutionary AI-powered code understanding! Search by **meaning**, not just text:
 
 ```bash
-# Zero configuration - automatically finds Ollama on:
-# • localhost:11434 (default)
-# • Your Tailscale network (detected automatically)
-# • Common local network patterns
-aircher --provider ollama "Hello from anywhere!"
+# Find conceptually similar code across your entire project
+aircher search query "error handling patterns"
+aircher search query "database connection logic"
+aircher search query "authentication code"
+
+# Quick setup
+aircher embedding setup        # Auto-configures best available model
+aircher search index          # Index your codebase
+# Now you have semantic superpowers!
+
+# Works with Ollama for 100% local, private semantic search
+# No API calls, no data leaving your machine
 ```
+
+**Game-changer**: Goes beyond grep to understand code **meaning** and **context**.
 
 ## 🤝 Contributing
 

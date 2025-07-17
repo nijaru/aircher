@@ -1,12 +1,12 @@
 {
   "priorities": {
     "next_sequence": [
-      "SPRINT-007",
+      "EMBEDDING-003",
+      "EMBEDDING-004",
       "SPRINT-008",
-      "SPRINT-001B",
-      "SPRINT-010"
+      "SPRINT-001B"
     ],
-    "current_focus": "Advanced Features - Priority: Ollama provider, cost optimization, Claude Pro/Max auth, then intelligence learning"
+    "current_focus": "Semantic Search Enhancement - Priority: SweRankEmbed-Small integration for embedded model support, then cost optimization"
   },
   "project": {
     "name": "Aircher",
@@ -21,8 +21,8 @@
       "tiktoken-rs",
       "tracing"
     ],
-    "last_updated": "January 2025",
-    "current_phase": "Phase 4 (Advanced Features)",
+    "last_updated": "July 2025",
+    "current_phase": "Phase 5 (Semantic Search)",
     "architecture": "Pure Rust Single Binary"
   },
   "metrics": {
@@ -30,8 +30,9 @@
       "phase_0_user_interface": 100,
       "phase_1_foundation": 100,
       "phase_2_providers": 100,
-      "phase_3_intelligence": 90,
-      "phase_4_advanced_features": 75
+      "phase_3_intelligence": 100,
+      "phase_4_advanced_features": 100,
+      "phase_5_semantic_search": 85
     },
     "quality_targets": {
       "test_coverage_goal": 80,
@@ -559,6 +560,128 @@
       ],
       "estimated_effort": "medium",
       "notes": "✅ Complete testing framework with dependency injection\\n✅ Mock implementations for providers, intelligence, and sessions\\n✅ Integration tests for complete TUI workflows\\n✅ Session persistence and error handling validation\\n✅ Performance and multi-provider testing scenarios\\n✅ Comprehensive documentation with examples\\n✅ Testing feature flag and trait abstractions\\n✅ All TUI code paths now testable without external dependencies"
+    },
+    "EMBEDDING-001": {
+      "id": "EMBEDDING-001",
+      "title": "Embedding Manager and Ollama Integration",
+      "status": "completed",
+      "priority": "high",
+      "description": "Implement embedding model management system with Ollama integration",
+      "files": [
+        "src/cost/embedding_manager.rs",
+        "src/cost/smart_embedding_setup.rs",
+        "src/commands/embedding.rs"
+      ],
+      "acceptance_criteria": [
+        "Embedding model management and configuration system",
+        "Ollama integration for local embedding generation",
+        "Auto-detection and setup of embedding models",
+        "Support for nomic-embed-text and mxbai-embed-large",
+        "Fallback to text search when embeddings unavailable",
+        "Smart model selection based on system capabilities"
+      ],
+      "dependencies": [
+        "SPRINT-007"
+      ],
+      "estimated_effort": "large",
+      "notes": "✅ Complete embedding manager implementation\\n✅ Ollama integration with HTTP API calls\\n✅ Model detection and configuration system\\n✅ Smart embedding setup with auto-selection\\n✅ Embedding generation with cosine similarity\\n✅ Batch processing and similarity search capabilities"
+    },
+    "EMBEDDING-002": {
+      "id": "EMBEDDING-002",
+      "title": "Semantic Code Search Implementation",
+      "status": "completed",
+      "priority": "high",
+      "description": "Revolutionary AI-powered semantic code search capabilities",
+      "files": [
+        "src/semantic_search.rs",
+        "src/commands/search.rs"
+      ],
+      "acceptance_criteria": [
+        "Semantic code search by concept, not just text matching",
+        "Cross-language semantic similarity detection",
+        "Intelligent code chunking and embedding generation",
+        "Search commands: index, query, stats",
+        "Function and class detection with AST-like parsing",
+        "Context-aware search results with similarity scoring"
+      ],
+      "dependencies": [
+        "EMBEDDING-001"
+      ],
+      "estimated_effort": "large",
+      "notes": "✅ Complete semantic search implementation\\n✅ Find code by concept: 'error handling patterns', 'database connection logic'\\n✅ Cross-language semantic similarity detection\\n✅ Intelligent code chunking with function/class detection\\n✅ CLI commands for indexing and querying\\n✅ Context lines and search result ranking\\n✅ Fallback to text search when embeddings fail"
+    },
+    "EMBEDDING-003": {
+      "id": "EMBEDDING-003",
+      "title": "SweRankEmbed-Small Integration (ONNX)",
+      "status": "pending",
+      "priority": "high",
+      "description": "Integrate best open source code embedding model (137M params) via ONNX Runtime",
+      "files": [
+        "src/cost/swerank_integration.rs",
+        "src/cost/onnx_runtime.rs",
+        "Cargo.toml"
+      ],
+      "acceptance_criteria": [
+        "Download and integrate SweRankEmbed-Small model (137M params)",
+        "ONNX Runtime integration with ort crate",
+        "Embedded model for zero-dependency semantic search",
+        "Model auto-selection: embedded vs Ollama vs API",
+        "Binary size optimization (target: ~400MB total)",
+        "Performance benchmarking against Ollama models"
+      ],
+      "dependencies": [
+        "EMBEDDING-002"
+      ],
+      "estimated_effort": "large",
+      "notes": "🎯 Best open source code embedding model (74.45% on SWE-Bench-Lite)\\n📋 Specifically trained for software issue localization\\n🚀 Will provide embedded model capability without external dependencies\\n⚡ Expected 1-2 day integration with ONNX Runtime"
+    },
+    "EMBEDDING-004": {
+      "id": "EMBEDDING-004",
+      "title": "Advanced Embedding Features",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Enhanced embedding capabilities and model management",
+      "files": [
+        "src/cost/model_download.rs",
+        "src/cost/embedding_cache.rs"
+      ],
+      "acceptance_criteria": [
+        "Download-on-demand with resume capability",
+        "Global model caching and sharing",
+        "Model integrity verification (SHA256 checksums)",
+        "Smart model selection based on task type",
+        "Cross-file relationship detection",
+        "Architecture pattern analysis"
+      ],
+      "dependencies": [
+        "EMBEDDING-003"
+      ],
+      "estimated_effort": "medium",
+      "notes": "Advanced features for production deployment and user experience"
+    },
+    "EMBEDDING-005": {
+      "id": "EMBEDDING-005",
+      "title": "CodeXEmbed Integration (SOTA Performance)",
+      "status": "pending",
+      "priority": "low",
+      "description": "Integrate CodeXEmbed for state-of-the-art code performance (power users)",
+      "files": [
+        "src/cost/codexembed_onnx.rs",
+        "src/cost/model_conversion.rs"
+      ],
+      "acceptance_criteria": [
+        "CodeXEmbed model integration via ONNX Runtime",
+        "SOTA code embedding performance (70.4% vs 57% for nomic)",
+        "PyTorch to ONNX model conversion pipeline",
+        "HuggingFace tokenizers integration",
+        "Performance optimization for production use",
+        "User choice between embedded/Ollama/SOTA models"
+      ],
+      "dependencies": [
+        "EMBEDDING-003"
+      ],
+      "estimated_effort": "large",
+      "notes": "Future enhancement for users wanting maximum embedding quality"
     }
   }
 }

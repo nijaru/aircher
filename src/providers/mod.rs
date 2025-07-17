@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
+use tracing::info;
 use uuid::Uuid;
 
 pub mod claude_api;
@@ -12,11 +13,14 @@ pub mod ollama;
 pub mod openai;
 
 use crate::config::ConfigManager;
+use crate::cost::{CostTracker, CostDecision, IntelligentModelSelector, TaskType};
 
 pub struct ProviderManager {
     providers: HashMap<String, Box<dyn LLMProvider>>,
     hosts: HashMap<String, Box<dyn LLMProvider>>,
     config: ConfigManager,
+    cost_tracker: CostTracker,
+    model_selector: IntelligentModelSelector,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -199,6 +203,8 @@ impl ProviderManager {
             providers,
             hosts,
             config: config.clone(),
+            cost_tracker: CostTracker::new(config.cost.clone()),
+            model_selector: IntelligentModelSelector::new(config),
         })
     }
 
@@ -256,6 +262,150 @@ impl ProviderManager {
         }
 
         results
+    }
+
+    /// Cost-aware chat method that includes budget checking and usage tracking
+    pub async fn chat_with_cost_tracking(
+        &mut self,
+        provider_name: &str,
+        request: &ChatRequest,
+    ) -> Result<ChatResponse> {
+        // Get the provider
+        let provider = self
+            .get_provider_or_host(provider_name)
+            .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", provider_name))?;
+
+        // Get model pricing info
+        let pricing = provider.get_pricing();
+        let pricing_rates = pricing.map(|p| (p.input_cost_per_1m, p.output_cost_per_1m));
+
+        // Estimate token usage (rough estimation)
+        let estimated_input_tokens = request
+            .messages
+            .iter()
+            .map(|m| m.content.len() / 4) // Rough token estimation
+            .sum::<usize>() as u32;
+        let estimated_output_tokens = request.max_tokens.unwrap_or(1000);
+
+        // Create cost estimate
+        let estimate = self.cost_tracker.estimate_cost(
+            provider_name,
+            &request.model,
+            estimated_input_tokens,
+            estimated_output_tokens,
+            pricing_rates,
+        );
+
+        // Check if request is allowed
+        match self.cost_tracker.check_request_allowed(&estimate) {
+            CostDecision::Allow => {
+                // Proceed with request
+            }
+            CostDecision::RequireConfirmation(reason) => {
+                // In a real UI, this would prompt the user
+                eprintln!("⚠️  {}", reason);
+                eprintln!("Proceeding with request...");
+            }
+            CostDecision::Deny(reason) => {
+                return Err(anyhow::anyhow!("Request denied: {}", reason));
+            }
+            CostDecision::SuggestAlternative(suggestion) => {
+                eprintln!("💡 {}", suggestion);
+                eprintln!("Proceeding with request...");
+            }
+        }
+
+        // Make the actual request
+        let response = provider.chat(request).await?;
+
+        // Record actual usage
+        if let Some(actual_cost) = response.cost {
+            let input_tokens = response.tokens_used.saturating_sub(estimated_output_tokens);
+            let output_tokens = response.tokens_used.saturating_sub(input_tokens);
+
+            if let Err(e) = self.cost_tracker.record_usage(
+                provider_name,
+                &request.model,
+                actual_cost,
+                input_tokens,
+                output_tokens,
+            ) {
+                eprintln!("Warning: Failed to record usage: {}", e);
+            }
+        }
+
+        Ok(response)
+    }
+
+    /// Get current cost summary
+    pub fn get_cost_summary(&self) -> String {
+        format!(
+            "{}\n{}",
+            self.cost_tracker.get_daily_summary(None),
+            self.cost_tracker.get_monthly_summary()
+        )
+    }
+
+    /// Get provider-specific usage
+    pub fn get_provider_usage(&self, provider: &str) -> String {
+        self.cost_tracker.get_daily_summary(Some(provider))
+    }
+
+    /// Intelligently select and chat with the best model for the task
+    pub async fn smart_chat(
+        &mut self,
+        message: &str,
+        task_type: Option<TaskType>,
+        max_cost: Option<f64>,
+        stream: bool,
+    ) -> Result<ChatResponse> {
+        // Get model recommendation
+        let recommendation = self.model_selector.select_model(
+            task_type,
+            &self.cost_tracker,
+            max_cost,
+            message,
+        )?;
+
+        info!(
+            "Smart model selection: {} ({}) - {}",
+            recommendation.model, recommendation.provider, recommendation.reasoning
+        );
+
+        // Show alternatives if available
+        if !recommendation.alternative_models.is_empty() {
+            eprintln!("💡 Alternative models available:");
+            for alt in &recommendation.alternative_models {
+                eprintln!(
+                    "   {} ({}) - Save ${:.4} ({})",
+                    alt.model, alt.provider, alt.cost_savings, alt.reason
+                );
+            }
+        }
+
+        // Create chat request
+        let messages = vec![Message::user(message.to_string())];
+        let mut request = ChatRequest::new(messages, recommendation.model.clone());
+        request.stream = stream;
+
+        // Use the cost-aware chat method
+        self.chat_with_cost_tracking(&recommendation.provider, &request)
+            .await
+    }
+
+    /// Get model recommendation without executing chat
+    pub fn recommend_model(
+        &self,
+        message: &str,
+        task_type: Option<TaskType>,
+        max_cost: Option<f64>,
+    ) -> Result<crate::cost::ModelRecommendation> {
+        self.model_selector.select_model(
+            task_type,
+            &self.cost_tracker,
+            max_cost,
+            message,
+        )
     }
 }
 
