@@ -2,8 +2,11 @@ use anyhow::Result;
 use clap::{Arg, Command};
 use std::env;
 use tracing::{error, info};
+use toml;
 
-use crate::config::ConfigManager;
+use crate::commands::search::{SearchArgs, handle_search_command};
+use crate::commands::embedding::{EmbeddingArgs, handle_embedding_command};
+use crate::config::{ConfigManager, toml_config::ArcherConfig};
 use crate::providers::{ChatRequest, Message, ProviderManager};
 use crate::sessions::{SessionFilter, ExportFormat, SessionManager, MessageRole};
 use crate::storage::DatabaseManager;
@@ -84,6 +87,200 @@ impl CliApp {
                     .action(clap::ArgAction::SetTrue),
             )
             .subcommand(
+                Command::new("config")
+                    .about("Configuration management")
+                    .subcommand(
+                        Command::new("show")
+                            .about("Show all configuration")
+                    )
+                    .subcommand(
+                        Command::new("get")
+                            .about("Get specific configuration value")
+                            .arg(
+                                Arg::new("key")
+                                    .help("Configuration key")
+                                    .required(true)
+                                    .index(1),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("set")
+                            .about("Set configuration value")
+                            .arg(
+                                Arg::new("key")
+                                    .help("Configuration key")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("value")
+                                    .help("Configuration value")
+                                    .required(true)
+                                    .index(2),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("unset")
+                            .about("Remove configuration value")
+                            .arg(
+                                Arg::new("key")
+                                    .help("Configuration key")
+                                    .required(true)
+                                    .index(1),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("edit")
+                            .about("Open config file in $EDITOR")
+                    )
+                    .subcommand(
+                        Command::new("reset")
+                            .about("Reset to default configuration")
+                    )
+                    .subcommand(
+                        Command::new("validate")
+                            .about("Check configuration validity")
+                    )
+                    .subcommand(
+                        Command::new("path")
+                            .about("Show config file path")
+                    )
+            )
+            .subcommand(
+                Command::new("search")
+                    .about("Semantic code search")
+                    .subcommand(
+                        Command::new("index")
+                            .about("Index directory for semantic search")
+                            .arg(
+                                Arg::new("path")
+                                    .help("Directory path to index")
+                                    .value_name("PATH")
+                                    .default_value(".")
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("force")
+                                    .long("force")
+                                    .help("Force re-indexing")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("query")
+                            .about("Perform semantic code search")
+                            .arg(
+                                Arg::new("query")
+                                    .help("Search query")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("limit")
+                                    .short('l')
+                                    .long("limit")
+                                    .help("Maximum number of results")
+                                    .value_name("NUM")
+                                    .default_value("10")
+                                    .value_parser(clap::value_parser!(usize)),
+                            )
+                            .arg(
+                                Arg::new("path")
+                                    .short('p')
+                                    .long("path")
+                                    .help("Directory to search in")
+                                    .value_name("PATH")
+                                    .default_value("."),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("stats")
+                            .about("Show search index statistics")
+                            .arg(
+                                Arg::new("path")
+                                    .help("Directory path")
+                                    .value_name("PATH")
+                                    .default_value(".")
+                                    .index(1),
+                            )
+                    )
+            )
+            .subcommand(
+                Command::new("model")
+                    .about("Model management")
+                    .subcommand(
+                        Command::new("current")
+                            .about("Show currently configured models")
+                    )
+                    .subcommand(
+                        Command::new("list")
+                            .about("List all available models")
+                            .arg(
+                                Arg::new("provider")
+                                    .long("provider")
+                                    .help("Filter by provider")
+                                    .value_name("NAME"),
+                            )
+                            .arg(
+                                Arg::new("type")
+                                    .long("type")
+                                    .help("Filter by type (chat/embedding)")
+                                    .value_name("TYPE"),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("test")
+                            .about("Test model connections")
+                            .arg(
+                                Arg::new("provider")
+                                    .long("provider")
+                                    .help("Test specific provider")
+                                    .value_name("NAME"),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("providers")
+                            .about("Show available providers and their models")
+                    )
+            )
+            .subcommand(
+                Command::new("embedding")
+                    .about("Legacy embedding management (use 'model' instead)")
+                    .subcommand(
+                        Command::new("status")
+                            .about("Show embedding model status")
+                    )
+                    .subcommand(
+                        Command::new("setup")
+                            .about("Setup embedding models")
+                            .arg(
+                                Arg::new("interactive")
+                                    .long("interactive")
+                                    .help("Use interactive setup")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("force")
+                                    .long("force")
+                                    .help("Force re-download")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("list")
+                            .about("List available embedding models")
+                    )
+                    .subcommand(
+                        Command::new("test")
+                            .about("Test embedding functionality")
+                            .arg(
+                                Arg::new("text")
+                                    .help("Sample text to embed")
+                                    .index(1),
+                            )
+                    )
+            )
+            .subcommand(
                 Command::new("session")
                     .about("Session management commands")
                     .subcommand(
@@ -152,13 +349,28 @@ impl CliApp {
             )
             .get_matches_from(args);
 
-        // Handle session subcommands first
+        // Handle subcommands first
+        if let Some(config_matches) = matches.subcommand_matches("config") {
+            return self.handle_config_commands(config_matches).await;
+        }
+        
+        if let Some(search_matches) = matches.subcommand_matches("search") {
+            return self.handle_search_commands(search_matches).await;
+        }
+        
+        if let Some(model_matches) = matches.subcommand_matches("model") {
+            return self.handle_model_commands(model_matches).await;
+        }
+        
+        if let Some(embedding_matches) = matches.subcommand_matches("embedding") {
+            return self.handle_embedding_commands(embedding_matches).await;
+        }
+        
         if let Some(session_matches) = matches.subcommand_matches("session") {
             return self.handle_session_commands(session_matches).await;
         }
 
         let message = matches.get_one::<String>("message");
-        let tui_mode = matches.get_flag("tui");
 
         match message {
             Some(msg) => {
@@ -170,18 +382,11 @@ impl CliApp {
                 Ok(())
             }
             None => {
-                if tui_mode {
-                    // TUI mode
-                    if let Err(e) = self.handle_tui(&matches).await {
-                        eprintln!("❌ Error: {}", e);
-                        std::process::exit(1);
-                    }
-                } else {
-                    // Interactive mode
-                    if let Err(e) = self.handle_interactive(&matches).await {
-                        eprintln!("❌ Error: {}", e);
-                        std::process::exit(1);
-                    }
+                // Default to TUI mode (modern CLI pattern)
+                // Only use interactive mode if explicitly disabled
+                if let Err(e) = self.handle_tui(&matches).await {
+                    eprintln!("❌ Error: {}", e);
+                    std::process::exit(1);
                 }
                 Ok(())
             }
@@ -457,5 +662,263 @@ impl CliApp {
         }
 
         Ok(())
+    }
+    
+    async fn handle_config_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
+        match matches.subcommand() {
+            Some(("show", _)) => {
+                let config = ArcherConfig::load()?;
+                println!("{}", toml::to_string_pretty(&config)?);
+            }
+            
+            Some(("get", sub_matches)) => {
+                let key = sub_matches.get_one::<String>("key").unwrap();
+                let config = ArcherConfig::load()?;
+                if let Some(value) = config.get_value(key)? {
+                    println!("{}", value);
+                } else {
+                    eprintln!("❌ Configuration key '{}' not found", key);
+                    std::process::exit(1);
+                }
+            }
+            
+            Some(("set", sub_matches)) => {
+                let key = sub_matches.get_one::<String>("key").unwrap();
+                let value = sub_matches.get_one::<String>("value").unwrap();
+                let mut config = ArcherConfig::load()?;
+                config.set_value(key, value)?;
+                config.save()?;
+                println!("✅ Configuration updated: {} = {}", key, value);
+            }
+            
+            Some(("unset", sub_matches)) => {
+                let key = sub_matches.get_one::<String>("key").unwrap();
+                let mut config = ArcherConfig::load()?;
+                config.unset_value(key)?;
+                config.save()?;
+                println!("✅ Configuration key '{}' removed", key);
+            }
+            
+            Some(("edit", _)) => {
+                let config_path = ArcherConfig::config_file_path()?;
+                let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+                
+                // Ensure config file exists
+                let _config = ArcherConfig::load()?;
+                
+                // Open in editor
+                let output = std::process::Command::new(&editor)
+                    .arg(&config_path)
+                    .status()?;
+                    
+                if output.success() {
+                    println!("✅ Configuration file edited: {}", config_path.display());
+                } else {
+                    eprintln!("❌ Editor exited with error");
+                    std::process::exit(1);
+                }
+            }
+            
+            Some(("reset", _)) => {
+                let config = ArcherConfig::default();
+                config.save()?;
+                println!("✅ Configuration reset to defaults");
+            }
+            
+            Some(("validate", _)) => {
+                match ArcherConfig::load() {
+                    Ok(_) => println!("✅ Configuration is valid"),
+                    Err(e) => {
+                        eprintln!("❌ Configuration validation failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            
+            Some(("path", _)) => {
+                let config_path = ArcherConfig::config_file_path()?;
+                println!("{}", config_path.display());
+            }
+            
+            _ => {
+                eprintln!("❌ Unknown config subcommand");
+                std::process::exit(1);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    async fn handle_search_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
+        use std::path::PathBuf;
+        use crate::commands::search::SearchCommand;
+        
+        let search_command = match matches.subcommand() {
+            Some(("index", sub_matches)) => {
+                let path = sub_matches.get_one::<String>("path")
+                    .map(|s| PathBuf::from(s))
+                    .unwrap_or_else(|| PathBuf::from("."));
+                let force = sub_matches.get_flag("force");
+                SearchCommand::Index { path, force }
+            }
+            
+            Some(("query", sub_matches)) => {
+                let query = sub_matches.get_one::<String>("query").unwrap().clone();
+                let limit = *sub_matches.get_one::<usize>("limit").unwrap();
+                let path = sub_matches.get_one::<String>("path")
+                    .map(|s| PathBuf::from(s))
+                    .unwrap_or_else(|| PathBuf::from("."));
+                SearchCommand::Query { query, limit, path }
+            }
+            
+            Some(("stats", sub_matches)) => {
+                let path = sub_matches.get_one::<String>("path")
+                    .map(|s| PathBuf::from(s))
+                    .unwrap_or_else(|| PathBuf::from("."));
+                SearchCommand::Stats { path }
+            }
+            
+            _ => {
+                eprintln!("❌ Unknown search subcommand");
+                std::process::exit(1);
+            }
+        };
+        
+        let search_args = SearchArgs { command: search_command };
+        handle_search_command(search_args).await
+    }
+    
+    async fn handle_model_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
+        match matches.subcommand() {
+            Some(("current", _)) => {
+                let config = ArcherConfig::load()?;
+                println!("🤖 Current Model Configuration:\n");
+                
+                // Show chat models
+                println!("Chat Models:");
+                if let Some(claude_config) = config.providers.get("claude") {
+                    println!("  Claude: {}", claude_config.default_model);
+                }
+                if let Some(openai_config) = config.providers.get("openai") {
+                    println!("  OpenAI: {}", openai_config.default_model);
+                }
+                if let Some(gemini_config) = config.providers.get("gemini") {
+                    println!("  Gemini: {}", gemini_config.default_model);
+                }
+                if let Some(ollama_config) = config.providers.get("ollama") {
+                    println!("  Ollama: {}", ollama_config.default_model);
+                }
+                
+                // Show embedding model
+                println!("\nEmbedding Model:");
+                println!("  {}: {}", config.embedding.provider, config.embedding.model);
+            }
+            
+            Some(("list", sub_matches)) => {
+                let provider_filter = sub_matches.get_one::<String>("provider");
+                let type_filter = sub_matches.get_one::<String>("type");
+                
+                println!("📋 Available Models:\n");
+                
+                if provider_filter.is_none() || provider_filter == Some(&"claude".to_string()) {
+                    if type_filter.is_none() || type_filter == Some(&"chat".to_string()) {
+                        println!("Claude (Chat):");
+                        println!("  claude-3-5-sonnet-20241022");
+                        println!("  claude-3-5-haiku-20241022");
+                        println!("  claude-3-opus-20240229");
+                        println!();
+                    }
+                }
+                
+                if provider_filter.is_none() || provider_filter == Some(&"ollama".to_string()) {
+                    if type_filter.is_none() || type_filter == Some(&"embedding".to_string()) {
+                        println!("Ollama (Embedding):");
+                        println!("  nomic-embed-text (recommended)");
+                        println!("  mxbai-embed-large");
+                        println!("  all-MiniLM-L6-v2");
+                        println!();
+                    }
+                }
+                
+                println!("💡 Use 'aircher config set providers.<provider>.default_model <model>' to configure");
+            }
+            
+            Some(("test", sub_matches)) => {
+                let provider_filter = sub_matches.get_one::<String>("provider");
+                
+                println!("🧪 Testing model connections...");
+                
+                let _providers = self.get_providers().await?;
+                
+                if provider_filter.is_none() || provider_filter == Some(&"claude".to_string()) {
+                    // For now, just check if the provider exists in config
+                    let config = ArcherConfig::load()?;
+                    if let Some(claude_config) = config.providers.get("claude") {
+                        if claude_config.api_key.is_some() {
+                            println!("  Claude: ✅ API key configured");
+                        } else {
+                            println!("  Claude: ❌ No API key found");
+                        }
+                    } else {
+                        println!("  Claude: ❌ Not configured");
+                    }
+                }
+                
+                println!("\n💡 Check API keys with: aircher config show");
+            }
+            
+            Some(("providers", _)) => {
+                println!("🏭 Available Providers:\n");
+                
+                println!("Chat Providers:");
+                println!("  • Claude (Anthropic) - GPT-4 class models");
+                println!("  • OpenAI - GPT models");
+                println!("  • Gemini (Google) - Gemini models");
+                println!("  • Ollama - Local models");
+                println!("  • OpenRouter - Access to multiple providers");
+                
+                println!("\nEmbedding Providers:");
+                println!("  • Ollama - Local embedding models (recommended)");
+                println!("  • OpenAI - text-embedding-3-small/large");
+                
+                println!("\n⚙️  Configure with: aircher config set providers.<provider>.api_key <key>");
+            }
+            
+            _ => {
+                eprintln!("❌ Unknown model subcommand");
+                std::process::exit(1);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    async fn handle_embedding_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
+        use crate::commands::embedding::EmbeddingCommand;
+        
+        let embedding_command = match matches.subcommand() {
+            Some(("status", _)) => EmbeddingCommand::Status,
+            
+            Some(("setup", sub_matches)) => {
+                let force = sub_matches.get_flag("force");
+                let interactive = sub_matches.get_flag("interactive");
+                EmbeddingCommand::Setup { force, interactive }
+            }
+            
+            Some(("list", _)) => EmbeddingCommand::List,
+            
+            Some(("test", sub_matches)) => {
+                let text = sub_matches.get_one::<String>("text").cloned();
+                EmbeddingCommand::Test { text }
+            }
+            
+            _ => {
+                eprintln!("❌ Unknown embedding subcommand");
+                std::process::exit(1);
+            }
+        };
+        
+        let embedding_args = EmbeddingArgs { command: embedding_command };
+        handle_embedding_command(embedding_args).await
     }
 }

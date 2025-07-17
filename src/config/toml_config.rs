@@ -243,14 +243,16 @@ impl ArcherConfig {
                     .context("Invalid number for search.max_results")?;
             }
             ["providers", provider, "default_model"] => {
-                if let Some(config) = self.providers.get_mut(provider) {
+                let provider_key = provider.to_string();
+                if let Some(config) = self.providers.get_mut(&provider_key) {
                     config.default_model = value.to_string();
                 } else {
                     anyhow::bail!("Unknown provider: {}", provider);
                 }
             }
             ["providers", provider, "api_key"] => {
-                if let Some(config) = self.providers.get_mut(provider) {
+                let provider_key = provider.to_string();
+                if let Some(config) = self.providers.get_mut(&provider_key) {
                     config.api_key = if value.is_empty() { None } else { Some(value.to_string()) };
                 } else {
                     anyhow::bail!("Unknown provider: {}", provider);
@@ -263,30 +265,58 @@ impl ArcherConfig {
     }
 
     /// Get a configuration value as string
-    pub fn get_value(&self, key: &str) -> Result<String> {
+    pub fn get_value(&self, key: &str) -> Result<Option<String>> {
         let parts: Vec<&str> = key.split('.').collect();
         
-        let value = match parts.as_slice() {
-            ["ui", "theme"] => &self.ui.theme,
-            ["ui", "default_interface"] => &self.ui.default_interface,
-            ["embedding", "provider"] => &self.embedding.provider,
-            ["embedding", "model"] => &self.embedding.model,
-            ["search", "max_results"] => return Ok(self.search.max_results.to_string()),
+        match parts.as_slice() {
+            ["ui", "theme"] => Ok(Some(self.ui.theme.clone())),
+            ["ui", "default_interface"] => Ok(Some(self.ui.default_interface.clone())),
+            ["embedding", "provider"] => Ok(Some(self.embedding.provider.clone())),
+            ["embedding", "model"] => Ok(Some(self.embedding.model.clone())),
+            ["search", "max_results"] => Ok(Some(self.search.max_results.to_string())),
             ["providers", provider, "default_model"] => {
-                self.providers.get(provider)
-                    .map(|c| &c.default_model)
-                    .context("Unknown provider")?
+                Ok(self.providers.get(*provider)
+                    .map(|c| c.default_model.clone()))
             }
             ["providers", provider, "api_key"] => {
-                return Ok(self.providers.get(provider)
-                    .and_then(|c| c.api_key.as_ref())
-                    .unwrap_or(&"<not set>".to_string())
-                    .clone());
+                Ok(self.providers.get(*provider)
+                    .and_then(|c| c.api_key.clone()))
             }
             _ => anyhow::bail!("Unknown config key: {}", key),
-        };
+        }
+    }
+    
+    /// Remove configuration value by dot-notation key
+    pub fn unset_value(&mut self, key: &str) -> Result<()> {
+        let parts: Vec<&str> = key.split('.').collect();
         
-        Ok(value.clone())
+        match parts.as_slice() {
+            ["ui", "theme"] => self.ui.theme = "dark".to_string(),
+            ["ui", "default_interface"] => self.ui.default_interface = "tui".to_string(),
+            ["embedding", "provider"] => self.embedding.provider = "ollama".to_string(),
+            ["embedding", "model"] => self.embedding.model = "nomic-embed-text".to_string(),
+            ["providers", provider, "api_key"] => {
+                let provider_key = provider.to_string();
+                if let Some(config) = self.providers.get_mut(&provider_key) {
+                    config.api_key = None;
+                }
+            }
+            ["providers", provider, "default_model"] => {
+                let provider_key = provider.to_string();
+                if let Some(config) = self.providers.get_mut(&provider_key) {
+                    config.default_model = match *provider {
+                        "claude" => "claude-3-5-sonnet-20241022".to_string(),
+                        "openai" => "gpt-4".to_string(),
+                        "gemini" => "gemini-pro".to_string(),
+                        "ollama" => "llama3.3".to_string(),
+                        _ => "default".to_string(),
+                    };
+                }
+            }
+            _ => anyhow::bail!("Cannot unset unknown config key: {}", key),
+        }
+        
+        Ok(())
     }
 
     /// Create default model config file if it doesn't exist
