@@ -15,7 +15,7 @@ aircher
 aircher search query "error handling patterns"    # Finds conceptually similar code
 aircher search query "database connection logic"  # Works across languages
 aircher search index                              # Index current directory
-aircher embedding setup                           # Configure embedding models
+aircher model current                             # Show configured models
 
 # One-shot conversations with project context
 aircher "How do I refactor this function?"
@@ -37,6 +37,11 @@ aircher --provider gemini "What's the current development focus?"
 aircher --provider openai "Help me implement this feature"
 aircher --provider openrouter "Find the best model for code review"
 aircher --provider ollama "Local model for privacy-focused development"
+
+# Configuration management (NEW!)
+aircher config show                     # Show current configuration
+aircher config set ui.theme dark        # Update settings
+aircher config set providers.claude.api_key sk-xxx
 
 # Session management
 aircher session list                    # List all sessions
@@ -96,67 +101,75 @@ cd aircher
 cargo build --release
 ```
 
-### 2. Set API Keys
+### 2. Configure API Keys
 ```bash
-# For Claude (required for default provider)
+# Option 1: Environment variables (quick start)
 export ANTHROPIC_API_KEY=your_key_here
+export OPENAI_API_KEY=your_key_here        # Optional
+export GOOGLE_API_KEY=your_key_here        # Optional
 
-# For Gemini (optional)
-export GOOGLE_API_KEY=your_key_here
+# Option 2: Configuration file (recommended)
+aircher config set providers.claude.api_key sk-xxx
+aircher config set providers.openai.api_key sk-xxx
+aircher config set providers.gemini.api_key your_key
 
-# For OpenAI (optional)
-export OPENAI_API_KEY=your_key_here
-
-# For OpenRouter (optional)
-export OPENROUTER_API_KEY=your_key_here
-
-# For Ollama (optional) - requires Ollama running locally or via Tailscale
-# No API key needed - configure base URL in config if not using localhost:11434
+# For Ollama (local models) - no API key needed
+# Just ensure Ollama is running: ollama serve
 ```
 
-### 3. Start Chatting!
+### 3. Start Using Aircher!
 ```bash
+# Launch TUI (primary interface)
+./target/release/aircher
+
+# Or quick one-shot chat
 ./target/release/aircher "Hello, how are you?"
+
+# Check configuration
+./target/release/aircher config show
 ```
 
-## 💡 Current Examples
+## 💡 Usage Examples
 
 ```bash
-# Basic chat
+# Primary interface - Rich TUI
+aircher                          # Interactive terminal UI
+
+# Quick one-shot queries  
 aircher "Explain Rust ownership"
+aircher "Find error handling patterns in this codebase"
 
-# Interactive mode
-aircher
-> hello world
-🤖 Hello! How can I help you today?
-> explain rust ownership
-🤖 Rust ownership is a memory management system...
-> /quit
-
-# TUI mode
-aircher --tui
-# Opens rich terminal interface with real-time chat
-
-# Different providers
+# Provider and model selection
 aircher --provider gemini "Write a Python function"
-aircher --provider openai "Help me debug this error"
-aircher --provider openrouter "Find the cheapest model for my task"
-aircher --provider ollama "Local model for privacy and zero costs"
+aircher --provider ollama "Local model for privacy"
+aircher --model gpt-4 "Help me debug this error"
 
-# Specific models
-aircher --model claude-3-5-sonnet-20241022 "Write documentation"
+# Semantic code search
+aircher search index             # Index your codebase
+aircher search query "database connection logic"
+
+# Configuration management
+aircher config show             # View current settings
+aircher config set ui.theme light
+aircher config set providers.claude.api_key sk-xxx
+
+# Session management  
+aircher session list
+aircher session export 123 --format markdown
 
 # Get help
 aircher --help
+aircher search --help
+aircher config --help
 ```
 
 ## 🏗️ Architecture
 
 **Pure Rust single binary** with:
+- **TUI-first design** - Rich terminal interface as primary mode
 - **Provider abstraction** - Unified interface for Claude, Gemini, OpenAI, OpenRouter, Ollama
-- **Async architecture** - Tokio runtime with streaming support  
-- **Clean error handling** - User-friendly messages, no panic traces
-- **Lazy loading** - Providers initialized only when needed
+- **Semantic code search** - AI-powered understanding beyond text matching
+- **TOML configuration** - Cross-platform config files in standard locations
 - **Project-aware intelligence** - Local `.aircher/` directory with:
   - `AGENT.md` - AI assistant configuration and project context
   - `sessions/` - SQLite database for conversation persistence
@@ -185,7 +198,7 @@ aircher search query "database connection logic"
 aircher search query "authentication code"
 
 # Quick setup
-aircher embedding setup        # Auto-configures best available model
+aircher model current          # Check configured models
 aircher search index          # Index your codebase
 # Now you have semantic superpowers!
 
