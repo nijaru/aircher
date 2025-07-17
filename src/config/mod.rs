@@ -8,6 +8,9 @@ use tracing::{debug, info};
 
 use crate::cost::CostConfig;
 
+pub mod toml_config;
+pub use toml_config::ArcherConfig;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigManager {
     pub global: GlobalConfig,
