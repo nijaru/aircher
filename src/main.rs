@@ -5,6 +5,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 mod app;
 mod cli;
 mod config;
+mod context;
+mod cost;
 mod intelligence;
 mod project;
 mod providers;
