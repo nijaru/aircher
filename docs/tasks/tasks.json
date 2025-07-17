@@ -32,7 +32,7 @@
       "phase_2_providers": 100,
       "phase_3_intelligence": 100,
       "phase_4_advanced_features": 100,
-      "phase_5_semantic_search": 85
+      "phase_5_semantic_search": 95
     },
     "quality_targets": {
       "test_coverage_goal": 80,
@@ -609,6 +609,36 @@
       ],
       "estimated_effort": "large",
       "notes": "✅ Complete semantic search implementation\\n✅ Find code by concept: 'error handling patterns', 'database connection logic'\\n✅ Cross-language semantic similarity detection\\n✅ Intelligent code chunking with function/class detection\\n✅ CLI commands for indexing and querying\\n✅ Context lines and search result ranking\\n✅ Fallback to text search when embeddings fail"
+    },
+    "CLI-INTEGRATION": {
+      "id": "CLI-INTEGRATION",
+      "title": "Complete CLI Integration and TOML Configuration",
+      "status": "completed",
+      "priority": "high",
+      "description": "Integrate all subcommands into unified CLI parser with TUI-first design",
+      "files": [
+        "src/cli/mod.rs",
+        "src/main.rs",
+        "src/config/toml_config.rs",
+        "docs/CLI_REFERENCE.md",
+        "docs/ZED_AUTOCOMPLETE_PLAN.md"
+      ],
+      "acceptance_criteria": [
+        "TUI-first behavior: 'aircher' launches TUI by default",
+        "Complete config subcommand: show, get, set, edit, validate",
+        "Search subcommand integration: index, query, stats",
+        "Model subcommand: current, list, test, providers",
+        "Session subcommand: list, new, export, load",
+        "TOML configuration system with cross-platform support",
+        "Help system with comprehensive documentation",
+        "One-shot mode: aircher 'message' for quick queries"
+      ],
+      "dependencies": [
+        "EMBEDDING-002",
+        "TUI-INTEGRATION"
+      ],
+      "estimated_effort": "large",
+      "notes": "✅ Complete CLI integration with all planned subcommands\\n✅ TUI-first behavior following modern CLI patterns\\n✅ Comprehensive TOML configuration management\\n✅ All subcommands fully functional and documented\\n✅ Cross-platform config file support\\n✅ Help system and CLI reference documentation\\n✅ Zed-style autocomplete plan documented for future implementation"
     },
     "EMBEDDING-003": {
       "id": "EMBEDDING-003",

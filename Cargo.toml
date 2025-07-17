@@ -44,8 +44,7 @@ tree-sitter = "0.24"
 # Token counting
 tiktoken-rs = "0.6"
 
-# Configuration
-toml = "0.8"
+# Configuration already included above
 
 # Logging
 tracing = "0.1"

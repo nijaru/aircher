@@ -38,10 +38,12 @@ aircher --provider openai "Help me implement this feature"
 aircher --provider openrouter "Find the best model for code review"
 aircher --provider ollama "Local model for privacy-focused development"
 
-# Configuration management (NEW!)
+# Configuration management 
 aircher config show                     # Show current configuration
 aircher config set ui.theme dark        # Update settings
 aircher config set providers.claude.api_key sk-xxx
+aircher config get ui.theme             # Get specific values
+aircher config edit                     # Open config in $EDITOR
 
 # Session management
 aircher session list                    # List all sessions
@@ -183,7 +185,7 @@ aircher config --help
 - **Phase 2: Providers** - 100% complete (Claude, Gemini, OpenAI, OpenRouter, Ollama)
 - **Phase 3: Intelligence** - 100% complete (SPRINT-004 ✅, SPRINT-005 ✅, SPRINT-006 ✅)
 - **Phase 4: Advanced Features** - 100% complete (Session management ✅, File monitoring ✅, TUI Integration ✅, Testing Framework ✅)
-- **Phase 5: Semantic Search** - 85% complete (Ollama integration ✅, Semantic search ✅, Embedding management ✅)
+- **Phase 5: Semantic Search** - 95% complete (Ollama integration ✅, Semantic search ✅, Embedding management ✅, CLI integration ✅)
 
 **Next**: SweRankEmbed-Small integration for embedded model support
 
