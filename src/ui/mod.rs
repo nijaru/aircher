@@ -30,10 +30,12 @@ pub mod components;
 pub mod selection;
 pub mod settings;
 pub mod help;
+pub mod autocomplete;
 
 use selection::SelectionModal;
 use settings::SettingsModal;
 use help::HelpModal;
+use autocomplete::AutocompleteEngine;
 
 pub struct TuiManager {
     config: ConfigManager,
@@ -41,6 +43,7 @@ pub struct TuiManager {
     model: String,
     messages: Vec<Message>,
     input: String,
+    cursor_position: usize,
     scroll_offset: u16,
     session_cost: f64,
     session_tokens: u32,
@@ -54,6 +57,8 @@ pub struct TuiManager {
     selection_modal: SelectionModal,
     settings_modal: SettingsModal,
     help_modal: HelpModal,
+    // Autocomplete
+    autocomplete: AutocompleteEngine,
     // State
     budget_warning_shown: bool,
     cost_warnings: Vec<String>,
@@ -124,6 +129,7 @@ impl TuiManager {
             model: config.global.default_model.clone(),
             messages,
             input: String::new(),
+            cursor_position: 0,
             scroll_offset: 0,
             session_cost: current_session.total_cost,
             session_tokens: current_session.total_tokens,
@@ -137,6 +143,8 @@ impl TuiManager {
             selection_modal: SelectionModal::new(providers, config),
             settings_modal: SettingsModal::new(config),
             help_modal: HelpModal::new(),
+            // Initialize autocomplete
+            autocomplete: AutocompleteEngine::new(),
             // Initialize state
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
@@ -185,9 +193,16 @@ impl TuiManager {
                                 self.selection_modal.toggle();
                             }
                             KeyCode::Enter => {
-                                if !self.input.is_empty() {
+                                // Check if autocomplete is visible and accept suggestion
+                                if self.autocomplete.is_visible() {
+                                    if let Some(completion) = self.autocomplete.accept_suggestion() {
+                                        self.input = completion;
+                                        self.cursor_position = self.input.len();
+                                    }
+                                } else if !self.input.is_empty() {
                                     let message = self.input.clone();
                                     self.input.clear();
+                                    self.cursor_position = 0;
 
                                     // Check budget before sending
                                     if self.check_budget_limits(providers).await? {
@@ -204,19 +219,64 @@ impl TuiManager {
                                     }
                                 }
                             }
+                            KeyCode::Char(' ') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Ctrl+Space to manually trigger autocomplete
+                                let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
+                                if self.autocomplete.has_suggestions() {
+                                    self.autocomplete.show();
+                                }
+                            }
                             KeyCode::Char(c) => {
-                                self.input.push(c);
+                                // Insert character at cursor position
+                                self.input.insert(self.cursor_position, c);
+                                self.cursor_position += 1;
+                                
+                                // Generate autocomplete suggestions
+                                let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
                             }
                             KeyCode::Backspace => {
-                                self.input.pop();
+                                if self.cursor_position > 0 {
+                                    self.input.remove(self.cursor_position - 1);
+                                    self.cursor_position -= 1;
+                                    
+                                    // Update autocomplete suggestions
+                                    if self.input.is_empty() {
+                                        self.autocomplete.hide();
+                                    } else {
+                                        let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
+                                    }
+                                }
                             }
                             KeyCode::Up => {
-                                if self.scroll_offset > 0 {
+                                if self.autocomplete.is_visible() {
+                                    self.autocomplete.move_selection_up();
+                                } else if self.scroll_offset > 0 {
                                     self.scroll_offset -= 1;
                                 }
                             }
                             KeyCode::Down => {
-                                self.scroll_offset += 1;
+                                if self.autocomplete.is_visible() {
+                                    self.autocomplete.move_selection_down();
+                                } else {
+                                    self.scroll_offset += 1;
+                                }
+                            }
+                            KeyCode::Left => {
+                                if self.cursor_position > 0 {
+                                    self.cursor_position -= 1;
+                                    self.autocomplete.hide();
+                                }
+                            }
+                            KeyCode::Right => {
+                                if self.cursor_position < self.input.len() {
+                                    self.cursor_position += 1;
+                                    self.autocomplete.hide();
+                                }
+                            }
+                            KeyCode::Esc => {
+                                if self.autocomplete.is_visible() {
+                                    self.autocomplete.hide();
+                                }
                             }
                             _ => {}
                         }
@@ -272,6 +332,11 @@ impl TuiManager {
         // Status bar
         self.draw_status_bar(f, chunks[3]);
 
+        // Render autocomplete suggestions (above input box)
+        if self.autocomplete.is_visible() {
+            self.autocomplete.render(f, chunks[2]);
+        }
+
         // Render modals (on top of everything)
         self.selection_modal.render(f, f.area());
         self.settings_modal.render(f, f.area());
@@ -311,9 +376,30 @@ impl TuiManager {
     }
 
     fn draw_input_box(&self, f: &mut Frame, area: Rect) {
-        let input = Paragraph::new(self.input.as_str())
-            .style(Style::default().fg(Color::Yellow))
-            .block(Block::default().borders(Borders::ALL).title("Message"));
+        // Create input display with cursor and preview
+        let mut input_display = self.input.clone();
+        
+        // Add inline preview if available
+        if let Some(preview) = self.autocomplete.get_inline_preview() {
+            input_display.push_str(&preview);
+        }
+        
+        // Create title with autocomplete hint
+        let title = if self.autocomplete.is_visible() {
+            "Message (↑↓ navigate, Enter accept, Esc cancel)"
+        } else {
+            "Message (Ctrl+Space for suggestions)"
+        };
+        
+        let input_style = if self.autocomplete.is_visible() {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::Yellow)
+        };
+        
+        let input = Paragraph::new(input_display.as_str())
+            .style(input_style)
+            .block(Block::default().borders(Borders::ALL).title(title));
         f.render_widget(input, area);
     }
 

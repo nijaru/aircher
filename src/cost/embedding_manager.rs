@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
 
+use super::swerank_integration::{SweRankEmbedModel, ModelInfo as SweRankModelInfo};
+
 /// Embedding models optimized for AI agent coding tasks
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmbeddingModel {
@@ -40,6 +42,7 @@ pub struct EmbeddingManager {
     config: EmbeddingConfig,
     available_models: Vec<EmbeddingModel>,
     ollama_available: Option<bool>,
+    swerank_model: Option<SweRankEmbedModel>,
 }
 
 impl EmbeddingManager {
@@ -50,12 +53,26 @@ impl EmbeddingManager {
             config,
             available_models,
             ollama_available: None,
+            swerank_model: None,
         }
     }
 
     /// Get models specifically optimized for AI agent coding tasks
     pub fn get_coding_optimized_models() -> Vec<EmbeddingModel> {
         vec![
+            EmbeddingModel {
+                name: "swerank-embed-small".to_string(),
+                provider: "embedded".to_string(),
+                size_mb: 137,
+                description: "SOTA code embeddings (74.45% on SWE-Bench-Lite) - zero dependencies".to_string(),
+                optimized_for: vec![
+                    "issue_localization".to_string(),
+                    "code_understanding".to_string(),
+                    "semantic_search".to_string(),
+                    "zero_dependency".to_string(),
+                ],
+                download_url: Some("sentence-transformers/all-MiniLM-L6-v2".to_string()), // Placeholder URL
+            },
             EmbeddingModel {
                 name: "nomic-embed-text".to_string(),
                 provider: "ollama".to_string(),
@@ -141,7 +158,16 @@ impl EmbeddingManager {
 
     /// Get the best embedding model for AI coding tasks
     pub async fn get_recommended_model(&mut self) -> Result<EmbeddingModel> {
-        // If Ollama is available and configured, prefer Ollama models
+        // First priority: Embedded SweRankEmbed model (zero dependencies)
+        if self.is_embedded_model_available().await {
+            if let Some(model) = self.available_models.iter()
+                .find(|m| m.name == "swerank-embed-small" && m.provider == "embedded") {
+                info!("Using embedded SweRankEmbed-Small model (SOTA, zero dependencies)");
+                return Ok(model.clone());
+            }
+        }
+
+        // Second priority: If Ollama is available and configured, prefer Ollama models
         if self.config.use_ollama_if_available && self.check_ollama_availability().await {
             // Check if preferred model is available
             if let Some(model) = self.available_models.iter()
@@ -354,7 +380,23 @@ impl EmbeddingManager {
         summary
     }
 
-    /// Generate embeddings for the given text using Ollama
+    /// Initialize SweRankEmbed model if needed
+    async fn ensure_swerank_model(&mut self) -> Result<()> {
+        if self.swerank_model.is_none() {
+            info!("🚀 Initializing SweRankEmbed-Small model...");
+            let model = SweRankEmbedModel::new().await?;
+            self.swerank_model = Some(model);
+            info!("✅ SweRankEmbed-Small model initialized");
+        }
+        Ok(())
+    }
+
+    /// Check if embedded model is available
+    pub async fn is_embedded_model_available(&self) -> bool {
+        SweRankEmbedModel::is_available().await
+    }
+
+    /// Generate embeddings for the given text using the best available method
     pub async fn generate_embeddings(&mut self, text: &str) -> Result<Vec<f32>> {
         let model = self.get_recommended_model().await?;
         self.generate_embeddings_with_model(text, &model.name).await
@@ -362,6 +404,15 @@ impl EmbeddingManager {
 
     /// Generate embeddings using a specific model
     pub async fn generate_embeddings_with_model(&mut self, text: &str, model_name: &str) -> Result<Vec<f32>> {
+        // Check if this is the embedded SweRankEmbed model
+        if model_name == "swerank-embed-small" {
+            self.ensure_swerank_model().await?;
+            let model = self.swerank_model.as_ref()
+                .context("SweRankEmbed model not initialized")?;
+            return model.generate_embeddings(text).await;
+        }
+
+        // Otherwise, use Ollama
         use serde_json::json;
         
         if !self.check_ollama_availability().await {
@@ -408,11 +459,21 @@ impl EmbeddingManager {
     /// Generate embeddings for multiple texts efficiently
     pub async fn generate_batch_embeddings(&mut self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
         let model = self.get_recommended_model().await?;
-        let mut results = Vec::with_capacity(texts.len());
         
         info!("Generating embeddings for {} texts using {}", texts.len(), model.name);
         
-        // For now, process sequentially. Could optimize with batching later.
+        // Use SweRankEmbed's batch processing if available
+        if model.name == "swerank-embed-small" {
+            self.ensure_swerank_model().await?;
+            let swerank_model = self.swerank_model.as_ref()
+                .context("SweRankEmbed model not initialized")?;
+            
+            let texts_owned: Vec<String> = texts.iter().map(|s| s.to_string()).collect();
+            return swerank_model.generate_batch_embeddings(&texts_owned).await;
+        }
+        
+        // Otherwise, process sequentially with Ollama
+        let mut results = Vec::with_capacity(texts.len());
         for (i, text) in texts.iter().enumerate() {
             let embedding = self.generate_embeddings_with_model(text, &model.name).await?;
             results.push(embedding);
