@@ -1,17 +1,34 @@
 use anyhow::Result;
-use faiss::{Index, index::flat::FlatIndex, MetricType};
-// use std::convert::TryInto; // TODO: May be needed for future type conversions
+use instant_distance::{Builder, Point, Search};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use tokio::fs;
 use tracing::{info, warn};
 
-/// High-performance vector search using FAISS
+// Wrapper type to implement Point trait (orphan rule workaround)
+#[derive(Debug, Clone)]
+pub struct EmbeddingVector(pub Vec<f32>);
+
+impl Point for EmbeddingVector {
+    fn distance(&self, other: &Self) -> f32 {
+        // Cosine distance calculation
+        let dot_product: f32 = self.0.iter().zip(other.0.iter()).map(|(a, b)| a * b).sum();
+        let norm_a: f32 = self.0.iter().map(|a| a * a).sum::<f32>().sqrt();
+        let norm_b: f32 = other.0.iter().map(|b| b * b).sum::<f32>().sqrt();
+        
+        if norm_a == 0.0 || norm_b == 0.0 {
+            1.0 // Maximum distance for zero vectors
+        } else {
+            1.0 - (dot_product / (norm_a * norm_b))
+        }
+    }
+}
+
+/// High-performance vector search using instant-distance
 pub struct VectorSearchEngine {
-    index: Option<Arc<Mutex<dyn Index>>>,
+    index: Option<instant_distance::HnswMap<EmbeddingVector, usize>>,
     dimension: usize,
     storage_path: PathBuf,
-    embeddings: Vec<Vec<f32>>,
+    embeddings: Vec<EmbeddingVector>,
     metadata: Vec<ChunkMetadata>,
 }
 
@@ -62,66 +79,61 @@ impl VectorSearchEngine {
                 self.dimension, embedding.len()));
         }
         
-        self.embeddings.push(embedding);
+        self.embeddings.push(EmbeddingVector(embedding));
         self.metadata.push(metadata);
         
         Ok(())
     }
 
-    /// Build the FAISS index from accumulated embeddings
+    /// Build the HNSW index from accumulated embeddings
     pub fn build_index(&mut self) -> Result<()> {
         if self.embeddings.is_empty() {
             return Err(anyhow::anyhow!("No embeddings to index"));
         }
 
-        info!("Building FAISS index with {} embeddings", self.embeddings.len());
+        info!("Building HNSW index with {} embeddings", self.embeddings.len());
         
-        // Create inner product index (cosine similarity)
-        let mut index = FlatIndex::new(self.dimension as u32, MetricType::InnerProduct)?;
+        // Create points for instant-distance - just the embeddings
+        let points: Vec<EmbeddingVector> = self.embeddings.clone();
         
-        // Prepare data for FAISS (flatten vectors)
-        let mut vectors: Vec<f32> = Vec::new();
-        for embedding in &self.embeddings {
-            vectors.extend_from_slice(embedding);
-        }
+        // Create values (indices) for mapping back to metadata
+        let values: Vec<usize> = (0..self.embeddings.len()).collect();
 
-        // Add vectors to index
-        index.add(&vectors)?;
+        // Build HNSW index
+        let index = Builder::default().build(points, values);
         
-        self.index = Some(Arc::new(Mutex::new(index)));
+        self.index = Some(index);
         
-        info!("FAISS index built successfully");
+        info!("HNSW index built successfully");
         Ok(())
     }
 
     /// Search for similar vectors
     pub fn search(&self, query_embedding: &[f32], k: usize) -> Result<Vec<SearchResult>> {
-        let index_arc = self.index.as_ref()
+        let index = self.index.as_ref()
             .ok_or_else(|| anyhow::anyhow!("Index not built. Call build_index() first"))?;
 
         if query_embedding.len() != self.dimension {
             return Err(anyhow::anyhow!("Query embedding dimension mismatch"));
         }
 
-        // Search using FAISS
-        let mut index = index_arc.lock().map_err(|_| anyhow::anyhow!("Failed to lock index"))?;
-        let search_result = index.search(query_embedding, k)?;
-        let distances = search_result.distances;
-        let indices = search_result.labels;
+        // Search using instant-distance
+        let mut search = Search::default();
+        let query_vector = EmbeddingVector(query_embedding.to_vec());
+        let search_results = index.search(&query_vector, &mut search);
         
         let mut results = Vec::new();
-        for (i, idx) in indices.iter().enumerate() {
-            // Use unsafe transmute to convert Idx to usize
-            // This is needed because FAISS uses a custom Idx type
-            let idx_usize: usize = unsafe { std::mem::transmute(*idx) };
+        for result in search_results.take(k) {
+            let idx = *result.value;
             
-            if idx_usize >= self.metadata.len() {
-                warn!("Index out of bounds from FAISS: {}", idx_usize);
+            if idx >= self.metadata.len() {
+                warn!("Index out of bounds from HNSW: {}", idx);
                 continue;
             }
             
-            let metadata = &self.metadata[idx_usize];
-            let similarity = distances[i];
+            let metadata = &self.metadata[idx];
+            // Convert distance to similarity (lower distance = higher similarity)
+            let similarity = 1.0 / (1.0 + result.distance);
             
             results.push(SearchResult {
                 file_path: metadata.file_path.clone(),
@@ -133,7 +145,7 @@ impl VectorSearchEngine {
             });
         }
 
-        // Sort by similarity (higher is better for inner product)
+        // Sort by similarity (higher is better)
         results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score)
             .unwrap_or(std::cmp::Ordering::Equal));
 
@@ -142,8 +154,8 @@ impl VectorSearchEngine {
 
     /// Save index to disk
     pub async fn save_index(&self) -> Result<()> {
-        // TODO: Implement FAISS index saving once we figure out the correct API
-        warn!("FAISS index saving not yet implemented");
+        // TODO: Implement HNSW index saving (instant-distance doesn't have built-in serialization yet)
+        warn!("HNSW index saving not yet implemented");
         
         // For now, just save metadata
         let metadata_path = self.storage_path.with_extension("metadata.json");
@@ -170,8 +182,8 @@ impl VectorSearchEngine {
         let metadata_content = fs::read_to_string(&metadata_path).await?;
         self.metadata = serde_json::from_str(&metadata_content)?;
 
-        // TODO: Implement FAISS index loading once we figure out the correct API
-        warn!("FAISS index loading not yet implemented - index will need to be rebuilt");
+        // TODO: Implement HNSW index loading (instant-distance doesn't have built-in serialization yet)
+        warn!("HNSW index loading not yet implemented - index will need to be rebuilt");
         
         info!("Metadata loaded from: {}", metadata_path.display());
         Ok(())

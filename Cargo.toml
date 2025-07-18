@@ -65,7 +65,7 @@ futures = "0.3"
 tokio-util = { version = "0.7", features = ["codec", "io"] }
 
 # Vector search and ML
-faiss = "0.12"
+instant-distance = "0.6"
 rayon = "1.10"
 
 # Code parsing for better chunking
@@ -120,6 +120,9 @@ sha2 = "0.10"
 
 # Streaming iterator for tree-sitter
 streaming-iterator = "0.1"
+
+# Random number generation for HNSW
+rand = "0.8"
 
 [dev-dependencies]
 tempfile = "3.0"
