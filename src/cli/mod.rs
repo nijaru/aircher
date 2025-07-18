@@ -7,6 +7,7 @@ use toml;
 use crate::commands::search::{SearchArgs, handle_search_command};
 use crate::commands::embedding::{EmbeddingArgs, handle_embedding_command};
 use crate::commands::model::{ModelArgs, ModelCommand, TaskTypeArg, handle_model_command};
+use crate::commands::config::{ConfigArgs, ConfigCommand, handle_config_command};
 use crate::config::{ConfigManager, toml_config::ArcherConfig};
 use crate::providers::{ChatRequest, Message, ProviderManager};
 use crate::sessions::{SessionFilter, ExportFormat, SessionManager, MessageRole};
@@ -92,14 +93,14 @@ impl CliApp {
                     .about("Configuration management")
                     .subcommand(
                         Command::new("show")
-                            .about("Show all configuration")
+                            .about("Show current configuration")
                     )
                     .subcommand(
                         Command::new("get")
                             .about("Get specific configuration value")
                             .arg(
                                 Arg::new("key")
-                                    .help("Configuration key")
+                                    .help("Configuration key in dot notation")
                                     .required(true)
                                     .index(1),
                             )
@@ -109,7 +110,7 @@ impl CliApp {
                             .about("Set configuration value")
                             .arg(
                                 Arg::new("key")
-                                    .help("Configuration key")
+                                    .help("Configuration key in dot notation")
                                     .required(true)
                                     .index(1),
                             )
@@ -119,32 +120,42 @@ impl CliApp {
                                     .required(true)
                                     .index(2),
                             )
+                            .arg(
+                                Arg::new("local")
+                                    .long("local")
+                                    .help("Save to local config instead of global")
+                                    .action(clap::ArgAction::SetTrue)
+                            )
                     )
                     .subcommand(
-                        Command::new("unset")
-                            .about("Remove configuration value")
+                        Command::new("status")
+                            .about("Show configuration hierarchy status")
+                    )
+                    .subcommand(
+                        Command::new("init")
+                            .about("Create a sample configuration file")
                             .arg(
-                                Arg::new("key")
-                                    .help("Configuration key")
-                                    .required(true)
-                                    .index(1),
+                                Arg::new("local")
+                                    .long("local")
+                                    .help("Create local config instead of global")
+                                    .action(clap::ArgAction::SetTrue)
+                            )
+                            .arg(
+                                Arg::new("force")
+                                    .long("force")
+                                    .help("Force overwrite existing config")
+                                    .action(clap::ArgAction::SetTrue)
                             )
                     )
                     .subcommand(
                         Command::new("edit")
-                            .about("Open config file in $EDITOR")
-                    )
-                    .subcommand(
-                        Command::new("reset")
-                            .about("Reset to default configuration")
-                    )
-                    .subcommand(
-                        Command::new("validate")
-                            .about("Check configuration validity")
-                    )
-                    .subcommand(
-                        Command::new("path")
-                            .about("Show config file path")
+                            .about("Edit configuration file in $EDITOR")
+                            .arg(
+                                Arg::new("local")
+                                    .long("local")
+                                    .help("Edit local config instead of global")
+                                    .action(clap::ArgAction::SetTrue)
+                            )
                     )
             )
             .subcommand(
@@ -738,88 +749,43 @@ impl CliApp {
     }
     
     async fn handle_config_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
-        match matches.subcommand() {
-            Some(("show", _)) => {
-                let config = ArcherConfig::load()?;
-                println!("{}", toml::to_string_pretty(&config)?);
-            }
-            
-            Some(("get", sub_matches)) => {
-                let key = sub_matches.get_one::<String>("key").unwrap();
-                let config = ArcherConfig::load()?;
-                if let Some(value) = config.get_value(key)? {
-                    println!("{}", value);
-                } else {
-                    eprintln!("❌ Configuration key '{}' not found", key);
-                    std::process::exit(1);
-                }
-            }
-            
-            Some(("set", sub_matches)) => {
-                let key = sub_matches.get_one::<String>("key").unwrap();
-                let value = sub_matches.get_one::<String>("value").unwrap();
-                let mut config = ArcherConfig::load()?;
-                config.set_value(key, value)?;
-                config.save()?;
-                println!("✅ Configuration updated: {} = {}", key, value);
-            }
-            
-            Some(("unset", sub_matches)) => {
-                let key = sub_matches.get_one::<String>("key").unwrap();
-                let mut config = ArcherConfig::load()?;
-                config.unset_value(key)?;
-                config.save()?;
-                println!("✅ Configuration key '{}' removed", key);
-            }
-            
-            Some(("edit", _)) => {
-                let config_path = ArcherConfig::config_file_path()?;
-                let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-                
-                // Ensure config file exists
-                let _config = ArcherConfig::load()?;
-                
-                // Open in editor
-                let output = std::process::Command::new(&editor)
-                    .arg(&config_path)
-                    .status()?;
-                    
-                if output.success() {
-                    println!("✅ Configuration file edited: {}", config_path.display());
-                } else {
-                    eprintln!("❌ Editor exited with error");
-                    std::process::exit(1);
-                }
-            }
-            
-            Some(("reset", _)) => {
-                let config = ArcherConfig::default();
-                config.save()?;
-                println!("✅ Configuration reset to defaults");
-            }
-            
-            Some(("validate", _)) => {
-                match ArcherConfig::load() {
-                    Ok(_) => println!("✅ Configuration is valid"),
-                    Err(e) => {
-                        eprintln!("❌ Configuration validation failed: {}", e);
-                        std::process::exit(1);
-                    }
-                }
-            }
-            
-            Some(("path", _)) => {
-                let config_path = ArcherConfig::config_file_path()?;
-                println!("{}", config_path.display());
-            }
-            
+        let config_args = match matches.subcommand() {
+            Some(("show", _)) => ConfigArgs {
+                command: ConfigCommand::Show,
+            },
+            Some(("get", sub_matches)) => ConfigArgs {
+                command: ConfigCommand::Get {
+                    key: sub_matches.get_one::<String>("key").unwrap().clone(),
+                },
+            },
+            Some(("set", sub_matches)) => ConfigArgs {
+                command: ConfigCommand::Set {
+                    key: sub_matches.get_one::<String>("key").unwrap().clone(),
+                    value: sub_matches.get_one::<String>("value").unwrap().clone(),
+                    local: sub_matches.get_flag("local"),
+                },
+            },
+            Some(("status", _)) => ConfigArgs {
+                command: ConfigCommand::Status,
+            },
+            Some(("init", sub_matches)) => ConfigArgs {
+                command: ConfigCommand::Init {
+                    local: sub_matches.get_flag("local"),
+                    force: sub_matches.get_flag("force"),
+                },
+            },
+            Some(("edit", sub_matches)) => ConfigArgs {
+                command: ConfigCommand::Edit {
+                    local: sub_matches.get_flag("local"),
+                },
+            },
             _ => {
-                eprintln!("❌ Unknown config subcommand");
+                eprintln!("❌ Unknown config command");
                 std::process::exit(1);
             }
-        }
-        
-        Ok(())
+        };
+
+        handle_config_command(config_args, &mut self.config).await
     }
     
     async fn handle_search_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
