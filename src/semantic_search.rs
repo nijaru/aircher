@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 use dirs::cache_dir;
 // use rayon::prelude::*; // TODO: Re-enable when parallel processing is needed
 

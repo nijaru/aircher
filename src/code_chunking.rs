@@ -56,7 +56,7 @@ pub enum ChunkType {
 impl CodeChunker {
     /// Create new code chunker
     pub fn new() -> Result<Self> {
-        let mut parser = Parser::new();
+        let parser = Parser::new();
         
         // Load language queries
         let language_queries = LanguageQueries::new()?;
