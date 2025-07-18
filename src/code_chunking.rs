@@ -1,7 +1,9 @@
 use anyhow::Result;
 use std::path::Path;
-use tree_sitter::{Language, Parser, Query, QueryCursor, Node, Tree};
-use tracing::{debug, warn};
+// use tree_sitter::Language; // TODO: May be needed for future language additions
+use tree_sitter::{Parser, Query, QueryCursor, Node, Tree};
+use tracing::warn;
+use streaming_iterator::StreamingIterator;
 
 /// Advanced code chunking using tree-sitter for semantic boundaries
 pub struct CodeChunker {
@@ -71,38 +73,49 @@ impl CodeChunker {
             .and_then(|e| e.to_str())
             .unwrap_or("");
 
-        // For now, use generic chunking for all languages until tree-sitter is fixed
-        self.chunk_generic(content, extension)
+        // Determine language from extension
+        let language = match extension {
+            "rs" => "rust",
+            "py" => "python",
+            "js" => "javascript",
+            "ts" => "typescript",
+            "go" => "go",
+            // Add more languages as needed
+            _ => extension,
+        };
+
+        // Try tree-sitter first, fall back to generic
+        self.chunk_with_tree_sitter(content, language)
+            .or_else(|_| self.chunk_generic(content, language))
     }
 
-    /*
     /// Chunk using tree-sitter for semantic boundaries
     fn chunk_with_tree_sitter(&mut self, content: &str, language: &str) -> Result<Vec<CodeChunk>> {
         let tree_sitter_language = match language {
-            "rust" => unsafe { tree_sitter_rust::LANGUAGE.into() },
-            "python" => unsafe { tree_sitter_python::LANGUAGE.into() },
-            "javascript" => unsafe { tree_sitter_javascript::LANGUAGE.into() },
-            "typescript" => unsafe { tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into() },
-            "go" => unsafe { tree_sitter_go::LANGUAGE.into() },
-            // "c" => unsafe { tree_sitter_c::LANGUAGE.into() },
-            // "cpp" => unsafe { tree_sitter_cpp::LANGUAGE.into() },
-            // "java" => unsafe { tree_sitter_java::LANGUAGE.into() },
-            // "csharp" => unsafe { tree_sitter_c_sharp::LANGUAGE.into() },
-            // "php" => unsafe { tree_sitter_php::LANGUAGE.into() },
-            // "ruby" => unsafe { tree_sitter_ruby::LANGUAGE.into() },
-            // "swift" => unsafe { tree_sitter_swift::LANGUAGE.into() },
+            "rust" => tree_sitter_rust::LANGUAGE.into(),
+            "python" => tree_sitter_python::LANGUAGE.into(),
+            "javascript" => tree_sitter_javascript::LANGUAGE.into(),
+            "typescript" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            "go" => tree_sitter_go::LANGUAGE.into(),
+            // "c" => tree_sitter_c::LANGUAGE.into(),
+            // "cpp" => tree_sitter_cpp::LANGUAGE.into(),
+            // "java" => tree_sitter_java::LANGUAGE.into(),
+            // "csharp" => tree_sitter_c_sharp::LANGUAGE.into(),
+            // "php" => tree_sitter_php::LANGUAGE.into(),
+            // "ruby" => tree_sitter_ruby::LANGUAGE.into(),
+            // "swift" => tree_sitter_swift::LANGUAGE.into(),
             // "kotlin" => tree_sitter_kotlin::language(),
-            "yaml" => unsafe { tree_sitter_yaml::LANGUAGE.into() },
-            // "sql" => unsafe { tree_sitter_sequel::LANGUAGE.into() },
-            "json" => unsafe { tree_sitter_json::LANGUAGE.into() },
-            "bash" => unsafe { tree_sitter_bash::LANGUAGE.into() },
-            "html" => unsafe { tree_sitter_html::LANGUAGE.into() },
-            "css" => unsafe { tree_sitter_css::LANGUAGE.into() },
+            "yaml" => tree_sitter_yaml::LANGUAGE.into(),
+            // "sql" => tree_sitter_sequel::LANGUAGE.into(),
+            "json" => tree_sitter_json::LANGUAGE.into(),
+            "bash" => tree_sitter_bash::LANGUAGE.into(),
+            "html" => tree_sitter_html::LANGUAGE.into(),
+            "css" => tree_sitter_css::LANGUAGE.into(),
             _ => return self.chunk_generic(content, language),
         };
 
         // Set language for parser
-        self.parser.set_language(tree_sitter_language)?;
+        self.parser.set_language(&tree_sitter_language)?;
 
         // Parse the content
         let tree = self.parser.parse(content, None)
@@ -142,9 +155,7 @@ impl CodeChunker {
 
         Ok(chunks)
     }
-    */
 
-    /*
     /// Extract semantic chunks using tree-sitter queries
     fn extract_semantic_chunks(
         &self, 
@@ -158,9 +169,11 @@ impl CodeChunker {
         let root_node = tree.root_node();
 
         // Execute query to find functions, classes, etc.
-        let matches = cursor.matches(query, root_node, content.as_bytes()).collect::<Vec<_>>();
-
-        for match_ in matches {
+        let text = content.as_bytes();
+        
+        // Get all matches and iterate over them
+        let mut matches = cursor.matches(query, root_node, text);
+        while let Some(match_) = matches.next() {
             for capture in match_.captures {
                 let node = capture.node;
                 let chunk_type = self.determine_chunk_type(&node);
@@ -188,7 +201,6 @@ impl CodeChunker {
 
         Ok(chunks)
     }
-    */
 
     /// Determine chunk type from tree-sitter node
     fn determine_chunk_type(&self, node: &Node) -> ChunkType {
@@ -284,7 +296,7 @@ impl LanguageQueries {
                 name: (identifier) @name) @module
         "#;
         
-        let language = unsafe { tree_sitter_rust::LANGUAGE.into() };
+        let language = tree_sitter_rust::LANGUAGE.into();
         Query::new(&language, query_str)
             .map_err(|e| anyhow::anyhow!("Failed to create Rust query: {}", e))
     }
@@ -303,7 +315,7 @@ impl LanguageQueries {
                     name: (identifier) @name)) @function
         "#;
         
-        let language = unsafe { tree_sitter_python::LANGUAGE.into() };
+        let language = tree_sitter_python::LANGUAGE.into();
         Query::new(&language, query_str)
             .map_err(|e| anyhow::anyhow!("Failed to create Python query: {}", e))
     }
@@ -323,7 +335,7 @@ impl LanguageQueries {
             (arrow_function) @function
         "#;
         
-        let language = unsafe { tree_sitter_javascript::LANGUAGE.into() };
+        let language = tree_sitter_javascript::LANGUAGE.into();
         Query::new(&language, query_str)
             .map_err(|e| anyhow::anyhow!("Failed to create JavaScript query: {}", e))
     }
@@ -346,7 +358,7 @@ impl LanguageQueries {
             (arrow_function) @function
         "#;
         
-        let language = unsafe { tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into() };
+        let language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
         Query::new(&language, query_str)
             .map_err(|e| anyhow::anyhow!("Failed to create TypeScript query: {}", e))
     }
@@ -365,7 +377,7 @@ impl LanguageQueries {
                     name: (type_identifier) @name)) @type
         "#;
         
-        let language = unsafe { tree_sitter_go::LANGUAGE.into() };
+        let language = tree_sitter_go::LANGUAGE.into();
         Query::new(&language, query_str)
             .map_err(|e| anyhow::anyhow!("Failed to create Go query: {}", e))
     }

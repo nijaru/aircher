@@ -90,11 +90,11 @@ aircher session export session_id --format markdown
 
 ## 🚧 Coming Next
 
-- 🔥 **SweRankEmbed-Small Integration** - Embed best open source code model (137M params)
-- **Advanced embedding features** - Model auto-selection, download-on-demand with resume
-- **CodeXEmbed Integration** - SOTA code performance via ONNX Runtime (for power users)
+- 🔥 **System FAISS Installation** - Complete binary compilation with FAISS system dependency
 - **Enhanced semantic search** - Cross-file relationship detection, architecture analysis
+- **Tree-sitter Language Expansion** - Add C, C++, Java, C#, PHP, Ruby, Swift, Kotlin support
 - **MCP server** - Universal Model Context Protocol server implementation
+- **Configuration System Refactor** - Hardcoded defaults with global/local hierarchy
 
 ## 🚀 Quick Setup
 
