@@ -76,10 +76,16 @@ This document tracks the major refactoring of the embedding system from a downlo
 - **Go**: Functions, methods, type declarations
 - **Fallback**: Generic chunking for all other languages
 
-### Known Issues
-- **FAISS Library**: System dependency not installed (requires `libfaiss-dev` or `faiss-c`)
-  - Library compiles but binary requires system FAISS installation
-  - Workaround: Install FAISS via package manager or build from source
+### Current Status & Solution
+- **FAISS System Dependency**: Current implementation requires system FAISS installation
+  - **Solution**: Replace with instant-distance (pure Rust, zero dependencies)
+  - **Benefits**: True "bundled approach", no system dependencies, maintains performance
+  - **Timeline**: Immediate implementation planned
+
+### Strategic Architecture Decision
+- **Current**: FAISS (battle-tested, requires system deps)
+- **Phase 1**: instant-distance (pure Rust, HNSW algorithm, bundled)
+- **Future**: omendb evaluation (Mojo-based, when mature and stable)
 
 ## 📋 Files Modified
 
@@ -107,13 +113,23 @@ This document tracks the major refactoring of the embedding system from a downlo
 | **FAISS Integration** | ✅ | Complete infrastructure and search functionality |
 | **Tree-sitter** | ✅ | Full semantic parsing for 5 languages |
 
-## 🚀 Next Steps
+## 🚀 Strategic Next Steps
 
-1. **Install FAISS System Dependency** - Complete binary compilation (`libfaiss-dev` or build from source)
-2. **End-to-end Testing** - Validate complete system with real code files
-3. **Expand Language Support** - Enable remaining tree-sitter languages (C, C++, Java, etc.)
-4. **Performance Optimization** - Benchmarking and tuning
-5. **Integration Testing** - Test with actual Aircher CLI and TUI workflows
+### Phase 1: Pure Rust Solution (Immediate)
+1. **Replace FAISS with instant-distance** - Drop-in replacement, zero system dependencies
+2. **Remove FAISS dependency** - Complete the "bundled approach" goal
+3. **End-to-end Testing** - Validate complete system with real code files
+4. **Expand Language Support** - Enable remaining tree-sitter languages (C, C++, Java, etc.)
+
+### Phase 2: Performance & Integration (Short-term)
+1. **Performance Optimization** - Benchmarking instant-distance vs FAISS
+2. **Integration Testing** - Test with actual Aircher CLI and TUI workflows
+3. **Configuration System** - Implement hardcoded defaults + global/local hierarchy
+
+### Phase 3: Future Considerations (Long-term)
+1. **omendb Evaluation** - Assess Mojo-based vector database (../omendb) when mature
+2. **Cross-file Analysis** - Advanced semantic relationship detection
+3. **Background Indexing** - Incremental updates for large codebases
 
 ## 📊 Impact Assessment
 
@@ -158,4 +174,8 @@ tokio::fs::write(&model_path, model_data).await?;
 
 ## 📝 Conclusion
 
-The embedding system refactoring has successfully achieved the user's goals of creating a "simpler, bulletproof, and easier to support" system. The foundation is solid with bundled models, FAISS integration, and comprehensive language support. The remaining work focuses on completing the API compatibility fixes to enable full functionality.
+The embedding system refactoring has successfully achieved the user's goals of creating a "simpler, bulletproof, and easier to support" system. The foundation is solid with bundled models, vector search integration, and comprehensive language support.
+
+**Next Phase**: Transition from FAISS to instant-distance completes the "bundled approach" vision with zero system dependencies.
+
+**Strategic Documentation**: See `docs/VECTOR_DATABASE_STRATEGY.md` for comprehensive roadmap and future considerations including omendb evaluation.

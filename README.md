@@ -90,7 +90,8 @@ aircher session export session_id --format markdown
 
 ## 🚧 Coming Next
 
-- 🔥 **System FAISS Installation** - Complete binary compilation with FAISS system dependency
+- 🔥 **Pure Rust Vector Database** - Replace FAISS with instant-distance for zero dependencies
+- **Complete Bundled Approach** - True "bulletproof" deployment with no system dependencies
 - **Enhanced semantic search** - Cross-file relationship detection, architecture analysis
 - **Tree-sitter Language Expansion** - Add C, C++, Java, C#, PHP, Ruby, Swift, Kotlin support
 - **MCP server** - Universal Model Context Protocol server implementation
