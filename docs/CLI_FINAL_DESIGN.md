@@ -164,6 +164,14 @@ aircher embedding status
 - **Background Indexing** - File watcher and incremental updates
 - **Model Update Mechanism** - Remote version checking and seamless updates
 
+### 🚀 Future Integration (Planned)
+- **OmenDB Vector Database** - Replace file-based storage with high-performance embedded vector DB
+  - 79% memory reduction vs traditional approaches
+  - 0.37ms query latency (enterprise-grade performance)
+  - RoarGraph algorithm for perfect accuracy
+  - Clean Python API integration via PyO3
+  - Zero external dependencies (embedded like SQLite)
+
 ### 📋 Next Steps
 - Implement auto-download with progress bars
 - Add background file watching for incremental indexing  

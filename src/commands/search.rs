@@ -48,6 +48,9 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             
             let mut search = SemanticCodeSearch::new();
             
+            // Ensure embedding model is available before indexing
+            search.ensure_model_available().await?;
+            
             match search.index_directory(&path).await {
                 Ok(_) => {
                     let stats = search.get_stats();
@@ -73,6 +76,9 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             println!("🔍 Searching for: '{}'", query);
             
             let mut search = SemanticCodeSearch::new();
+            
+            // Ensure embedding model is available before search
+            search.ensure_model_available().await?;
             
             // Quick index if not already done
             info!("Indexing directory for search: {:?}", path);
@@ -123,6 +129,10 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             println!("📊 Search Index Statistics for {:?}", path);
             
             let mut search = SemanticCodeSearch::new();
+            
+            // Ensure embedding model is available before generating stats
+            search.ensure_model_available().await?;
+            
             search.index_directory(&path).await?;
             
             let stats = search.get_stats();

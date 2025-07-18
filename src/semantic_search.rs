@@ -2,12 +2,18 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tracing::{debug, info, warn};
+use dirs::cache_dir;
+use rayon::prelude::*;
 
 use crate::cost::{EmbeddingManager, EmbeddingConfig};
+use crate::vector_search::{VectorSearchEngine, ChunkMetadata, SearchResult as VectorSearchResult, ChunkType as VectorChunkType};
+use crate::code_chunking::{CodeChunker, ChunkType as CodeChunkType};
 
-/// Semantic code search using embeddings
+/// Semantic code search using embeddings and FAISS
 pub struct SemanticCodeSearch {
     embedding_manager: EmbeddingManager,
+    vector_search: VectorSearchEngine,
+    code_chunker: CodeChunker,
     indexed_files: Vec<IndexedFile>,
 }
 
@@ -23,17 +29,8 @@ pub struct CodeChunk {
     pub content: String,
     pub start_line: usize,
     pub end_line: usize,
-    pub chunk_type: ChunkType,
+    pub chunk_type: VectorChunkType,
     pub embedding: Option<Vec<f32>>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ChunkType {
-    Function,
-    Class,
-    Module,
-    Comment,
-    Generic,
 }
 
 #[derive(Debug, Clone)]
@@ -49,10 +46,54 @@ impl SemanticCodeSearch {
         let config = EmbeddingConfig::default();
         let embedding_manager = EmbeddingManager::new(config);
         
+        // Create vector search engine with typical embedding dimension
+        let cache_dir = cache_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("aircher")
+            .join("search_index");
+        
+        let vector_search = VectorSearchEngine::new(cache_dir, 384) // Common embedding dimension
+            .unwrap_or_else(|e| {
+                warn!("Failed to create vector search engine: {}", e);
+                // Create a fallback with default settings
+                VectorSearchEngine::new(PathBuf::from("./search_index"), 384).unwrap()
+            });
+        
+        let code_chunker = CodeChunker::new()
+            .unwrap_or_else(|e| {
+                warn!("Failed to create code chunker: {}", e);
+                CodeChunker::default()
+            });
+        
         Self {
             embedding_manager,
+            vector_search,
+            code_chunker,
             indexed_files: Vec::new(),
         }
+    }
+
+    /// Ensure embedding model is available from bundled resources
+    pub async fn ensure_model_available(&mut self) -> Result<()> {
+        let cache_dir = cache_dir()
+            .ok_or_else(|| anyhow::anyhow!("Unable to determine cache directory"))?
+            .join("aircher")
+            .join("models");
+
+        // Create cache directory if it doesn't exist
+        tokio::fs::create_dir_all(&cache_dir).await?;
+        
+        let model_path = cache_dir.join("swerank-embed-small.bin");
+        
+        // Extract bundled model if not already present
+        if !model_path.exists() {
+            info!("Extracting bundled SweRankEmbed-Small model");
+            let model_data = include_bytes!("../models/swerank-embed-small.bin");
+            tokio::fs::write(&model_path, model_data).await?;
+            info!("Model extracted to: {}", model_path.display());
+        }
+        
+        Ok(())
     }
 
     /// Index a directory of code files
@@ -80,23 +121,58 @@ impl SemanticCodeSearch {
         Ok(())
     }
 
-    /// Index a single file
+    /// Index a single file using improved chunking and vector search
     pub async fn index_file(&mut self, file_path: &Path) -> Result<()> {
         let content = fs::read_to_string(file_path).await?;
-        let chunks = self.extract_code_chunks(&content)?;
         
-        // Generate embeddings for each chunk
+        // Use tree-sitter based chunking for better semantic boundaries
+        let chunks = self.code_chunker.chunk_file(file_path, &content)?;
+        
+        // Generate embeddings for chunks (sequential for now due to borrowing constraints)
+        let mut chunk_embeddings = Vec::new();
+        for chunk in &chunks {
+            let embedding_result = self.embedding_manager.generate_embeddings(&chunk.content).await;
+            chunk_embeddings.push((chunk, embedding_result));
+        }
+        
+        // Add successful embeddings to vector search
         let mut embedded_chunks = Vec::new();
-        for mut chunk in chunks {
-            match self.embedding_manager.generate_embeddings(&chunk.content).await {
+        for (chunk, embedding_result) in chunk_embeddings {
+            match embedding_result {
                 Ok(embedding) => {
-                    chunk.embedding = Some(embedding);
-                    embedded_chunks.push(chunk);
+                    // Convert code chunk to vector search metadata
+                    let metadata = ChunkMetadata {
+                        file_path: file_path.to_path_buf(),
+                        start_line: chunk.start_line,
+                        end_line: chunk.end_line,
+                        chunk_type: convert_chunk_type(&chunk.chunk_type),
+                        content: chunk.content.clone(),
+                    };
+                    
+                    // Add to vector search index
+                    self.vector_search.add_embedding(embedding.clone(), metadata)?;
+                    
+                    // Keep for compatibility with existing code
+                    let code_chunk = CodeChunk {
+                        content: chunk.content.clone(),
+                        start_line: chunk.start_line,
+                        end_line: chunk.end_line,
+                        chunk_type: convert_chunk_type(&chunk.chunk_type),
+                        embedding: Some(embedding),
+                    };
+                    embedded_chunks.push(code_chunk);
                 }
                 Err(e) => {
                     debug!("Failed to generate embedding for chunk: {}", e);
                     // Keep chunk without embedding for fallback text search
-                    embedded_chunks.push(chunk);
+                    let code_chunk = CodeChunk {
+                        content: chunk.content.clone(),
+                        start_line: chunk.start_line,
+                        end_line: chunk.end_line,
+                        chunk_type: convert_chunk_type(&chunk.chunk_type),
+                        embedding: None,
+                    };
+                    embedded_chunks.push(code_chunk);
                 }
             }
         }
@@ -111,7 +187,7 @@ impl SemanticCodeSearch {
         Ok(())
     }
 
-    /// Semantic search for code matching a query
+    /// Semantic search for code matching a query using FAISS
     pub async fn search(&mut self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
         info!("Performing semantic search for: '{}'", query);
         
@@ -124,31 +200,41 @@ impl SemanticCodeSearch {
             }
         };
         
-        let mut results = Vec::new();
-        
-        // Search through all chunks
-        for file in &self.indexed_files {
-            for chunk in &file.chunks {
-                if let Some(chunk_embedding) = &chunk.embedding {
-                    let similarity = EmbeddingManager::cosine_similarity(&query_embedding, chunk_embedding);
-                    
-                    if similarity > 0.3 { // Threshold for relevance
-                        let context_lines = self.get_context_lines(&file.content, chunk.start_line, chunk.end_line);
-                        
-                        results.push(SearchResult {
-                            file_path: file.path.clone(),
-                            chunk: chunk.clone(),
-                            similarity_score: similarity,
-                            context_lines,
-                        });
-                    }
-                }
-            }
+        // Build FAISS index if not already built
+        if self.vector_search.get_stats().total_vectors > 0 && !self.vector_search.get_stats().index_built {
+            info!("Building FAISS index...");
+            self.vector_search.build_index()?;
         }
         
-        // Sort by similarity
-        results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score).unwrap_or(std::cmp::Ordering::Equal));
-        results.truncate(limit);
+        // Search using FAISS
+        let vector_results = match self.vector_search.search(&query_embedding, limit) {
+            Ok(results) => results,
+            Err(e) => {
+                warn!("FAISS search failed: {}", e);
+                return self.fallback_text_search(query, limit);
+            }
+        };
+        
+        // Convert vector search results to semantic search results
+        let mut results = Vec::new();
+        for vector_result in vector_results {
+            let context_lines = self.get_context_lines(&vector_result.content, vector_result.start_line, vector_result.end_line);
+            
+            let chunk = CodeChunk {
+                content: vector_result.content,
+                start_line: vector_result.start_line,
+                end_line: vector_result.end_line,
+                chunk_type: vector_result.chunk_type,
+                embedding: None, // Not needed for results
+            };
+            
+            results.push(SearchResult {
+                file_path: vector_result.file_path,
+                chunk,
+                similarity_score: vector_result.similarity_score,
+                context_lines,
+            });
+        }
         
         info!("Found {} semantic matches", results.len());
         Ok(results)
@@ -245,7 +331,7 @@ impl SemanticCodeSearch {
                         content: current_chunk.clone(),
                         start_line,
                         end_line: line_num,
-                        chunk_type: ChunkType::Generic,
+                        chunk_type: VectorChunkType::Generic,
                         embedding: None,
                     });
                 }
@@ -269,9 +355,9 @@ impl SemanticCodeSearch {
                         start_line,
                         end_line: line_num + 1,
                         chunk_type: if self.is_function_start(&lines[start_line].trim()) {
-                            ChunkType::Function
+                            VectorChunkType::Function
                         } else {
-                            ChunkType::Class
+                            VectorChunkType::Class
                         },
                         embedding: None,
                     });
@@ -291,7 +377,7 @@ impl SemanticCodeSearch {
                             content: current_chunk.clone(),
                             start_line,
                             end_line: line_num + 1,
-                            chunk_type: ChunkType::Generic,
+                            chunk_type: VectorChunkType::Generic,
                             embedding: None,
                         });
                     }
@@ -308,7 +394,7 @@ impl SemanticCodeSearch {
                 content: current_chunk,
                 start_line,
                 end_line: lines.len(),
-                chunk_type: ChunkType::Generic,
+                chunk_type: VectorChunkType::Generic,
                 embedding: None,
             });
         }
@@ -336,7 +422,7 @@ impl SemanticCodeSearch {
     /// Get context lines around a chunk
     fn get_context_lines(&self, content: &str, start_line: usize, end_line: usize) -> Vec<String> {
         let lines: Vec<&str> = content.lines().collect();
-        let context_start = start_line.saturating_sub(2);
+        let context_start = start_line.saturating_sub(3);
         let context_end = (end_line + 2).min(lines.len());
         
         lines[context_start..context_end]
@@ -375,6 +461,21 @@ pub struct IndexStats {
     pub total_chunks: usize,
     pub embedded_chunks: usize,
     pub embedding_coverage: f32,
+}
+
+/// Convert code chunking types to vector search types
+fn convert_chunk_type(chunk_type: &CodeChunkType) -> VectorChunkType {
+    match chunk_type {
+        CodeChunkType::Function => VectorChunkType::Function,
+        CodeChunkType::Method => VectorChunkType::Function,
+        CodeChunkType::Class => VectorChunkType::Class,
+        CodeChunkType::Struct => VectorChunkType::Class,
+        CodeChunkType::Interface => VectorChunkType::Class,
+        CodeChunkType::Module => VectorChunkType::Module,
+        CodeChunkType::Import => VectorChunkType::Module,
+        CodeChunkType::Comment => VectorChunkType::Comment,
+        CodeChunkType::Generic => VectorChunkType::Generic,
+    }
 }
 
 impl Default for SemanticCodeSearch {

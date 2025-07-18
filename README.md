@@ -2,6 +2,8 @@
 
 **AI-powered terminal assistant built with Rust** - Chat with Claude, Gemini, OpenAI, and OpenRouter from your command line.
 
+> 🚀 **Recently Refactored**: Embedding system now uses bundled models with FAISS and tree-sitter for improved performance and reliability. No more downloads required!
+
 ## ✅ What Works Now
 
 **Full-featured AI development assistant with semantic code search:**

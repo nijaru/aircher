@@ -8,6 +8,8 @@ pub mod intelligence;
 pub mod project;
 pub mod providers;
 pub mod semantic_search;
+pub mod vector_search;
+pub mod code_chunking;
 pub mod sessions;
 pub mod storage;
 pub mod ui;
