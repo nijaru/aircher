@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use dirs::cache_dir;
 // use rayon::prelude::*; // TODO: Re-enable when parallel processing is needed
 
@@ -9,7 +9,7 @@ use crate::cost::{EmbeddingManager, EmbeddingConfig};
 use crate::vector_search::{VectorSearchEngine, ChunkMetadata, ChunkType as VectorChunkType};
 use crate::code_chunking::{CodeChunker, ChunkType as CodeChunkType};
 
-/// Semantic code search using embeddings and FAISS
+/// Semantic code search using embeddings and instant-distance HNSW
 pub struct SemanticCodeSearch {
     embedding_manager: EmbeddingManager,
     vector_search: VectorSearchEngine,
@@ -200,17 +200,17 @@ impl SemanticCodeSearch {
             }
         };
         
-        // Build FAISS index if not already built
+        // Build HNSW index if not already built
         if self.vector_search.get_stats().total_vectors > 0 && !self.vector_search.get_stats().index_built {
-            info!("Building FAISS index...");
+            info!("Building HNSW index...");
             self.vector_search.build_index()?;
         }
         
-        // Search using FAISS
+        // Search using instant-distance HNSW
         let vector_results = match self.vector_search.search(&query_embedding, limit) {
             Ok(results) => results,
             Err(e) => {
-                warn!("FAISS search failed: {}", e);
+                warn!("HNSW search failed: {}", e);
                 return self.fallback_text_search(query, limit);
             }
         };
