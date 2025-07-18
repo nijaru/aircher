@@ -280,8 +280,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let storage_path = temp_dir.path().join("test_index");
         
-        let engine = VectorSearchEngine::new(storage_path, 384).unwrap();
-        assert_eq!(engine.dimension, 384);
+        let engine = VectorSearchEngine::new(storage_path, 768).unwrap();
+        assert_eq!(engine.dimension, 768);
         assert!(engine.index.is_none());
     }
 
