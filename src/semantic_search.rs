@@ -52,11 +52,11 @@ impl SemanticCodeSearch {
             .join("aircher")
             .join("search_index");
         
-        let vector_search = VectorSearchEngine::new(cache_dir, 384) // Common embedding dimension
+        let vector_search = VectorSearchEngine::new(cache_dir, 768) // SweRankEmbed dimension
             .unwrap_or_else(|e| {
                 warn!("Failed to create vector search engine: {}", e);
                 // Create a fallback with default settings
-                VectorSearchEngine::new(PathBuf::from("./search_index"), 384).unwrap()
+                VectorSearchEngine::new(PathBuf::from("./search_index"), 768).unwrap()
             });
         
         let code_chunker = CodeChunker::new()

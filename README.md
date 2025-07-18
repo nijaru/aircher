@@ -2,7 +2,7 @@
 
 **AI-powered terminal assistant built with Rust** - Chat with Claude, Gemini, OpenAI, and OpenRouter from your command line.
 
-> 🚀 **Recently Refactored**: Embedding system now uses bundled models with FAISS and tree-sitter for improved performance and reliability. No more downloads required!
+> 🚀 **Recently Refactored**: Embedding system now uses bundled models with instant-distance and tree-sitter for improved performance and reliability. Zero system dependencies!
 
 ## ✅ What Works Now
 
@@ -90,8 +90,8 @@ aircher session export session_id --format markdown
 
 ## 🚧 Coming Next
 
-- 🔥 **Pure Rust Vector Database** - Replace FAISS with instant-distance for zero dependencies
-- **Complete Bundled Approach** - True "bulletproof" deployment with no system dependencies
+- ✅ **Pure Rust Vector Database** - Completed migration to instant-distance for zero dependencies
+- ✅ **Complete Bundled Approach** - True "bulletproof" deployment with no system dependencies
 - **Enhanced semantic search** - Cross-file relationship detection, architecture analysis
 - **Tree-sitter Language Expansion** - Add C, C++, Java, C#, PHP, Ruby, Swift, Kotlin support
 - **MCP server** - Universal Model Context Protocol server implementation
