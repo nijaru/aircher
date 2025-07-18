@@ -22,7 +22,8 @@
       "Bash(jq:*)",
       "Bash(./target/release/aircher:*)",
       "Bash(git push:*)",
-      "WebFetch(domain:huggingface.co)"
+      "WebFetch(domain:huggingface.co)",
+      "Bash(./target/debug/aircher:*)"
     ],
     "deny": []
   }
