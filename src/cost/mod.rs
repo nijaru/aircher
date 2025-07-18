@@ -18,7 +18,6 @@ pub mod practical_embedding_reality;
 pub mod swerank_integration;
 pub mod auto_selection;
 pub mod embedding_lifecycle;
-
 pub use model_selection::{IntelligentModelSelector, ModelRecommendation, TaskType};
 pub use pricing_engine::{PricingEngine, LivePricingData, QualityTier, ModelComparison};
 pub use model_registry::{ModelRegistry, TaskRecommendation};

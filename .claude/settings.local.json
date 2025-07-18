@@ -23,7 +23,8 @@
       "Bash(./target/release/aircher:*)",
       "Bash(git push:*)",
       "WebFetch(domain:huggingface.co)",
-      "Bash(./target/debug/aircher:*)"
+      "Bash(./target/debug/aircher:*)",
+      "Bash(RUST_LOG=info cargo run -- search query \"authentication patterns\" --limit 5)"
     ],
     "deny": []
   }
