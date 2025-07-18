@@ -11,6 +11,9 @@ use crate::cost::CostConfig;
 pub mod toml_config;
 pub use toml_config::ArcherConfig;
 
+pub mod hierarchy;
+pub use hierarchy::{ConfigHierarchy, ConfigScope, ConfigPaths};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigManager {
     pub global: GlobalConfig,
@@ -131,32 +134,13 @@ impl Default for IntelligenceConfig {
 
 impl ConfigManager {
     pub async fn load() -> Result<Self> {
-        info!("Loading configuration");
+        info!("Loading configuration with hierarchy");
 
-        // Load from TOML file if it exists
-        let config_path = Self::get_config_path();
+        // Use the new hierarchical configuration system
+        let hierarchy = ConfigHierarchy::new()?;
+        let config = hierarchy.load_config().await?;
 
-        let config = if config_path.exists() {
-            let content = fs::read_to_string(&config_path)
-                .with_context(|| format!("Failed to read config file: {:?}", config_path))?;
-
-            let mut config: ConfigManager =
-                toml::from_str(&content).with_context(|| "Failed to parse config file")?;
-
-            // Resolve environment variables
-            config.resolve_env_vars()?;
-
-            debug!("Configuration loaded from file: {:?}", config_path);
-            config
-        } else {
-            info!("No config file found, using defaults");
-            Self::default()
-        };
-
-        // Ensure data directory exists
-        fs::create_dir_all(&config.global.data_directory)
-            .with_context(|| "Failed to create data directory")?;
-
+        info!("Configuration loaded successfully");
         Ok(config)
     }
 
@@ -210,22 +194,18 @@ impl ConfigManager {
     }
 
     pub async fn save(&self) -> Result<()> {
-        let config_path = Self::get_config_path();
-        
-        // Ensure parent directory exists
-        if let Some(parent) = config_path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| "Failed to create config directory")?;
-        }
-        
-        let content = toml::to_string_pretty(self)
-            .with_context(|| "Failed to serialize config")?;
-        
-        fs::write(&config_path, content)
-            .with_context(|| format!("Failed to write config file: {:?}", config_path))?;
-        
-        debug!("Configuration saved to: {:?}", config_path);
-        Ok(())
+        // Default to global scope for backward compatibility
+        self.save_with_scope(ConfigScope::Global).await
+    }
+
+    pub async fn save_with_scope(&self, scope: ConfigScope) -> Result<()> {
+        let hierarchy = ConfigHierarchy::new()?;
+        hierarchy.save_config(self, scope).await
+    }
+
+    pub fn get_config_paths() -> Result<ConfigPaths> {
+        let hierarchy = ConfigHierarchy::new()?;
+        Ok(hierarchy.get_config_paths())
     }
 
     pub fn has_api_key(&self, provider: &str) -> bool {

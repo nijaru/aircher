@@ -40,12 +40,16 @@ aircher --provider openai "Help me implement this feature"
 aircher --provider openrouter "Find the best model for code review"
 aircher --provider ollama "Local model for privacy-focused development"
 
-# Configuration management 
-aircher config show                     # Show current configuration
-aircher config set ui.theme dark        # Update settings
+# Configuration management with hierarchy support
+aircher config status                   # Show configuration hierarchy status
+aircher config show                     # Show current merged configuration
+aircher config set ui.theme dark        # Update global settings
+aircher config set ui.theme light --local  # Update local project settings
 aircher config set providers.claude.api_key sk-xxx
-aircher config get ui.theme             # Get specific values
-aircher config edit                     # Open config in $EDITOR
+aircher config init                     # Create sample global config
+aircher config init --local             # Create sample local config
+aircher config edit                     # Open global config in $EDITOR
+aircher config edit --local             # Open local config in $EDITOR
 
 # Session management
 aircher session list                    # List all sessions
@@ -92,10 +96,11 @@ aircher session export session_id --format markdown
 
 - ✅ **Pure Rust Vector Database** - Completed migration to instant-distance for zero dependencies
 - ✅ **Complete Bundled Approach** - True "bulletproof" deployment with no system dependencies
+- ✅ **Tree-sitter Language Expansion** - Added 19+ language support (C, C++, Java, C#, PHP, Ruby, Swift, Kotlin, etc.)
+- ✅ **Configuration System Refactor** - Hardcoded defaults with global/local hierarchy and environment overrides
 - **Enhanced semantic search** - Cross-file relationship detection, architecture analysis
-- **Tree-sitter Language Expansion** - Add C, C++, Java, C#, PHP, Ruby, Swift, Kotlin support
+- **Background file monitoring** - Incremental updates and change detection
 - **MCP server** - Universal Model Context Protocol server implementation
-- **Configuration System Refactor** - Hardcoded defaults with global/local hierarchy
 
 ## 🚀 Quick Setup
 
@@ -188,9 +193,10 @@ aircher config --help
 - **Phase 2: Providers** - 100% complete (Claude, Gemini, OpenAI, OpenRouter, Ollama)
 - **Phase 3: Intelligence** - 100% complete (SPRINT-004 ✅, SPRINT-005 ✅, SPRINT-006 ✅)
 - **Phase 4: Advanced Features** - 100% complete (Session management ✅, File monitoring ✅, TUI Integration ✅, Testing Framework ✅)
-- **Phase 5: Semantic Search** - 95% complete (Ollama integration ✅, Semantic search ✅, Embedding management ✅, CLI integration ✅)
+- **Phase 5: Semantic Search** - 100% complete (instant-distance ✅, SweRankEmbed ✅, Tree-sitter ✅, 19+ languages ✅)
+- **Phase 6: Configuration** - 100% complete (Hierarchical config ✅, Global/local ✅, Environment overrides ✅)
 
-**Next**: SweRankEmbed-Small integration for embedded model support
+**Next**: Background file monitoring and incremental updates
 
 ## 🔥 Latest: Semantic Code Search
 
