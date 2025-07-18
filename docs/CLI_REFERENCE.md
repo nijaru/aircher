@@ -152,28 +152,34 @@ EXAMPLES:
     aircher session cleanup --days 30
 ```
 
-## Embedding Management (Legacy)
+## Embedding Management
 
 ### aircher embedding
 ```bash
 aircher embedding <SUBCOMMAND>
 
 SUBCOMMANDS:
-    status                 Show embedding model status
-    setup                  Setup embedding models
-    list                   List available embedding models
-    test [TEXT]            Test embedding functionality
+    (default)              List available models with current marked
+    list                   List available embedding models with current marked
+    set <MODEL>            Set embedding model ('auto' for intelligent selection)
+    verify [TEXT]          Verify current embedding model is working
+    update                 Update embedding models to latest versions
+    clean                  Clean up unused models and stale indices
+    status                 Show storage usage and cleanup recommendations
 
 OPTIONS:
-    --interactive          Use interactive setup
-    --force                Force re-download
+    --check-only           Check for updates without installing (update)
+    --models               Remove unused model versions (clean)
+    --indices              Remove stale search indices (clean)
+    --all                  Remove everything (clean)
 
 EXAMPLES:
-    aircher embedding status
-    aircher embedding setup --interactive
-    aircher embedding test "sample code"
-
-NOTE: This command is being phased out in favor of 'aircher model'
+    aircher embedding                    # Show list with current marked
+    aircher embedding set auto           # Intelligent auto-selection
+    aircher embedding set swerank-embed-small
+    aircher embedding verify "sample code"
+    aircher embedding update --check-only
+    aircher embedding clean --models --indices
 ```
 
 ## Help System

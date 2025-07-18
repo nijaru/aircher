@@ -6,7 +6,7 @@
       "SPRINT-001B",
       "EMBEDDING-005"
     ],
-    "current_focus": "Phase 5 Complete - Next: Advanced embedding features, cost optimization, and Claude Pro/Max integration"
+    "current_focus": "CLI Design Complete - Final refinements implemented. Next: Auto-download system with progress bars and background indexing"
   },
   "project": {
     "name": "Aircher",
@@ -738,6 +738,58 @@
       ],
       "estimated_effort": "large",
       "notes": "Future enhancement for users wanting maximum embedding quality"
+    },
+    "EMBEDDING-006": {
+      "id": "EMBEDDING-006",
+      "title": "Embedding Model Lifecycle Management",
+      "status": "completed",
+      "priority": "high", 
+      "description": "Complete lifecycle management for embedding models including versioning, updates, and cleanup",
+      "completion_date": "2025-01-18",
+      "files": [
+        "src/cost/embedding_lifecycle.rs",
+        "src/commands/embedding.rs",
+        "docs/CLI_FINAL_DESIGN.md"
+      ],
+      "acceptance_criteria": [
+        "✅ Model version tracking and registry system",
+        "✅ Automatic update checking and installation",
+        "✅ Storage cleanup for unused models and stale indices",
+        "✅ CLI commands: list, set, verify, update, clean, status",
+        "✅ Intelligent auto-selection with 'aircher embedding set auto'",
+        "✅ Background lifecycle management invisible to users",
+        "✅ Integration with enhanced model selection system"
+      ],
+      "dependencies": [
+        "EMBEDDING-003"
+      ],
+      "estimated_effort": "medium",
+      "notes": "Critical infrastructure for long-term embedding model management and user experience"
+    },
+    "CLI-REFINEMENTS": {
+      "id": "CLI-REFINEMENTS",
+      "title": "Final CLI Refinements and UX Polish",
+      "status": "completed",
+      "priority": "medium", 
+      "description": "Polish CLI interface with standard patterns and improved user experience",
+      "completion_date": "2025-01-18",
+      "files": [
+        "src/cli/mod.rs",
+        "src/commands/embedding.rs",
+        "docs/CLI_REFERENCE.md"
+      ],
+      "acceptance_criteria": [
+        "✅ Default 'aircher embedding' shows list with current marked (git branch pattern)",
+        "✅ Renamed 'test' command to 'verify' for clarity",
+        "✅ Updated CLI help text and descriptions",
+        "✅ Fixed borrow checker issues in embedding commands",
+        "✅ Follow standard CLI conventions throughout"
+      ],
+      "dependencies": [
+        "EMBEDDING-006"
+      ],
+      "estimated_effort": "small",
+      "notes": "Final UX polish to align with standard CLI patterns and user feedback"
     }
   }
 }

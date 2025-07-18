@@ -204,6 +204,46 @@ impl ConfigManager {
             .iter()
             .find(|m| m.name == model)
     }
+
+    pub fn get_models_for_provider(&self, provider: &str) -> Option<&Vec<ModelConfig>> {
+        self.providers.get(provider).map(|p| &p.models)
+    }
+
+    pub async fn save(&self) -> Result<()> {
+        let config_path = Self::get_config_path();
+        
+        // Ensure parent directory exists
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| "Failed to create config directory")?;
+        }
+        
+        let content = toml::to_string_pretty(self)
+            .with_context(|| "Failed to serialize config")?;
+        
+        fs::write(&config_path, content)
+            .with_context(|| format!("Failed to write config file: {:?}", config_path))?;
+        
+        debug!("Configuration saved to: {:?}", config_path);
+        Ok(())
+    }
+
+    pub fn has_api_key(&self, provider: &str) -> bool {
+        if let Some(provider_config) = self.providers.get(provider) {
+            if provider_config.api_key_env.is_empty() {
+                return true; // No API key needed (e.g., Ollama)
+            }
+            env::var(&provider_config.api_key_env).is_ok()
+        } else {
+            false
+        }
+    }
+
+    pub fn is_provider_enabled(&self, provider: &str) -> bool {
+        // For now, consider a provider enabled if it exists in config
+        // Could add an explicit enabled field later if needed
+        self.providers.contains_key(provider)
+    }
 }
 
 impl Default for ConfigManager {

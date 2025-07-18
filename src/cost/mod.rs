@@ -16,6 +16,8 @@ pub mod transparent_embedding_system;
 pub mod best_embedding_strategy_2025;
 pub mod practical_embedding_reality;
 pub mod swerank_integration;
+pub mod auto_selection;
+pub mod embedding_lifecycle;
 
 pub use model_selection::{IntelligentModelSelector, ModelRecommendation, TaskType};
 pub use pricing_engine::{PricingEngine, LivePricingData, QualityTier, ModelComparison};
@@ -29,6 +31,8 @@ pub use transparent_embedding_system::{TransparentEmbeddingSystem, SystemState, 
 pub use best_embedding_strategy_2025::{BestEmbeddingStrategy2025, PerformanceTier, DeploymentMethod};
 pub use practical_embedding_reality::{PracticalEmbeddingReality, IntegrationEffort, BinaryEmbeddingAnalysis, PracticalRecommendation};
 pub use swerank_integration::{SweRankEmbedModel, ModelInfo as SweRankModelInfo, cosine_similarity};
+pub use auto_selection::{AutoSelectionEngine, SelectionCriteria, TaskType as AutoTaskType, ModelPerformance};
+pub use embedding_lifecycle::{EmbeddingLifecycleManager, ModelRegistry as EmbeddingModelRegistry, ModelEntry, StorageInfo, UpdateInfo};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CostTracker {

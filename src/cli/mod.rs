@@ -6,6 +6,7 @@ use toml;
 
 use crate::commands::search::{SearchArgs, handle_search_command};
 use crate::commands::embedding::{EmbeddingArgs, handle_embedding_command};
+use crate::commands::model::{ModelArgs, ModelCommand, TaskTypeArg, handle_model_command};
 use crate::config::{ConfigManager, toml_config::ArcherConfig};
 use crate::providers::{ChatRequest, Message, ProviderManager};
 use crate::sessions::{SessionFilter, ExportFormat, SessionManager, MessageRole};
@@ -213,6 +214,23 @@ impl CliApp {
                             .about("Show currently configured models")
                     )
                     .subcommand(
+                        Command::new("set")
+                            .about("Set model directly (bypass TUI)")
+                            .arg(
+                                Arg::new("model")
+                                    .help("Model name (e.g., claude-3-5-sonnet)")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("provider")
+                                    .short('p')
+                                    .long("provider")
+                                    .help("Provider (optional, will auto-detect if not specified)")
+                                    .value_name("PROVIDER"),
+                            )
+                    )
+                    .subcommand(
                         Command::new("list")
                             .about("List all available models")
                             .arg(
@@ -221,63 +239,118 @@ impl CliApp {
                                     .help("Filter by provider")
                                     .value_name("NAME"),
                             )
-                            .arg(
-                                Arg::new("type")
-                                    .long("type")
-                                    .help("Filter by type (chat/embedding)")
-                                    .value_name("TYPE"),
-                            )
+                    )
+                    .subcommand(
+                        Command::new("select")
+                            .about("Interactive model selection TUI")
                     )
                     .subcommand(
                         Command::new("test")
-                            .about("Test model connections")
+                            .about("Test current model with a simple request")
                             .arg(
-                                Arg::new("provider")
-                                    .long("provider")
-                                    .help("Test specific provider")
-                                    .value_name("NAME"),
+                                Arg::new("message")
+                                    .short('m')
+                                    .long("message")
+                                    .help("Optional custom message to test with")
+                                    .value_name("MESSAGE"),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("auto-select")
+                            .about("Intelligent auto-selection based on task type")
+                            .arg(
+                                Arg::new("task")
+                                    .short('t')
+                                    .long("task")
+                                    .help("Task type for intelligent selection")
+                                    .value_name("TYPE")
+                                    .value_parser(["code-search", "documentation-search", "conceptual-search", "cross-language-search", "large-codebase-search", "quick-search", "high-accuracy-search"]),
+                            )
+                            .arg(
+                                Arg::new("prefer-local")
+                                    .long("prefer-local")
+                                    .help("Prefer local models (embedded/Ollama)")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("prefer-fast")
+                                    .long("prefer-fast")
+                                    .help("Prefer fast models over accurate ones")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("prefer-accurate")
+                                    .long("prefer-accurate")
+                                    .help("Prefer accurate models over fast ones")
+                                    .action(clap::ArgAction::SetTrue),
                             )
                     )
                     .subcommand(
                         Command::new("providers")
-                            .about("Show available providers and their models")
+                            .about("Show available providers and their status")
                     )
             )
             .subcommand(
                 Command::new("embedding")
-                    .about("Legacy embedding management (use 'model' instead)")
-                    .subcommand(
-                        Command::new("status")
-                            .about("Show embedding model status")
-                    )
-                    .subcommand(
-                        Command::new("setup")
-                            .about("Setup embedding models")
-                            .arg(
-                                Arg::new("interactive")
-                                    .long("interactive")
-                                    .help("Use interactive setup")
-                                    .action(clap::ArgAction::SetTrue),
-                            )
-                            .arg(
-                                Arg::new("force")
-                                    .long("force")
-                                    .help("Force re-download")
-                                    .action(clap::ArgAction::SetTrue),
-                            )
-                    )
+                    .about("Embedding model management (default: list with current marked)")
                     .subcommand(
                         Command::new("list")
-                            .about("List available embedding models")
+                            .about("List all available embedding models with current selection marked")
                     )
                     .subcommand(
-                        Command::new("test")
-                            .about("Test embedding functionality")
+                        Command::new("set")
+                            .about("Set embedding model ('auto' for intelligent selection, or specific model name)")
                             .arg(
-                                Arg::new("text")
-                                    .help("Sample text to embed")
+                                Arg::new("model")
+                                    .help("Model name or 'auto' for intelligent selection")
+                                    .required(true)
                                     .index(1),
                             )
+                    )
+                    .subcommand(
+                        Command::new("verify")
+                            .about("Verify current embedding model is working")
+                            .arg(
+                                Arg::new("text")
+                                    .help("Optional sample text to verify with")
+                                    .index(1),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("update")
+                            .about("Update embedding models to latest versions")
+                            .arg(
+                                Arg::new("check-only")
+                                    .long("check-only")
+                                    .help("Check for updates without installing")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("clean")
+                            .about("Clean up unused models and stale indices")
+                            .arg(
+                                Arg::new("models")
+                                    .long("models")
+                                    .help("Remove unused model versions")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("indices")
+                                    .long("indices")
+                                    .help("Remove stale search indices")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("all")
+                                    .long("all")
+                                    .help("Remove everything (nuclear option)")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("status")
+                            .about("Show storage usage and cleanup recommendations")
                     )
             )
             .subcommand(
@@ -789,128 +862,99 @@ impl CliApp {
     }
     
     async fn handle_model_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
-        match matches.subcommand() {
-            Some(("current", _)) => {
-                let config = ArcherConfig::load()?;
-                println!("🤖 Current Model Configuration:\n");
-                
-                // Show chat models
-                println!("Chat Models:");
-                if let Some(claude_config) = config.providers.get("claude") {
-                    println!("  Claude: {}", claude_config.default_model);
-                }
-                if let Some(openai_config) = config.providers.get("openai") {
-                    println!("  OpenAI: {}", openai_config.default_model);
-                }
-                if let Some(gemini_config) = config.providers.get("gemini") {
-                    println!("  Gemini: {}", gemini_config.default_model);
-                }
-                if let Some(ollama_config) = config.providers.get("ollama") {
-                    println!("  Ollama: {}", ollama_config.default_model);
-                }
-                
-                // Show embedding model
-                println!("\nEmbedding Model:");
-                println!("  {}: {}", config.embedding.provider, config.embedding.model);
+        let model_command = match matches.subcommand() {
+            Some(("current", _)) => ModelCommand::Current,
+            
+            Some(("set", sub_matches)) => {
+                let model = sub_matches.get_one::<String>("model").unwrap().clone();
+                let provider = sub_matches.get_one::<String>("provider").cloned();
+                ModelCommand::Set { model, provider }
             }
             
             Some(("list", sub_matches)) => {
-                let provider_filter = sub_matches.get_one::<String>("provider");
-                let type_filter = sub_matches.get_one::<String>("type");
-                
-                println!("📋 Available Models:\n");
-                
-                if provider_filter.is_none() || provider_filter == Some(&"claude".to_string()) {
-                    if type_filter.is_none() || type_filter == Some(&"chat".to_string()) {
-                        println!("Claude (Chat):");
-                        println!("  claude-3-5-sonnet-20241022");
-                        println!("  claude-3-5-haiku-20241022");
-                        println!("  claude-3-opus-20240229");
-                        println!();
-                    }
-                }
-                
-                if provider_filter.is_none() || provider_filter == Some(&"ollama".to_string()) {
-                    if type_filter.is_none() || type_filter == Some(&"embedding".to_string()) {
-                        println!("Ollama (Embedding):");
-                        println!("  nomic-embed-text (recommended)");
-                        println!("  mxbai-embed-large");
-                        println!("  all-MiniLM-L6-v2");
-                        println!();
-                    }
-                }
-                
-                println!("💡 Use 'aircher config set providers.<provider>.default_model <model>' to configure");
+                let provider = sub_matches.get_one::<String>("provider").cloned();
+                ModelCommand::List { provider }
             }
+            
+            Some(("select", _)) => ModelCommand::Select,
             
             Some(("test", sub_matches)) => {
-                let provider_filter = sub_matches.get_one::<String>("provider");
-                
-                println!("🧪 Testing model connections...");
-                
-                let _providers = self.get_providers().await?;
-                
-                if provider_filter.is_none() || provider_filter == Some(&"claude".to_string()) {
-                    // For now, just check if the provider exists in config
-                    let config = ArcherConfig::load()?;
-                    if let Some(claude_config) = config.providers.get("claude") {
-                        if claude_config.api_key.is_some() {
-                            println!("  Claude: ✅ API key configured");
-                        } else {
-                            println!("  Claude: ❌ No API key found");
-                        }
-                    } else {
-                        println!("  Claude: ❌ Not configured");
-                    }
-                }
-                
-                println!("\n💡 Check API keys with: aircher config show");
+                let message = sub_matches.get_one::<String>("message").cloned();
+                ModelCommand::Test { message }
             }
             
-            Some(("providers", _)) => {
-                println!("🏭 Available Providers:\n");
+            Some(("auto-select", sub_matches)) => {
+                let task = sub_matches.get_one::<String>("task").map(|t| match t.as_str() {
+                    "code-search" => TaskTypeArg::CodeSearch,
+                    "documentation-search" => TaskTypeArg::DocumentationSearch,
+                    "conceptual-search" => TaskTypeArg::ConceptualSearch,
+                    "cross-language-search" => TaskTypeArg::CrossLanguageSearch,
+                    "large-codebase-search" => TaskTypeArg::LargeCodebaseSearch,
+                    "quick-search" => TaskTypeArg::QuickSearch,
+                    "high-accuracy-search" => TaskTypeArg::HighAccuracySearch,
+                    _ => TaskTypeArg::CodeSearch,
+                });
+                let prefer_local = sub_matches.get_flag("prefer-local");
+                let prefer_fast = sub_matches.get_flag("prefer-fast");
+                let prefer_accurate = sub_matches.get_flag("prefer-accurate");
                 
-                println!("Chat Providers:");
-                println!("  • Claude (Anthropic) - GPT-4 class models");
-                println!("  • OpenAI - GPT models");
-                println!("  • Gemini (Google) - Gemini models");
-                println!("  • Ollama - Local models");
-                println!("  • OpenRouter - Access to multiple providers");
-                
-                println!("\nEmbedding Providers:");
-                println!("  • Ollama - Local embedding models (recommended)");
-                println!("  • OpenAI - text-embedding-3-small/large");
-                
-                println!("\n⚙️  Configure with: aircher config set providers.<provider>.api_key <key>");
+                ModelCommand::AutoSelect { 
+                    task, 
+                    prefer_local, 
+                    prefer_fast, 
+                    prefer_accurate 
+                }
             }
+            
+            Some(("providers", _)) => ModelCommand::Providers,
             
             _ => {
                 eprintln!("❌ Unknown model subcommand");
                 std::process::exit(1);
             }
-        }
+        };
         
-        Ok(())
+        let model_args = ModelArgs { command: model_command };
+        // Create providers first to avoid borrowing issues
+        let providers = if self.providers.is_none() {
+            let provider_manager = ProviderManager::new(&self.config).await?;
+            self.providers = Some(provider_manager);
+        };
+        let providers = self.providers.as_ref().unwrap();
+        handle_model_command(model_args, &mut self.config, providers).await
     }
     
     async fn handle_embedding_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
         use crate::commands::embedding::EmbeddingCommand;
         
         let embedding_command = match matches.subcommand() {
-            Some(("status", _)) => EmbeddingCommand::Status,
+            Some(("list", _)) => Some(EmbeddingCommand::List),
             
-            Some(("setup", sub_matches)) => {
-                let force = sub_matches.get_flag("force");
-                let interactive = sub_matches.get_flag("interactive");
-                EmbeddingCommand::Setup { force, interactive }
+            Some(("set", sub_matches)) => {
+                let model = sub_matches.get_one::<String>("model").unwrap().clone();
+                Some(EmbeddingCommand::Set { model })
             }
             
-            Some(("list", _)) => EmbeddingCommand::List,
-            
-            Some(("test", sub_matches)) => {
+            Some(("verify", sub_matches)) => {
                 let text = sub_matches.get_one::<String>("text").cloned();
-                EmbeddingCommand::Test { text }
+                Some(EmbeddingCommand::Verify { text })
             }
+            
+            Some(("update", sub_matches)) => {
+                let check_only = sub_matches.get_flag("check-only");
+                Some(EmbeddingCommand::Update { check_only })
+            }
+            
+            Some(("clean", sub_matches)) => {
+                let models = sub_matches.get_flag("models");
+                let indices = sub_matches.get_flag("indices");
+                let all = sub_matches.get_flag("all");
+                Some(EmbeddingCommand::Clean { models, indices, all })
+            }
+            
+            Some(("status", _)) => Some(EmbeddingCommand::Status),
+            
+            None => Some(EmbeddingCommand::List), // Default: show list with current marked
             
             _ => {
                 eprintln!("❌ Unknown embedding subcommand");

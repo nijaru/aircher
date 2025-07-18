@@ -28,6 +28,7 @@ use crate::intelligence::file_monitor;
 pub mod chat;
 pub mod components;
 pub mod selection;
+pub mod enhanced_selection;
 pub mod settings;
 pub mod help;
 pub mod autocomplete;
