@@ -1,14 +1,14 @@
 use anyhow::Result;
 use faiss::{Index, index::flat::FlatIndex, MetricType};
-use std::convert::TryInto;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+// use std::convert::TryInto; // TODO: May be needed for future type conversions
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use tokio::fs;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 /// High-performance vector search using FAISS
 pub struct VectorSearchEngine {
-    index: Option<Arc<dyn Index>>,
+    index: Option<Arc<Mutex<dyn Index>>>,
     dimension: usize,
     storage_path: PathBuf,
     embeddings: Vec<Vec<f32>>,
@@ -88,7 +88,7 @@ impl VectorSearchEngine {
         // Add vectors to index
         index.add(&vectors)?;
         
-        self.index = Some(Arc::new(index));
+        self.index = Some(Arc::new(Mutex::new(index)));
         
         info!("FAISS index built successfully");
         Ok(())
@@ -96,18 +96,48 @@ impl VectorSearchEngine {
 
     /// Search for similar vectors
     pub fn search(&self, query_embedding: &[f32], k: usize) -> Result<Vec<SearchResult>> {
-        let _index = self.index.as_ref()
+        let index_arc = self.index.as_ref()
             .ok_or_else(|| anyhow::anyhow!("Index not built. Call build_index() first"))?;
 
         if query_embedding.len() != self.dimension {
             return Err(anyhow::anyhow!("Query embedding dimension mismatch"));
         }
 
-        // TODO: Fix FAISS Idx type conversion issues
-        warn!("FAISS search temporarily disabled due to type conversion issues");
+        // Search using FAISS
+        let mut index = index_arc.lock().map_err(|_| anyhow::anyhow!("Failed to lock index"))?;
+        let search_result = index.search(query_embedding, k)?;
+        let distances = search_result.distances;
+        let indices = search_result.labels;
         
-        // Return empty results for now
-        Ok(Vec::new())
+        let mut results = Vec::new();
+        for (i, idx) in indices.iter().enumerate() {
+            // Use unsafe transmute to convert Idx to usize
+            // This is needed because FAISS uses a custom Idx type
+            let idx_usize: usize = unsafe { std::mem::transmute(*idx) };
+            
+            if idx_usize >= self.metadata.len() {
+                warn!("Index out of bounds from FAISS: {}", idx_usize);
+                continue;
+            }
+            
+            let metadata = &self.metadata[idx_usize];
+            let similarity = distances[i];
+            
+            results.push(SearchResult {
+                file_path: metadata.file_path.clone(),
+                content: metadata.content.clone(),
+                start_line: metadata.start_line,
+                end_line: metadata.end_line,
+                similarity_score: similarity,
+                chunk_type: metadata.chunk_type.clone(),
+            });
+        }
+
+        // Sort by similarity (higher is better for inner product)
+        results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score)
+            .unwrap_or(std::cmp::Ordering::Equal));
+
+        Ok(results)
     }
 
     /// Save index to disk

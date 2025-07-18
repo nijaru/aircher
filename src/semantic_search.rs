@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 use tracing::{debug, info, warn};
 use dirs::cache_dir;
-use rayon::prelude::*;
+// use rayon::prelude::*; // TODO: Re-enable when parallel processing is needed
 
 use crate::cost::{EmbeddingManager, EmbeddingConfig};
-use crate::vector_search::{VectorSearchEngine, ChunkMetadata, SearchResult as VectorSearchResult, ChunkType as VectorChunkType};
+use crate::vector_search::{VectorSearchEngine, ChunkMetadata, ChunkType as VectorChunkType};
 use crate::code_chunking::{CodeChunker, ChunkType as CodeChunkType};
 
 /// Semantic code search using embeddings and FAISS

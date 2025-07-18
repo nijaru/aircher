@@ -12,6 +12,8 @@ mod intelligence;
 mod project;
 mod providers;
 mod semantic_search;
+mod vector_search;
+mod code_chunking;
 mod sessions;
 mod storage;
 mod ui;

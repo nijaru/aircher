@@ -24,7 +24,8 @@
       "Bash(git push:*)",
       "WebFetch(domain:huggingface.co)",
       "Bash(./target/debug/aircher:*)",
-      "Bash(RUST_LOG=info cargo run -- search query \"authentication patterns\" --limit 5)"
+      "Bash(RUST_LOG=info cargo run -- search query \"authentication patterns\" --limit 5)",
+      "Bash(RUST_BACKTRACE=1 cargo build --bin aircher)"
     ],
     "deny": []
   }
