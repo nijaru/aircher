@@ -95,11 +95,12 @@ aircher session export session_id --format markdown
 ## 🚧 Coming Next
 
 - ✅ **Pure Rust Vector Database** - Completed migration to instant-distance for zero dependencies
-- ✅ **Complete Bundled Approach** - True "bulletproof" deployment with no system dependencies
+- ✅ **Complete Bundled Approach** - True "bulletproof" deployment with no system dependencies  
 - ✅ **Tree-sitter Language Expansion** - Added 19+ language support (C, C++, Java, C#, PHP, Ruby, Swift, Kotlin, etc.)
 - ✅ **Configuration System Refactor** - Hardcoded defaults with global/local hierarchy and environment overrides
+- ✅ **Background File Monitoring** - Real-time incremental updates with automatic semantic search index maintenance
 - **Enhanced semantic search** - Cross-file relationship detection, architecture analysis
-- **Background file monitoring** - Incremental updates and change detection
+- **Tree-sitter runtime improvements** - Enhanced parsing for complex code structures
 - **MCP server** - Universal Model Context Protocol server implementation
 
 ## 🚀 Quick Setup
@@ -195,8 +196,9 @@ aircher config --help
 - **Phase 4: Advanced Features** - 100% complete (Session management ✅, File monitoring ✅, TUI Integration ✅, Testing Framework ✅)
 - **Phase 5: Semantic Search** - 100% complete (instant-distance ✅, SweRankEmbed ✅, Tree-sitter ✅, 19+ languages ✅)
 - **Phase 6: Configuration** - 100% complete (Hierarchical config ✅, Global/local ✅, Environment overrides ✅)
+- **Phase 7: Background Integration** - 100% complete (File monitoring ✅, Incremental updates ✅, Automatic indexing ✅)
 
-**Next**: Background file monitoring and incremental updates
+**Next**: Tree-sitter runtime improvements and cross-file relationship detection
 
 ## 🔥 Latest: Semantic Code Search
 

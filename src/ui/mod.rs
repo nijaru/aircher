@@ -84,10 +84,15 @@ impl TuiManager {
         let mut intelligence_tools = TuiIntelligenceTools::new()?;
         intelligence_tools.initialize_project()?;
         
-        // Start background file monitoring
+        // Initialize semantic search for background monitoring
+        let mut semantic_search = crate::semantic_search::SemanticCodeSearch::new();
+        semantic_search.ensure_model_available().await?;
+        
+        // Start background file monitoring with semantic search integration
         let file_monitor = file_monitor::start_background_monitoring(
             project_manager.clone(),
             intelligence_tools.clone(),
+            semantic_search,
         ).await?;
         
         // Create or continue session

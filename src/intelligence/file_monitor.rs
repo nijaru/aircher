@@ -8,6 +8,7 @@ use tokio::time::{interval, sleep};
 use tracing::{debug, info, warn};
 
 use crate::project::ProjectManager;
+use crate::semantic_search::SemanticCodeSearch;
 use super::tools::IntelligenceTools;
 use super::tui_tools::TuiIntelligenceTools;
 
@@ -41,6 +42,7 @@ struct FileMetadata {
 pub struct FileMonitor {
     project_manager: ProjectManager,
     intelligence_tools: Arc<RwLock<TuiIntelligenceTools>>,
+    semantic_search: Arc<RwLock<SemanticCodeSearch>>,
     file_cache: Arc<RwLock<HashMap<PathBuf, FileMetadata>>>,
     change_sender: mpsc::UnboundedSender<FileChangeEvent>,
     change_receiver: Option<mpsc::UnboundedReceiver<FileChangeEvent>>,
@@ -54,12 +56,14 @@ impl FileMonitor {
     pub fn new(
         project_manager: ProjectManager,
         intelligence_tools: TuiIntelligenceTools,
+        semantic_search: SemanticCodeSearch,
     ) -> Result<Self> {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
         
         Ok(Self {
             project_manager,
             intelligence_tools: Arc::new(RwLock::new(intelligence_tools)),
+            semantic_search: Arc::new(RwLock::new(semantic_search)),
             file_cache: Arc::new(RwLock::new(HashMap::new())),
             change_sender,
             change_receiver: Some(change_receiver),
@@ -224,6 +228,7 @@ impl FileMonitor {
     async fn start_change_processor(&mut self) -> tokio::task::JoinHandle<()> {
         let mut change_receiver = self.change_receiver.take().unwrap();
         let intelligence_tools = self.intelligence_tools.clone();
+        let semantic_search = self.semantic_search.clone();
         let debounce_duration = self.debounce_duration;
         let is_running = self.is_running.clone();
         
@@ -247,6 +252,7 @@ impl FileMonitor {
                             if let Err(e) = Self::process_pending_changes(
                                 &pending_changes,
                                 &intelligence_tools,
+                                &semantic_search,
                             ).await {
                                 warn!("Error processing file changes: {}", e);
                             }
@@ -273,6 +279,7 @@ impl FileMonitor {
         let temp_monitor = FileMonitor {
             project_manager: project_manager.clone(),
             intelligence_tools: Arc::new(RwLock::new(TuiIntelligenceTools::new()?)),
+            semantic_search: Arc::new(RwLock::new(SemanticCodeSearch::new())),
             file_cache: file_cache.clone(),
             change_sender: change_sender.clone(),
             change_receiver: None,
@@ -342,6 +349,7 @@ impl FileMonitor {
     async fn process_pending_changes(
         pending_changes: &HashMap<PathBuf, FileChangeEvent>,
         intelligence_tools: &Arc<RwLock<TuiIntelligenceTools>>,
+        semantic_search: &Arc<RwLock<SemanticCodeSearch>>,
     ) -> Result<()> {
         if pending_changes.is_empty() {
             return Ok(());
@@ -353,6 +361,7 @@ impl FileMonitor {
         let mut created_files = Vec::new();
         let mut modified_files = Vec::new();
         let mut deleted_files = Vec::new();
+        let mut files_needing_rebuild = false;
         
         for change_event in pending_changes.values() {
             match &change_event.change_type {
@@ -366,13 +375,55 @@ impl FileMonitor {
             }
         }
         
-        // Analyze impact of changes
+        // Update semantic search index
+        let mut search = semantic_search.write().await;
+        
+        // Handle deleted files
+        for file_path in &deleted_files {
+            if Self::is_code_file(file_path) {
+                if search.remove_file(file_path)? {
+                    info!("Removed deleted file from search index: {:?}", file_path);
+                    files_needing_rebuild = true;
+                }
+            }
+        }
+        
+        // Handle created and modified files
+        let mut all_changed_files = Vec::new();
+        all_changed_files.extend(created_files.iter().cloned());
+        all_changed_files.extend(modified_files.iter().cloned());
+        
+        for file_path in &all_changed_files {
+            if Self::is_code_file(file_path) && file_path.exists() {
+                match search.update_file(file_path).await {
+                    Ok(_) => {
+                        info!("Updated file in search index: {:?}", file_path);
+                    }
+                    Err(e) => {
+                        warn!("Failed to update file in search index {:?}: {}", file_path, e);
+                    }
+                }
+            }
+        }
+        
+        // Rebuild vector index if files were deleted
+        if files_needing_rebuild {
+            if let Err(e) = search.rebuild_vector_index() {
+                warn!("Failed to rebuild vector index: {}", e);
+            }
+        } else if !all_changed_files.is_empty() {
+            // Build index if it's not already built
+            let stats = search.get_stats();
+            if stats.total_chunks > 0 {
+                // The index building is handled internally in the search operations
+                info!("Search index updated with {} file changes", all_changed_files.len());
+            }
+        }
+        
+        // Analyze impact of changes using intelligence tools
         let tools = intelligence_tools.read().await;
         
         if !modified_files.is_empty() || !created_files.is_empty() {
-            let mut all_changed_files = modified_files.clone();
-            all_changed_files.extend(created_files.clone());
-            
             let file_paths: Vec<String> = all_changed_files
                 .iter()
                 .filter_map(|p| p.to_str().map(|s| s.to_string()))
@@ -381,21 +432,27 @@ impl FileMonitor {
             // Analyze impact
             let _impact = tools.analyze_change_impact(&file_paths).await;
             
-            // For now, just log the changes
-            info!("Detected {} file changes:", file_paths.len());
+            info!("Processed {} file changes with semantic search integration", file_paths.len());
             for file in &file_paths {
-                info!("  - {}", file);
+                debug!("  - {}", file);
             }
         }
         
-        // Future: Trigger intelligence updates based on changes
-        // This could include:
-        // - Updating file purpose analysis
-        // - Recomputing relevance scores
-        // - Updating architectural understanding
-        // - Triggering context refresh
-        
         Ok(())
+    }
+    
+    /// Check if file is a code file that should be indexed
+    fn is_code_file(path: &Path) -> bool {
+        if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
+            matches!(extension, 
+                "rs" | "py" | "js" | "ts" | "jsx" | "tsx" | "go" | "java" | 
+                "cpp" | "c" | "h" | "hpp" | "cs" | "rb" | "php" | "swift" |
+                "kt" | "scala" | "clj" | "hs" | "ml" | "fs" | "elm" | "ex" |
+                "exs" | "cr" | "nim" | "zig" | "d" | "dart" | "r" | "jl"
+            )
+        } else {
+            false
+        }
     }
 }
 
@@ -406,6 +463,7 @@ impl Clone for FileMonitor {
         Self {
             project_manager: self.project_manager.clone(),
             intelligence_tools: self.intelligence_tools.clone(),
+            semantic_search: self.semantic_search.clone(),
             file_cache: self.file_cache.clone(),
             change_sender,
             change_receiver: Some(change_receiver),
@@ -420,8 +478,9 @@ impl Clone for FileMonitor {
 pub async fn start_background_monitoring(
     project_manager: ProjectManager,
     intelligence_tools: TuiIntelligenceTools,
+    semantic_search: SemanticCodeSearch,
 ) -> Result<FileMonitor> {
-    let monitor = FileMonitor::new(project_manager, intelligence_tools)?;
+    let monitor = FileMonitor::new(project_manager, intelligence_tools, semantic_search)?;
     
     // Start monitoring in a background task
     let monitor_clone = monitor.clone();

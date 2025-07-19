@@ -431,6 +431,84 @@ impl SemanticCodeSearch {
             .collect()
     }
 
+    /// Remove a file from the index
+    pub fn remove_file(&mut self, file_path: &Path) -> Result<bool> {
+        let path_buf = file_path.to_path_buf();
+        
+        // Find the file in our index
+        let file_index = self.indexed_files.iter().position(|f| f.path == path_buf);
+        
+        if let Some(index) = file_index {
+            let removed_file = self.indexed_files.remove(index);
+            
+            // Remove embeddings from vector search
+            // Note: Current instant-distance implementation doesn't support removal
+            // For now we'll rebuild the index when needed
+            info!("Removed file from index: {:?}", file_path);
+            Ok(true)
+        } else {
+            debug!("File not found in index: {:?}", file_path);
+            Ok(false)
+        }
+    }
+    
+    /// Update a single file in the index (re-index if exists, add if new)
+    pub async fn update_file(&mut self, file_path: &Path) -> Result<()> {
+        // Remove existing file from index if present
+        self.remove_file(file_path)?;
+        
+        // Re-index the file
+        self.index_file(file_path).await?;
+        
+        info!("Updated file in index: {:?}", file_path);
+        Ok(())
+    }
+    
+    /// Check if a file is already indexed
+    pub fn is_file_indexed(&self, file_path: &Path) -> bool {
+        let path_buf = file_path.to_path_buf();
+        self.indexed_files.iter().any(|f| f.path == path_buf)
+    }
+    
+    /// Rebuild the vector search index (needed after file removals)
+    pub fn rebuild_vector_index(&mut self) -> Result<()> {
+        // Clear the existing vector index
+        let cache_dir = dirs::cache_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("aircher")
+            .join("search_index");
+        
+        // Create new vector search engine
+        self.vector_search = VectorSearchEngine::new(cache_dir, 768)?;
+        
+        // Re-add all embeddings
+        let mut total_added = 0;
+        for file in &self.indexed_files {
+            for chunk in &file.chunks {
+                if let Some(embedding) = &chunk.embedding {
+                    let metadata = ChunkMetadata {
+                        file_path: file.path.clone(),
+                        start_line: chunk.start_line,
+                        end_line: chunk.end_line,
+                        chunk_type: chunk.chunk_type.clone(),
+                        content: chunk.content.clone(),
+                    };
+                    
+                    self.vector_search.add_embedding(embedding.clone(), metadata)?;
+                    total_added += 1;
+                }
+            }
+        }
+        
+        // Build the index
+        if total_added > 0 {
+            self.vector_search.build_index()?;
+            info!("Rebuilt vector index with {} embeddings", total_added);
+        }
+        
+        Ok(())
+    }
+
     /// Get statistics about indexed content
     pub fn get_stats(&self) -> IndexStats {
         let total_chunks: usize = self.indexed_files.iter()
