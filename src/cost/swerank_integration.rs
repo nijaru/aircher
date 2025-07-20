@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::path::PathBuf;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use candle_core::Device;
 use candle_transformers::models::bert::BertModel;
