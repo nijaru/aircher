@@ -43,7 +43,14 @@ pub struct SearchResult {
 
 impl SemanticCodeSearch {
     pub fn new() -> Self {
-        let config = EmbeddingConfig::default();
+        // Use config optimized for fast search (prefer bundled model)
+        let config = EmbeddingConfig {
+            preferred_model: "swerank-embed-small".to_string(),
+            fallback_model: Some("nomic-embed-text".to_string()),
+            auto_download: false, // Don't auto-download for search
+            use_ollama_if_available: false, // Skip Ollama checks for speed
+            max_model_size_mb: 1000,
+        };
         let embedding_manager = EmbeddingManager::new(config);
         
         // Create vector search engine with typical embedding dimension
@@ -83,7 +90,7 @@ impl SemanticCodeSearch {
         // Create cache directory if it doesn't exist
         tokio::fs::create_dir_all(&cache_dir).await?;
         
-        let model_path = cache_dir.join("swerank-embed-small.bin");
+        let model_path = cache_dir.join("swerank-embed-small.onnx");
         
         // Extract bundled model if not already present
         if !model_path.exists() {

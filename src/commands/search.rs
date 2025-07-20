@@ -80,9 +80,16 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             // Ensure embedding model is available before search
             search.ensure_model_available().await?;
             
-            // Quick index if not already done
-            info!("Indexing directory for search: {:?}", path);
-            search.index_directory(&path).await?;
+            // Check if we have any indexed content first
+            let stats = search.get_stats();
+            if stats.total_files == 0 {
+                println!("⚠️  No indexed files found. Building index first...");
+                println!("💡 Tip: Run 'aircher search index' once to build a persistent index");
+                info!("Indexing directory for search: {:?}", path);
+                search.index_directory(&path).await?;
+            } else {
+                info!("Using existing index with {} files", stats.total_files);
+            }
             
             match search.search(&query, limit).await {
                 Ok(results) => {
