@@ -806,7 +806,38 @@ impl CliApp {
                 let path = sub_matches.get_one::<String>("path")
                     .map(|s| PathBuf::from(s))
                     .unwrap_or_else(|| PathBuf::from("."));
-                SearchCommand::Query { query, limit, path }
+                
+                // Extract new filter options with defaults
+                let file_types = sub_matches.get_many::<String>("file_types")
+                    .map(|v| v.cloned().collect());
+                let languages = sub_matches.get_many::<String>("languages")
+                    .map(|v| v.cloned().collect());
+                let scope = sub_matches.get_many::<String>("scope")
+                    .map(|v| v.cloned().collect());
+                let chunk_types = sub_matches.get_many::<String>("chunk_types")
+                    .map(|v| v.cloned().collect());
+                let min_similarity = sub_matches.get_one::<f32>("min_similarity").copied();
+                let max_similarity = sub_matches.get_one::<f32>("max_similarity").copied();
+                let exclude = sub_matches.get_many::<String>("exclude")
+                    .map(|v| v.cloned().collect());
+                let include = sub_matches.get_many::<String>("include")
+                    .map(|v| v.cloned().collect());
+                let debug_filters = sub_matches.get_flag("debug_filters");
+                
+                SearchCommand::Query { 
+                    query, 
+                    limit, 
+                    path,
+                    file_types,
+                    languages,
+                    scope,
+                    chunk_types,
+                    min_similarity,
+                    max_similarity,
+                    exclude,
+                    include,
+                    debug_filters
+                }
             }
             
             Some(("stats", sub_matches)) => {
