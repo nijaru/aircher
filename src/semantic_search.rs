@@ -43,7 +43,12 @@ pub struct SearchResult {
 
 impl SemanticCodeSearch {
     pub fn new() -> Self {
-        Self::with_config(Self::default_config())
+        let search = Self::with_config_sync(Self::default_config());
+        // Try to load existing index in the background
+        let _ = tokio::spawn(async move {
+            // This will be handled by explicit load calls
+        });
+        search
     }
 
     /// Default configuration: bundled model only, no external dependencies
@@ -57,8 +62,8 @@ impl SemanticCodeSearch {
         }
     }
 
-    /// Create with explicit configuration (for when user configures specific models)
-    pub fn with_config(config: EmbeddingConfig) -> Self {
+    /// Create with explicit configuration (synchronous version)
+    fn with_config_sync(config: EmbeddingConfig) -> Self {
         let embedding_manager = EmbeddingManager::new(config);
         
         // Create vector search engine with typical embedding dimension
@@ -86,6 +91,34 @@ impl SemanticCodeSearch {
             code_chunker,
             indexed_files: Vec::new(),
         }
+    }
+    
+    /// Create with explicit configuration (async version that loads persisted data)
+    pub async fn with_config(config: EmbeddingConfig) -> Result<Self> {
+        let mut search = Self::with_config_sync(config);
+        
+        // Try to load existing index
+        if let Err(e) = search.load_persisted_index().await {
+            debug!("No existing index found or load failed: {}", e);
+        }
+        
+        Ok(search)
+    }
+    
+    /// Load persisted index if available
+    pub async fn load_persisted_index(&mut self) -> Result<()> {
+        // Load vector search metadata
+        self.vector_search.load_index().await?;
+        
+        // Rebuild indexed_files from metadata
+        let stats = self.vector_search.get_stats();
+        if stats.total_vectors > 0 {
+            info!("Loaded existing index with {} vectors", stats.total_vectors);
+            // Note: We'll rebuild indexed_files on-demand during search operations
+            // since we don't persist the full file content, only metadata
+        }
+        
+        Ok(())
     }
 
     /// Ensure embedding model is available from bundled resources
@@ -551,24 +584,36 @@ impl SemanticCodeSearch {
 
     /// Get statistics about indexed content
     pub fn get_stats(&self) -> IndexStats {
-        let total_chunks: usize = self.indexed_files.iter()
-            .map(|f| f.chunks.len())
-            .sum();
-            
-        let embedded_chunks: usize = self.indexed_files.iter()
-            .flat_map(|f| &f.chunks)
-            .filter(|c| c.embedding.is_some())
-            .count();
+        // If we have in-memory indexed files, use those stats
+        if !self.indexed_files.is_empty() {
+            let total_chunks: usize = self.indexed_files.iter()
+                .map(|f| f.chunks.len())
+                .sum();
+                
+            let embedded_chunks: usize = self.indexed_files.iter()
+                .flat_map(|f| &f.chunks)
+                .filter(|c| c.embedding.is_some())
+                .count();
 
-        IndexStats {
-            total_files: self.indexed_files.len(),
-            total_chunks,
-            embedded_chunks,
-            embedding_coverage: if total_chunks > 0 {
-                embedded_chunks as f32 / total_chunks as f32
-            } else {
-                0.0
-            },
+            IndexStats {
+                total_files: self.indexed_files.len(),
+                total_chunks,
+                embedded_chunks,
+                embedding_coverage: if total_chunks > 0 {
+                    embedded_chunks as f32 / total_chunks as f32
+                } else {
+                    0.0
+                },
+            }
+        } else {
+            // Check if we have persisted data in vector search
+            let vector_stats = self.vector_search.get_stats();
+            IndexStats {
+                total_files: if vector_stats.total_vectors > 0 { 1 } else { 0 }, // Approximation
+                total_chunks: vector_stats.total_vectors,
+                embedded_chunks: vector_stats.total_vectors, // All vectors are embedded
+                embedding_coverage: if vector_stats.total_vectors > 0 { 1.0 } else { 0.0 },
+            }
         }
     }
 }

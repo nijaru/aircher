@@ -28,7 +28,8 @@
       "Bash(RUST_BACKTRACE=1 cargo build --bin aircher)",
       "Bash(timeout:*)",
       "Bash(rustc:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(python3:*)"
     ],
     "deny": []
   }
