@@ -162,9 +162,11 @@ This document tracks the major refactoring of the embedding system from a downlo
 4. **✅ Smart File Filtering** - Only processes 19+ supported code file types, ignores binaries and build artifacts
 
 ### 🔄 Phase 4: Advanced Features (IN PROGRESS)  
-1. **Tree-sitter Runtime Fixes** - Resolve semantic parsing edge cases for complex code structures
-2. **Cross-file Relationship Detection** - Enhanced semantic understanding across module boundaries
-3. **Architecture Analysis** - Code structure and pattern recognition for better context
+1. **✅ Search Timeout Analysis** - Identified and partially resolved external directory indexing issues
+2. **🔄 Tree-sitter Runtime Fixes** - Version conflicts require dependency resolution for semantic parsing
+3. **🔄 Core System Stability** - Deep semantic search investigation needed for remaining timeout issues
+4. **⏳ Cross-file Relationship Detection** - Enhanced semantic understanding (blocked by tree-sitter fixes)
+5. **⏳ Architecture Analysis** - Code structure and pattern recognition (blocked by tree-sitter fixes)
 
 ### 🔮 Phase 5: Future Considerations (DEFERRED)
 1. **omendb Evaluation** - When Mojo-based solution matures and stabilizes
@@ -188,8 +190,38 @@ All major system refactoring has been successfully completed, achieving and exce
 - **✅ Configuration**: Global/local/environment hierarchy with full CLI support
 - **✅ Background Integration**: Real-time file monitoring with automatic index maintenance
 
+### Phase 4 Current Status (Advanced Features)
+
+**🔧 Active Development Areas:**
+
+1. **Tree-sitter Integration Issues**
+   - Version conflicts between tree-sitter crates (0.20.10 vs 0.24.7)
+   - PHP, Swift language API incompatibilities identified
+   - Kotlin language loading successfully fixed
+   - **Status**: Temporarily using generic chunking fallback
+   - **Next**: Resolve dependency version conflicts systematically
+
+2. **Search System Investigation**
+   - External directory exclusion implemented (prevents massive repo indexing)
+   - Core semantic search timeout requires deeper investigation
+   - Generic chunking verified as functionally correct
+   - **Status**: Partial timeout resolution achieved
+   - **Next**: Debug embedding generation and vector search pipeline
+
+3. **System Reliability**
+   - Build system stable with comprehensive warnings cleanup needed
+   - Test suite remains functional throughout refactoring
+   - Background file monitoring fully operational
+   - **Status**: Core stability maintained
+   - **Next**: Address performance bottlenecks in search indexing
+
+**🎯 Immediate Priorities:**
+- Resolve tree-sitter version conflicts for semantic parsing restoration  
+- Complete search timeout investigation and resolution
+- Re-enable semantic chunking for enhanced code understanding
+
 ### Next Evolution Phase
-The system now provides a true "enterprise-ready" solution with zero system dependencies, comprehensive language support, bulletproof configuration management, and automatic background index maintenance. Ready for advanced semantic features like cross-file relationship detection and architecture analysis.
+Once Phase 4 issues are resolved, the system will provide enhanced semantic analysis capabilities with cross-file relationship detection and architecture pattern recognition, building on the solid enterprise-ready foundation already achieved.
 
 ## 📊 Impact Assessment
 
