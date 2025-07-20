@@ -109,13 +109,16 @@ impl CodeChunker {
 
     /// Chunk using tree-sitter for semantic boundaries
     fn chunk_with_tree_sitter(&mut self, content: &str, language: &str) -> Result<Vec<CodeChunk>> {
-        // Test with minimal language set - starting with Rust only
-        if language != "rust" {
+        // Gradually expanding language support - Rust, Python, JS, TS working
+        if !matches!(language, "rust" | "python" | "javascript" | "typescript") {
             return self.chunk_generic(content, language);
         }
         
         let tree_sitter_language = match language {
             "rust" => tree_sitter_rust::LANGUAGE.into(),
+            "python" => tree_sitter_python::LANGUAGE.into(),
+            "javascript" => tree_sitter_javascript::LANGUAGE.into(),
+            "typescript" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
             _ => return self.chunk_generic(content, language),
         };
 
@@ -131,6 +134,9 @@ impl CodeChunker {
         // Get appropriate query for language
         let query = match language {
             "rust" => self.language_queries.rust.as_ref(),
+            "python" => self.language_queries.python.as_ref(),
+            "javascript" => self.language_queries.javascript.as_ref(),
+            "typescript" => self.language_queries.typescript.as_ref(),
             _ => None,
         };
 
