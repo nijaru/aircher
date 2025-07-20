@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::semantic_search::{SemanticCodeSearch};
 
@@ -79,6 +79,11 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             
             // Ensure embedding model is available before search
             search.ensure_model_available().await?;
+            
+            // Try to load existing index
+            if let Err(e) = search.load_persisted_index().await {
+                debug!("No existing index found: {}", e);
+            }
             
             // Check if we have any indexed content first
             let stats = search.get_stats();

@@ -123,6 +123,10 @@ streaming-iterator = "0.1"
 
 # Random number generation for HNSW
 rand = "0.8"
+candle-core = "0.9.1"
+candle-nn = "0.9.1"
+candle-transformers = "0.9.1"
+safetensors = "0.6.0"
 
 [dev-dependencies]
 tempfile = "3.0"
