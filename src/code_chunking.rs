@@ -109,12 +109,43 @@ impl CodeChunker {
 
     /// Chunk using tree-sitter for semantic boundaries
     fn chunk_with_tree_sitter(&mut self, content: &str, language: &str) -> Result<Vec<CodeChunk>> {
-        // TODO: Tree-sitter version conflicts - temporarily using generic chunking for all languages
-        return self.chunk_generic(content, language);
+        // Test with minimal language set - starting with Rust only
+        if language != "rust" {
+            return self.chunk_generic(content, language);
+        }
+        
+        let tree_sitter_language = match language {
+            "rust" => tree_sitter_rust::LANGUAGE.into(),
+            _ => return self.chunk_generic(content, language),
+        };
 
-        // TODO: Tree-sitter semantic parsing disabled due to version conflicts
-        // Already returned generic chunks above
-        unreachable!()
+        // Set language for parser
+        self.parser.set_language(&tree_sitter_language)?;
+
+        // Parse the content
+        let tree = self.parser.parse(content, None)
+            .ok_or_else(|| anyhow::anyhow!("Failed to parse {} code", language))?;
+
+        let mut chunks = Vec::new();
+        
+        // Get appropriate query for language
+        let query = match language {
+            "rust" => self.language_queries.rust.as_ref(),
+            _ => None,
+        };
+
+        if let Some(query) = query {
+            chunks.extend(self.extract_semantic_chunks(&tree, content, query, language)?);
+        }
+
+        // If no semantic chunks found, fall back to generic chunking
+        if chunks.is_empty() {
+            chunks.extend(self.chunk_generic(content, language)?);
+        }
+
+        Ok(chunks)
+
+        // No additional processing needed - already returned above
     }
 
     /// Extract semantic chunks using tree-sitter queries
