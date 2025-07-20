@@ -422,10 +422,19 @@ impl SemanticCodeSearch {
     /// Get context lines around a chunk
     fn get_context_lines(&self, content: &str, start_line: usize, end_line: usize) -> Vec<String> {
         let lines: Vec<&str> = content.lines().collect();
-        let context_start = start_line.saturating_sub(3);
-        let context_end = (end_line + 2).min(lines.len());
         
-        lines[context_start..context_end]
+        // Ensure start_line and end_line are valid and in the right order
+        let actual_start = start_line.min(end_line);
+        let actual_end = start_line.max(end_line);
+        
+        let context_start = actual_start.saturating_sub(3);
+        let context_end = (actual_end + 2).min(lines.len());
+        
+        // Ensure context_start <= context_end
+        let safe_start = context_start.min(context_end);
+        let safe_end = context_end.max(safe_start);
+        
+        lines[safe_start..safe_end]
             .iter()
             .map(|s| s.to_string())
             .collect()
