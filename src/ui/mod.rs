@@ -24,6 +24,7 @@ use crate::storage::DatabaseManager;
 use crate::intelligence::tui_tools::TuiIntelligenceTools;
 use crate::intelligence::tools::IntelligenceTools;
 use crate::intelligence::file_monitor;
+use crate::semantic_search::SemanticCodeSearch;
 
 pub mod chat;
 pub mod components;
@@ -54,6 +55,8 @@ pub struct TuiManager {
     current_session: Option<Session>,
     intelligence_tools: TuiIntelligenceTools,
     file_monitor: Option<file_monitor::FileMonitor>,
+    // Semantic search
+    semantic_search: SemanticCodeSearch,
     // Modals
     selection_modal: SelectionModal,
     settings_modal: SettingsModal,
@@ -85,6 +88,10 @@ impl TuiManager {
         intelligence_tools.initialize_project()?;
         
         // Initialize semantic search for background monitoring
+        let mut semantic_search_monitor = crate::semantic_search::SemanticCodeSearch::new();
+        semantic_search_monitor.ensure_model_available().await?;
+        
+        // Initialize semantic search for TUI
         let mut semantic_search = crate::semantic_search::SemanticCodeSearch::new();
         semantic_search.ensure_model_available().await?;
         
@@ -92,7 +99,7 @@ impl TuiManager {
         let file_monitor = file_monitor::start_background_monitoring(
             project_manager.clone(),
             intelligence_tools.clone(),
-            semantic_search,
+            semantic_search_monitor,
         ).await?;
         
         // Create or continue session
@@ -145,6 +152,8 @@ impl TuiManager {
             current_session: Some(current_session),
             intelligence_tools,
             file_monitor: Some(file_monitor),
+            // Semantic search
+            semantic_search,
             // Initialize modals
             selection_modal: SelectionModal::new(providers, config),
             settings_modal: SettingsModal::new(config),
@@ -210,17 +219,39 @@ impl TuiManager {
                                     self.input.clear();
                                     self.cursor_position = 0;
 
-                                    // Check budget before sending
-                                    if self.check_budget_limits(providers).await? {
-                                        // Add user message
-                                        self.messages.push(Message::user(message.clone()));
-
-                                        // Send request to AI
-                                        if let Err(e) = self.send_message(message, providers).await {
+                                    // Check if it's a search command
+                                    if message.starts_with("/search ") {
+                                        let query = message.strip_prefix("/search ").unwrap_or("").trim();
+                                        if !query.is_empty() {
+                                            // Add user message showing the search command
+                                            self.messages.push(Message::user(message.clone()));
+                                            
+                                            // Perform semantic search
+                                            if let Err(e) = self.handle_search_command(query).await {
+                                                self.messages.push(Message::new(
+                                                    MessageRole::System,
+                                                    format!("Search error: {}", e),
+                                                ));
+                                            }
+                                        } else {
                                             self.messages.push(Message::new(
                                                 MessageRole::System,
-                                                format!("Error: {}", e),
+                                                "Usage: /search <query>".to_string(),
                                             ));
+                                        }
+                                    } else {
+                                        // Check budget before sending to AI
+                                        if self.check_budget_limits(providers).await? {
+                                            // Add user message
+                                            self.messages.push(Message::user(message.clone()));
+
+                                            // Send request to AI
+                                            if let Err(e) = self.send_message(message, providers).await {
+                                                self.messages.push(Message::new(
+                                                    MessageRole::System,
+                                                    format!("Error: {}", e),
+                                                ));
+                                            }
                                         }
                                     }
                                 }
@@ -322,7 +353,7 @@ impl TuiManager {
 
         // Title bar
         let title = Paragraph::new(format!(
-            "🏹 Aircher - {} - {} | F1: Help | F2: Settings | Tab: Select",
+            "🏹 Aircher - {} - {} | F1: Help | F2: Settings | Tab: Select | /search <query>",
             self.provider_name, self.model
         ))
         .style(Style::default().fg(Color::Cyan))
@@ -754,5 +785,62 @@ impl TuiManager {
         prompt.push_str("Be concise and focus on the user's specific request.\n");
         
         Ok(prompt)
+    }
+    
+    /// Handle /search command for semantic code search
+    async fn handle_search_command(&mut self, query: &str) -> Result<()> {
+        info!("Performing semantic search for: '{}'", query);
+        
+        match self.semantic_search.search(query, 10).await {
+            Ok(results) => {
+                if results.is_empty() {
+                    self.messages.push(Message::new(
+                        MessageRole::System,
+                        "No search results found.".to_string(),
+                    ));
+                } else {
+                    // Format search results for display
+                    let mut result_text = format!("Found {} search results:\n\n", results.len());
+                    
+                    for (i, result) in results.iter().enumerate() {
+                        result_text.push_str(&format!(
+                            "{}. **{}** (similarity: {:.2})\n",
+                            i + 1,
+                            result.file_path.display(),
+                            result.similarity_score
+                        ));
+                        
+                        result_text.push_str(&format!(
+                            "   Lines {}-{}: {:?}\n",
+                            result.chunk.start_line,
+                            result.chunk.end_line,
+                            result.chunk.chunk_type
+                        ));
+                        
+                        // Show a preview of the content (first 100 characters)
+                        let preview = if result.chunk.content.len() > 100 {
+                            format!("{}...", &result.chunk.content[..100])
+                        } else {
+                            result.chunk.content.clone()
+                        };
+                        
+                        result_text.push_str(&format!("   Preview: {}\n\n", preview));
+                    }
+                    
+                    self.messages.push(Message::new(
+                        MessageRole::System,
+                        result_text,
+                    ));
+                }
+            }
+            Err(e) => {
+                self.messages.push(Message::new(
+                    MessageRole::System,
+                    format!("Search failed: {}", e),
+                ));
+            }
+        }
+        
+        Ok(())
     }
 }

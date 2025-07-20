@@ -94,6 +94,13 @@ impl HelpModal {
             ("Ctrl+C", "Quit application"),
             ("↑/↓", "Scroll chat history"),
             ("", ""),
+            ("🔍 SEARCH COMMANDS", ""),
+            ("/search <query>", "Search codebase semantically"),
+            ("", "Example: /search user authentication"),
+            ("", "• Searches across 10+ programming languages"),
+            ("", "• Uses AI-powered semantic understanding"),
+            ("", "• Returns files, functions, and code snippets"),
+            ("", ""),
             ("🔧 MODALS & SETTINGS", ""),
             ("Tab", "Open provider/model selection"),
             ("F2", "Open settings panel"),
@@ -154,7 +161,7 @@ impl HelpModal {
             .iter()
             .enumerate()
             .map(|(_i, (key, description))| {
-                if key.starts_with("🎯") || key.starts_with("🔧") || key.starts_with("📡") || 
+                if key.starts_with("🎯") || key.starts_with("🔍") || key.starts_with("🔧") || key.starts_with("📡") || 
                    key.starts_with("⚙️") || key.starts_with("🤖") || key.starts_with("💰") || 
                    key.starts_with("🎨") || key.starts_with("🔑") || key.starts_with("📚") || 
                    key.starts_with("🏹") {
