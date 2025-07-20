@@ -398,18 +398,38 @@ impl EmbeddingManager {
 
     /// Generate embeddings for the given text using the best available method
     pub async fn generate_embeddings(&mut self, text: &str) -> Result<Vec<f32>> {
+        // Fast path: Try bundled model first to avoid Ollama timeouts
+        if !self.config.use_ollama_if_available {
+            match self.ensure_swerank_model().await {
+                Ok(_) => {
+                    let model = self.swerank_model.as_ref()
+                        .context("SweRankEmbed model not initialized")?;
+                    return model.generate_embeddings(text).await;
+                },
+                Err(e) => {
+                    warn!("Bundled model failed, trying Ollama: {}", e);
+                }
+            }
+        }
+        
         let model = self.get_recommended_model().await?;
         self.generate_embeddings_with_model(text, &model.name).await
     }
 
     /// Generate embeddings using a specific model
     pub async fn generate_embeddings_with_model(&mut self, text: &str, model_name: &str) -> Result<Vec<f32>> {
-        // Check if this is the embedded SweRankEmbed model
-        if model_name == "swerank-embed-small" {
-            self.ensure_swerank_model().await?;
-            let model = self.swerank_model.as_ref()
-                .context("SweRankEmbed model not initialized")?;
-            return model.generate_embeddings(text).await;
+        // Always try embedded SweRankEmbed model first for fast search
+        if model_name == "swerank-embed-small" || !self.config.use_ollama_if_available {
+            match self.ensure_swerank_model().await {
+                Ok(_) => {
+                    let model = self.swerank_model.as_ref()
+                        .context("SweRankEmbed model not initialized")?;
+                    return model.generate_embeddings(text).await;
+                },
+                Err(e) => {
+                    warn!("SweRankEmbed not available, falling back: {}", e);
+                }
+            }
         }
 
         // Otherwise, use Ollama
