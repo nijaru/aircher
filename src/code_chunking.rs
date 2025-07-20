@@ -109,69 +109,12 @@ impl CodeChunker {
 
     /// Chunk using tree-sitter for semantic boundaries
     fn chunk_with_tree_sitter(&mut self, content: &str, language: &str) -> Result<Vec<CodeChunk>> {
-        let tree_sitter_language = match language {
-            "rust" => tree_sitter_rust::LANGUAGE.into(),
-            "python" => tree_sitter_python::LANGUAGE.into(),
-            "javascript" => tree_sitter_javascript::LANGUAGE.into(),
-            "typescript" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
-            "go" => tree_sitter_go::LANGUAGE.into(),
-            "c" => tree_sitter_c::LANGUAGE.into(),
-            "cpp" => tree_sitter_cpp::LANGUAGE.into(),
-            "java" => tree_sitter_java::LANGUAGE.into(),
-            "csharp" => tree_sitter_c_sharp::LANGUAGE.into(),
-            "php" => return self.chunk_generic(content, language), // TODO: Fix PHP language loading
-            "ruby" => tree_sitter_ruby::LANGUAGE.into(),
-            "swift" => return self.chunk_generic(content, language), // TODO: Fix Swift language loading
-            "kotlin" => return self.chunk_generic(content, language), // TODO: Fix Kotlin language loading
-            "sql" => tree_sitter_sequel::LANGUAGE.into(),
-            "yaml" => tree_sitter_yaml::LANGUAGE.into(),
-            "json" => tree_sitter_json::LANGUAGE.into(),
-            "bash" => tree_sitter_bash::LANGUAGE.into(),
-            "html" => tree_sitter_html::LANGUAGE.into(),
-            "css" => tree_sitter_css::LANGUAGE.into(),
-            _ => return self.chunk_generic(content, language),
-        };
+        // TODO: Tree-sitter version conflicts - temporarily using generic chunking for all languages
+        return self.chunk_generic(content, language);
 
-        // Set language for parser
-        self.parser.set_language(&tree_sitter_language)?;
-
-        // Parse the content
-        let tree = self.parser.parse(content, None)
-            .ok_or_else(|| anyhow::anyhow!("Failed to parse {} code", language))?;
-
-        let mut chunks = Vec::new();
-        
-        // Get appropriate query for language
-        let query = match language {
-            "rust" => self.language_queries.rust.as_ref(),
-            "python" => self.language_queries.python.as_ref(),
-            "javascript" => self.language_queries.javascript.as_ref(),
-            "typescript" => self.language_queries.typescript.as_ref(),
-            "go" => self.language_queries.go.as_ref(),
-            // "c" => self.language_queries.c.as_ref(),
-            // "cpp" => self.language_queries.cpp.as_ref(),
-            // "java" => self.language_queries.java.as_ref(),
-            // "csharp" => self.language_queries.csharp.as_ref(),
-            // "php" => self.language_queries.php.as_ref(),
-            // "ruby" => self.language_queries.ruby.as_ref(),
-            // "swift" => self.language_queries.swift.as_ref(),
-            // "kotlin" => self.language_queries.kotlin.as_ref(),
-            // "sql" => self.language_queries.sql.as_ref(),
-            // JSON, HTML, CSS, Bash, YAML don't have meaningful function/class structure
-            // so we'll use generic chunking for them
-            _ => None,
-        };
-
-        if let Some(query) = query {
-            chunks.extend(self.extract_semantic_chunks(&tree, content, query, language)?);
-        }
-
-        // If no semantic chunks found, fall back to generic chunking
-        if chunks.is_empty() {
-            chunks.extend(self.chunk_generic(content, language)?);
-        }
-
-        Ok(chunks)
+        // TODO: Tree-sitter semantic parsing disabled due to version conflicts
+        // Already returned generic chunks above
+        unreachable!()
     }
 
     /// Extract semantic chunks using tree-sitter queries
