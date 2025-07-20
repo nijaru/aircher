@@ -1,7 +1,5 @@
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{info, warn};
 
 /// 2025 State-of-the-Art Embedding Strategy
 /// Based on latest research and benchmarks

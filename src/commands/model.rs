@@ -10,7 +10,7 @@ use ratatui::{
     Terminal,
 };
 use std::io::stdout;
-use tracing::{info, debug};
+use tracing::info;
 
 use crate::config::ConfigManager;
 use crate::providers::ProviderManager;
