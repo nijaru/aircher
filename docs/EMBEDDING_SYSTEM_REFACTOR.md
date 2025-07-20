@@ -91,7 +91,7 @@ This document tracks the major refactoring of the embedding system from a downlo
 - ✅ **Library compiles successfully** (with warnings only)
 - ✅ **instant-distance vector search** (pure Rust HNSW implementation)
 - ✅ **Bundled model system** (SweRankEmbed, no downloads needed)
-- ✅ **Tree-sitter semantic parsing** (19+ languages supported)
+- ✅ **Tree-sitter semantic parsing** (10 languages actively supported)
 - ✅ **Hierarchical configuration** (hardcoded + global + local + env)
 - ✅ **Comprehensive testing** (end-to-end validation complete)
 - ✅ **Performance validation** (excellent results on larger codebases)
@@ -105,8 +105,9 @@ This document tracks the major refactoring of the embedding system from a downlo
 - **Go**: Functions, methods, type declarations
 - **C**: Functions, structs (semantic parsing working - 4 function chunks vs 0 previously)
 - **C++**: Functions, classes, structs, template functions
-- **Java**: Methods, classes, interfaces (excellent semantic parsing)
+- **Java**: Methods, classes, interfaces (excellent semantic parsing - 22 chunks)
 - **C#**: Methods, classes, interfaces, structs (excellent semantic parsing - 20 chunks)
+- **Ruby**: Modules working, classes/methods partial (22 chunks - 1 module detected)
 - **Fallback**: Generic chunking for all other languages
 
 ### Current Status & Solution
