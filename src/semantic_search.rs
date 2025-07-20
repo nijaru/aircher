@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -43,12 +43,12 @@ pub struct SearchResult {
 
 impl SemanticCodeSearch {
     pub fn new() -> Self {
-        // Use config optimized for fast search (prefer bundled model)
+        // Use config optimized for fast search (bundled first, then Ollama)
         let config = EmbeddingConfig {
-            preferred_model: "swerank-embed-small".to_string(),
-            fallback_model: Some("nomic-embed-text".to_string()),
-            auto_download: false, // Don't auto-download for search
-            use_ollama_if_available: false, // Skip Ollama checks for speed
+            preferred_model: "swerank-embed-small".to_string(), // Bundled model first
+            fallback_model: Some("nomic-embed-text".to_string()), // Ollama fallback
+            auto_download: false, // Don't auto-download for search speed
+            use_ollama_if_available: true, // Check Ollama but with fast timeout
             max_model_size_mb: 1000,
         };
         let embedding_manager = EmbeddingManager::new(config);
@@ -105,49 +105,68 @@ impl SemanticCodeSearch {
 
     /// Index a directory of code files
     pub async fn index_directory(&mut self, dir_path: &Path) -> Result<()> {
-        info!("Starting semantic indexing of directory: {:?}", dir_path);
+        info!("Indexing directory: {:?}", dir_path);
         
-        let mut file_count = 0;
         let files = self.find_code_files(dir_path).await?;
+        let total_files = files.len();
+        
+        if total_files == 0 {
+            warn!("No code files found");
+            return Ok(());
+        }
+        
+        let mut indexed_count = 0;
+        let mut failed_count = 0;
         
         for file_path in files {
             match self.index_file(&file_path).await {
                 Ok(_) => {
-                    file_count += 1;
-                    if file_count % 10 == 0 {
-                        info!("Indexed {} files", file_count);
+                    indexed_count += 1;
+                    if indexed_count % 25 == 0 {
+                        info!("Progress: {}/{} files", indexed_count, total_files);
                     }
                 }
                 Err(e) => {
-                    warn!("Failed to index {:?}: {}", file_path, e);
+                    failed_count += 1;
+                    debug!("Skipped {:?}: {}", file_path, e);
                 }
             }
         }
         
-        info!("Completed indexing {} files", file_count);
+        if failed_count > 0 {
+            info!("Indexed {}/{} files ({} skipped)", indexed_count, total_files, failed_count);
+        } else {
+            info!("Indexed {} files", indexed_count);
+        }
+        
         Ok(())
     }
 
     /// Index a single file using improved chunking and vector search
     pub async fn index_file(&mut self, file_path: &Path) -> Result<()> {
-        let content = fs::read_to_string(file_path).await?;
+        let content = fs::read_to_string(file_path).await
+            .context(format!("Failed to read file: {:?}", file_path))?;
         
-        // Use tree-sitter based chunking for better semantic boundaries
-        let chunks = self.code_chunker.chunk_file(file_path, &content)?;
-        
-        // Generate embeddings for chunks (sequential for now due to borrowing constraints)
-        let mut chunk_embeddings = Vec::new();
-        for chunk in &chunks {
-            let embedding_result = self.embedding_manager.generate_embeddings(&chunk.content).await;
-            chunk_embeddings.push((chunk, embedding_result));
+        // Skip empty or very small files
+        if content.trim().len() < 50 {
+            return Ok(());
         }
         
-        // Add successful embeddings to vector search
-        let mut embedded_chunks = Vec::new();
-        for (chunk, embedding_result) in chunk_embeddings {
-            match embedding_result {
+        // Use tree-sitter based chunking for better semantic boundaries
+        let chunks = self.code_chunker.chunk_file(file_path, &content)
+            .context(format!("Failed to chunk file: {:?}", file_path))?;
+        
+        if chunks.is_empty() {
+            return Ok(()); // No meaningful content to index
+        }
+        
+        // Process chunks and generate embeddings
+        let mut embedded_chunks = Vec::with_capacity(chunks.len());
+        
+        for chunk in chunks {
+            let code_chunk = match self.embedding_manager.generate_embeddings(&chunk.content).await {
                 Ok(embedding) => {
-                    // Convert code chunk to vector search metadata
+                    // Add to vector search index
                     let metadata = ChunkMetadata {
                         file_path: file_path.to_path_buf(),
                         start_line: chunk.start_line,
@@ -156,68 +175,65 @@ impl SemanticCodeSearch {
                         content: chunk.content.clone(),
                     };
                     
-                    // Add to vector search index
                     self.vector_search.add_embedding(embedding.clone(), metadata)?;
                     
-                    // Keep for compatibility with existing code
-                    let code_chunk = CodeChunk {
-                        content: chunk.content.clone(),
+                    CodeChunk {
+                        content: chunk.content,
                         start_line: chunk.start_line,
                         end_line: chunk.end_line,
                         chunk_type: convert_chunk_type(&chunk.chunk_type),
                         embedding: Some(embedding),
-                    };
-                    embedded_chunks.push(code_chunk);
+                    }
                 }
-                Err(e) => {
-                    debug!("Failed to generate embedding for chunk: {}", e);
+                Err(_) => {
                     // Keep chunk without embedding for fallback text search
-                    let code_chunk = CodeChunk {
-                        content: chunk.content.clone(),
+                    CodeChunk {
+                        content: chunk.content,
                         start_line: chunk.start_line,
                         end_line: chunk.end_line,
                         chunk_type: convert_chunk_type(&chunk.chunk_type),
                         embedding: None,
-                    };
-                    embedded_chunks.push(code_chunk);
+                    }
                 }
-            }
+            };
+            
+            embedded_chunks.push(code_chunk);
         }
         
-        let indexed_file = IndexedFile {
+        self.indexed_files.push(IndexedFile {
             path: file_path.to_path_buf(),
             content,
             chunks: embedded_chunks,
-        };
+        });
         
-        self.indexed_files.push(indexed_file);
         Ok(())
     }
 
-    /// Semantic search for code matching a query using FAISS
+    /// Semantic search for code matching a query
     pub async fn search(&mut self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
-        info!("Performing semantic search for: '{}'", query);
+        info!("Searching for: '{}'", query);
         
         // Generate query embedding
         let query_embedding = match self.embedding_manager.generate_embeddings(query).await {
             Ok(embedding) => embedding,
             Err(e) => {
-                warn!("Failed to generate query embedding: {}", e);
+                warn!("Embedding failed, using text search: {}", e);
                 return self.fallback_text_search(query, limit);
             }
         };
         
-        // Build HNSW index if not already built
-        if self.vector_search.get_stats().total_vectors > 0 && !self.vector_search.get_stats().index_built {
-            info!("Building HNSW index...");
+        // Build HNSW index if needed
+        let stats = self.vector_search.get_stats();
+        if stats.total_vectors > 0 && !stats.index_built {
+            info!("Building search index");
             self.vector_search.build_index()?;
         }
         
-        // Search using instant-distance HNSW
+        // Search using vector similarity
         let vector_results = match self.vector_search.search(&query_embedding, limit) {
             Ok(results) => results,
             Err(e) => {
-                warn!("HNSW search failed: {}", e);
+                warn!("Vector search failed: {}", e);
                 return self.fallback_text_search(query, limit);
             }
         };
@@ -243,7 +259,7 @@ impl SemanticCodeSearch {
             });
         }
         
-        info!("Found {} semantic matches", results.len());
+        info!("Found {} matches", results.len());
         Ok(results)
     }
 
