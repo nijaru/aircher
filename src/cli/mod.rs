@@ -2,13 +2,12 @@ use anyhow::Result;
 use clap::{Arg, Command};
 use std::env;
 use tracing::{error, info};
-use toml;
 
 use crate::commands::search::{SearchArgs, handle_search_command};
 use crate::commands::embedding::{EmbeddingArgs, handle_embedding_command};
 use crate::commands::model::{ModelArgs, ModelCommand, TaskTypeArg, handle_model_command};
 use crate::commands::config::{ConfigArgs, ConfigCommand, handle_config_command};
-use crate::config::{ConfigManager, toml_config::ArcherConfig};
+use crate::config::ConfigManager;
 use crate::providers::{ChatRequest, Message, ProviderManager};
 use crate::sessions::{SessionFilter, ExportFormat, SessionManager, MessageRole};
 use crate::storage::DatabaseManager;
