@@ -129,15 +129,18 @@ impl EmbeddingManager {
             return available;
         }
 
-        debug!("Checking Ollama availability...");
+        debug!("Checking Ollama availability");
         
-        let output = Command::new("ollama")
-            .arg("list")
-            .output()
-            .await;
+        // Use timeout to avoid hanging when Ollama is off
+        let output = tokio::time::timeout(
+            std::time::Duration::from_secs(3), // Fast 3-second timeout
+            Command::new("ollama")
+                .arg("list")
+                .output()
+        ).await;
 
         let available = match output {
-            Ok(output) => {
+            Ok(Ok(output)) => {
                 if output.status.success() {
                     info!("Ollama is available");
                     true
@@ -146,8 +149,12 @@ impl EmbeddingManager {
                     false
                 }
             }
-            Err(e) => {
-                debug!("Ollama not found: {}", e);
+            Ok(Err(e)) => {
+                debug!("Ollama command failed: {}", e);
+                false
+            }
+            Err(_) => {
+                debug!("Ollama check timed out");
                 false
             }
         };
@@ -158,77 +165,81 @@ impl EmbeddingManager {
 
     /// Get the best embedding model for AI coding tasks
     pub async fn get_recommended_model(&mut self) -> Result<EmbeddingModel> {
-        // First priority: Embedded SweRankEmbed model (zero dependencies)
+        // Priority 1: Bundled model (always available, fast startup)
         if self.is_embedded_model_available().await {
-            if let Some(model) = self.available_models.iter()
-                .find(|m| m.name == "swerank-embed-small" && m.provider == "embedded") {
-                info!("Using embedded SweRankEmbed-Small model (SOTA, zero dependencies)");
-                return Ok(model.clone());
+            if let Some(model) = self.find_model("swerank-embed-small", "embedded") {
+                info!("Using bundled model");
+                return Ok(model);
             }
         }
 
-        // Second priority: If Ollama is available and configured, prefer Ollama models
+        // Priority 2: Ollama models (better accuracy when available)
         if self.config.use_ollama_if_available && self.check_ollama_availability().await {
-            // Check if preferred model is available
-            if let Some(model) = self.available_models.iter()
-                .find(|m| m.name == self.config.preferred_model && m.provider == "ollama") {
-                
-                if self.is_ollama_model_available(&model.name).await? {
-                    info!("Using available Ollama model: {}", model.name);
-                    return Ok(model.clone());
-                }
-            }
-
-            // Try to auto-download the preferred model
-            if self.config.auto_download {
-                if let Some(model) = self.available_models.iter()
-                    .find(|m| m.name == self.config.preferred_model && m.provider == "ollama") {
-                    
-                    if model.size_mb <= self.config.max_model_size_mb {
-                        info!("Auto-downloading recommended model: {}", model.name);
-                        self.download_ollama_model(&model.name).await?;
-                        return Ok(model.clone());
-                    }
-                }
-            }
-
-            // Find the best available model in Ollama
-            for model in &self.available_models {
-                if model.provider == "ollama" && model.size_mb <= self.config.max_model_size_mb {
-                    if self.is_ollama_model_available(&model.name).await? {
-                        info!("Using available Ollama model: {}", model.name);
-                        return Ok(model.clone());
-                    }
-                }
+            if let Some(model) = self.get_best_ollama_model().await? {
+                info!("Using Ollama model: {}", model.name);
+                return Ok(model);
             }
         }
 
-        // Fallback to non-Ollama models or prompt for download
+        // Priority 3: Fallback model
         if let Some(fallback_name) = &self.config.fallback_model {
-            if let Some(model) = self.available_models.iter()
-                .find(|m| m.name == *fallback_name) {
-                
-                warn!("Using fallback embedding model: {}", model.name);
-                return Ok(model.clone());
+            if let Some(model) = self.find_model(fallback_name, "ollama") {
+                warn!("Using fallback model: {}", model.name);
+                return Ok(model);
             }
         }
 
-        // Default to the smallest available model
-        let smallest = self.available_models.iter()
+        // Priority 4: Any available model within size limits
+        self.available_models.iter()
             .filter(|m| m.size_mb <= self.config.max_model_size_mb)
             .min_by_key(|m| m.size_mb)
-            .context("No suitable embedding model found")?;
+            .cloned()
+            .context("No suitable embedding model found")
+    }
 
-        Ok(smallest.clone())
+    /// Helper to find a model by name and provider
+    fn find_model(&self, name: &str, provider: &str) -> Option<EmbeddingModel> {
+        self.available_models.iter()
+            .find(|m| m.name == name && m.provider == provider)
+            .cloned()
+    }
+
+    /// Get the best available Ollama model
+    async fn get_best_ollama_model(&self) -> Result<Option<EmbeddingModel>> {
+        // Try preferred model first
+        if let Some(model) = self.find_model(&self.config.preferred_model, "ollama") {
+            if self.is_ollama_model_available(&model.name).await? {
+                return Ok(Some(model));
+            }
+            
+            // Auto-download if enabled and within size limits
+            if self.config.auto_download && model.size_mb <= self.config.max_model_size_mb {
+                info!("Downloading model: {}", model.name);
+                self.download_ollama_model(&model.name).await?;
+                return Ok(Some(model));
+            }
+        }
+
+        // Find any available Ollama model within size limits
+        for model in &self.available_models {
+            if model.provider == "ollama" 
+                && model.size_mb <= self.config.max_model_size_mb
+                && self.is_ollama_model_available(&model.name).await? {
+                return Ok(Some(model.clone()));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Check if an Ollama model is already downloaded
     async fn is_ollama_model_available(&self, model_name: &str) -> Result<bool> {
-        let output = Command::new("ollama")
-            .arg("list")
-            .output()
-            .await
-            .context("Failed to run ollama list")?;
+        let output = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            Command::new("ollama").arg("list").output()
+        ).await
+        .map_err(|_| anyhow::anyhow!("Ollama list timeout"))?
+        .context("Failed to run ollama list")?;
 
         if !output.status.success() {
             return Ok(false);
@@ -240,7 +251,7 @@ impl EmbeddingManager {
 
     /// Download an Ollama model
     async fn download_ollama_model(&self, model_name: &str) -> Result<()> {
-        info!("Downloading Ollama model: {}", model_name);
+        info!("Downloading model: {}", model_name);
         
         let output = Command::new("ollama")
             .arg("pull")
@@ -398,38 +409,18 @@ impl EmbeddingManager {
 
     /// Generate embeddings for the given text using the best available method
     pub async fn generate_embeddings(&mut self, text: &str) -> Result<Vec<f32>> {
-        // Fast path: Try bundled model first to avoid Ollama timeouts
-        if !self.config.use_ollama_if_available {
-            match self.ensure_swerank_model().await {
-                Ok(_) => {
-                    let model = self.swerank_model.as_ref()
-                        .context("SweRankEmbed model not initialized")?;
-                    return model.generate_embeddings(text).await;
-                },
-                Err(e) => {
-                    warn!("Bundled model failed, trying Ollama: {}", e);
-                }
-            }
-        }
-        
         let model = self.get_recommended_model().await?;
         self.generate_embeddings_with_model(text, &model.name).await
     }
 
     /// Generate embeddings using a specific model
     pub async fn generate_embeddings_with_model(&mut self, text: &str, model_name: &str) -> Result<Vec<f32>> {
-        // Always try embedded SweRankEmbed model first for fast search
-        if model_name == "swerank-embed-small" || !self.config.use_ollama_if_available {
-            match self.ensure_swerank_model().await {
-                Ok(_) => {
-                    let model = self.swerank_model.as_ref()
-                        .context("SweRankEmbed model not initialized")?;
-                    return model.generate_embeddings(text).await;
-                },
-                Err(e) => {
-                    warn!("SweRankEmbed not available, falling back: {}", e);
-                }
-            }
+        // Check if this is the embedded SweRankEmbed model
+        if model_name == "swerank-embed-small" {
+            self.ensure_swerank_model().await?;
+            let model = self.swerank_model.as_ref()
+                .context("SweRankEmbed model not initialized")?;
+            return model.generate_embeddings(text).await;
         }
 
         // Otherwise, use Ollama

@@ -528,7 +528,7 @@ impl LanguageQueries {
 
     /// Create Kotlin query
     fn create_kotlin_query() -> Result<Query> {
-        let query_str = r#"
+        let _query_str = r#"
             (function_declaration
                 name: (simple_identifier) @name) @function
             
