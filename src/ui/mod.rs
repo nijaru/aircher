@@ -353,7 +353,7 @@ impl TuiManager {
 
         // Title bar
         let title = Paragraph::new(format!(
-            "🏹 Aircher - {} - {} | F1: Help | F2: Settings | Tab: Select | /search <query>",
+            "🏹 Aircher - {} - {} | F1: Help | F2: Settings | Tab: Select | /search <query> [--filters]",
             self.provider_name, self.model
         ))
         .style(Style::default().fg(Color::Cyan))
@@ -787,20 +787,51 @@ impl TuiManager {
         Ok(prompt)
     }
     
-    /// Handle /search command for semantic code search
+    /// Handle /search command for semantic code search with optional filters
     async fn handle_search_command(&mut self, query: &str) -> Result<()> {
         info!("Performing semantic search for: '{}'", query);
         
-        match self.semantic_search.search(query, 10).await {
-            Ok(results) => {
+        // Parse search command and filters
+        let (search_query, filters) = self.parse_search_command(query);
+        let limit = filters.limit.unwrap_or(10);
+        
+        match self.semantic_search.search(&search_query, limit * 3).await {
+            Ok(mut results) => {
+                let original_count = results.len();
+                
+                // Apply advanced filters
+                results = self.apply_search_filters(
+                    results,
+                    &filters.file_types,
+                    &filters.languages,
+                    &filters.scope,
+                    &filters.chunk_types,
+                    filters.min_similarity,
+                    filters.max_similarity,
+                    &filters.exclude,
+                    &filters.include,
+                    filters.debug_filters
+                );
+                
+                // Limit results after filtering
+                results.truncate(limit);
+                
                 if results.is_empty() {
+                    let mut message = "No search results found.".to_string();
+                    if original_count > 0 {
+                        message.push_str(&format!("\n💡 {} results were filtered out - try adjusting filters", original_count));
+                    }
                     self.messages.push(Message::new(
                         MessageRole::System,
-                        "No search results found.".to_string(),
+                        message,
                     ));
                 } else {
                     // Format search results for display
-                    let mut result_text = format!("Found {} search results:\n\n", results.len());
+                    let mut result_text = if original_count != results.len() {
+                        format!("Found {} search results (filtered from {}):\n\n", results.len(), original_count)
+                    } else {
+                        format!("Found {} search results:\n\n", results.len())
+                    };
                     
                     for (i, result) in results.iter().enumerate() {
                         result_text.push_str(&format!(
@@ -842,5 +873,292 @@ impl TuiManager {
         }
         
         Ok(())
+    }
+    
+    /// Parse search command with optional filters
+    fn parse_search_command(&self, input: &str) -> (String, SearchFilters) {
+        let mut filters = SearchFilters::default();
+        let parts: Vec<&str> = input.split_whitespace().collect();
+        let mut query_parts = Vec::new();
+        let mut i = 0;
+        
+        while i < parts.len() {
+            let part = parts[i];
+            
+            if part.starts_with("--") {
+                match part {
+                    "--file-types" | "--ft" => {
+                        if i + 1 < parts.len() {
+                            filters.file_types = Some(parts[i + 1].split(',').map(|s| s.to_string()).collect());
+                            i += 2;
+                        } else {
+                            i += 1;
+                        }
+                    }
+                    "--scope" | "-s" => {
+                        if i + 1 < parts.len() {
+                            filters.scope = Some(parts[i + 1].split(',').map(|s| s.to_string()).collect());
+                            i += 2;
+                        } else {
+                            i += 1;
+                        }
+                    }
+                    "--min-similarity" | "--min" => {
+                        if i + 1 < parts.len() {
+                            if let Ok(val) = parts[i + 1].parse::<f32>() {
+                                filters.min_similarity = Some(val);
+                            }
+                            i += 2;
+                        } else {
+                            i += 1;
+                        }
+                    }
+                    "--exclude" | "-e" => {
+                        if i + 1 < parts.len() {
+                            filters.exclude = Some(parts[i + 1].split(',').map(|s| s.to_string()).collect());
+                            i += 2;
+                        } else {
+                            i += 1;
+                        }
+                    }
+                    "--limit" | "-l" => {
+                        if i + 1 < parts.len() {
+                            if let Ok(val) = parts[i + 1].parse::<usize>() {
+                                filters.limit = Some(val);
+                            }
+                            i += 2;
+                        } else {
+                            i += 1;
+                        }
+                    }
+                    "--debug" => {
+                        filters.debug_filters = true;
+                        i += 1;
+                    }
+                    _ => {
+                        // Unknown flag, include in query
+                        query_parts.push(part);
+                        i += 1;
+                    }
+                }
+            } else {
+                query_parts.push(part);
+                i += 1;
+            }
+        }
+        
+        let query = query_parts.join(" ");
+        (query, filters)
+    }
+    
+    /// Apply search filters (copied from CLI implementation)
+    fn apply_search_filters(
+        &self,
+        mut results: Vec<crate::semantic_search::SearchResult>,
+        file_types: &Option<Vec<String>>,
+        languages: &Option<Vec<String>>,
+        scope: &Option<Vec<String>>,
+        chunk_types: &Option<Vec<String>>,
+        min_similarity: Option<f32>,
+        max_similarity: Option<f32>,
+        exclude: &Option<Vec<String>>,
+        include: &Option<Vec<String>>,
+        debug_filters: bool,
+    ) -> Vec<crate::semantic_search::SearchResult> {
+        let original_count = results.len();
+        
+        // Filter by similarity thresholds
+        if let Some(min_sim) = min_similarity {
+            results.retain(|r| r.similarity_score >= min_sim);
+            if debug_filters {
+                debug!("After min similarity filter: {} results", results.len());
+            }
+        }
+        
+        if let Some(max_sim) = max_similarity {
+            results.retain(|r| r.similarity_score <= max_sim);
+            if debug_filters {
+                debug!("After max similarity filter: {} results", results.len());
+            }
+        }
+        
+        // Filter by file types/extensions
+        if let Some(ref types) = file_types {
+            let normalized_types: Vec<String> = types.iter()
+                .map(|t| normalize_file_type(t))
+                .collect();
+            
+            results.retain(|r| {
+                if let Some(ext) = r.file_path.extension().and_then(|e| e.to_str()) {
+                    normalized_types.contains(&ext.to_lowercase()) ||
+                    normalized_types.contains(&language_from_extension(ext))
+                } else {
+                    false
+                }
+            });
+            
+            if debug_filters {
+                debug!("After file type filter: {} results", results.len());
+            }
+        }
+        
+        // Filter by languages
+        if let Some(ref langs) = languages {
+            let normalized_langs: Vec<String> = langs.iter()
+                .map(|l| l.to_lowercase())
+                .collect();
+            
+            results.retain(|r| {
+                if let Some(ext) = r.file_path.extension().and_then(|e| e.to_str()) {
+                    let lang = language_from_extension(ext);
+                    normalized_langs.contains(&lang)
+                } else {
+                    false
+                }
+            });
+            
+            if debug_filters {
+                debug!("After language filter: {} results", results.len());
+            }
+        }
+        
+        // Filter by chunk types
+        if let Some(ref chunks) = chunk_types {
+            let normalized_chunks: Vec<String> = chunks.iter()
+                .map(|c| c.to_lowercase())
+                .collect();
+            
+            results.retain(|r| {
+                let chunk_type_str = match r.chunk.chunk_type {
+                    crate::vector_search::ChunkType::Function => "function",
+                    crate::vector_search::ChunkType::Class => "class",
+                    crate::vector_search::ChunkType::Module => "module",
+                    crate::vector_search::ChunkType::Comment => "comment",
+                    crate::vector_search::ChunkType::Generic => "generic",
+                }.to_string();
+                
+                normalized_chunks.contains(&chunk_type_str)
+            });
+            
+            if debug_filters {
+                debug!("After chunk type filter: {} results", results.len());
+            }
+        }
+        
+        // Filter by scope (functions, classes, modules, etc.)
+        if let Some(ref scopes) = scope {
+            let normalized_scopes: Vec<String> = scopes.iter()
+                .map(|s| s.to_lowercase())
+                .collect();
+            
+            results.retain(|r| {
+                let chunk_type_str = match r.chunk.chunk_type {
+                    crate::vector_search::ChunkType::Function => "function",
+                    crate::vector_search::ChunkType::Class => "class",
+                    crate::vector_search::ChunkType::Module => "module",
+                    crate::vector_search::ChunkType::Comment => "comment",
+                    crate::vector_search::ChunkType::Generic => "generic",
+                }.to_string();
+                
+                // Check if scope matches chunk type or if "functions" matches "function"
+                normalized_scopes.contains(&chunk_type_str) ||
+                (chunk_type_str == "function" && normalized_scopes.contains(&"functions".to_string())) ||
+                (chunk_type_str == "class" && normalized_scopes.contains(&"classes".to_string())) ||
+                (chunk_type_str == "module" && normalized_scopes.contains(&"modules".to_string()))
+            });
+            
+            if debug_filters {
+                debug!("After scope filter: {} results", results.len());
+            }
+        }
+        
+        // Apply exclude patterns
+        if let Some(ref excl_patterns) = exclude {
+            results.retain(|r| {
+                let path_str = r.file_path.to_string_lossy().to_lowercase();
+                !excl_patterns.iter().any(|pattern| {
+                    let pattern_lower = pattern.to_lowercase();
+                    path_str.contains(&pattern_lower) ||
+                    r.chunk.content.to_lowercase().contains(&pattern_lower)
+                })
+            });
+            
+            if debug_filters {
+                debug!("After exclude filter: {} results", results.len());
+            }
+        }
+        
+        // Apply include patterns
+        if let Some(ref incl_patterns) = include {
+            results.retain(|r| {
+                let path_str = r.file_path.to_string_lossy().to_lowercase();
+                incl_patterns.iter().any(|pattern| {
+                    let pattern_lower = pattern.to_lowercase();
+                    path_str.contains(&pattern_lower)
+                })
+            });
+            
+            if debug_filters {
+                debug!("After include filter: {} results", results.len());
+            }
+        }
+        
+        if debug_filters && results.len() != original_count {
+            info!("🔍 Filtered search results: {} → {}", original_count, results.len());
+        }
+        
+        results
+    }
+}
+
+/// Search filters for TUI search commands
+#[derive(Default)]
+struct SearchFilters {
+    file_types: Option<Vec<String>>,
+    languages: Option<Vec<String>>,
+    scope: Option<Vec<String>>,
+    chunk_types: Option<Vec<String>>,
+    min_similarity: Option<f32>,
+    max_similarity: Option<f32>,
+    exclude: Option<Vec<String>>,
+    include: Option<Vec<String>>,
+    debug_filters: bool,
+    limit: Option<usize>,
+}
+
+/// Normalize file type input (e.g., "rs" -> "rs", "rust" -> "rs")
+fn normalize_file_type(file_type: &str) -> String {
+    match file_type.to_lowercase().as_str() {
+        "rust" => "rs".to_string(),
+        "python" => "py".to_string(),
+        "javascript" => "js".to_string(),
+        "typescript" => "ts".to_string(),
+        "c++" | "cpp" => "cpp".to_string(),
+        "c#" | "csharp" => "cs".to_string(),
+        "golang" | "go" => "go".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// Get language name from file extension
+fn language_from_extension(ext: &str) -> String {
+    match ext.to_lowercase().as_str() {
+        "rs" => "rust".to_string(),
+        "py" => "python".to_string(),
+        "js" => "javascript".to_string(),
+        "jsx" => "javascript".to_string(),
+        "ts" => "typescript".to_string(),
+        "tsx" => "typescript".to_string(),
+        "cpp" | "cc" | "cxx" => "cpp".to_string(),
+        "c" => "c".to_string(),
+        "h" | "hpp" => "c".to_string(),
+        "cs" => "csharp".to_string(),
+        "go" => "go".to_string(),
+        "java" => "java".to_string(),
+        "rb" => "ruby".to_string(),
+        "php" => "php".to_string(),
+        "swift" => "swift".to_string(),
+        "kt" => "kotlin".to_string(),
+        other => other.to_string(),
     }
 }
