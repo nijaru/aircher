@@ -113,7 +113,7 @@ impl SweRankEmbedModel {
             .join("aircher")
             .join("models");
             
-        cache_dir.join("swerank-embed-small.onnx")
+        cache_dir.join("swerank-embed-small.bin")
     }
 
     /// Check if model file exists

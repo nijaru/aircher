@@ -29,10 +29,10 @@ pub struct EmbeddingConfig {
 impl Default for EmbeddingConfig {
     fn default() -> Self {
         Self {
-            preferred_model: "nomic-embed-text".to_string(), // Best for code
-            fallback_model: Some("all-MiniLM-L6-v2".to_string()), // Smaller fallback
-            auto_download: true,
-            use_ollama_if_available: true,
+            preferred_model: "swerank-embed-small".to_string(), // Bundled model (default)
+            fallback_model: None, // No automatic fallbacks
+            auto_download: false, // Explicit user choice required
+            use_ollama_if_available: false, // Explicit user choice required
             max_model_size_mb: 1000, // 1GB limit
         }
     }
@@ -163,38 +163,31 @@ impl EmbeddingManager {
         available
     }
 
-    /// Get the best embedding model for AI coding tasks
+    /// Get the configured embedding model
     pub async fn get_recommended_model(&mut self) -> Result<EmbeddingModel> {
-        // Priority 1: Bundled model (always available, fast startup)
-        if self.is_embedded_model_available().await {
-            if let Some(model) = self.find_model("swerank-embed-small", "embedded") {
-                info!("Using bundled model");
+        // Use bundled model if available (default behavior)
+        if self.config.preferred_model == "swerank-embed-small" {
+            if self.is_embedded_model_available().await {
+                if let Some(model) = self.find_model("swerank-embed-small", "embedded") {
+                    info!("Using bundled model");
+                    return Ok(model);
+                }
+            }
+        }
+
+        // Only check external models if user explicitly configured them
+        if self.config.use_ollama_if_available {
+            if let Some(model) = self.get_configured_ollama_model().await? {
+                info!("Using configured model: {}", model.name);
                 return Ok(model);
             }
         }
 
-        // Priority 2: Ollama models (better accuracy when available)
-        if self.config.use_ollama_if_available && self.check_ollama_availability().await {
-            if let Some(model) = self.get_best_ollama_model().await? {
-                info!("Using Ollama model: {}", model.name);
-                return Ok(model);
-            }
-        }
-
-        // Priority 3: Fallback model
-        if let Some(fallback_name) = &self.config.fallback_model {
-            if let Some(model) = self.find_model(fallback_name, "ollama") {
-                warn!("Using fallback model: {}", model.name);
-                return Ok(model);
-            }
-        }
-
-        // Priority 4: Any available model within size limits
-        self.available_models.iter()
-            .filter(|m| m.size_mb <= self.config.max_model_size_mb)
-            .min_by_key(|m| m.size_mb)
-            .cloned()
-            .context("No suitable embedding model found")
+        // If explicitly configured model isn't available, fail clearly
+        Err(anyhow::anyhow!(
+            "Configured model '{}' is not available. Use 'aircher embedding list' to see available models.",
+            self.config.preferred_model
+        ))
     }
 
     /// Helper to find a model by name and provider
@@ -204,28 +197,20 @@ impl EmbeddingManager {
             .cloned()
     }
 
-    /// Get the best available Ollama model
-    async fn get_best_ollama_model(&self) -> Result<Option<EmbeddingModel>> {
-        // Try preferred model first
+    /// Get the user's specifically configured Ollama model
+    async fn get_configured_ollama_model(&self) -> Result<Option<EmbeddingModel>> {
+        // Only try the exact model the user configured
         if let Some(model) = self.find_model(&self.config.preferred_model, "ollama") {
+            // Check if model is available
             if self.is_ollama_model_available(&model.name).await? {
                 return Ok(Some(model));
             }
             
-            // Auto-download if enabled and within size limits
+            // Download if user enabled auto-download
             if self.config.auto_download && model.size_mb <= self.config.max_model_size_mb {
-                info!("Downloading model: {}", model.name);
+                info!("Downloading configured model: {}", model.name);
                 self.download_ollama_model(&model.name).await?;
                 return Ok(Some(model));
-            }
-        }
-
-        // Find any available Ollama model within size limits
-        for model in &self.available_models {
-            if model.provider == "ollama" 
-                && model.size_mb <= self.config.max_model_size_mb
-                && self.is_ollama_model_available(&model.name).await? {
-                return Ok(Some(model.clone()));
             }
         }
 
