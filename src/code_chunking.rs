@@ -109,8 +109,8 @@ impl CodeChunker {
 
     /// Chunk using tree-sitter for semantic boundaries
     fn chunk_with_tree_sitter(&mut self, content: &str, language: &str) -> Result<Vec<CodeChunk>> {
-        // Gradually expanding language support - Rust, Python, JS, TS, Go, C, C++, Java, C# working
-        if !matches!(language, "rust" | "python" | "javascript" | "typescript" | "go" | "c" | "cpp" | "java" | "csharp") {
+        // Gradually expanding language support - Rust, Python, JS, TS, Go, C, C++, Java, C#, Ruby working
+        if !matches!(language, "rust" | "python" | "javascript" | "typescript" | "go" | "c" | "cpp" | "java" | "csharp" | "ruby") {
             return self.chunk_generic(content, language);
         }
         
@@ -124,6 +124,7 @@ impl CodeChunker {
             "cpp" => tree_sitter_cpp::LANGUAGE.into(),
             "java" => tree_sitter_java::LANGUAGE.into(),
             "csharp" => tree_sitter_c_sharp::LANGUAGE.into(),
+            "ruby" => tree_sitter_ruby::LANGUAGE.into(),
             _ => return self.chunk_generic(content, language),
         };
 
@@ -147,6 +148,7 @@ impl CodeChunker {
             "cpp" => self.language_queries.cpp.as_ref(),
             "java" => self.language_queries.java.as_ref(),
             "csharp" => self.language_queries.csharp.as_ref(),
+            "ruby" => self.language_queries.ruby.as_ref(),
             _ => None,
         };
 
