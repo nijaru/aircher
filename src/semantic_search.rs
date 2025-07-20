@@ -278,7 +278,7 @@ impl SemanticCodeSearch {
                 if path.is_dir() {
                     // Skip common non-code directories
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if matches!(name, "target" | "node_modules" | ".git" | "dist" | "build") {
+                        if matches!(name, "target" | "node_modules" | ".git" | "dist" | "build" | "external") {
                             continue;
                         }
                     }
