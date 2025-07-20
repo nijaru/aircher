@@ -103,6 +103,9 @@ This document tracks the major refactoring of the embedding system from a downlo
 - **JavaScript**: Functions, methods, classes, arrow functions
 - **TypeScript**: Functions, methods, classes, interfaces, arrow functions
 - **Go**: Functions, methods, type declarations
+- **C**: Functions, structs (with generic chunking fallback)
+- **C++**: Functions, classes, structs, template functions
+- **Java**: Methods, classes, interfaces (excellent semantic parsing)
 - **Fallback**: Generic chunking for all other languages
 
 ### Current Status & Solution
@@ -139,7 +142,7 @@ This document tracks the major refactoring of the embedding system from a downlo
 | **Easier to Support** | ✅ | All deps bundled, comprehensive language support |
 | **Bundle Models** | ✅ | `include_bytes!()` approach |
 | **Vector Search** | ✅ | instant-distance HNSW with zero system dependencies |
-| **Tree-sitter** | ✅ | Full semantic parsing for 5 languages |
+| **Tree-sitter** | ✅ | Full semantic parsing for 8 languages |
 
 ## 🚀 Strategic Next Steps
 
