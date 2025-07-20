@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 use std::env;
 
-use crate::config::{ConfigManager, ConfigScope, ConfigPaths};
+use crate::config::{ConfigManager, ConfigScope};
 
 #[derive(Debug, Clone, Args)]
 pub struct ConfigArgs {

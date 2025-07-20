@@ -7,12 +7,12 @@
 //! - Providing fallbacks when embeddings aren't available
 
 use anyhow::Result;
-use aircher::cost::{EmbeddingManager, EmbeddingConfig, ModelConfiguration, ModelTier};
+use aircher::cost::{EmbeddingManager, EmbeddingConfig, ModelConfiguration};
 use aircher::commands::quick_embedding_setup;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::init();
+    tracing_subscriber::fmt::init();
     
     println!("🤖 Aircher AI Code Agent - Embedding Integration Demo\n");
     

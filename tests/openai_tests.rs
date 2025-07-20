@@ -1,13 +1,12 @@
 use anyhow::Result;
 use aircher::providers::{
-    ChatRequest, ChatResponse, LLMProvider, Message, MessageRole,
-    PricingModel, ResponseStream,
+    ChatRequest, LLMProvider, Message, MessageRole,
+    PricingModel,
 };
 use aircher::providers::openai::OpenAIProvider;
 use aircher::config::{ProviderConfig, ModelConfig};
 use std::env;
 use std::sync::Mutex;
-use tokio_test;
 
 // Serialize tests that manipulate environment variables
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -17,6 +16,7 @@ fn create_test_config() -> ProviderConfig {
         name: "OpenAI".to_string(),
         api_key_env: "OPENAI_API_KEY".to_string(),
         base_url: "https://api.openai.com/v1".to_string(),
+        fallback_urls: vec![],
         models: vec![
             ModelConfig {
                 name: "gpt-4o".to_string(),

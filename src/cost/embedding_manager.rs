@@ -1,10 +1,9 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use tokio::process::Command;
 use tracing::{debug, info, warn};
 
-use super::swerank_integration::{SweRankEmbedModel, ModelInfo as SweRankModelInfo};
+use super::swerank_integration::SweRankEmbedModel;
 
 /// Embedding models optimized for AI agent coding tasks
 #[derive(Debug, Clone, Serialize, Deserialize)]
