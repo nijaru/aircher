@@ -58,7 +58,7 @@ pub enum SearchCommand {
         #[arg(long, value_delimiter = ',')]
         include: Option<Vec<String>>,
         /// Show debug information about filtering
-        #[arg(long)]
+        #[arg(long, action = clap::ArgAction::SetTrue)]
         debug_filters: bool,
         /// Use a saved search preset
         #[arg(long)]

@@ -179,10 +179,10 @@ impl CliApp {
                     )
                     .subcommand(
                         Command::new("query")
-                            .about("Perform semantic code search")
+                            .about("Perform semantic code search with advanced filtering")
                             .arg(
                                 Arg::new("query")
-                                    .help("Search query")
+                                    .help("Search query (e.g., \"error handling patterns\", \"database connection\")")
                                     .required(true)
                                     .index(1),
                             )
@@ -202,6 +202,78 @@ impl CliApp {
                                     .help("Directory to search in")
                                     .value_name("PATH")
                                     .default_value("."),
+                            )
+                            .arg(
+                                Arg::new("file_types")
+                                    .long("file-types")
+                                    .help("Filter by file types (e.g., \"rs,py,js\" or \"rust,python,javascript\")")
+                                    .value_delimiter(',')
+                                    .action(clap::ArgAction::Append),
+                            )
+                            .arg(
+                                Arg::new("languages")
+                                    .long("languages")
+                                    .help("Filter by programming languages (e.g., \"rust,python\")")
+                                    .value_delimiter(',')
+                                    .action(clap::ArgAction::Append),
+                            )
+                            .arg(
+                                Arg::new("scope")
+                                    .long("scope")
+                                    .help("Filter by code scope (e.g., \"functions,classes,modules\")")
+                                    .value_delimiter(',')
+                                    .action(clap::ArgAction::Append),
+                            )
+                            .arg(
+                                Arg::new("chunk_types")
+                                    .long("chunk-types")
+                                    .help("Filter by chunk types (e.g., \"function,class,module,comment\")")
+                                    .value_delimiter(',')
+                                    .action(clap::ArgAction::Append),
+                            )
+                            .arg(
+                                Arg::new("min_similarity")
+                                    .long("min-similarity")
+                                    .help("Minimum similarity threshold (0.0-1.0)")
+                                    .value_parser(clap::value_parser!(f32)),
+                            )
+                            .arg(
+                                Arg::new("max_similarity")
+                                    .long("max-similarity")
+                                    .help("Maximum similarity threshold (0.0-1.0)")
+                                    .value_parser(clap::value_parser!(f32)),
+                            )
+                            .arg(
+                                Arg::new("exclude")
+                                    .long("exclude")
+                                    .help("Exclude patterns (e.g., \"test,bench,example\")")
+                                    .value_delimiter(',')
+                                    .action(clap::ArgAction::Append),
+                            )
+                            .arg(
+                                Arg::new("include")
+                                    .long("include")
+                                    .help("Include only patterns (e.g., \"src,lib\")")
+                                    .value_delimiter(',')
+                                    .action(clap::ArgAction::Append),
+                            )
+                            .arg(
+                                Arg::new("debug_filters")
+                                    .long("debug-filters")
+                                    .help("Show debug information about filtering")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("preset")
+                                    .long("preset")
+                                    .help("Use a saved search preset")
+                                    .value_name("NAME"),
+                            )
+                            .arg(
+                                Arg::new("save_preset")
+                                    .long("save-preset")
+                                    .help("Save current search as a preset")
+                                    .value_name("NAME"),
                             )
                     )
                     .subcommand(
