@@ -175,11 +175,11 @@ async fn set_model(config: &mut ConfigManager, model: &str, provider: Option<&st
     Ok(())
 }
 
-async fn list_models(config: &ConfigManager, providers: &ProviderManager, provider_filter: Option<&str>) -> Result<()> {
+async fn list_models(config: &ConfigManager, _providers: &ProviderManager, provider_filter: Option<&str>) -> Result<()> {
     println!("Available Models:");
     println!();
     
-    for (provider_name, provider_config) in &config.providers {
+    for (provider_name, _provider_config) in &config.providers {
         // Apply provider filter if specified
         if let Some(filter) = provider_filter {
             if provider_name != filter {
