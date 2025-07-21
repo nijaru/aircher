@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 use tokio::fs;
 use tracing::{debug, info, warn};
 use dirs::cache_dir;
@@ -39,6 +40,53 @@ pub struct SearchResult {
     pub chunk: CodeChunk,
     pub similarity_score: f32,
     pub context_lines: Vec<String>,
+}
+
+/// Performance metrics for search operations
+#[derive(Debug, Clone)]
+pub struct SearchMetrics {
+    pub total_duration: Duration,
+    pub embedding_duration: Duration,
+    pub vector_search_duration: Duration,
+    pub result_processing_duration: Duration,
+    pub total_results_found: usize,
+    pub filtered_results_count: Option<usize>,
+}
+
+impl SearchMetrics {
+    pub fn new() -> Self {
+        Self {
+            total_duration: Duration::from_secs(0),
+            embedding_duration: Duration::from_secs(0),
+            vector_search_duration: Duration::from_secs(0),
+            result_processing_duration: Duration::from_secs(0),
+            total_results_found: 0,
+            filtered_results_count: None,
+        }
+    }
+    
+    pub fn format_summary(&self) -> String {
+        if let Some(filtered_count) = self.filtered_results_count {
+            format!("{:.2}s, filtered {}→{} results", 
+                self.total_duration.as_secs_f64(), 
+                self.total_results_found, 
+                filtered_count)
+        } else {
+            format!("{:.2}s, {} results", 
+                self.total_duration.as_secs_f64(), 
+                self.total_results_found)
+        }
+    }
+    
+    pub fn format_detailed(&self) -> String {
+        format!(
+            "Total: {:.2}s (embedding: {:.2}s, search: {:.2}s, processing: {:.2}s)",
+            self.total_duration.as_secs_f64(),
+            self.embedding_duration.as_secs_f64(),
+            self.vector_search_duration.as_secs_f64(),
+            self.result_processing_duration.as_secs_f64()
+        )
+    }
 }
 
 impl SemanticCodeSearch {
@@ -251,17 +299,24 @@ impl SemanticCodeSearch {
     }
 
     /// Semantic search for code matching a query
-    pub async fn search(&mut self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
+    pub async fn search(&mut self, query: &str, limit: usize) -> Result<(Vec<SearchResult>, SearchMetrics)> {
+        let total_start = Instant::now();
+        let mut metrics = SearchMetrics::new();
+        
         info!("Searching for: '{}'", query);
         
         // Generate query embedding
+        let embedding_start = Instant::now();
         let query_embedding = match self.embedding_manager.generate_embeddings(query).await {
             Ok(embedding) => embedding,
             Err(e) => {
                 warn!("Embedding failed, using text search: {}", e);
-                return self.fallback_text_search(query, limit);
+                let (results, mut fallback_metrics) = self.fallback_text_search_with_metrics(query, limit)?;
+                fallback_metrics.total_duration = total_start.elapsed();
+                return Ok((results, fallback_metrics));
             }
         };
+        metrics.embedding_duration = embedding_start.elapsed();
         
         // Build HNSW index if needed
         let stats = self.vector_search.get_stats();
@@ -271,15 +326,20 @@ impl SemanticCodeSearch {
         }
         
         // Search using vector similarity
+        let search_start = Instant::now();
         let vector_results = match self.vector_search.search(&query_embedding, limit) {
             Ok(results) => results,
             Err(e) => {
                 warn!("Vector search failed: {}", e);
-                return self.fallback_text_search(query, limit);
+                let (results, mut fallback_metrics) = self.fallback_text_search_with_metrics(query, limit)?;
+                fallback_metrics.total_duration = total_start.elapsed();
+                return Ok((results, fallback_metrics));
             }
         };
+        metrics.vector_search_duration = search_start.elapsed();
         
         // Convert vector search results to semantic search results
+        let processing_start = Instant::now();
         let mut results = Vec::new();
         for vector_result in vector_results {
             let context_lines = self.get_context_lines(&vector_result.content, vector_result.start_line, vector_result.end_line);
@@ -299,9 +359,14 @@ impl SemanticCodeSearch {
                 context_lines,
             });
         }
+        metrics.result_processing_duration = processing_start.elapsed();
         
-        info!("Found {} matches", results.len());
-        Ok(results)
+        // Finalize metrics
+        metrics.total_duration = total_start.elapsed();
+        metrics.total_results_found = results.len();
+        
+        info!("Found {} matches in {:.2}s", results.len(), metrics.total_duration.as_secs_f64());
+        Ok((results, metrics))
     }
 
     /// Fallback text search when embeddings fail
@@ -328,6 +393,39 @@ impl SemanticCodeSearch {
         
         results.truncate(limit);
         Ok(results)
+    }
+
+    /// Fallback text search with metrics when embeddings fail
+    fn fallback_text_search_with_metrics(&self, query: &str, limit: usize) -> Result<(Vec<SearchResult>, SearchMetrics)> {
+        let start = Instant::now();
+        warn!("Using fallback text search");
+        
+        let mut results = Vec::new();
+        let query_lower = query.to_lowercase();
+        
+        for file in &self.indexed_files {
+            for chunk in &file.chunks {
+                if chunk.content.to_lowercase().contains(&query_lower) {
+                    let context_lines = self.get_context_lines(&file.content, chunk.start_line, chunk.end_line);
+                    
+                    results.push(SearchResult {
+                        file_path: file.path.clone(),
+                        chunk: chunk.clone(),
+                        similarity_score: 0.5, // Default similarity for text match
+                        context_lines,
+                    });
+                }
+            }
+        }
+        
+        results.truncate(limit);
+        
+        let mut metrics = SearchMetrics::new();
+        metrics.total_duration = start.elapsed();
+        metrics.result_processing_duration = start.elapsed(); // All time spent in processing for text search
+        metrics.total_results_found = results.len();
+        
+        Ok((results, metrics))
     }
 
     /// Find code files in directory

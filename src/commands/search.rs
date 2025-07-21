@@ -166,7 +166,7 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             }
             
             match search.search(&query, limit * 3).await { // Get more results to filter
-                Ok(mut results) => {
+                Ok((mut results, mut metrics)) => {
                     let original_count = results.len();
                     
                     // Apply advanced filters
@@ -186,19 +186,28 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
                     // Limit results after filtering
                     results.truncate(limit);
                     
+                    // Update metrics with filter effectiveness
+                    if original_count != results.len() {
+                        metrics.filtered_results_count = Some(results.len());
+                    }
+                    
                     if debug_filters && original_count != results.len() {
                         println!("🐛 Filtered {} → {} results", original_count, results.len());
                     }
                     
                     if results.is_empty() {
-                        println!("No results found for '{}'", query);
+                        println!("🔍 No results found for '{}' ({})", query, metrics.format_summary());
                         if original_count > 0 {
                             println!("💡 {} results were filtered out - try adjusting filters", original_count);
                         } else {
                             println!("💡 Try broader terms or check if directory is indexed");
                         }
                     } else {
-                        println!("Found {} results:\n", results.len());
+                        println!("🔍 Found {} results ({}):\n", results.len(), metrics.format_summary());
+                        
+                        if debug_filters {
+                            println!("⏱️  {}\n", metrics.format_detailed());
+                        }
                         
                         for (i, result) in results.iter().enumerate() {
                             println!("{}. {} (similarity: {:.2})", 
