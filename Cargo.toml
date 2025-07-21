@@ -20,6 +20,9 @@ tokio = { version = "1.0", features = ["full"] }
 # HTTP client for API calls
 reqwest = { version = "0.12", features = ["json", "stream"] }
 
+# HuggingFace model downloads
+hf-hub = "0.3"
+
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
