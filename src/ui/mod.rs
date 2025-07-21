@@ -796,7 +796,7 @@ impl TuiManager {
         let limit = filters.limit.unwrap_or(10);
         
         match self.semantic_search.search(&search_query, limit * 3).await {
-            Ok(mut results) => {
+            Ok((mut results, mut metrics)) => {
                 let original_count = results.len();
                 
                 // Apply advanced filters
@@ -816,8 +816,13 @@ impl TuiManager {
                 // Limit results after filtering
                 results.truncate(limit);
                 
+                // Update metrics with filter effectiveness
+                if original_count != results.len() {
+                    metrics.filtered_results_count = Some(results.len());
+                }
+                
                 if results.is_empty() {
-                    let mut message = "No search results found.".to_string();
+                    let mut message = format!("🔍 No search results found ({})", metrics.format_summary());
                     if original_count > 0 {
                         message.push_str(&format!("\n💡 {} results were filtered out - try adjusting filters", original_count));
                     }
@@ -827,11 +832,11 @@ impl TuiManager {
                     ));
                 } else {
                     // Format search results for display
-                    let mut result_text = if original_count != results.len() {
-                        format!("Found {} search results (filtered from {}):\n\n", results.len(), original_count)
-                    } else {
-                        format!("Found {} search results:\n\n", results.len())
-                    };
+                    let mut result_text = format!("🔍 Found {} search results ({}):\n\n", results.len(), metrics.format_summary());
+                    
+                    if filters.debug_filters {
+                        result_text.push_str(&format!("⏱️ {}\n\n", metrics.format_detailed()));
+                    }
                     
                     for (i, result) in results.iter().enumerate() {
                         result_text.push_str(&format!(
