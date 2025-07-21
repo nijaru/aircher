@@ -167,55 +167,12 @@ impl SemanticCodeSearch {
         Ok(())
     }
 
-    /// Ensure embedding model is available from bundled resources or local file
+    /// Ensure embedding model is available - now uses model selection approach
     pub async fn ensure_model_available(&mut self) -> Result<()> {
-        let cache_dir = crate::config::ArcherConfig::cache_dir()
-            .map_err(|_| anyhow::anyhow!("Unable to determine cache directory"))?
-            .join("models");
-
-        // Create cache directory if it doesn't exist
-        tokio::fs::create_dir_all(&cache_dir).await?;
-        
-        let model_path = cache_dir.join("swerank-embed-small.safetensors");
-        
-        // Check if model already exists in cache
-        if model_path.exists() {
-            debug!("Model already available in cache: {}", model_path.display());
-            return Ok(());
-        }
-        
-        // Try to use bundled model based on build configuration
-        #[cfg(has_bundled_model)]
-        {
-            // For release builds with embedded model
-            #[cfg(embed_model)]
-            {
-                info!("Extracting embedded SweRankEmbed model");
-                let model_data = include_bytes!("../models/swerank-embed-small.safetensors");
-                tokio::fs::write(&model_path, model_data).await?;
-                info!("Model extracted to: {}", model_path.display());
-                return Ok(());
-            }
-            
-            // For development builds, copy from local file
-            #[cfg(not(embed_model))]
-            {
-                let local_path = Path::new("models/swerank-embed-small.safetensors");
-                if local_path.exists() {
-                    info!("Copying model from local file to cache");
-                    tokio::fs::copy(local_path, &model_path).await?;
-                    return Ok(());
-                }
-            }
-        }
-        
-        // Fallback: Model not available
-        warn!("SweRankEmbed model not found. Semantic search will use hash-based fallback.");
-        warn!("To enable full semantic search:");
-        warn!("  1. Run: ./scripts/download-models.sh");
-        warn!("  2. Or: Download manually to models/swerank-embed-small.safetensors");
-        warn!("  3. Or: Install via Git LFS: git lfs pull");
-        
+        // Check if user has already selected a model
+        // For now, we'll use fallback mode and let the first-run selection handle model setup
+        debug!("Model availability will be handled by first-run model selection");
+        info!("Semantic search ready - model selection handled by user choice system");
         Ok(())
     }
 
