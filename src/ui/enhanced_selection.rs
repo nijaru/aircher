@@ -102,7 +102,7 @@ impl EnhancedSelectionModal {
         Ok(())
     }
     
-    async fn load_providers(&self, providers: &ProviderManager, config: &ConfigManager) -> Result<Vec<ProviderInfo>> {
+    async fn load_providers(&self, _providers: &ProviderManager, config: &ConfigManager) -> Result<Vec<ProviderInfo>> {
         let mut provider_list = Vec::new();
         
         // Claude
