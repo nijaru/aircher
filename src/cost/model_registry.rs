@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use tracing::{debug, warn, info};
+use tracing::{warn, info};
 
 /// External model registry loaded from TOML file
 /// This allows updating model recommendations without code changes

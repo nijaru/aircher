@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::process::Command;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
-use super::{EmbeddingManager, EmbeddingConfig, EmbeddingModel};
+use super::{EmbeddingManager, EmbeddingModel};
 
 /// Smart embedding setup that answers the user's questions:
 /// 1. Should we prompt users? -> No, auto-select with smart defaults
