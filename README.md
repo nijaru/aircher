@@ -239,4 +239,18 @@ This project is in active development. Check `docs/tasks/tasks.json` for current
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+Elastic License 2.0 - see LICENSE file for details.
+
+**About Elastic License 2.0:**
+- ✅ **Free for everyone**: Use, modify, distribute freely
+- ✅ **Commercial use**: Build commercial products using Aircher
+- ❌ **Managed service restriction**: Cannot offer Aircher as a paid cloud service
+- 🎯 **Goal**: Prevent cloud giants from monetizing without contributing back
+
+**Embedding Models (Optional):**
+- Choose your model on first run based on your needs
+- Apache 2.0/MIT models (recommended): Full commercial compatibility
+- CC BY-NC models (optional): Best quality, personal/research use only
+- No model needed: Basic text search works without downloads
+
+See `docs/MODEL_STRATEGY.md` for complete model handling details.

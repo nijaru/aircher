@@ -1,35 +1,47 @@
-# Aircher Models Directory
+# Aircher Models Cache Directory
 
-This directory contains embedding models for semantic code search.
+This directory caches downloaded embedding models for semantic code search.
 
-## SweRankEmbed Model
+## Model Selection Strategy
 
-The `swerank-embed-small.safetensors` model (260.81 MB) is required for semantic search functionality.
+Aircher uses a **choose-your-model** approach:
+- 🎯 **First run**: Interactive model selection with license information
+- 🔄 **Anytime**: Switch models via `aircher model install <name>`
+- ⚖️ **Commercial safe**: Defaults to Apache 2.0/MIT licensed models
 
-### Download Instructions
+## Available Models
 
-#### Option 1: Automatic Download (Recommended)
+### Commercial-Compatible Options
+- **all-MiniLM-L6-v2** (90MB) - Apache 2.0 - Default, fast startup (~200ms)
+- **gte-large** (670MB) - Apache 2.0 - Premium quality (~800ms)
+
+### Research/Personal Use
+- **SweRankEmbed-Small** (260MB) - CC BY-NC 4.0 - Best for code, non-commercial only
+
+## How Models Are Managed
+
+### Automatic Download
 ```bash
-# From the project root:
-./scripts/download-models.sh
+aircher                    # First run shows model selection
+aircher model install <name>  # Install specific model
 ```
 
-#### Option 2: Manual Download
-1. Download the model from: [URL placeholder - update with actual model location]
-2. Place it in this directory as `swerank-embed-small.safetensors`
-
-#### Option 3: Git LFS (For Contributors)
-If you have Git LFS installed:
+### Manual Management
 ```bash
-git lfs pull
+aircher model list         # Show available models
+aircher model current      # Show active model
+aircher model remove <name> # Remove cached model
 ```
 
-### Model Details
-- **Name**: SweRankEmbed-Small
-- **Size**: 260.81 MB
-- **Format**: SafeTensors
-- **Purpose**: Code embedding for semantic search
-- **Performance**: 74.45% on SWE-Bench-Lite
+### Storage Location
+Models are cached in:
+- **Linux/macOS**: `~/.cache/aircher/models/`
+- **Windows**: `%LOCALAPPDATA%/aircher/models/`
 
-### Why Not in Git?
-Files larger than 100 MB require Git LFS. To keep the repository accessible to all users, we provide the model through alternative download methods.
+## No Model? No Problem!
+
+Aircher works without any models using basic text search. Embedding models enhance search with semantic understanding but aren't required for core functionality.
+
+## License Compliance
+
+Run `aircher model check-license` to verify your configuration meets your licensing requirements.
