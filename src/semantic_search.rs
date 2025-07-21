@@ -192,9 +192,12 @@ impl SemanticCodeSearch {
         Ok(())
     }
 
-    /// Index a directory of code files
+    /// Index a directory of code files with timeout protection
     pub async fn index_directory(&mut self, dir_path: &Path) -> Result<()> {
+        use std::time::{Duration, Instant};
+        
         info!("Indexing directory: {:?}", dir_path);
+        let start_time = Instant::now();
         
         let files = self.find_code_files(dir_path).await?;
         let total_files = files.len();
@@ -204,28 +207,60 @@ impl SemanticCodeSearch {
             return Ok(());
         }
         
+        // Protect against huge directories - limit to 500 files max
+        const MAX_FILES: usize = 500;
+        let files_to_process = if total_files > MAX_FILES {
+            warn!("Large directory detected ({} files). Processing first {} files only", total_files, MAX_FILES);
+            files.into_iter().take(MAX_FILES).collect::<Vec<_>>()
+        } else {
+            files
+        };
+        
+        let processing_count = files_to_process.len();
         let mut indexed_count = 0;
         let mut failed_count = 0;
+        let mut consecutive_failures = 0;
         
-        for file_path in files {
-            match self.index_file(&file_path).await {
+        // Overall timeout: 2 minutes max for directory indexing
+        const OVERALL_TIMEOUT: Duration = Duration::from_secs(120);
+        
+        for (i, file_path) in files_to_process.iter().enumerate() {
+            // Check overall timeout
+            if start_time.elapsed() > OVERALL_TIMEOUT {
+                warn!("Directory indexing timeout after {:?}. Processed {}/{} files", 
+                      start_time.elapsed(), i, processing_count);
+                break;
+            }
+            
+            match self.index_file(file_path).await {
                 Ok(_) => {
                     indexed_count += 1;
+                    consecutive_failures = 0; // Reset failure counter
                     if indexed_count % 25 == 0 {
-                        info!("Progress: {}/{} files", indexed_count, total_files);
+                        let elapsed = start_time.elapsed();
+                        let rate = indexed_count as f64 / elapsed.as_secs_f64();
+                        info!("Progress: {}/{} files ({:.1} files/sec)", indexed_count, processing_count, rate);
                     }
                 }
                 Err(e) => {
                     failed_count += 1;
+                    consecutive_failures += 1;
                     debug!("Skipped {:?}: {}", file_path, e);
+                    
+                    // Early termination on too many consecutive failures (likely system issue)
+                    if consecutive_failures >= 10 {
+                        warn!("Too many consecutive failures ({}). Stopping indexing to prevent timeouts", consecutive_failures);
+                        break;
+                    }
                 }
             }
         }
         
+        let elapsed = start_time.elapsed();
         if failed_count > 0 {
-            info!("Indexed {}/{} files ({} skipped)", indexed_count, total_files, failed_count);
+            info!("Indexed {}/{} files in {:?} ({} skipped)", indexed_count, processing_count, elapsed, failed_count);
         } else {
-            info!("Indexed {} files", indexed_count);
+            info!("Indexed {} files in {:?}", indexed_count, elapsed);
         }
         
         Ok(())
@@ -528,28 +563,75 @@ impl SemanticCodeSearch {
         Ok((results, metrics))
     }
 
-    /// Find code files in directory
+    /// Find code files in directory with depth and size limits
     fn find_code_files<'a>(&'a self, dir_path: &'a Path) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<PathBuf>>> + 'a>> {
         Box::pin(async move {
+            self.find_code_files_recursive(dir_path, 0, &mut 0).await
+        })
+    }
+    
+    /// Recursive helper with depth and count limits
+    fn find_code_files_recursive<'a>(&'a self, dir_path: &'a Path, depth: usize, file_count: &'a mut usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<PathBuf>>> + 'a>> {
+        Box::pin(async move {
             let mut files = Vec::new();
-            let mut entries = fs::read_dir(dir_path).await?;
+            
+            // Depth limit to prevent infinite recursion in complex directory structures
+            const MAX_DEPTH: usize = 8;
+            const MAX_FILES_SCAN: usize = 2000; // Stop scanning if we find too many files
+            
+            if depth > MAX_DEPTH {
+                debug!("Skipping directory due to depth limit: {:?}", dir_path);
+                return Ok(files);
+            }
+            
+            if *file_count > MAX_FILES_SCAN {
+                debug!("Stopping scan - found {} files (limit reached)", *file_count);
+                return Ok(files);
+            }
+            
+            let mut entries = match fs::read_dir(dir_path).await {
+                Ok(entries) => entries,
+                Err(e) => {
+                    debug!("Cannot read directory {:?}: {}", dir_path, e);
+                    return Ok(files);
+                }
+            };
             
             while let Some(entry) = entries.next_entry().await? {
                 let path = entry.path();
                 
                 if path.is_dir() {
-                    // Skip common non-code directories
+                    // Skip common non-code directories and problematic paths
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if matches!(name, "target" | "node_modules" | ".git" | "dist" | "build" | "external") {
+                        if matches!(name, 
+                            "target" | "node_modules" | ".git" | "dist" | "build" | "external" |
+                            "vendor" | "deps" | "packages" | ".cargo" | ".npm" | "__pycache__" |
+                            ".pytest_cache" | "venv" | "env" | ".venv" | ".env" | "tmp" | "temp" |
+                            ".next" | ".nuxt" | "coverage" | ".coverage" | "test-results" |
+                            ".idea" | ".vscode" | "logs" | "log" | ".cache"
+                        ) {
+                            debug!("Skipping directory: {:?}", path);
+                            continue;
+                        }
+                        
+                        // Skip hidden directories that start with . (except .config, .src, etc.)
+                        if name.starts_with('.') && !matches!(name, ".config" | ".src" | ".github") {
+                            debug!("Skipping hidden directory: {:?}", path);
                             continue;
                         }
                     }
                     
                     // Recursively search subdirectories
-                    let sub_files = self.find_code_files(&path).await?;
+                    let sub_files = self.find_code_files_recursive(&path, depth + 1, file_count).await?;
                     files.extend(sub_files);
                 } else if self.is_code_file(&path) {
                     files.push(path);
+                    *file_count += 1;
+                    
+                    // Early exit if we're finding too many files
+                    if *file_count > MAX_FILES_SCAN {
+                        break;
+                    }
                 }
             }
             
