@@ -109,8 +109,8 @@ impl CodeChunker {
 
     /// Chunk using tree-sitter for semantic boundaries
     fn chunk_with_tree_sitter(&mut self, content: &str, language: &str) -> Result<Vec<CodeChunk>> {
-        // Gradually expanding language support - Rust, Python, JS, TS, Go, C, C++, Java, C#, Ruby working
-        if !matches!(language, "rust" | "python" | "javascript" | "typescript" | "go" | "c" | "cpp" | "java" | "csharp" | "ruby") {
+        // Gradually expanding language support - Rust, Python, JS, TS, Go, C, C++, Java, C#, Ruby, PHP, Swift working
+        if !matches!(language, "rust" | "python" | "javascript" | "typescript" | "go" | "c" | "cpp" | "java" | "csharp" | "ruby" | "php" | "swift") {
             return self.chunk_generic(content, language);
         }
         
@@ -125,6 +125,8 @@ impl CodeChunker {
             "java" => tree_sitter_java::LANGUAGE.into(),
             "csharp" => tree_sitter_c_sharp::LANGUAGE.into(),
             "ruby" => tree_sitter_ruby::LANGUAGE.into(),
+            "php" => tree_sitter_php::LANGUAGE_PHP.into(),
+            "swift" => tree_sitter_swift::LANGUAGE.into(),
             _ => return self.chunk_generic(content, language),
         };
 
@@ -149,6 +151,8 @@ impl CodeChunker {
             "java" => self.language_queries.java.as_ref(),
             "csharp" => self.language_queries.csharp.as_ref(),
             "ruby" => self.language_queries.ruby.as_ref(),
+            "php" => self.language_queries.php.as_ref(),
+            "swift" => self.language_queries.swift.as_ref(),
             _ => None,
         };
 
