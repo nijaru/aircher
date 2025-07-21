@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use tokio::fs;
 use tracing::{debug, info, warn};
-use dirs::cache_dir;
 // use rayon::prelude::*; // Reserved for future parallel processing
 
 use crate::cost::{EmbeddingManager, EmbeddingConfig};
@@ -115,9 +114,8 @@ impl SemanticCodeSearch {
         let embedding_manager = EmbeddingManager::new(config);
         
         // Create vector search engine with typical embedding dimension
-        let cache_dir = cache_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("aircher")
+        let cache_dir = crate::config::ArcherConfig::cache_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
             .join("search_index");
         
         let vector_search = VectorSearchEngine::new(cache_dir, 768) // SweRankEmbed dimension
@@ -171,9 +169,8 @@ impl SemanticCodeSearch {
 
     /// Ensure embedding model is available from bundled resources
     pub async fn ensure_model_available(&mut self) -> Result<()> {
-        let cache_dir = cache_dir()
-            .ok_or_else(|| anyhow::anyhow!("Unable to determine cache directory"))?
-            .join("aircher")
+        let cache_dir = crate::config::ArcherConfig::cache_dir()
+            .map_err(|_| anyhow::anyhow!("Unable to determine cache directory"))?
             .join("models");
 
         // Create cache directory if it doesn't exist
@@ -266,6 +263,11 @@ impl SemanticCodeSearch {
             info!("Indexed {}/{} files in {:?} ({} skipped)", indexed_count, processing_count, elapsed, failed_count);
         } else {
             info!("Indexed {} files in {:?}", indexed_count, elapsed);
+        }
+        
+        // Save index after directory indexing is complete
+        if let Err(e) = self.vector_search.save_index().await {
+            warn!("Failed to save index after directory indexing: {}", e);
         }
         
         Ok(())
@@ -392,6 +394,10 @@ impl SemanticCodeSearch {
         if stats.total_vectors > 0 && !stats.index_built {
             info!("Building search index");
             self.vector_search.build_index()?;
+            // Save index after building
+            if let Err(e) = self.vector_search.save_index().await {
+                warn!("Failed to save index: {}", e);
+            }
         }
         
         // Search using vector similarity
@@ -471,6 +477,10 @@ impl SemanticCodeSearch {
         if stats.total_vectors > 0 && !stats.index_built {
             info!("Building search index");
             self.vector_search.build_index()?;
+            // Save index after building
+            if let Err(e) = self.vector_search.save_index().await {
+                warn!("Failed to save index: {}", e);
+            }
         }
         
         // Create vector search filter
@@ -860,9 +870,8 @@ impl SemanticCodeSearch {
     /// Rebuild the vector search index (needed after file removals)
     pub fn rebuild_vector_index(&mut self) -> Result<()> {
         // Clear the existing vector index
-        let cache_dir = dirs::cache_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("aircher")
+        let cache_dir = crate::config::ArcherConfig::cache_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
             .join("search_index");
         
         // Create new vector search engine
