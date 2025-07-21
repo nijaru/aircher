@@ -1,6 +1,6 @@
 # Aircher Development Status
 
-**Last Updated**: 2025-01-21
+**Last Updated**: 2025-07-21
 
 ## 🎉 Current State: Production Ready
 
@@ -28,6 +28,9 @@ The core semantic search system is now **production-ready** with professional-gr
 - **Batch embedding generation**: Efficient processing of large codebases
 - **Error recovery**: Comprehensive error handling and fallbacks
 - **Background monitoring**: Real-time file change detection
+- **Search presets**: Save and reuse complex filter combinations
+- **Enhanced display**: Syntax highlighting and context in results
+- **Advanced filtering**: File types, languages, scope, similarity thresholds
 
 ## 🔄 Current Development Phase
 
@@ -112,15 +115,20 @@ With the core engine complete and performant, the focus shifts to:
 
 ## 🐛 Known Issues
 
+### Performance
+1. **HNSW index building**: Takes ~2 minutes for 3000+ vectors on first build
+   - Subsequent searches are instant (0.02s)
+   - Investigating alternative vector libraries (faiss-rs, hnswlib-rs)
+
 ### Minor Issues
-1. **Compiler warnings**: ~200 warnings to clean up
+1. **Compiler warnings**: ~190 warnings to clean up
 2. **Error messages**: Some could be more user-friendly
 3. **Documentation**: API docs need updating
 
 ### Non-Critical
 1. **Large file handling**: Files >10MB need optimization
 2. **Binary file detection**: Could be more robust
-3. **Progress indicators**: Could show more detail
+3. **Progress indicators**: Could show more detail during index building
 
 ## 🏆 Success Metrics
 
