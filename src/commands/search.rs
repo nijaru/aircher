@@ -6,6 +6,7 @@ use tracing::{debug, info};
 use crate::semantic_search::{SemanticCodeSearch};
 use crate::search_presets::{PresetManager, SearchPreset, SearchFilters};
 use crate::search_display::SearchResultDisplay;
+use crate::query_intelligence::{QueryIntelligence, QueryComplexity};
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -256,7 +257,39 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
                 }
             }
             
-            println!("🔍 Searching for: '{}'", query);
+            // Apply query intelligence
+            let query_intel = QueryIntelligence::new();
+            let suggestions = query_intel.suggest_improvements(&query);
+            let analysis = query_intel.analyze_query(&query);
+            
+            // Show query improvements if available
+            if let Some(ref corrected) = suggestions.corrected_query {
+                println!("💡 {}", suggestions.did_you_mean.as_ref().unwrap());
+                // Use corrected query for search
+                println!("🔍 Searching for: '{}'", corrected);
+            } else {
+                println!("🔍 Searching for: '{}'", query);
+            }
+            
+            // Show query analysis in debug mode
+            if debug_filters {
+                println!("📊 Query analysis:");
+                println!("   Complexity: {:?}", analysis.complexity);
+                println!("   Specificity: {:?}", analysis.specificity);
+                if !analysis.suggestions.is_empty() {
+                    println!("   💡 Tips:");
+                    for suggestion in &analysis.suggestions {
+                        println!("      - {}", suggestion);
+                    }
+                }
+                if !suggestions.related_terms.is_empty() {
+                    println!("   Related terms: {}", suggestions.related_terms.join(", "));
+                }
+                println!();
+            }
+            
+            // Use corrected query if available
+            let search_query = suggestions.corrected_query.as_ref().unwrap_or(&query);
             
             if debug_filters {
                 println!("🐛 Debug: Active filters:");
@@ -309,7 +342,7 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             }
             
             println!("🔎 Starting search...");
-            match search.search(&query, effective_limit * 3).await { // Get more results to filter
+            match search.search(search_query, effective_limit * 3).await { // Get more results to filter
                 Ok((mut results, mut metrics)) => {
                     let original_count = results.len();
                     
@@ -357,6 +390,14 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
                         }
                         
                         print!("{}", SearchResultDisplay::format_footer(true));
+                        
+                        // Show query improvement suggestions for vague queries
+                        if analysis.specificity == crate::query_intelligence::Specificity::Low && !debug_filters {
+                            println!("\n💡 Query tips:");
+                            for suggestion in &analysis.suggestions {
+                                println!("   - {}", suggestion);
+                            }
+                        }
                     }
                     
                     // Handle save_preset if specified
