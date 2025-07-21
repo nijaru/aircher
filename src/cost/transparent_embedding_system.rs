@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use tokio::process::Command;
 use tracing::{debug, info, warn, error};
 
-use super::{EmbeddingManager, EmbeddingModel, SmartSetupEngine};
+use super::{EmbeddingModel, SmartSetupEngine};
 
 /// Ultra-transparent embedding system that shows exactly what's happening
 /// and why, with bulletproof reliability features

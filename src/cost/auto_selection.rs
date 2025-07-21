@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{debug, info, warn};
 
-use super::{EmbeddingManager, EmbeddingModel, EmbeddingConfig};
+use super::{EmbeddingManager, EmbeddingModel};
 
 /// Advanced embedding model auto-selection engine
 pub struct AutoSelectionEngine {
