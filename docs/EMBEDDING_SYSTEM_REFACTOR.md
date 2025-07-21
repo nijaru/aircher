@@ -417,27 +417,28 @@ Strong foundational architecture has been **successfully delivered**, but critic
 - **✅ Performance Optimization Complete**: Query-time filtering and comprehensive performance monitoring implemented
 - **✅ Search Presets Complete**: 10x productivity multiplier through reusable filter combinations and workflow automation
 
-### **🎯 Current State: Functional Foundation with Critical Bug**
+### **🎯 Current State: Core Product Fully Functional**
 
-**✅ WORKING FUNCTIONALITY (Ready for Use):**
+**✅ WORKING FUNCTIONALITY (Production Ready):**
 - **Configuration Management**: Full hierarchical config system (`aircher config status/show`)
 - **Embedding System**: Auto-setup with SweRankEmbed model (`aircher embedding set auto`)
 - **Search Indexing**: Perfect codebase indexing (`aircher search index .`, `aircher search stats .`)
+- **Search Queries**: Complete semantic search with advanced filters (`aircher search query "text"`) ✅
 - **Tree-sitter Semantic Parsing**: All 12+ languages working (PHP/Swift restored)
 - **Build System**: Compiles cleanly, warnings reduced (220→211)
 
-**❌ CRITICAL BUG (Blocks Main Feature):**
-- **Search Queries**: CLI parsing error crashes `aircher search query "text"` 
-- **Root Cause**: Missing clap argument actions in `src/cli/mod.rs:825`
-- **Impact**: Core semantic search feature completely unusable despite working infrastructure
+**✅ CLI PARSING BUG FIXED:**
+- **Search Queries**: `aircher search query "text"` now works perfectly ✅
+- **Root Cause Resolved**: Added missing clap argument actions in `src/cli/mod.rs`
+- **Impact**: Core semantic search feature fully operational with all advanced filters
 
 **🔑 TUI STATUS (Sophisticated but Requires Setup):**
 - **With API Keys**: Full-featured chat interface, `/search` commands, provider switching
 - **Without API Keys**: Fails startup, no fallback/demo mode
 - **Quality**: Production-ready UI comparable to modern TUI applications
 
-### **🚀 Next Development Cycle: Fix Search Query Bug**
-**IMMEDIATE PRIORITY**: Fix the CLI parsing bug blocking search queries. All infrastructure works perfectly - just needs argument parsing fix.
+### **🚀 Next Development Cycle: Performance Optimization**
+**CURRENT FOCUS**: Optimize search indexing performance to reduce CPU intensity and indexing time for better user experience.
 
 ## 🧪 **Manual Testing Guide**
 
@@ -451,15 +452,28 @@ cargo run -- config show                      # Shows merged configuration
 cargo run -- embedding list                   # Lists available models
 cargo run -- embedding set auto               # Auto-configures SweRankEmbed
 
-# Search indexing (works perfectly)
+# Search system (fully functional)
 cargo run -- search index .                   # Index current directory
 cargo run -- search stats .                   # Show index statistics
+cargo run -- search query "function" --limit 5 # Search with semantic matching
+cargo run -- search query "error" --file-types rust --scope functions # Advanced filters
+
+# Search presets
+cargo run -- search preset init               # Create built-in presets
+cargo run -- search preset list               # Show available presets
+cargo run -- search query "auth" --preset auth-security # Use presets
 ```
 
-### **❌ Currently Broken (Don't Test):**
+### **⚠️ Performance Note:**
 ```bash
-cargo run -- search query "function"          # CRASHES - CLI parsing bug
-cargo run -- --tui                           # Requires API keys
+# Initial indexing is CPU-intensive (one-time cost)
+# M3 Max MacBook Pro: Expect high CPU and fan activity during first index build
+# Subsequent searches use cached index and are much faster
+```
+
+### **🔑 API Key Required:**
+```bash
+cargo run -- --tui                           # Requires API keys (ANTHROPIC_API_KEY, etc.)
 ```
 
 ### **🔑 TUI Testing (Requires API Keys):**
