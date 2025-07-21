@@ -473,7 +473,7 @@ impl LanguageQueries {
 
     /// Create PHP query
     fn create_php_query() -> Result<Query> {
-        let query_str = r#"
+        let _query_str = r#"
             (function_definition
                 name: (name) @name) @function
             
@@ -508,7 +508,7 @@ impl LanguageQueries {
 
     /// Create Swift query
     fn create_swift_query() -> Result<Query> {
-        let query_str = r#"
+        let _query_str = r#"
             (function_declaration
                 name: (simple_identifier) @name) @function
             

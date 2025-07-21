@@ -41,13 +41,76 @@ pub struct ChunkMetadata {
     pub content: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ChunkType {
     Function,
     Class,
     Module,
     Comment,
     Generic,
+}
+
+/// Filter criteria for vector search optimization
+#[derive(Debug, Clone, Default)]
+pub struct SearchFilter {
+    pub file_types: Option<Vec<String>>,
+    pub chunk_types: Option<Vec<ChunkType>>,
+    pub exclude_patterns: Option<Vec<String>>,
+    pub include_patterns: Option<Vec<String>>,
+}
+
+impl SearchFilter {
+    pub fn matches(&self, metadata: &ChunkMetadata) -> bool {
+        // File type filtering
+        if let Some(ref file_types) = self.file_types {
+            if let Some(ext) = metadata.file_path.extension().and_then(|e| e.to_str()) {
+                let ext_lower = ext.to_lowercase();
+                let lang = language_from_extension(&ext_lower);
+                let normalized_types: Vec<String> = file_types.iter()
+                    .map(|t| normalize_file_type(t))
+                    .collect();
+                
+                if !normalized_types.contains(&ext_lower) && !normalized_types.contains(&lang) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+        
+        // Chunk type filtering
+        if let Some(ref chunk_types) = self.chunk_types {
+            if !chunk_types.contains(&metadata.chunk_type) {
+                return false;
+            }
+        }
+        
+        // Exclude pattern filtering
+        if let Some(ref exclude_patterns) = self.exclude_patterns {
+            let path_str = metadata.file_path.to_string_lossy().to_lowercase();
+            for pattern in exclude_patterns {
+                let pattern_lower = pattern.to_lowercase();
+                if path_str.contains(&pattern_lower) || 
+                   metadata.content.to_lowercase().contains(&pattern_lower) {
+                    return false;
+                }
+            }
+        }
+        
+        // Include pattern filtering
+        if let Some(ref include_patterns) = self.include_patterns {
+            let path_str = metadata.file_path.to_string_lossy().to_lowercase();
+            let matches_include = include_patterns.iter().any(|pattern| {
+                let pattern_lower = pattern.to_lowercase();
+                path_str.contains(&pattern_lower)
+            });
+            if !matches_include {
+                return false;
+            }
+        }
+        
+        true
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -143,6 +206,65 @@ impl VectorSearchEngine {
                 similarity_score: similarity,
                 chunk_type: metadata.chunk_type.clone(),
             });
+        }
+
+        // Sort by similarity (higher is better)
+        results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score)
+            .unwrap_or(std::cmp::Ordering::Equal));
+
+        Ok(results)
+    }
+
+    /// Search with pre-filtering for better performance
+    pub fn search_with_filter(&self, query_embedding: &[f32], k: usize, filter: &SearchFilter) -> Result<Vec<SearchResult>> {
+        let index = self.index.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Index not built. Call build_index() first"))?;
+
+        if query_embedding.len() != self.dimension {
+            return Err(anyhow::anyhow!("Query embedding dimension mismatch"));
+        }
+
+        // Search using instant-distance (get more results to account for filtering)
+        let mut search = Search::default();
+        let query_vector = EmbeddingVector(query_embedding.to_vec());
+        let search_results = index.search(&query_vector, &mut search);
+        
+        let mut results = Vec::new();
+        let mut count = 0;
+        
+        // Apply filter during result processing to avoid examining filtered-out items
+        for result in search_results {
+            if count >= k {
+                break;
+            }
+            
+            let idx = *result.value;
+            
+            if idx >= self.metadata.len() {
+                warn!("Index out of bounds from HNSW: {}", idx);
+                continue;
+            }
+            
+            let metadata = &self.metadata[idx];
+            
+            // Apply filter - skip if doesn't match
+            if !filter.matches(metadata) {
+                continue;
+            }
+            
+            // Convert distance to similarity (lower distance = higher similarity)
+            let similarity = 1.0 / (1.0 + result.distance);
+            
+            results.push(SearchResult {
+                file_path: metadata.file_path.clone(),
+                content: metadata.content.clone(),
+                start_line: metadata.start_line,
+                end_line: metadata.end_line,
+                similarity_score: similarity,
+                chunk_type: metadata.chunk_type.clone(),
+            });
+            
+            count += 1;
         }
 
         // Sort by similarity (higher is better)
@@ -303,5 +425,42 @@ mod tests {
         engine.add_embedding(embedding, metadata).unwrap();
         assert_eq!(engine.embeddings.len(), 1);
         assert_eq!(engine.metadata.len(), 1);
+    }
+}
+
+/// Normalize file type input (e.g., "rs" -> "rs", "rust" -> "rs")
+fn normalize_file_type(file_type: &str) -> String {
+    match file_type.to_lowercase().as_str() {
+        "rust" => "rs".to_string(),
+        "python" => "py".to_string(),
+        "javascript" => "js".to_string(),
+        "typescript" => "ts".to_string(),
+        "c++" | "cpp" => "cpp".to_string(),
+        "c#" | "csharp" => "cs".to_string(),
+        "golang" | "go" => "go".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// Get language name from file extension
+fn language_from_extension(ext: &str) -> String {
+    match ext.to_lowercase().as_str() {
+        "rs" => "rust".to_string(),
+        "py" => "python".to_string(),
+        "js" => "javascript".to_string(),
+        "jsx" => "javascript".to_string(),
+        "ts" => "typescript".to_string(),
+        "tsx" => "typescript".to_string(),
+        "cpp" | "cc" | "cxx" => "cpp".to_string(),
+        "c" => "c".to_string(),
+        "h" | "hpp" => "c".to_string(),
+        "cs" => "csharp".to_string(),
+        "go" => "go".to_string(),
+        "java" => "java".to_string(),
+        "rb" => "ruby".to_string(),
+        "php" => "php".to_string(),
+        "swift" => "swift".to_string(),
+        "kt" => "kotlin".to_string(),
+        other => other.to_string(),
     }
 }
