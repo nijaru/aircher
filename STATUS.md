@@ -18,7 +18,7 @@ The core semantic search system is now **production-ready** with professional-gr
 #### Technical Excellence
 - **Pure Rust implementation**: No system dependencies, truly bulletproof
 - **19+ language support**: Full semantic parsing with tree-sitter
-- **Bundled embedding model**: SweRankEmbed included, no external downloads
+- **User-choice model strategy**: Commercial-safe defaults, premier options for private use
 - **instant-distance HNSW**: High-performance vector search
 - **Hierarchical configuration**: Hardcoded → global → local → environment
 
@@ -141,12 +141,19 @@ With the core engine complete and performant, the focus shifts to:
 ## 🚀 Getting Started
 
 ```bash
+# First run: Choose your embedding model
+aircher
+# Select from:
+# 1. MiniLM-L6-v2 (90MB) - Fast, commercial-safe (default)
+# 2. GTE-Large (670MB) - Premium quality, commercial-safe  
+# 3. SweRankEmbed (260MB) - Premier quality, private use only
+
 # Index your project (one-time, 15-20s)
 aircher search index
 
 # Search instantly (0.02s)
 aircher search query "error handling"
-aircher search query "database connection"
+aircher search query "database connection" 
 aircher search query "async functions"
 ```
 
@@ -154,7 +161,7 @@ aircher search query "async functions"
 
 ### Architecture Decisions
 - **instant-distance**: Chosen for pure Rust implementation
-- **SweRankEmbed**: Best size/performance for code understanding
+- **User-choice models**: Elastic License 2.0 compatible strategy with Apache/MIT defaults
 - **Tree-sitter**: Proven solution for language parsing
 - **Batch processing**: Critical for performance at scale
 

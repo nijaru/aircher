@@ -64,7 +64,7 @@ aircher session export session_id --format markdown
   - **80% faster indexing** with batch processing (15-20s for typical projects)
   - Cross-language semantic similarity detection for 19+ languages
   - Intelligent code chunking with tree-sitter semantic parsing
-  - Works with bundled SweRankEmbed model - no external dependencies!
+  - Choose your model: Apache/MIT licensed (commercial OK) or premier quality (private use)
   - Enhanced search display with syntax highlighting and context
   - Search presets for saving and reusing complex filter combinations
   - Advanced filtering by file types, languages, scope, and similarity
@@ -119,7 +119,7 @@ cd aircher
 cargo build --release
 ```
 
-**Note**: The semantic search feature works without the model file (using hash-based fallback), but for best results, download the SweRankEmbed model.
+**Note**: The semantic search feature works without any model files (using hash-based fallback). For semantic understanding, choose your preferred model on first run.
 
 ### 2. Configure API Keys
 ```bash
@@ -206,7 +206,7 @@ aircher config --help
 - **Phase 2: Providers** - 100% complete (Claude, Gemini, OpenAI, OpenRouter, Ollama)
 - **Phase 3: Intelligence** - 100% complete (SPRINT-004 ✅, SPRINT-005 ✅, SPRINT-006 ✅)
 - **Phase 4: Advanced Features** - 100% complete (Session management ✅, File monitoring ✅, TUI Integration ✅, Testing Framework ✅)
-- **Phase 5: Semantic Search** - 100% complete (instant-distance ✅, SweRankEmbed ✅, Tree-sitter ✅, 19+ languages ✅)
+- **Phase 5: Semantic Search** - 100% complete (instant-distance ✅, User-choice models ✅, Tree-sitter ✅, 19+ languages ✅)
 - **Phase 6: Configuration** - 100% complete (Hierarchical config ✅, Global/local ✅, Environment overrides ✅)
 - **Phase 7: Background Integration** - 100% complete (File monitoring ✅, Incremental updates ✅, Automatic indexing ✅)
 
