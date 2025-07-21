@@ -5,6 +5,7 @@ use tracing::{debug, info};
 
 use crate::semantic_search::{SemanticCodeSearch};
 use crate::search_presets::{PresetManager, SearchPreset, SearchFilters};
+use crate::search_display::SearchResultDisplay;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -337,44 +338,24 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
                         println!("🐛 Filtered {} → {} results", original_count, results.len());
                     }
                     
+                    // Display results with enhanced formatting
+                    print!("{}", SearchResultDisplay::format_summary(&query, results.len(), &metrics.format_summary()));
+                    
                     if results.is_empty() {
-                        println!("🔍 No results found for '{}' ({})", query, metrics.format_summary());
                         if original_count > 0 {
-                            println!("💡 {} results were filtered out - try adjusting filters", original_count);
-                        } else {
-                            println!("💡 Try broader terms or check if directory is indexed");
+                            println!("   {} results were filtered out - try adjusting filters", original_count);
                         }
                     } else {
-                        println!("🔍 Found {} results ({}):\n", results.len(), metrics.format_summary());
-                        
                         if debug_filters {
                             println!("⏱️  {}\n", metrics.format_detailed());
                         }
                         
+                        // Display each result with enhanced formatting
                         for (i, result) in results.iter().enumerate() {
-                            println!("{}. {} (similarity: {:.2})", 
-                                   i + 1, 
-                                   result.file_path.display(), 
-                                   result.similarity_score);
-                            
-                            println!("   Lines {}-{}", result.chunk.start_line, result.chunk.end_line);
-                            
-                            // Show code snippet
-                            let preview = result.chunk.content
-                                .lines()
-                                .take(3)
-                                .collect::<Vec<_>>()
-                                .join("\n");
-                            println!("   ```");
-                            println!("   {}", preview);
-                            if result.chunk.content.lines().count() > 3 {
-                                println!("   ...");
-                            }
-                            println!("   ```\n");
+                            print!("{}", SearchResultDisplay::format_result(result, i, debug_filters));
                         }
                         
-                        println!("💡 Semantic search found contextually similar code");
-                        println!("   This goes beyond text matching to understand meaning");
+                        print!("{}", SearchResultDisplay::format_footer(true));
                     }
                     
                     // Handle save_preset if specified
