@@ -11,6 +11,7 @@ pub mod semantic_search;
 pub mod vector_search;
 pub mod code_chunking;
 pub mod search_presets;
+pub mod search_display;
 pub mod sessions;
 pub mod storage;
 pub mod ui;
