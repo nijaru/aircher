@@ -221,11 +221,38 @@ This document tracks the major refactoring of the embedding system from a downlo
    - Usage tracking and filter inheritance (CLI args override preset values)
    - JSON storage in `.aircher/presets/` and `~/.config/aircher/presets/`
 
-### 🔮 Phase 7: Advanced Features (READY FOR DEVELOPMENT)
-1. **Cross-file Relationship Detection** - Enhanced semantic understanding across file boundaries
-2. **Architecture Analysis** - Code structure and pattern recognition capabilities
-3. **omendb Evaluation** - When Mojo-based solution matures and stabilizes
-4. **MCP Server Implementation** - Universal Model Context Protocol server
+### 🔧 Phase 7: Core System Stabilization (CURRENT PRIORITY)
+**Focus: Fix Blocking Issues Before New Features**
+
+1. **Tree-sitter Dependency Resolution** - CRITICAL
+   - Resolve version conflicts between tree-sitter crates (0.20.10 vs 0.24.7)
+   - Fix PHP, Swift language API incompatibilities  
+   - Restore full semantic parsing capabilities across all languages
+   - **Goal**: 100% semantic parsing reliability
+
+2. **Search System Reliability** - CRITICAL
+   - Debug and fix search timeout issues in external directories
+   - Optimize embedding generation and vector search pipeline
+   - Implement proper error handling and recovery
+   - **Goal**: Consistent, fast search performance
+
+3. **Code Quality and Build System** - HIGH PRIORITY
+   - Systematic cleanup of compiler warnings throughout codebase
+   - Improve error handling and edge case coverage
+   - Comprehensive testing of all user workflows
+   - **Goal**: Production-quality codebase
+
+4. **TUI/CLI Production Testing** - HIGH PRIORITY
+   - End-to-end testing of all features and edge cases
+   - Performance validation under various conditions
+   - User experience polish and error messaging
+   - **Goal**: Bulletproof user experience
+
+### 🔮 Phase 8: Future Advanced Features (AFTER STABILIZATION)
+1. **MCP Client Integration** - Let Aircher use other MCP servers
+2. **Cross-file Relationship Detection** - Enhanced semantic understanding across file boundaries
+3. **Architecture Analysis** - Code structure and pattern recognition capabilities
+4. **MCP Server Implementation** - Make Aircher available as MCP server
 5. **Advanced ML Models** - Explore more sophisticated embedding models
 6. **Distributed Indexing** - Scale to enterprise-level codebases
 
@@ -245,30 +272,36 @@ All major system refactoring has been successfully completed, achieving and exce
 - **✅ Configuration**: Global/local/environment hierarchy with full CLI support
 - **✅ Background Integration**: Real-time file monitoring with automatic index maintenance
 
-### Phase 4 Current Status (Advanced Features)
+### 🚨 Current Status: Core Stability Issues Require Focus
 
-**🔧 Active Development Areas:**
+**⚠️ BLOCKING ISSUES (Must Fix Before New Features):**
 
-1. **Tree-sitter Integration Issues**
+1. **Tree-sitter Integration Degraded** - CRITICAL
    - Version conflicts between tree-sitter crates (0.20.10 vs 0.24.7)
-   - PHP, Swift language API incompatibilities identified
-   - Kotlin language loading successfully fixed
-   - **Status**: Temporarily using generic chunking fallback
-   - **Next**: Resolve dependency version conflicts systematically
+   - PHP, Swift language API incompatibilities causing fallback to generic chunking
+   - Semantic parsing compromised for multiple languages
+   - **Impact**: Core semantic search quality significantly reduced
+   - **Priority**: IMMEDIATE - Fix dependency conflicts systematically
 
-2. **Search System Investigation**
-   - External directory exclusion implemented (prevents massive repo indexing)
-   - Core semantic search timeout requires deeper investigation
-   - Generic chunking verified as functionally correct
-   - **Status**: Partial timeout resolution achieved
-   - **Next**: Debug embedding generation and vector search pipeline
+2. **Search System Timeouts** - CRITICAL  
+   - External directory indexing causes system timeouts
+   - Core semantic search pipeline unreliable in many scenarios
+   - **Impact**: Core search functionality unreliable for users
+   - **Priority**: IMMEDIATE - Debug embedding generation and vector search pipeline
 
-3. **System Reliability**
-   - Build system stable with comprehensive warnings cleanup needed
-   - Test suite remains functional throughout refactoring
-   - Background file monitoring fully operational
-   - **Status**: Core stability maintained
-   - **Next**: Address performance bottlenecks in search indexing
+3. **Build System Quality** - HIGH
+   - Comprehensive warnings cleanup needed throughout codebase
+   - Code quality degraded during rapid development
+   - **Impact**: Maintenance burden and potential hidden bugs
+   - **Priority**: HIGH - Systematic cleanup required
+
+**✅ STABLE FOUNDATION (Working Well):**
+- **Embedding System**: Bundled SweRankEmbed model with instant-distance HNSW
+- **Vector Search**: Pure Rust instant-distance with 768D embeddings  
+- **Background Monitoring**: Real-time file change detection and index updates
+- **Configuration System**: Hierarchical config (hardcoded → global → local → env)
+- **Search Presets**: Complete workflow automation system
+- **TUI Framework**: Basic chat interface and search integration functional
 
 **🎯 Recent Achievements:**
 - ✅ **C Language Semantic Parsing Restored** - Fixed tree-sitter ABI version mismatch (v0.24→v0.25)
@@ -337,8 +370,8 @@ All major system refactoring has been successfully completed, achieving and exce
 
 ## 🎯 Strategic Achievement Summary
 
-### **✅ Critical Path: COMPLETED**
-All critical functionality has been **successfully delivered**. The TUI interface provides a complete, production-ready user experience.
+### **🔄 Critical Path: FOUNDATION COMPLETE, CORE FIXES NEEDED**
+Strong foundational architecture has been **successfully delivered**, but critical stability issues must be resolved before production readiness.
 
 ### **🏆 Completed Implementation Phases**
 
@@ -375,21 +408,23 @@ All critical functionality has been **successfully delivered**. The TUI interfac
 3. **🔄 Performance monitoring** - Search/response time display
 4. **🔄 Cross-file analysis** - Architecture pattern detection
 
-### **✅ Success Metrics Achieved**
-- **✅ Phase 1 Complete**: Chat conversations fully functional in TUI
-- **✅ Phase 2 Complete**: Users can search codebase with `/search` command  
-- **✅ Phase 3 Complete**: Complete workflow (chat + search + sessions) operational
+### **✅ Foundation Success Metrics Achieved**
+- **✅ Phase 1 Complete**: Chat conversations functional in TUI (basic stability)
+- **✅ Phase 2 Complete**: Users can search codebase with `/search` command (when working)
+- **✅ Phase 3 Complete**: Basic workflow (chat + search + sessions) implemented
 - **✅ Phase 4 Complete**: Advanced search filters provide surgical code discovery precision
 - **✅ Phase 6 Complete**: TUI search integration delivers unified filter experience across interfaces
 - **✅ Performance Optimization Complete**: Query-time filtering and comprehensive performance monitoring implemented
 - **✅ Search Presets Complete**: 10x productivity multiplier through reusable filter combinations and workflow automation
-- **✅ Production-Ready**: Enterprise-grade user experience with comprehensive advanced search capabilities, performance transparency, and workflow optimization
 
-### **🚀 Current State: Production Ready**
-The system has successfully transitioned from **backend engineering excellence** to **complete user experience delivery**. All critical user value has been unlocked through the production-ready TUI interface with comprehensive semantic search integration.
+### **⚠️ Current State: Core Stability Issues Block Production Use**
+Strong foundational architecture has been delivered, but **critical blocking issues** prevent reliable production use:
+- **Tree-sitter Integration Degraded**: Semantic parsing compromised by version conflicts
+- **Search System Timeouts**: Core search functionality unreliable in many scenarios  
+- **Build Quality Issues**: Warnings and code quality need systematic cleanup
 
-### **🎯 Next Development Cycle**
-Future enhancements focus on **advanced features** and **performance optimization** rather than core functionality, as the foundational user experience is complete and robust.
+### **🎯 Next Development Cycle: Stabilization Focus**
+**IMMEDIATE PRIORITY**: Fix core stability issues before any new features. The foundation is solid but needs reliability improvements for production deployment.
 
 ## 📊 Impact Assessment
 

@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Real-time pricing information fetched from providers or pricing APIs
 #[derive(Debug, Clone, Serialize, Deserialize)]
