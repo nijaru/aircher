@@ -2,26 +2,7 @@ use anyhow::Result;
 use std::env;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-mod app;
-mod cli;
-mod commands;
-mod config;
-mod context;
-mod cost;
-mod intelligence;
-mod project;
-mod providers;
-mod semantic_search;
-mod vector_search;
-mod code_chunking;
-mod search_presets;
-mod search_display;
-mod sessions;
-mod storage;
-mod ui;
-mod utils;
-
-use cli::CliApp;
+use aircher::cli::CliApp;
 
 #[tokio::main]
 async fn main() -> Result<()> {

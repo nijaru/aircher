@@ -159,6 +159,13 @@ impl VectorSearchEngine {
         let start = Instant::now();
         info!("Building HNSW index with {} embeddings", self.embeddings.len());
         
+        // Show progress for large indexes
+        if self.embeddings.len() > 1000 {
+            println!("⏳ Building search index for {} vectors...", self.embeddings.len());
+            println!("   This may take 1-2 minutes for large codebases.");
+            println!("   Subsequent searches will be instant!");
+        }
+        
         // Create points for instant-distance - just the embeddings
         let points: Vec<EmbeddingVector> = self.embeddings.clone();
         
@@ -166,12 +173,21 @@ impl VectorSearchEngine {
         let values: Vec<usize> = (0..self.embeddings.len()).collect();
 
         // Build HNSW index
+        // TODO: Consider migrating to hnswlib-rs for better performance:
+        // - Multithreaded index building (could reduce time by 50-75%)
+        // - Better recall rates (0.92-0.99)
+        // - More tuning parameters (ef_construction, M)
         let index = Builder::default().build(points, values);
         
         self.index = Some(index);
         
         let elapsed = start.elapsed();
         info!("HNSW index built successfully in {:.2}s", elapsed.as_secs_f64());
+        
+        if self.embeddings.len() > 1000 {
+            println!("✅ Index built successfully in {:.1}s", elapsed.as_secs_f64());
+        }
+        
         Ok(())
     }
 
