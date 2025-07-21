@@ -369,6 +369,106 @@ impl SemanticCodeSearch {
         Ok((results, metrics))
     }
 
+    /// Optimized semantic search with query-time filtering
+    pub async fn search_with_filters(
+        &mut self, 
+        query: &str, 
+        limit: usize,
+        file_types: &Option<Vec<String>>,
+        chunk_types: &Option<Vec<String>>,
+        exclude_patterns: &Option<Vec<String>>,
+        include_patterns: &Option<Vec<String>>,
+    ) -> Result<(Vec<SearchResult>, SearchMetrics)> {
+        let total_start = Instant::now();
+        let mut metrics = SearchMetrics::new();
+        
+        info!("Searching with filters for: '{}'", query);
+        
+        // Generate query embedding
+        let embedding_start = Instant::now();
+        let query_embedding = match self.embedding_manager.generate_embeddings(query).await {
+            Ok(embedding) => embedding,
+            Err(e) => {
+                warn!("Embedding failed, using text search: {}", e);
+                let (results, mut fallback_metrics) = self.fallback_text_search_with_metrics(query, limit)?;
+                fallback_metrics.total_duration = total_start.elapsed();
+                return Ok((results, fallback_metrics));
+            }
+        };
+        metrics.embedding_duration = embedding_start.elapsed();
+        
+        // Build HNSW index if needed
+        let stats = self.vector_search.get_stats();
+        if stats.total_vectors > 0 && !stats.index_built {
+            info!("Building search index");
+            self.vector_search.build_index()?;
+        }
+        
+        // Create vector search filter
+        let mut vector_filter = crate::vector_search::SearchFilter::default();
+        vector_filter.file_types = file_types.clone();
+        vector_filter.exclude_patterns = exclude_patterns.clone();
+        vector_filter.include_patterns = include_patterns.clone();
+        
+        // Convert chunk types from CLI format to vector search format
+        if let Some(ref chunk_type_strings) = chunk_types {
+            let vector_chunk_types: Vec<crate::vector_search::ChunkType> = chunk_type_strings.iter()
+                .filter_map(|s| match s.to_lowercase().as_str() {
+                    "function" => Some(crate::vector_search::ChunkType::Function),
+                    "class" => Some(crate::vector_search::ChunkType::Class),
+                    "module" => Some(crate::vector_search::ChunkType::Module),
+                    "comment" => Some(crate::vector_search::ChunkType::Comment),
+                    "generic" => Some(crate::vector_search::ChunkType::Generic),
+                    _ => None,
+                })
+                .collect();
+            vector_filter.chunk_types = Some(vector_chunk_types);
+        }
+        
+        // Search using optimized vector similarity with filtering
+        let search_start = Instant::now();
+        let vector_results = match self.vector_search.search_with_filter(&query_embedding, limit, &vector_filter) {
+            Ok(results) => results,
+            Err(e) => {
+                warn!("Vector search failed: {}", e);
+                let (results, mut fallback_metrics) = self.fallback_text_search_with_metrics(query, limit)?;
+                fallback_metrics.total_duration = total_start.elapsed();
+                return Ok((results, fallback_metrics));
+            }
+        };
+        metrics.vector_search_duration = search_start.elapsed();
+        
+        // Convert vector search results to semantic search results
+        let processing_start = Instant::now();
+        let mut results = Vec::new();
+        for vector_result in vector_results {
+            let context_lines = self.get_context_lines(&vector_result.content, vector_result.start_line, vector_result.end_line);
+            
+            let chunk = CodeChunk {
+                content: vector_result.content,
+                start_line: vector_result.start_line,
+                end_line: vector_result.end_line,
+                chunk_type: vector_result.chunk_type,
+                embedding: None, // Not needed for results
+            };
+            
+            results.push(SearchResult {
+                file_path: vector_result.file_path,
+                chunk,
+                similarity_score: vector_result.similarity_score,
+                context_lines,
+            });
+        }
+        metrics.result_processing_duration = processing_start.elapsed();
+        
+        // Finalize metrics
+        metrics.total_duration = total_start.elapsed();
+        metrics.total_results_found = results.len();
+        
+        info!("Found {} filtered matches in {:.2}s", results.len(), metrics.total_duration.as_secs_f64());
+        Ok((results, metrics))
+    }
+
     /// Fallback text search when embeddings fail
     fn fallback_text_search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
         warn!("Using fallback text search");
@@ -610,7 +710,7 @@ impl SemanticCodeSearch {
         let file_index = self.indexed_files.iter().position(|f| f.path == path_buf);
         
         if let Some(index) = file_index {
-            let removed_file = self.indexed_files.remove(index);
+            let _removed_file = self.indexed_files.remove(index);
             
             // Remove embeddings from vector search
             // Note: Current instant-distance implementation doesn't support removal
