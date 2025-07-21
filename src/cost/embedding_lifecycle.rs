@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use tokio::fs as async_fs;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use chrono::{DateTime, Utc};
 
 use super::EmbeddingModel;

@@ -5,10 +5,9 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
-use std::collections::HashMap;
-use tracing::{debug, info};
+use tracing::info;
 
-use crate::config::{ConfigManager, ModelConfig, ProviderConfig};
+use crate::config::ConfigManager;
 use crate::providers::ProviderManager;
 
 /// Enhanced multi-level model selection modal with fuzzy filtering
