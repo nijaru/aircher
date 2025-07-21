@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use tokio::fs;
 use tracing::{debug, info, warn};
 use dirs::cache_dir;
-// use rayon::prelude::*; // TODO: Re-enable when parallel processing is needed
+use rayon::prelude::*;
 
 use crate::cost::{EmbeddingManager, EmbeddingConfig};
 use crate::vector_search::{VectorSearchEngine, ChunkMetadata, ChunkType as VectorChunkType};
@@ -254,6 +254,11 @@ impl SemanticCodeSearch {
                     }
                 }
             }
+            
+            // Yield CPU every 10 files to reduce system load and improve responsiveness
+            if (i + 1) % 10 == 0 {
+                tokio::task::yield_now().await;
+            }
         }
         
         let elapsed = start_time.elapsed();
@@ -284,13 +289,17 @@ impl SemanticCodeSearch {
             return Ok(()); // No meaningful content to index
         }
         
-        // Process chunks and generate embeddings
+        // Process chunks and generate embeddings in batches for better performance
         let mut embedded_chunks = Vec::with_capacity(chunks.len());
         
-        for chunk in chunks {
-            let code_chunk = match self.embedding_manager.generate_embeddings(&chunk.content).await {
-                Ok(embedding) => {
-                    // Add to vector search index
+        // Batch processing: collect chunk texts for batch embedding generation
+        let chunk_texts: Vec<String> = chunks.iter().map(|c| c.content.clone()).collect();
+        
+        // Generate embeddings in batch (much more efficient)
+        match self.embedding_manager.generate_batch_embeddings(&chunk_texts).await {
+            Ok(embeddings_batch) => {
+                // Process successful batch embeddings
+                for (chunk, embedding) in chunks.into_iter().zip(embeddings_batch.into_iter()) {
                     let metadata = ChunkMetadata {
                         file_path: file_path.to_path_buf(),
                         start_line: chunk.start_line,
@@ -299,29 +308,54 @@ impl SemanticCodeSearch {
                         content: chunk.content.clone(),
                     };
                     
+                    // Add to vector search index
                     self.vector_search.add_embedding(embedding.clone(), metadata)?;
                     
-                    CodeChunk {
+                    embedded_chunks.push(CodeChunk {
                         content: chunk.content,
                         start_line: chunk.start_line,
                         end_line: chunk.end_line,
                         chunk_type: convert_chunk_type(&chunk.chunk_type),
                         embedding: Some(embedding),
-                    }
+                    });
                 }
-                Err(_) => {
-                    // Keep chunk without embedding for fallback text search
-                    CodeChunk {
-                        content: chunk.content,
-                        start_line: chunk.start_line,
-                        end_line: chunk.end_line,
-                        chunk_type: convert_chunk_type(&chunk.chunk_type),
-                        embedding: None,
-                    }
+            }
+            Err(_) => {
+                // Fall back to individual processing if batch fails
+                for chunk in chunks {
+                    let code_chunk = match self.embedding_manager.generate_embeddings(&chunk.content).await {
+                        Ok(embedding) => {
+                            let metadata = ChunkMetadata {
+                                file_path: file_path.to_path_buf(),
+                                start_line: chunk.start_line,
+                                end_line: chunk.end_line,
+                                chunk_type: convert_chunk_type(&chunk.chunk_type),
+                                content: chunk.content.clone(),
+                            };
+                            
+                            self.vector_search.add_embedding(embedding.clone(), metadata)?;
+                            
+                            CodeChunk {
+                                content: chunk.content,
+                                start_line: chunk.start_line,
+                                end_line: chunk.end_line,
+                                chunk_type: convert_chunk_type(&chunk.chunk_type),
+                                embedding: Some(embedding),
+                            }
+                        }
+                        Err(_) => {
+                            CodeChunk {
+                                content: chunk.content,
+                                start_line: chunk.start_line,
+                                end_line: chunk.end_line,
+                                chunk_type: convert_chunk_type(&chunk.chunk_type),
+                                embedding: None,
+                            }
+                        }
+                    };
+                    embedded_chunks.push(code_chunk);
                 }
-            };
-            
-            embedded_chunks.push(code_chunk);
+            }
         }
         
         self.indexed_files.push(IndexedFile {
