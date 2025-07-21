@@ -397,6 +397,40 @@ impl EmbeddingManager {
         self.generate_embeddings_with_model(text, &model.name).await
     }
 
+    /// Generate embeddings for multiple texts in batch (performance optimization)
+    pub async fn generate_batch_embeddings(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
+        if texts.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Use the default model for batch processing
+        let model = self.get_recommended_model().await?;
+        self.generate_batch_embeddings_with_model(texts, &model.name).await
+    }
+
+    /// Generate batch embeddings using a specific model
+    pub async fn generate_batch_embeddings_with_model(&mut self, texts: &[String], model_name: &str) -> Result<Vec<Vec<f32>>> {
+        // Check if this is the embedded SweRankEmbed model
+        if model_name == "swerank-embed-small" {
+            self.ensure_swerank_model().await?;
+            let model = self.swerank_model.as_ref()
+                .context("SweRankEmbed model not initialized")?;
+            return model.generate_batch_embeddings(texts).await;
+        }
+
+        // For Ollama, fall back to individual calls (could be optimized later)
+        if !self.check_ollama_availability().await {
+            anyhow::bail!("Ollama not available");
+        }
+
+        let mut all_embeddings = Vec::with_capacity(texts.len());
+        for text in texts {
+            let embedding = self.generate_embeddings_with_model(text, model_name).await?;
+            all_embeddings.push(embedding);
+        }
+        Ok(all_embeddings)
+    }
+
     /// Generate embeddings using a specific model
     pub async fn generate_embeddings_with_model(&mut self, text: &str, model_name: &str) -> Result<Vec<f32>> {
         // Check if this is the embedded SweRankEmbed model
@@ -451,36 +485,6 @@ impl EmbeddingManager {
         Ok(embeddings)
     }
 
-    /// Generate embeddings for multiple texts efficiently
-    pub async fn generate_batch_embeddings(&mut self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
-        let model = self.get_recommended_model().await?;
-        
-        info!("Generating embeddings for {} texts using {}", texts.len(), model.name);
-        
-        // Use SweRankEmbed's batch processing if available
-        if model.name == "swerank-embed-small" {
-            self.ensure_swerank_model().await?;
-            let swerank_model = self.swerank_model.as_ref()
-                .context("SweRankEmbed model not initialized")?;
-            
-            let texts_owned: Vec<String> = texts.iter().map(|s| s.to_string()).collect();
-            return swerank_model.generate_batch_embeddings(&texts_owned).await;
-        }
-        
-        // Otherwise, process sequentially with Ollama
-        let mut results = Vec::with_capacity(texts.len());
-        for (i, text) in texts.iter().enumerate() {
-            let embedding = self.generate_embeddings_with_model(text, &model.name).await?;
-            results.push(embedding);
-            
-            if i % 10 == 0 && i > 0 {
-                debug!("Processed {}/{} texts", i, texts.len());
-            }
-        }
-        
-        info!("Completed batch embedding generation");
-        Ok(results)
-    }
 
     /// Calculate cosine similarity between two embeddings
     pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
@@ -502,7 +506,8 @@ impl EmbeddingManager {
     /// Find the most similar texts to a query
     pub async fn find_similar_texts(&mut self, query: &str, candidates: &[&str], top_k: usize) -> Result<Vec<(usize, f32)>> {
         let query_embedding = self.generate_embeddings(query).await?;
-        let candidate_embeddings = self.generate_batch_embeddings(candidates).await?;
+        let candidates_owned: Vec<String> = candidates.iter().map(|s| s.to_string()).collect();
+        let candidate_embeddings = self.generate_batch_embeddings(&candidates_owned).await?;
         
         let mut similarities: Vec<(usize, f32)> = candidate_embeddings
             .iter()
