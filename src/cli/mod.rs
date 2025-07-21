@@ -823,6 +823,8 @@ impl CliApp {
                 let include = sub_matches.get_many::<String>("include")
                     .map(|v| v.cloned().collect());
                 let debug_filters = sub_matches.get_flag("debug_filters");
+                let preset = sub_matches.get_one::<String>("preset").cloned();
+                let save_preset = sub_matches.get_one::<String>("save_preset").cloned();
                 
                 SearchCommand::Query { 
                     query, 
@@ -836,7 +838,9 @@ impl CliApp {
                     max_similarity,
                     exclude,
                     include,
-                    debug_filters
+                    debug_filters,
+                    preset,
+                    save_preset
                 }
             }
             

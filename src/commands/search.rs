@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use tracing::{debug, info};
 
 use crate::semantic_search::{SemanticCodeSearch};
+use crate::search_presets::{PresetManager, SearchPreset, SearchFilters};
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -59,12 +60,90 @@ pub enum SearchCommand {
         /// Show debug information about filtering
         #[arg(long)]
         debug_filters: bool,
+        /// Use a saved search preset
+        #[arg(long)]
+        preset: Option<String>,
+        /// Save current search as a preset
+        #[arg(long)]
+        save_preset: Option<String>,
     },
     /// Show search index statistics
     Stats {
         /// Directory path
         #[arg(default_value = ".")]
         path: PathBuf,
+    },
+    /// Manage search presets
+    Preset {
+        #[command(subcommand)]
+        preset_command: PresetCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum PresetCommand {
+    /// List all available presets
+    List {
+        /// Show detailed preset information
+        #[arg(long)]
+        verbose: bool,
+    },
+    /// Show details of a specific preset
+    Show {
+        /// Preset name
+        name: String,
+    },
+    /// Save current search filters as a preset
+    Save {
+        /// Preset name
+        name: String,
+        /// Preset description
+        #[arg(short, long)]
+        description: Option<String>,
+        /// Save as global preset (default: project-local)
+        #[arg(long)]
+        global: bool,
+        /// File types filter
+        #[arg(long, value_delimiter = ',')]
+        file_types: Option<Vec<String>>,
+        /// Languages filter
+        #[arg(long, value_delimiter = ',')]
+        languages: Option<Vec<String>>,
+        /// Scope filter
+        #[arg(long, value_delimiter = ',')]
+        scope: Option<Vec<String>>,
+        /// Chunk types filter
+        #[arg(long, value_delimiter = ',')]
+        chunk_types: Option<Vec<String>>,
+        /// Minimum similarity threshold
+        #[arg(long)]
+        min_similarity: Option<f32>,
+        /// Maximum similarity threshold
+        #[arg(long)]
+        max_similarity: Option<f32>,
+        /// Exclude patterns
+        #[arg(long, value_delimiter = ',')]
+        exclude: Option<Vec<String>>,
+        /// Include patterns
+        #[arg(long, value_delimiter = ',')]
+        include: Option<Vec<String>>,
+        /// Default limit
+        #[arg(long)]
+        limit: Option<usize>,
+    },
+    /// Delete a preset
+    Delete {
+        /// Preset name
+        name: String,
+        /// Delete global preset (default: project-local)
+        #[arg(long)]
+        global: bool,
+    },
+    /// Create built-in presets
+    Init {
+        /// Force overwrite existing presets
+        #[arg(long)]
+        force: bool,
     },
 }
 
@@ -111,34 +190,97 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             max_similarity,
             exclude,
             include,
-            debug_filters
+            debug_filters,
+            preset,
+            save_preset
         } => {
+            // Initialize preset manager
+            let mut preset_manager = PresetManager::new()?;
+            
+            // Handle preset loading and filter merging
+            let mut effective_file_types = file_types;
+            let mut effective_languages = languages;
+            let mut effective_scope = scope;
+            let mut effective_chunk_types = chunk_types;
+            let mut effective_min_similarity = min_similarity;
+            let mut effective_max_similarity = max_similarity;
+            let mut effective_exclude = exclude;
+            let mut effective_include = include;
+            let mut effective_limit = limit;
+            
+            if let Some(preset_name) = &preset {
+                match preset_manager.get_preset(preset_name).await? {
+                    Some(preset_data) => {
+                        println!("📋 Using preset: {} - {}", preset_data.name, preset_data.description);
+                        
+                        // Merge preset filters with command-line filters (CLI takes precedence)
+                        if effective_file_types.is_none() {
+                            effective_file_types = preset_data.filters.file_types;
+                        }
+                        if effective_languages.is_none() {
+                            effective_languages = preset_data.filters.languages;
+                        }
+                        if effective_scope.is_none() {
+                            effective_scope = preset_data.filters.scope;
+                        }
+                        if effective_chunk_types.is_none() {
+                            effective_chunk_types = preset_data.filters.chunk_types;
+                        }
+                        if effective_min_similarity.is_none() {
+                            effective_min_similarity = preset_data.filters.min_similarity;
+                        }
+                        if effective_max_similarity.is_none() {
+                            effective_max_similarity = preset_data.filters.max_similarity;
+                        }
+                        if effective_exclude.is_none() {
+                            effective_exclude = preset_data.filters.exclude;
+                        }
+                        if effective_include.is_none() {
+                            effective_include = preset_data.filters.include;
+                        }
+                        if let Some(preset_limit) = preset_data.filters.limit {
+                            if effective_limit == 10 { // Default limit
+                                effective_limit = preset_limit;
+                            }
+                        }
+                        
+                        // Increment usage count
+                        let _ = preset_manager.increment_usage(preset_name).await;
+                    }
+                    None => {
+                        println!("⚠️  Preset '{}' not found", preset_name);
+                        println!("💡 List available presets: aircher search preset list");
+                        return Ok(());
+                    }
+                }
+            }
+            
             println!("🔍 Searching for: '{}'", query);
             
             if debug_filters {
                 println!("🐛 Debug: Active filters:");
-                if let Some(ref types) = file_types {
+                if let Some(ref types) = effective_file_types {
                     println!("   File types: {}", types.join(", "));
                 }
-                if let Some(ref langs) = languages {
+                if let Some(ref langs) = effective_languages {
                     println!("   Languages: {}", langs.join(", "));
                 }
-                if let Some(ref scopes) = scope {
+                if let Some(ref scopes) = effective_scope {
                     println!("   Scope: {}", scopes.join(", "));
                 }
-                if let Some(ref chunks) = chunk_types {
+                if let Some(ref chunks) = effective_chunk_types {
                     println!("   Chunk types: {}", chunks.join(", "));
                 }
-                if let Some(min_sim) = min_similarity {
+                if let Some(min_sim) = effective_min_similarity {
                     println!("   Min similarity: {:.2}", min_sim);
                 }
-                if let Some(max_sim) = max_similarity {
+                if let Some(max_sim) = effective_max_similarity {
                     println!("   Max similarity: {:.2}", max_sim);
                 }
-                if let Some(ref excl) = exclude {
+                if let Some(ref excl) = effective_exclude {
                     println!("   Exclude: {}", excl.join(", "));
                 }
-                if let Some(ref incl) = include {
+                if let Some(ref incl) = effective_include {
                     println!("   Include: {}", incl.join(", "));
                 }
                 println!();
@@ -165,26 +307,26 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
                 info!("Using existing index with {} files", stats.total_files);
             }
             
-            match search.search(&query, limit * 3).await { // Get more results to filter
+            match search.search(&query, effective_limit * 3).await { // Get more results to filter
                 Ok((mut results, mut metrics)) => {
                     let original_count = results.len();
                     
                     // Apply advanced filters
                     results = apply_search_filters(
                         results,
-                        &file_types,
-                        &languages,
-                        &scope,
-                        &chunk_types,
-                        min_similarity,
-                        max_similarity,
-                        &exclude,
-                        &include,
+                        &effective_file_types,
+                        &effective_languages,
+                        &effective_scope,
+                        &effective_chunk_types,
+                        effective_min_similarity,
+                        effective_max_similarity,
+                        &effective_exclude,
+                        &effective_include,
                         debug_filters
                     );
                     
                     // Limit results after filtering
-                    results.truncate(limit);
+                    results.truncate(effective_limit);
                     
                     // Update metrics with filter effectiveness
                     if original_count != results.len() {
@@ -234,6 +376,39 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
                         println!("💡 Semantic search found contextually similar code");
                         println!("   This goes beyond text matching to understand meaning");
                     }
+                    
+                    // Handle save_preset if specified
+                    if let Some(preset_name) = save_preset {
+                        let filters = SearchFilters::from_cli_args(
+                            &effective_file_types,
+                            &effective_languages,
+                            &effective_scope,
+                            &effective_chunk_types,
+                            effective_min_similarity,
+                            effective_max_similarity,
+                            &effective_exclude,
+                            &effective_include,
+                            Some(effective_limit),
+                        );
+                        
+                        let new_preset = SearchPreset {
+                            name: preset_name.clone(),
+                            description: format!("Search preset created from query: '{}'", query),
+                            filters,
+                            created_at: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+                            usage_count: 0,
+                        };
+                        
+                        match preset_manager.save_preset(&new_preset, false).await {
+                            Ok(()) => {
+                                println!("\n💾 Saved search as preset '{}'", preset_name);
+                                println!("   Use with: aircher search query \"<query>\" --preset {}", preset_name);
+                            }
+                            Err(e) => {
+                                println!("\n⚠️  Failed to save preset: {}", e);
+                            }
+                        }
+                    }
                 }
                 Err(e) => {
                     println!("❌ Search failed: {}", e);
@@ -266,6 +441,183 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
                 println!("   Check: aircher embedding status");
             } else {
                 println!("✅ Good semantic search coverage");
+            }
+        }
+        
+        SearchCommand::Preset { preset_command } => {
+            let mut preset_manager = PresetManager::new()?;
+            
+            match preset_command {
+                PresetCommand::List { verbose } => {
+                    let presets = preset_manager.list_presets().await?;
+                    
+                    if presets.is_empty() {
+                        println!("📋 No search presets found");
+                        println!("💡 Create presets with: aircher search preset save <name> [filters...]");
+                        println!("💡 Or initialize built-ins: aircher search preset init");
+                    } else {
+                        println!("📋 Available search presets:\n");
+                        
+                        for preset in presets {
+                            if verbose {
+                                println!("🔖 {}", preset.name);
+                                println!("   Description: {}", preset.description);
+                                println!("   Filters: {}", preset.filters.format_summary());
+                                println!("   Created: {} | Used: {} times\n", preset.created_at, preset.usage_count);
+                            } else {
+                                println!("🔖 {} - {} ({})", 
+                                    preset.name, 
+                                    preset.description, 
+                                    preset.filters.format_summary()
+                                );
+                            }
+                        }
+                        
+                        if !verbose {
+                            println!("\n💡 Use --verbose for detailed information");
+                        }
+                        println!("💡 Use preset: aircher search query \"<query>\" --preset <name>");
+                    }
+                }
+                
+                PresetCommand::Show { name } => {
+                    match preset_manager.get_preset(&name).await? {
+                        Some(preset) => {
+                            println!("🔖 Preset: {}", preset.name);
+                            println!("📝 Description: {}", preset.description);
+                            println!("📅 Created: {}", preset.created_at);
+                            println!("📊 Usage count: {}", preset.usage_count);
+                            println!("\n🔍 Filters:");
+                            
+                            if let Some(file_types) = &preset.filters.file_types {
+                                println!("   File types: {}", file_types.join(", "));
+                            }
+                            if let Some(languages) = &preset.filters.languages {
+                                println!("   Languages: {}", languages.join(", "));
+                            }
+                            if let Some(scope) = &preset.filters.scope {
+                                println!("   Scope: {}", scope.join(", "));
+                            }
+                            if let Some(chunk_types) = &preset.filters.chunk_types {
+                                println!("   Chunk types: {}", chunk_types.join(", "));
+                            }
+                            if let Some(min_sim) = preset.filters.min_similarity {
+                                println!("   Min similarity: {:.2}", min_sim);
+                            }
+                            if let Some(max_sim) = preset.filters.max_similarity {
+                                println!("   Max similarity: {:.2}", max_sim);
+                            }
+                            if let Some(exclude) = &preset.filters.exclude {
+                                println!("   Exclude: {}", exclude.join(", "));
+                            }
+                            if let Some(include) = &preset.filters.include {
+                                println!("   Include: {}", include.join(", "));
+                            }
+                            if let Some(limit) = preset.filters.limit {
+                                println!("   Limit: {}", limit);
+                            }
+                            
+                            println!("\n💡 CLI equivalent:");
+                            let cli_args = preset.filters.to_cli_args();
+                            if cli_args.is_empty() {
+                                println!("   aircher search query \"<query>\"");
+                            } else {
+                                println!("   aircher search query \"<query>\" {}", cli_args.join(" "));
+                            }
+                        }
+                        None => {
+                            println!("⚠️  Preset '{}' not found", name);
+                            println!("💡 List available presets: aircher search preset list");
+                        }
+                    }
+                }
+                
+                PresetCommand::Save { 
+                    name, 
+                    description, 
+                    global, 
+                    file_types,
+                    languages,
+                    scope,
+                    chunk_types,
+                    min_similarity,
+                    max_similarity,
+                    exclude,
+                    include,
+                    limit
+                } => {
+                    let filters = SearchFilters::from_cli_args(
+                        &file_types,
+                        &languages,
+                        &scope,
+                        &chunk_types,
+                        min_similarity,
+                        max_similarity,
+                        &exclude,
+                        &include,
+                        limit,
+                    );
+                    
+                    let preset = SearchPreset {
+                        name: name.clone(),
+                        description: description.clone().unwrap_or_else(|| format!("Custom search preset: {}", name)),
+                        filters,
+                        created_at: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+                        usage_count: 0,
+                    };
+                    
+                    match preset_manager.save_preset(&preset, global).await {
+                        Ok(()) => {
+                            let scope_str = if global { "globally" } else { "locally" };
+                            println!("💾 Saved preset '{}' {}", name, scope_str);
+                            println!("   Description: {}", preset.description);
+                            println!("   Filters: {}", preset.filters.format_summary());
+                            println!("💡 Use with: aircher search query \"<query>\" --preset {}", name);
+                        }
+                        Err(e) => {
+                            println!("❌ Failed to save preset: {}", e);
+                        }
+                    }
+                }
+                
+                PresetCommand::Delete { name, global } => {
+                    match preset_manager.delete_preset(&name, global).await {
+                        Ok(true) => {
+                            let scope_str = if global { "global" } else { "local" };
+                            println!("🗑️  Deleted {} preset '{}'", scope_str, name);
+                        }
+                        Ok(false) => {
+                            let scope_str = if global { "global" } else { "local" };
+                            println!("⚠️  {} preset '{}' not found", scope_str, name);
+                        }
+                        Err(e) => {
+                            println!("❌ Failed to delete preset: {}", e);
+                        }
+                    }
+                }
+                
+                PresetCommand::Init { force } => {
+                    if force {
+                        println!("🔄 Initializing built-in presets (force mode)...");
+                    } else {
+                        println!("🔄 Initializing built-in presets...");
+                    }
+                    
+                    match preset_manager.create_builtin_presets().await {
+                        Ok(()) => {
+                            println!("✅ Built-in presets created:");
+                            println!("   🔖 rust-functions - Rust functions and methods");
+                            println!("   🔖 auth-security - Authentication and security patterns");
+                            println!("   🔖 error-handling - Error handling and exception patterns");
+                            println!("   🔖 config-patterns - Configuration and settings code");
+                            println!("\n💡 List all presets: aircher search preset list");
+                            println!("💡 Use preset: aircher search query \"<query>\" --preset <name>");
+                        }
+                        Err(e) => {
+                            println!("❌ Failed to create built-in presets: {}", e);
+                        }
+                    }
+                }
             }
         }
     }

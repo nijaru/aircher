@@ -14,6 +14,7 @@ mod providers;
 mod semantic_search;
 mod vector_search;
 mod code_chunking;
+mod search_presets;
 mod sessions;
 mod storage;
 mod ui;
