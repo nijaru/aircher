@@ -29,7 +29,14 @@
       "Bash(timeout:*)",
       "Bash(rustc:*)",
       "Bash(pkill:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(for file in simple_selection.rs provider_models.rs best_embedding_strategy_2025.rs practical_embedding_reality.rs)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(head:*)",
+      "Bash(done)",
+      "Bash(ollama list:*)",
+      "Bash(true)",
+      "Bash(time cargo run -- search query \"async function\" --limit 3)"
     ],
     "deny": []
   }
