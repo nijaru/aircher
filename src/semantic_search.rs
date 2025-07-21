@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use tokio::fs;
 use tracing::{debug, info, warn};
 use dirs::cache_dir;
-use rayon::prelude::*;
+// use rayon::prelude::*; // Reserved for future parallel processing
 
 use crate::cost::{EmbeddingManager, EmbeddingConfig};
 use crate::vector_search::{VectorSearchEngine, ChunkMetadata, ChunkType as VectorChunkType};

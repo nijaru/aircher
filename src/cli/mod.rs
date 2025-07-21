@@ -988,7 +988,7 @@ impl CliApp {
         
         let model_args = ModelArgs { command: model_command };
         // Create providers first to avoid borrowing issues
-        let providers = if self.providers.is_none() {
+        let _providers = if self.providers.is_none() {
             let provider_manager = ProviderManager::new(&self.config).await?;
             self.providers = Some(provider_manager);
         };
