@@ -30,7 +30,7 @@ struct OllamaRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct OllamaMessage {
+pub struct OllamaMessage {
     role: String,
     content: String,
 }

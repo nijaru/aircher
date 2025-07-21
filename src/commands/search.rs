@@ -308,6 +308,7 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
                 info!("Using existing index with {} files", stats.total_files);
             }
             
+            println!("🔎 Starting search...");
             match search.search(&query, effective_limit * 3).await { // Get more results to filter
                 Ok((mut results, mut metrics)) => {
                     let original_count = results.len();

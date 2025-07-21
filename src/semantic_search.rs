@@ -377,9 +377,13 @@ impl SemanticCodeSearch {
         info!("Searching for: '{}'", query);
         
         // Generate query embedding
+        info!("Starting embedding generation...");
         let embedding_start = Instant::now();
         let query_embedding = match self.embedding_manager.generate_embeddings(query).await {
-            Ok(embedding) => embedding,
+            Ok(embedding) => {
+                info!("Embedding generated in {:?}", embedding_start.elapsed());
+                embedding
+            },
             Err(e) => {
                 warn!("Embedding failed, using text search: {}", e);
                 let (results, mut fallback_metrics) = self.fallback_text_search_with_metrics(query, limit)?;

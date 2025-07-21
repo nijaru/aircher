@@ -150,10 +150,13 @@ impl VectorSearchEngine {
 
     /// Build the HNSW index from accumulated embeddings
     pub fn build_index(&mut self) -> Result<()> {
+        use std::time::Instant;
+        
         if self.embeddings.is_empty() {
             return Err(anyhow::anyhow!("No embeddings to index"));
         }
 
+        let start = Instant::now();
         info!("Building HNSW index with {} embeddings", self.embeddings.len());
         
         // Create points for instant-distance - just the embeddings
@@ -167,7 +170,8 @@ impl VectorSearchEngine {
         
         self.index = Some(index);
         
-        info!("HNSW index built successfully");
+        let elapsed = start.elapsed();
+        info!("HNSW index built successfully in {:.2}s", elapsed.as_secs_f64());
         Ok(())
     }
 
@@ -291,8 +295,17 @@ impl VectorSearchEngine {
         let embeddings_json = serde_json::to_string_pretty(&embeddings_data)?;
         fs::write(&embeddings_path, embeddings_json).await?;
         
-        info!("Index saved: metadata={}, embeddings={}", 
-              metadata_path.display(), embeddings_path.display());
+        // Save index state
+        let state_path = self.storage_path.with_extension("state.json");
+        let state = serde_json::json!({
+            "index_built": self.index.is_some(),
+            "vector_count": self.embeddings.len(),
+            "dimension": self.dimension,
+        });
+        fs::write(&state_path, serde_json::to_string_pretty(&state)?).await?;
+        
+        info!("Index saved: metadata={}, embeddings={}, state={}", 
+              metadata_path.display(), embeddings_path.display(), state_path.display());
         Ok(())
     }
 
@@ -314,11 +327,22 @@ impl VectorSearchEngine {
         let embeddings_data: Vec<Vec<f32>> = serde_json::from_str(&embeddings_content)?;
         self.embeddings = embeddings_data.into_iter().map(EmbeddingVector).collect();
         
-        // Rebuild HNSW index from loaded embeddings
-        if !self.embeddings.is_empty() {
+        // Check if index was previously built
+        let state_path = self.storage_path.with_extension("state.json");
+        let should_build = if state_path.exists() {
+            let state_content = fs::read_to_string(&state_path).await?;
+            let state: serde_json::Value = serde_json::from_str(&state_content)?;
+            state.get("index_built").and_then(|v| v.as_bool()).unwrap_or(false)
+        } else {
+            false
+        };
+        
+        // Only build index if it was previously built
+        if should_build && !self.embeddings.is_empty() {
+            info!("Index was previously built, rebuilding now...");
             self.build_index()?;
-            info!("Index loaded and rebuilt: {} vectors from {}", 
-                  self.embeddings.len(), metadata_path.display());
+        } else {
+            info!("Index data loaded: {} vectors (not built)", self.embeddings.len());
         }
         
         Ok(())
