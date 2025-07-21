@@ -38,7 +38,10 @@
       "Bash(true)",
       "Bash(time cargo run -- search query \"async function\" --limit 3)",
       "Bash(/dev/null)",
-      "Bash(./debug_cache)"
+      "Bash(./debug_cache)",
+      "Bash(RUST_LOG=aircher=info timeout 10 ./target/debug/aircher search query \"test\" --limit 1)",
+      "Bash(time:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

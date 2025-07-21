@@ -164,14 +164,10 @@ impl EmbeddingManager {
 
     /// Get the configured embedding model
     pub async fn get_recommended_model(&mut self) -> Result<EmbeddingModel> {
-        // Use bundled model if available (default behavior)
-        if self.config.preferred_model == "swerank-embed-small" {
-            if self.is_embedded_model_available().await {
-                if let Some(model) = self.find_model("swerank-embed-small", "embedded") {
-                    info!("Using bundled model");
-                    return Ok(model);
-                }
-            }
+        // Always use bundled model - simplest solution for now
+        if let Some(model) = self.find_model("swerank-embed-small", "embedded") {
+            info!("Using bundled model");
+            return Ok(model);
         }
 
         // Only check external models if user explicitly configured them
@@ -184,8 +180,7 @@ impl EmbeddingManager {
 
         // If explicitly configured model isn't available, fail clearly
         Err(anyhow::anyhow!(
-            "Configured model '{}' is not available. Use 'aircher embedding list' to see available models.",
-            self.config.preferred_model
+            "No embedding model available. This should not happen with bundled model."
         ))
     }
 
@@ -393,7 +388,9 @@ impl EmbeddingManager {
 
     /// Generate embeddings for the given text using the best available method
     pub async fn generate_embeddings(&mut self, text: &str) -> Result<Vec<f32>> {
+        info!("generate_embeddings called for text: {} chars", text.len());
         let model = self.get_recommended_model().await?;
+        info!("Got model: {}", model.name);
         self.generate_embeddings_with_model(text, &model.name).await
     }
 
@@ -433,11 +430,15 @@ impl EmbeddingManager {
 
     /// Generate embeddings using a specific model
     pub async fn generate_embeddings_with_model(&mut self, text: &str, model_name: &str) -> Result<Vec<f32>> {
+        info!("generate_embeddings_with_model called with model: {}", model_name);
         // Check if this is the embedded SweRankEmbed model
         if model_name == "swerank-embed-small" {
+            info!("Using SweRankEmbed model");
             self.ensure_swerank_model().await?;
+            info!("SweRankEmbed model ensured");
             let model = self.swerank_model.as_ref()
                 .context("SweRankEmbed model not initialized")?;
+            info!("Generating embeddings with SweRankEmbed");
             return model.generate_embeddings(text).await;
         }
 

@@ -10,10 +10,12 @@ use crate::storage::DatabaseManager;
 use crate::ui::TuiManager;
 
 pub struct ArcherApp {
+    #[allow(dead_code)]
     config: ConfigManager,
     providers: ProviderManager,
     ui: TuiManager,
     storage: DatabaseManager,
+    #[allow(dead_code)]
     intelligence: IntelligenceEngine,
     running: Arc<RwLock<bool>>,
 }
