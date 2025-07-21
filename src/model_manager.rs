@@ -1,6 +1,8 @@
 use anyhow::Result;
 use std::fmt;
-use tracing::{info, warn};
+use std::fs;
+use std::path::{Path, PathBuf};
+use tracing::{info, warn, debug};
 
 /// Available embedding models with clear licensing
 #[derive(Debug, Clone, PartialEq)]
@@ -11,20 +13,23 @@ pub enum EmbeddingModel {
         size_mb: u32,
         license: &'static str,
         quality: &'static str,
+        hf_repo: &'static str,
     },
     MPNetBase {
         name: &'static str,
         size_mb: u32,
         license: &'static str,
         quality: &'static str,
+        hf_repo: &'static str,
     },
     
-    // MIT Licensed (Commercial OK)
+    // MIT Licensed (Commercial OK)  
     BGESmall {
         name: &'static str,
         size_mb: u32,
         license: &'static str,
         quality: &'static str,
+        hf_repo: &'static str,
     },
     
     // CC BY-NC 4.0 (Non-Commercial Only)
@@ -34,6 +39,7 @@ pub enum EmbeddingModel {
         license: &'static str,
         quality: &'static str,
         warning: &'static str,
+        hf_repo: &'static str,
     },
     
     // No model (fallback mode)
@@ -49,23 +55,26 @@ impl EmbeddingModel {
                 size_mb: 90,
                 license: "Apache 2.0",
                 quality: "Good - Fast startup (~200ms), commercial-safe",
+                hf_repo: "sentence-transformers/all-MiniLM-L6-v2",
             },
             
             // Premium commercial option
             Self::MPNetBase {
                 name: "gte-large",
                 size_mb: 670,
-                license: "Apache 2.0",
+                license: "Apache 2.0", 
                 quality: "Excellent - High quality (~800ms), commercial-safe",
+                hf_repo: "thenlper/gte-large",
             },
             
             // Premier private option
             Self::SweRankEmbed {
-                name: "SweRankEmbed-Small", 
+                name: "SweRankEmbed-Small",
                 size_mb: 260,
                 license: "CC BY-NC 4.0 (NON-COMMERCIAL ONLY)",
-                quality: "Premier - Code-specific training (~400ms), private use only",
+                quality: "Premier - Code-specific training (~400ms), private use only", 
                 warning: "⚠️ This model is for non-commercial use only!",
+                hf_repo: "SalesforceAIResearch/SweRank",
             },
         ]
     }
@@ -76,19 +85,39 @@ impl EmbeddingModel {
     
     pub fn display_info(&self) -> String {
         match self {
-            Self::MiniLMv2 { name, size_mb, license, quality } => {
+            Self::MiniLMv2 { name, size_mb, license, quality, .. } => {
                 format!("{:<20} {:>6} MB  License: {:<15} {}", name, size_mb, license, quality)
             }
-            Self::MPNetBase { name, size_mb, license, quality } => {
+            Self::MPNetBase { name, size_mb, license, quality, .. } => {
                 format!("{:<20} {:>6} MB  License: {:<15} {}", name, size_mb, license, quality)
             }
-            Self::BGESmall { name, size_mb, license, quality } => {
+            Self::BGESmall { name, size_mb, license, quality, .. } => {
                 format!("{:<20} {:>6} MB  License: {:<15} {}", name, size_mb, license, quality)
             }
-            Self::SweRankEmbed { name, size_mb, license, quality, warning } => {
+            Self::SweRankEmbed { name, size_mb, license, quality, warning, .. } => {
                 format!("{:<20} {:>6} MB  License: {:<15} {}\n{}", name, size_mb, license, quality, warning)
             }
             Self::None => "No model (text search only)".to_string(),
+        }
+    }
+    
+    pub fn hf_repo(&self) -> Option<&str> {
+        match self {
+            Self::MiniLMv2 { hf_repo, .. } => Some(hf_repo),
+            Self::MPNetBase { hf_repo, .. } => Some(hf_repo),
+            Self::BGESmall { hf_repo, .. } => Some(hf_repo),
+            Self::SweRankEmbed { hf_repo, .. } => Some(hf_repo),
+            Self::None => None,
+        }
+    }
+    
+    pub fn cache_dir_name(&self) -> Option<&str> {
+        match self {
+            Self::MiniLMv2 { name, .. } => Some(name),
+            Self::MPNetBase { name, .. } => Some(name),
+            Self::BGESmall { name, .. } => Some(name),
+            Self::SweRankEmbed { name, .. } => Some(name),
+            Self::None => None,
         }
     }
 }
@@ -171,15 +200,104 @@ pub async fn download_model(model: &EmbeddingModel) -> Result<()> {
     match model {
         EmbeddingModel::None => {
             info!("No model selected, using text search fallback");
-            Ok(())
+            return Ok(());
         }
-        _ => {
-            info!("Downloading model: {:?}", model);
-            // TODO: Implement actual download from HuggingFace
-            // - Show progress bar
-            // - Verify checksum
-            // - Extract to cache directory
-            Ok(())
+        _ => {}
+    }
+    
+    let Some(repo_id) = model.hf_repo() else {
+        warn!("No HuggingFace repository configured for model");
+        return Ok(());
+    };
+    
+    let Some(model_name) = model.cache_dir_name() else {
+        warn!("No cache directory name configured for model");
+        return Ok(());
+    };
+    
+    // Get cache directory
+    let cache_dir = crate::config::ArcherConfig::cache_dir()
+        .map_err(|e| anyhow::anyhow!("Failed to get cache directory: {}", e))?
+        .join("models")
+        .join(model_name);
+    
+    // Create cache directory
+    if !cache_dir.exists() {
+        fs::create_dir_all(&cache_dir)?;
+    }
+    
+    let model_file = cache_dir.join("model.safetensors");
+    
+    // Check if model already exists
+    if model_file.exists() {
+        info!("Model already exists: {}", model_file.display());
+        return Ok(());
+    }
+    
+    info!("Downloading {} from HuggingFace...", model_name);
+    
+    // Initialize HuggingFace API
+    let api = hf_hub::api::tokio::Api::new()?;
+    let repo = api.model(repo_id.to_string());
+    
+    // Download model files with progress indication
+    println!("📥 Downloading {}...", model_name);
+    
+    // Show a simple progress indicator
+    let progress_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    let mut progress_idx = 0;
+    
+    // Download the model file
+    match repo.get("model.safetensors").await {
+        Ok(model_path) => {
+            // Copy from HF cache to our cache
+            let hf_model_path = model_path;
+            fs::copy(&hf_model_path, &model_file)?;
+            
+            println!("\r✅ Model downloaded successfully!");
+            info!("Model cached at: {}", model_file.display());
+            
+            // Save model info
+            let info_file = cache_dir.join(".model_info");
+            let model_info = serde_json::json!({
+                "name": model_name,
+                "repo": repo_id,
+                "downloaded_at": chrono::Utc::now().to_rfc3339(),
+                "file_size": fs::metadata(&model_file)?.len()
+            });
+            fs::write(info_file, serde_json::to_string_pretty(&model_info)?)?;
+        }
+        Err(e) => {
+            // Try alternative files for different model formats
+            let alternative_files = ["pytorch_model.bin", "model.bin", "model.onnx"];
+            let mut downloaded = false;
+            
+            for alt_file in &alternative_files {
+                if let Ok(alt_path) = repo.get(alt_file).await {
+                    fs::copy(&alt_path, cache_dir.join(alt_file))?;
+                    downloaded = true;
+                    info!("Downloaded alternative model file: {}", alt_file);
+                    break;
+                }
+            }
+            
+            if !downloaded {
+                return Err(anyhow::anyhow!("Failed to download model: {}", e));
+            }
         }
     }
+    
+    // Download config files if available
+    let config_files = ["config.json", "tokenizer.json", "tokenizer_config.json"];
+    for config_file in &config_files {
+        if let Ok(config_path) = repo.get(config_file).await {
+            let dest = cache_dir.join(config_file);
+            if let Err(e) = fs::copy(&config_path, &dest) {
+                debug!("Could not copy {}: {}", config_file, e);
+            }
+        }
+    }
+    
+    println!("\n🎉 Model setup complete! Ready for semantic search.");
+    Ok(())
 }
