@@ -36,7 +36,9 @@
       "Bash(done)",
       "Bash(ollama list:*)",
       "Bash(true)",
-      "Bash(time cargo run -- search query \"async function\" --limit 3)"
+      "Bash(time cargo run -- search query \"async function\" --limit 3)",
+      "Bash(/dev/null)",
+      "Bash(./debug_cache)"
     ],
     "deny": []
   }

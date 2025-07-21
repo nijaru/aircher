@@ -276,38 +276,51 @@ impl VectorSearchEngine {
 
     /// Save index to disk
     pub async fn save_index(&self) -> Result<()> {
-        // TODO: Implement HNSW index saving (instant-distance doesn't have built-in serialization yet)
-        warn!("HNSW index saving not yet implemented");
-        
-        // For now, just save metadata
-        let metadata_path = self.storage_path.with_extension("metadata.json");
-        if let Some(parent) = metadata_path.parent() {
+        if let Some(parent) = self.storage_path.parent() {
             fs::create_dir_all(parent).await?;
         }
         
+        // Save metadata
+        let metadata_path = self.storage_path.with_extension("metadata.json");
         let metadata_json = serde_json::to_string_pretty(&self.metadata)?;
         fs::write(&metadata_path, metadata_json).await?;
-
-        info!("Metadata saved to: {}", metadata_path.display());
+        
+        // Save embeddings (enables index reconstruction)
+        let embeddings_path = self.storage_path.with_extension("embeddings.json");
+        let embeddings_data: Vec<Vec<f32>> = self.embeddings.iter().map(|e| e.0.clone()).collect();
+        let embeddings_json = serde_json::to_string_pretty(&embeddings_data)?;
+        fs::write(&embeddings_path, embeddings_json).await?;
+        
+        info!("Index saved: metadata={}, embeddings={}", 
+              metadata_path.display(), embeddings_path.display());
         Ok(())
     }
 
     /// Load index from disk
     pub async fn load_index(&mut self) -> Result<()> {
         let metadata_path = self.storage_path.with_extension("metadata.json");
+        let embeddings_path = self.storage_path.with_extension("embeddings.json");
 
-        if !metadata_path.exists() {
-            return Err(anyhow::anyhow!("Metadata file not found"));
+        if !metadata_path.exists() || !embeddings_path.exists() {
+            return Err(anyhow::anyhow!("Index files not found"));
         }
 
         // Load metadata
         let metadata_content = fs::read_to_string(&metadata_path).await?;
         self.metadata = serde_json::from_str(&metadata_content)?;
-
-        // TODO: Implement HNSW index loading (instant-distance doesn't have built-in serialization yet)
-        warn!("HNSW index loading not yet implemented - index will need to be rebuilt");
         
-        info!("Metadata loaded from: {}", metadata_path.display());
+        // Load embeddings
+        let embeddings_content = fs::read_to_string(&embeddings_path).await?;
+        let embeddings_data: Vec<Vec<f32>> = serde_json::from_str(&embeddings_content)?;
+        self.embeddings = embeddings_data.into_iter().map(EmbeddingVector).collect();
+        
+        // Rebuild HNSW index from loaded embeddings
+        if !self.embeddings.is_empty() {
+            self.build_index()?;
+            info!("Index loaded and rebuilt: {} vectors from {}", 
+                  self.embeddings.len(), metadata_path.display());
+        }
+        
         Ok(())
     }
 
