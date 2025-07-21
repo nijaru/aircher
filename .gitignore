@@ -38,3 +38,13 @@ private/
 
 # Aircher specific
 .aircher/
+
+# Large model files (>100MB)
+models/*.safetensors
+models/*.bin
+models/*.onnx
+models/*.pt
+models/*.pth
+
+# External program binaries
+external/

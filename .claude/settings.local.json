@@ -41,7 +41,8 @@
       "Bash(./debug_cache)",
       "Bash(RUST_LOG=aircher=info timeout 10 ./target/debug/aircher search query \"test\" --limit 1)",
       "Bash(time:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git lfs track:*)"
     ],
     "deny": []
   }

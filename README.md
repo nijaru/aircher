@@ -111,8 +111,15 @@ aircher session export session_id --format markdown
 ```bash
 git clone https://github.com/nijaru/aircher.git
 cd aircher
+
+# For development (optional: download embedding model for semantic search)
+./scripts/download-models.sh  # Or use Git LFS: git lfs pull
+
+# Build
 cargo build --release
 ```
+
+**Note**: The semantic search feature works without the model file (using hash-based fallback), but for best results, download the SweRankEmbed model.
 
 ### 2. Configure API Keys
 ```bash
