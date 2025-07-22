@@ -68,6 +68,8 @@ aircher session export session_id --format markdown
   - Enhanced search display with syntax highlighting and context
   - Search presets for saving and reusing complex filter combinations
   - Advanced filtering by file types, languages, scope, and similarity
+  - **Query expansion with synonyms** - Automatically searches related terms for comprehensive results
+  - **Typo correction** - Fixes common programming typos in queries
 - ✅ **Embedding Management** - Full embedding model lifecycle:
   - Auto-detection and setup of embedding models
   - Ollama integration for local models
@@ -165,6 +167,8 @@ aircher --model gpt-4 "Help me debug this error"
 aircher search index             # Index your codebase
 aircher search query "database connection logic"
 aircher search query "error handling" --file-types rs,py --limit 10
+aircher search query "fucntion"  # Typo correction: automatically searches "function"
+aircher search query "auth"      # Expansion: also searches "authentication", "login", etc.
 aircher search preset init       # Create built-in presets
 aircher search query "auth code" --preset auth-security
 

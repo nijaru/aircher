@@ -45,7 +45,7 @@ pub fn authenticate_user(username: &str, password: &str) -> bool {
             
             // Test search
             match search.search("authentication function", 5).await {
-                Ok(results) => {
+                Ok((results, _metrics)) => {
                     println!("✅ Search successful: {} results", results.len());
                     for result in results {
                         println!("  - {} (score: {:.3})", result.file_path.display(), result.similarity_score);
