@@ -61,7 +61,7 @@ struct GeminiResponse {
 struct GeminiCandidate {
     content: GeminiContent,
     finish_reason: Option<String>,
-    safety_ratings: Option<Vec<serde_json::Value>>,
+    _safety_ratings: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,9 +78,9 @@ struct GeminiError {
 
 #[derive(Debug, Deserialize)]
 struct GeminiErrorDetails {
-    code: u32,
+    _code: u32,
     message: String,
-    status: String,
+    _status: String,
 }
 
 impl GeminiProvider {

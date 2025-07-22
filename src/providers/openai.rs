@@ -52,8 +52,8 @@ struct OpenAIMessage {
 #[derive(Debug, Deserialize)]
 struct OpenAIResponse {
     id: String,
-    object: String,
-    created: u64,
+    _object: String,
+    _created: u64,
     model: String,
     choices: Vec<OpenAIChoice>,
     usage: Option<OpenAIUsage>,
@@ -61,7 +61,7 @@ struct OpenAIResponse {
 
 #[derive(Debug, Deserialize)]
 struct OpenAIChoice {
-    index: u32,
+    _index: u32,
     message: OpenAIMessage,
     finish_reason: Option<String>,
 }
@@ -75,23 +75,23 @@ struct OpenAIUsage {
 
 #[derive(Debug, Deserialize)]
 struct OpenAIStreamEvent {
-    id: String,
-    object: String,
-    created: u64,
-    model: String,
+    _id: String,
+    _object: String,
+    _created: u64,
+    _model: String,
     choices: Vec<OpenAIStreamChoice>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OpenAIStreamChoice {
-    index: u32,
+    _index: u32,
     delta: OpenAIStreamDelta,
     finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OpenAIStreamDelta {
-    role: Option<String>,
+    _role: Option<String>,
     content: Option<String>,
 }
 
@@ -104,8 +104,8 @@ struct OpenAIError {
 struct OpenAIErrorDetails {
     message: String,
     #[serde(rename = "type")]
-    error_type: Option<String>,
-    code: Option<String>,
+    _error_type: Option<String>,
+    _code: Option<String>,
 }
 
 impl OpenAIProvider {

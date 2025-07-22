@@ -65,29 +65,6 @@ pub async fn handle_embedding_command(args: EmbeddingArgs) -> Result<()> {
     }
 }
 
-async fn show_current_embedding() -> Result<()> {
-    let lifecycle = EmbeddingLifecycleManager::new()?;
-    
-    if let Some(current) = lifecycle.get_current_model() {
-        println!("Current embedding model:");
-        println!("  {} v{}", current.model.name, current.version);
-        println!("  Provider: {}", current.model.provider);
-        println!("  Size: {}MB", current.model.size_mb);
-        println!("  Description: {}", current.model.description);
-        
-        let days_since_use = (chrono::Utc::now() - current.last_used).num_days();
-        if days_since_use == 0 {
-            println!("  Last used: Today");
-        } else {
-            println!("  Last used: {} days ago", days_since_use);
-        }
-    } else {
-        println!("❌ No embedding model configured");
-        println!("💡 Run 'aircher embedding set auto' to set up automatically");
-    }
-    
-    Ok(())
-}
 
 async fn list_embedding_models() -> Result<()> {
     let lifecycle = EmbeddingLifecycleManager::new()?;

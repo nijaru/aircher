@@ -19,7 +19,7 @@ use crate::config::HostConfig;
 pub struct OpenRouterHost {
     client: Client,
     config: HostConfig,
-    api_key: String,
+    _api_key: String,
     model_cache: HashMap<String, OpenRouterModel>,
 }
 
@@ -55,7 +55,7 @@ struct OpenRouterResponse {
 struct OpenRouterChoice {
     message: OpenRouterMessage,
     finish_reason: Option<String>,
-    index: u32,
+    _index: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,11 +68,11 @@ struct OpenRouterUsage {
 #[derive(Debug, Deserialize)]
 pub struct OpenRouterModel {
     id: String,
-    name: String,
-    description: Option<String>,
+    _name: String,
+    _description: Option<String>,
     context_length: u32,
     pricing: OpenRouterPricing,
-    top_provider: Option<OpenRouterProvider>,
+    _top_provider: Option<OpenRouterProvider>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -83,8 +83,8 @@ struct OpenRouterPricing {
 
 #[derive(Debug, Deserialize)]
 struct OpenRouterProvider {
-    name: String,
-    max_completion_tokens: Option<u32>,
+    _name: String,
+    _max_completion_tokens: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -101,8 +101,8 @@ struct OpenRouterError {
 struct OpenRouterErrorDetails {
     message: String,
     #[serde(rename = "type")]
-    error_type: Option<String>,
-    code: Option<u32>,
+    _error_type: Option<String>,
+    _code: Option<u32>,
 }
 
 impl OpenRouterHost {
@@ -137,7 +137,7 @@ impl OpenRouterHost {
         let mut host = Self {
             client,
             config,
-            api_key,
+            _api_key: api_key,
             model_cache: HashMap::new(),
         };
 

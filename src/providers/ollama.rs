@@ -15,7 +15,7 @@ use crate::config::ProviderConfig;
 
 pub struct OllamaProvider {
     client: Client,
-    config: ProviderConfig,
+    _config: ProviderConfig,
     base_url: String,
     available_models: Vec<String>,
 }
@@ -46,49 +46,49 @@ struct OllamaOptions {
 #[derive(Debug, Deserialize)]
 struct OllamaResponse {
     model: String,
-    created_at: String,
+    _created_at: String,
     message: OllamaMessage,
-    done: bool,
+    _done: bool,
     #[serde(default)]
-    total_duration: Option<u64>,
+    _total_duration: Option<u64>,
     #[serde(default)]
-    load_duration: Option<u64>,
+    _load_duration: Option<u64>,
     #[serde(default)]
     prompt_eval_count: Option<u32>,
     #[serde(default)]
-    prompt_eval_duration: Option<u64>,
+    _prompt_eval_duration: Option<u64>,
     #[serde(default)]
     eval_count: Option<u32>,
     #[serde(default)]
-    eval_duration: Option<u64>,
+    _eval_duration: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OllamaStreamResponse {
-    model: String,
-    created_at: String,
+    _model: String,
+    _created_at: String,
     message: OllamaMessage,
     done: bool,
     #[serde(default)]
-    total_duration: Option<u64>,
+    _total_duration: Option<u64>,
     #[serde(default)]
-    load_duration: Option<u64>,
+    _load_duration: Option<u64>,
     #[serde(default)]
     prompt_eval_count: Option<u32>,
     #[serde(default)]
-    prompt_eval_duration: Option<u64>,
+    _prompt_eval_duration: Option<u64>,
     #[serde(default)]
     eval_count: Option<u32>,
     #[serde(default)]
-    eval_duration: Option<u64>,
+    _eval_duration: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OllamaModelInfo {
     name: String,
-    modified_at: String,
-    size: u64,
-    digest: String,
+    _modified_at: String,
+    _size: u64,
+    _digest: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -103,10 +103,11 @@ struct OllamaVersionResponse {
 
 #[derive(Debug, Deserialize)]
 struct OllamaError {
-    error: String,
+    _error: String,
 }
 
-type OllamaResponseStream = mpsc::Receiver<Result<StreamChunk>>;
+// Unused type alias
+// type OllamaResponseStream = mpsc::Receiver<Result<StreamChunk>>;
 
 impl OllamaProvider {
     pub async fn new(config: ProviderConfig) -> Result<Self> {
@@ -126,7 +127,7 @@ impl OllamaProvider {
 
         let mut provider = Self {
             client,
-            config,
+            _config: config,
             base_url,
             available_models: Vec::new(),
         };

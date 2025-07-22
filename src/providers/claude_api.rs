@@ -20,7 +20,7 @@ use crate::config::ProviderConfig;
 pub struct ClaudeApiProvider {
     client: Client,
     config: ProviderConfig,
-    api_key: String,
+    _api_key: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -45,12 +45,12 @@ struct ClaudeMessage {
 struct ClaudeResponse {
     id: String,
     #[serde(rename = "type")]
-    response_type: String,
-    role: String,
+    _response_type: String,
+    _role: String,
     content: Vec<ClaudeContent>,
     model: String,
     stop_reason: Option<String>,
-    stop_sequence: Option<String>,
+    _stop_sequence: Option<String>,
     usage: ClaudeUsage,
 }
 
@@ -70,29 +70,29 @@ struct ClaudeUsage {
 #[derive(Debug, Deserialize)]
 struct ClaudeStreamEvent {
     #[serde(rename = "type")]
-    event_type: String,
+    _event_type: String,
     #[serde(default)]
-    message: Option<serde_json::Value>,
+    _message: Option<serde_json::Value>,
     #[serde(default)]
-    content_block: Option<serde_json::Value>,
+    _content_block: Option<serde_json::Value>,
     #[serde(default)]
     delta: Option<ClaudeStreamDelta>,
     #[serde(default)]
-    usage: Option<ClaudeUsage>,
+    _usage: Option<ClaudeUsage>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ClaudeStreamDelta {
     #[serde(rename = "type")]
-    delta_type: String,
+    _delta_type: String,
     text: Option<String>,
-    stop_reason: Option<String>,
+    _stop_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ClaudeError {
     #[serde(rename = "type")]
-    error_type: String,
+    _error_type: String,
     message: String,
 }
 
@@ -119,7 +119,7 @@ impl ClaudeApiProvider {
         Ok(Self {
             client,
             config,
-            api_key,
+            _api_key: api_key,
         })
     }
 

@@ -5,7 +5,7 @@ use crate::vector_search::ChunkType;
 // ANSI color codes
 const RESET: &str = "\x1b[0m";
 const BOLD: &str = "\x1b[1m";
-const DIM: &str = "\x1b[2m";
+const _DIM: &str = "\x1b[2m";
 const ITALIC: &str = "\x1b[3m";
 const BLUE: &str = "\x1b[34m";
 const GREEN: &str = "\x1b[32m";

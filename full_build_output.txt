@@ -1,0 +1,531 @@
+warning: method `handle_interactive` is never used
+   --> src/cli/mod.rs:604:14
+    |
+24  | impl CliApp {
+    | ----------- method in this implementation
+...
+604 |     async fn handle_interactive(&mut self, matches: &clap::ArgMatches) -> Result<()> {
+    |              ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: struct `InteractiveSession` is never constructed
+ --> src/cli/interactive.rs:7:12
+  |
+7 | pub struct InteractiveSession {
+  |            ^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `run`, `handle_command`, `show_history`, and `process_message` are never used
+   --> src/cli/interactive.rs:16:12
+    |
+15  | impl InteractiveSession {
+    | ----------------------- associated items in this implementation
+16  |     pub fn new(
+    |            ^^^
+...
+31  |     pub async fn run(&mut self, providers: &ProviderManager) -> Result<()> {
+    |                  ^^^
+...
+76  |     async fn handle_command(&mut self, command: &str) -> Result<bool> {
+    |              ^^^^^^^^^^^^^^
+...
+122 |     fn show_history(&self) {
+    |        ^^^^^^^^^^^^
+...
+149 |     async fn process_message(&mut self, input: &str, providers: &ProviderManager) -> Result<()> {
+    |              ^^^^^^^^^^^^^^^
+
+warning: function `show_current_embedding` is never used
+  --> src/commands/embedding.rs:68:10
+   |
+68 | async fn show_current_embedding() -> Result<()> {
+   |          ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `get_config_path` is never used
+   --> src/config/mod.rs:146:8
+    |
+134 | impl ConfigManager {
+    | ------------------ associated function in this implementation
+...
+146 |     fn get_config_path() -> PathBuf {
+    |        ^^^^^^^^^^^^^^^
+
+warning: fields `pricing_engine` and `model_registry` are never read
+   --> src/cost/model_selection.rs:169:5
+    |
+166 | pub struct IntelligentModelSelector {
+    |            ------------------------ fields in this struct
+...
+169 |     pricing_engine: PricingEngine,
+    |     ^^^^^^^^^^^^^^
+170 |     model_registry: ModelRegistry,
+    |     ^^^^^^^^^^^^^^
+
+warning: fields `model`, `device`, and `tokenizer_data` are never read
+  --> src/cost/swerank_integration.rs:15:5
+   |
+13 | pub struct SweRankEmbedModel {
+   |            ----------------- fields in this struct
+14 |     model_info: ModelInfo,
+15 |     model: Option<BertModel>,
+   |     ^^^^^
+16 |     device: Device,
+   |     ^^^^^^
+17 |     tokenizer_data: Option<HashMap<String, serde_json::Value>>,
+   |     ^^^^^^^^^^^^^^
+
+warning: fields `config` and `storage` are never read
+  --> src/intelligence/mod.rs:21:5
+   |
+20 | pub struct IntelligenceEngine {
+   |            ------------------ fields in this struct
+21 |     config: ConfigManager,
+   |     ^^^^^^
+22 |     storage: DatabaseManager,
+   |     ^^^^^^^
+
+warning: field `config` is never read
+  --> src/intelligence/context.rs:25:5
+   |
+24 | pub struct ContextualRelevanceEngine {
+   |            ------------------------- field in this struct
+25 |     config: ConfigManager,
+   |     ^^^^^^
+
+warning: fields `config` and `cached_narrative` are never read
+  --> src/intelligence/narrative.rs:11:5
+   |
+10 | pub struct DevelopmentNarrativeTracker {
+   |            --------------------------- fields in this struct
+11 |     config: ConfigManager,
+   |     ^^^^^^
+...
+14 |     cached_narrative: Option<DevelopmentNarrative>,
+   |     ^^^^^^^^^^^^^^^^
+
+warning: field `storage` is never read
+ --> src/intelligence/memory.rs:9:5
+  |
+8 | pub struct ConversationalMemorySystem {
+  |            -------------------------- field in this struct
+9 |     storage: DatabaseManager,
+  |     ^^^^^^^
+
+warning: fields `path` and `exists` are never read
+  --> src/intelligence/file_monitor.rs:35:5
+   |
+34 | struct FileMetadata {
+   |        ------------ fields in this struct
+35 |     path: PathBuf,
+   |     ^^^^
+...
+38 |     exists: bool,
+   |     ^^^^^^
+   |
+   = note: `FileMetadata` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `config` is never read
+  --> src/providers/mod.rs:21:5
+   |
+18 | pub struct ProviderManager {
+   |            --------------- field in this struct
+...
+21 |     config: ConfigManager,
+   |     ^^^^^^
+
+warning: field `api_key` is never read
+  --> src/providers/claude_api.rs:23:5
+   |
+20 | pub struct ClaudeApiProvider {
+   |            ----------------- field in this struct
+...
+23 |     api_key: String,
+   |     ^^^^^^^
+
+warning: fields `response_type`, `role`, and `stop_sequence` are never read
+  --> src/providers/claude_api.rs:48:5
+   |
+45 | struct ClaudeResponse {
+   |        -------------- fields in this struct
+...
+48 |     response_type: String,
+   |     ^^^^^^^^^^^^^
+49 |     role: String,
+   |     ^^^^
+...
+53 |     stop_sequence: Option<String>,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `ClaudeResponse` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `event_type`, `message`, `content_block`, and `usage` are never read
+  --> src/providers/claude_api.rs:73:5
+   |
+71 | struct ClaudeStreamEvent {
+   |        ----------------- fields in this struct
+72 |     #[serde(rename = "type")]
+73 |     event_type: String,
+   |     ^^^^^^^^^^
+74 |     #[serde(default)]
+75 |     message: Option<serde_json::Value>,
+   |     ^^^^^^^
+76 |     #[serde(default)]
+77 |     content_block: Option<serde_json::Value>,
+   |     ^^^^^^^^^^^^^
+...
+81 |     usage: Option<ClaudeUsage>,
+   |     ^^^^^
+   |
+   = note: `ClaudeStreamEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `delta_type` and `stop_reason` are never read
+  --> src/providers/claude_api.rs:87:5
+   |
+85 | struct ClaudeStreamDelta {
+   |        ----------------- fields in this struct
+86 |     #[serde(rename = "type")]
+87 |     delta_type: String,
+   |     ^^^^^^^^^^
+88 |     text: Option<String>,
+89 |     stop_reason: Option<String>,
+   |     ^^^^^^^^^^^
+   |
+   = note: `ClaudeStreamDelta` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `error_type` is never read
+  --> src/providers/claude_api.rs:95:5
+   |
+93 | struct ClaudeError {
+   |        ----------- field in this struct
+94 |     #[serde(rename = "type")]
+95 |     error_type: String,
+   |     ^^^^^^^^^^
+   |
+   = note: `ClaudeError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `safety_ratings` is never read
+  --> src/providers/gemini.rs:64:5
+   |
+61 | struct GeminiCandidate {
+   |        --------------- field in this struct
+...
+64 |     safety_ratings: Option<Vec<serde_json::Value>>,
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `GeminiCandidate` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `code` and `status` are never read
+  --> src/providers/gemini.rs:81:5
+   |
+80 | struct GeminiErrorDetails {
+   |        ------------------ fields in this struct
+81 |     code: u32,
+   |     ^^^^
+82 |     message: String,
+83 |     status: String,
+   |     ^^^^^^
+   |
+   = note: `GeminiErrorDetails` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `api_key` is never read
+  --> src/providers/hosts.rs:22:5
+   |
+19 | pub struct OpenRouterHost {
+   |            -------------- field in this struct
+...
+22 |     api_key: String,
+   |     ^^^^^^^
+
+warning: field `index` is never read
+  --> src/providers/hosts.rs:58:5
+   |
+55 | struct OpenRouterChoice {
+   |        ---------------- field in this struct
+...
+58 |     index: u32,
+   |     ^^^^^
+   |
+   = note: `OpenRouterChoice` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `name`, `description`, and `top_provider` are never read
+  --> src/providers/hosts.rs:71:5
+   |
+69 | pub struct OpenRouterModel {
+   |            --------------- fields in this struct
+70 |     id: String,
+71 |     name: String,
+   |     ^^^^
+72 |     description: Option<String>,
+   |     ^^^^^^^^^^^
+...
+75 |     top_provider: Option<OpenRouterProvider>,
+   |     ^^^^^^^^^^^^
+   |
+   = note: `OpenRouterModel` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `name` and `max_completion_tokens` are never read
+  --> src/providers/hosts.rs:86:5
+   |
+85 | struct OpenRouterProvider {
+   |        ------------------ fields in this struct
+86 |     name: String,
+   |     ^^^^
+87 |     max_completion_tokens: Option<u32>,
+   |     ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `OpenRouterProvider` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `error_type` and `code` are never read
+   --> src/providers/hosts.rs:104:5
+    |
+101 | struct OpenRouterErrorDetails {
+    |        ---------------------- fields in this struct
+...
+104 |     error_type: Option<String>,
+    |     ^^^^^^^^^^
+105 |     code: Option<u32>,
+    |     ^^^^
+    |
+    = note: `OpenRouterErrorDetails` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `config` is never read
+  --> src/providers/ollama.rs:18:5
+   |
+16 | pub struct OllamaProvider {
+   |            -------------- field in this struct
+17 |     client: Client,
+18 |     config: ProviderConfig,
+   |     ^^^^^^
+
+warning: fields `created_at`, `done`, `total_duration`, `load_duration`, `prompt_eval_duration`, and `eval_duration` are never read
+  --> src/providers/ollama.rs:49:5
+   |
+47 | struct OllamaResponse {
+   |        -------------- fields in this struct
+48 |     model: String,
+49 |     created_at: String,
+   |     ^^^^^^^^^^
+50 |     message: OllamaMessage,
+51 |     done: bool,
+   |     ^^^^
+52 |     #[serde(default)]
+53 |     total_duration: Option<u64>,
+   |     ^^^^^^^^^^^^^^
+54 |     #[serde(default)]
+55 |     load_duration: Option<u64>,
+   |     ^^^^^^^^^^^^^
+...
+59 |     prompt_eval_duration: Option<u64>,
+   |     ^^^^^^^^^^^^^^^^^^^^
+...
+63 |     eval_duration: Option<u64>,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `OllamaResponse` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `model`, `created_at`, `total_duration`, `load_duration`, `prompt_eval_duration`, and `eval_duration` are never read
+  --> src/providers/ollama.rs:68:5
+   |
+67 | struct OllamaStreamResponse {
+   |        -------------------- fields in this struct
+68 |     model: String,
+   |     ^^^^^
+69 |     created_at: String,
+   |     ^^^^^^^^^^
+...
+73 |     total_duration: Option<u64>,
+   |     ^^^^^^^^^^^^^^
+74 |     #[serde(default)]
+75 |     load_duration: Option<u64>,
+   |     ^^^^^^^^^^^^^
+...
+79 |     prompt_eval_duration: Option<u64>,
+   |     ^^^^^^^^^^^^^^^^^^^^
+...
+83 |     eval_duration: Option<u64>,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `OllamaStreamResponse` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `modified_at`, `size`, and `digest` are never read
+  --> src/providers/ollama.rs:89:5
+   |
+87 | struct OllamaModelInfo {
+   |        --------------- fields in this struct
+88 |     name: String,
+89 |     modified_at: String,
+   |     ^^^^^^^^^^^
+90 |     size: u64,
+   |     ^^^^
+91 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `OllamaModelInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `error` is never read
+   --> src/providers/ollama.rs:106:5
+    |
+105 | struct OllamaError {
+    |        ----------- field in this struct
+106 |     error: String,
+    |     ^^^^^
+    |
+    = note: `OllamaError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: type alias `OllamaResponseStream` is never used
+   --> src/providers/ollama.rs:109:6
+    |
+109 | type OllamaResponseStream = mpsc::Receiver<Result<StreamChunk>>;
+    |      ^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `object` and `created` are never read
+  --> src/providers/openai.rs:55:5
+   |
+53 | struct OpenAIResponse {
+   |        -------------- fields in this struct
+54 |     id: String,
+55 |     object: String,
+   |     ^^^^^^
+56 |     created: u64,
+   |     ^^^^^^^
+   |
+   = note: `OpenAIResponse` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `index` is never read
+  --> src/providers/openai.rs:64:5
+   |
+63 | struct OpenAIChoice {
+   |        ------------ field in this struct
+64 |     index: u32,
+   |     ^^^^^
+   |
+   = note: `OpenAIChoice` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `id`, `object`, `created`, and `model` are never read
+  --> src/providers/openai.rs:78:5
+   |
+77 | struct OpenAIStreamEvent {
+   |        ----------------- fields in this struct
+78 |     id: String,
+   |     ^^
+79 |     object: String,
+   |     ^^^^^^
+80 |     created: u64,
+   |     ^^^^^^^
+81 |     model: String,
+   |     ^^^^^
+   |
+   = note: `OpenAIStreamEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `index` is never read
+  --> src/providers/openai.rs:87:5
+   |
+86 | struct OpenAIStreamChoice {
+   |        ------------------ field in this struct
+87 |     index: u32,
+   |     ^^^^^
+   |
+   = note: `OpenAIStreamChoice` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `role` is never read
+  --> src/providers/openai.rs:94:5
+   |
+93 | struct OpenAIStreamDelta {
+   |        ----------------- field in this struct
+94 |     role: Option<String>,
+   |     ^^^^
+   |
+   = note: `OpenAIStreamDelta` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `error_type` and `code` are never read
+   --> src/providers/openai.rs:107:5
+    |
+104 | struct OpenAIErrorDetails {
+    |        ------------------ fields in this struct
+...
+107 |     error_type: Option<String>,
+    |     ^^^^^^^^^^
+108 |     code: Option<String>,
+    |     ^^^^
+    |
+    = note: `OpenAIErrorDetails` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: methods `fallback_text_search`, `extract_code_chunks`, `is_function_start`, and `is_class_start` are never used
+   --> src/semantic_search.rs:543:8
+    |
+91  | impl SemanticCodeSearch {
+    | ----------------------- methods in this implementation
+...
+543 |     fn fallback_text_search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+692 |     fn extract_code_chunks(&self, content: &str) -> Result<Vec<CodeChunk>> {
+    |        ^^^^^^^^^^^^^^^^^^^
+...
+785 |     fn is_function_start(&self, line: &str) -> bool {
+    |        ^^^^^^^^^^^^^^^^^
+...
+794 |     fn is_class_start(&self, line: &str) -> bool {
+    |        ^^^^^^^^^^^^^^
+
+warning: constant `DIM` is never used
+ --> src/search_display.rs:8:7
+  |
+8 | const DIM: &str = "\x1b[2m";
+  |       ^^^
+
+warning: field `project_manager` is never read
+  --> src/ui/mod.rs:53:5
+   |
+42 | pub struct TuiManager {
+   |            ---------- field in this struct
+...
+53 |     project_manager: ProjectManager,
+   |     ^^^^^^^^^^^^^^^
+
+warning: fields `provider_manager` and `config_manager` are never read
+  --> src/ui/enhanced_selection.rs:28:5
+   |
+14 | pub struct EnhancedSelectionModal {
+   |            ---------------------- fields in this struct
+...
+28 |     provider_manager: Option<ProviderManager>,
+   |     ^^^^^^^^^^^^^^^^
+29 |     config_manager: Option<ConfigManager>,
+   |     ^^^^^^^^^^^^^^
+
+warning: variant `Confirmation` is never constructed
+  --> src/ui/enhanced_selection.rs:38:5
+   |
+33 | enum SelectionLevel {
+   |      -------------- variant in this enum
+...
+38 |     Confirmation,
+   |     ^^^^^^^^^^^^
+   |
+   = note: `SelectionLevel` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `provider` is never read
+  --> src/ui/enhanced_selection.rs:55:5
+   |
+52 | struct ModelInfo {
+   |        --------- field in this struct
+...
+55 |     provider: String,
+   |     ^^^^^^^^
+   |
+   = note: `ModelInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `provider` is never read
+  --> src/ui/enhanced_selection.rs:66:5
+   |
+63 | struct HostInfo {
+   |        -------- field in this struct
+...
+66 |     provider: String,
+   |     ^^^^^^^^
+   |
+   = note: `HostInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `aircher` (lib) generated 44 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s

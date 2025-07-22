@@ -523,17 +523,17 @@ mod tests {
         let config = ModelConfiguration::default();
         
         // Test planning task
-        let (model, tier, reason) = config.select_model("claude", Some("architecture"));
+        let (_model, tier, reason) = config.select_model("claude", Some("architecture"));
         assert_eq!(tier, ModelTier::Planning);
         assert!(reason.contains("Planning task"));
         
         // Test light task
-        let (model, tier, reason) = config.select_model("openai", Some("commit_messages"));
+        let (_model, tier, reason) = config.select_model("openai", Some("commit_messages"));
         assert_eq!(tier, ModelTier::Light);
         assert!(reason.contains("Light task"));
         
         // Test general task
-        let (model, tier, reason) = config.select_model("gemini", Some("documentation"));
+        let (_model, tier, reason) = config.select_model("gemini", Some("documentation"));
         assert_eq!(tier, ModelTier::Main);
         assert!(reason.contains("General task"));
     }

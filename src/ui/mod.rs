@@ -50,7 +50,7 @@ pub struct TuiManager {
     session_cost: f64,
     session_tokens: u32,
     // Session management
-    project_manager: ProjectManager,
+    _project_manager: ProjectManager,
     session_manager: SessionManager,
     current_session: Option<Session>,
     intelligence_tools: TuiIntelligenceTools,
@@ -147,7 +147,7 @@ impl TuiManager {
             session_cost: current_session.total_cost,
             session_tokens: current_session.total_tokens,
             // Session management
-            project_manager,
+            _project_manager: project_manager,
             session_manager,
             current_session: Some(current_session),
             intelligence_tools,

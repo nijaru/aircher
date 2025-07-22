@@ -25,8 +25,8 @@ pub struct EnhancedSelectionModal {
     auth_input: String,
     auth_input_visible: bool,
     needs_auth: bool,
-    provider_manager: Option<ProviderManager>,
-    config_manager: Option<ConfigManager>,
+    _provider_manager: Option<ProviderManager>,
+    _config_manager: Option<ConfigManager>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,7 +35,6 @@ enum SelectionLevel {
     Model,
     Host,
     Auth,
-    Confirmation,
 }
 
 #[derive(Debug, Clone)]
@@ -52,7 +51,7 @@ struct ProviderInfo {
 struct ModelInfo {
     name: String,
     display_name: String,
-    provider: String,
+    _provider: String,
     context_window: u32,
     input_cost_per_1m: f64,
     output_cost_per_1m: f64,
@@ -63,7 +62,7 @@ struct ModelInfo {
 struct HostInfo {
     name: String,
     display_name: String,
-    provider: String,
+    _provider: String,
     is_default: bool,
     description: String,
 }
@@ -91,8 +90,8 @@ impl EnhancedSelectionModal {
             auth_input: String::new(),
             auth_input_visible: false,
             needs_auth: false,
-            provider_manager: None,
-            config_manager: None,
+            _provider_manager: None,
+            _config_manager: None,
         }
     }
     
@@ -405,7 +404,6 @@ impl EnhancedSelectionModal {
             SelectionLevel::Provider => {
                 self.hide();
             },
-            _ => {},
         }
         Ok(())
     }
@@ -441,7 +439,7 @@ impl EnhancedSelectionModal {
                 ModelInfo {
                     name: "claude-3-5-sonnet-20241022".to_string(),
                     display_name: "Claude 3.5 Sonnet".to_string(),
-                    provider: "claude".to_string(),
+                    _provider: "claude".to_string(),
                     context_window: 200000,
                     input_cost_per_1m: 3.0,
                     output_cost_per_1m: 15.0,
@@ -450,7 +448,7 @@ impl EnhancedSelectionModal {
                 ModelInfo {
                     name: "claude-3-haiku-20240307".to_string(),
                     display_name: "Claude 3 Haiku".to_string(),
-                    provider: "claude".to_string(),
+                    _provider: "claude".to_string(),
                     context_window: 200000,
                     input_cost_per_1m: 0.25,
                     output_cost_per_1m: 1.25,
@@ -461,7 +459,7 @@ impl EnhancedSelectionModal {
                 ModelInfo {
                     name: "gpt-4o".to_string(),
                     display_name: "GPT-4o".to_string(),
-                    provider: "openai".to_string(),
+                    _provider: "openai".to_string(),
                     context_window: 128000,
                     input_cost_per_1m: 2.5,
                     output_cost_per_1m: 10.0,
@@ -470,7 +468,7 @@ impl EnhancedSelectionModal {
                 ModelInfo {
                     name: "gpt-4o-mini".to_string(),
                     display_name: "GPT-4o Mini".to_string(),
-                    provider: "openai".to_string(),
+                    _provider: "openai".to_string(),
                     context_window: 128000,
                     input_cost_per_1m: 0.15,
                     output_cost_per_1m: 0.6,
@@ -483,7 +481,7 @@ impl EnhancedSelectionModal {
                     ModelInfo {
                         name: "anthropic/claude-3-5-sonnet".to_string(),
                         display_name: "Claude 3.5 Sonnet".to_string(),
-                        provider: "openrouter".to_string(),
+                        _provider: "openrouter".to_string(),
                         context_window: 200000,
                         input_cost_per_1m: 3.0,
                         output_cost_per_1m: 15.0,
@@ -492,7 +490,7 @@ impl EnhancedSelectionModal {
                     ModelInfo {
                         name: "openai/gpt-4o".to_string(),
                         display_name: "GPT-4o".to_string(),
-                        provider: "openrouter".to_string(),
+                        _provider: "openrouter".to_string(),
                         context_window: 128000,
                         input_cost_per_1m: 2.5,
                         output_cost_per_1m: 10.0,
@@ -501,7 +499,7 @@ impl EnhancedSelectionModal {
                     ModelInfo {
                         name: "meta-llama/llama-3.3-70b-instruct".to_string(),
                         display_name: "Llama 3.3 70B".to_string(),
-                        provider: "openrouter".to_string(),
+                        _provider: "openrouter".to_string(),
                         context_window: 131072,
                         input_cost_per_1m: 0.59,
                         output_cost_per_1m: 0.79,
@@ -510,7 +508,7 @@ impl EnhancedSelectionModal {
                     ModelInfo {
                         name: "google/gemini-2.0-flash-exp".to_string(),
                         display_name: "Gemini 2.0 Flash".to_string(),
-                        provider: "openrouter".to_string(),
+                        _provider: "openrouter".to_string(),
                         context_window: 1000000,
                         input_cost_per_1m: 0.075,
                         output_cost_per_1m: 0.3,
@@ -544,7 +542,7 @@ impl EnhancedSelectionModal {
                 HostInfo {
                     name: "anthropic".to_string(),
                     display_name: "Default (Anthropic)".to_string(),
-                    provider: "anthropic".to_string(),
+                    _provider: "anthropic".to_string(),
                     is_default: true,
                     description: "Official Anthropic API".to_string(),
                 },
@@ -554,7 +552,7 @@ impl EnhancedSelectionModal {
                 HostInfo {
                     name: "openai".to_string(),
                     display_name: "Default (OpenAI)".to_string(),
-                    provider: "openai".to_string(),
+                    _provider: "openai".to_string(),
                     is_default: true,
                     description: "Official OpenAI API".to_string(),
                 },
@@ -564,14 +562,14 @@ impl EnhancedSelectionModal {
                 HostInfo {
                     name: "together".to_string(),
                     display_name: "Default (Together AI)".to_string(),
-                    provider: "together".to_string(),
+                    _provider: "together".to_string(),
                     is_default: true,
                     description: "Together AI hosting".to_string(),
                 },
                 HostInfo {
                     name: "fireworks".to_string(),
                     display_name: "Fireworks AI".to_string(),
-                    provider: "fireworks".to_string(),
+                    _provider: "fireworks".to_string(),
                     is_default: false,
                     description: "Fast inference hosting".to_string(),
                 },
@@ -581,7 +579,7 @@ impl EnhancedSelectionModal {
                 HostInfo {
                     name: "default".to_string(),
                     display_name: "Default".to_string(),
-                    provider: "default".to_string(),
+                    _provider: "default".to_string(),
                     is_default: true,
                     description: "Default hosting".to_string(),
                 },
@@ -680,7 +678,6 @@ impl EnhancedSelectionModal {
             SelectionLevel::Model => "Select Model",
             SelectionLevel::Host => "Select Host",
             SelectionLevel::Auth => "Enter API Key",
-            SelectionLevel::Confirmation => "Confirm Selection",
         };
         
         let modal_block = Block::default()
@@ -712,7 +709,6 @@ impl EnhancedSelectionModal {
             SelectionLevel::Model => self.render_models(f, chunks[0]),
             SelectionLevel::Host => self.render_hosts(f, chunks[0]),
             SelectionLevel::Auth => self.render_auth(f, chunks[0]),
-            SelectionLevel::Confirmation => self.render_confirmation(f, chunks[0]),
         }
         
         // Render instructions
@@ -852,28 +848,6 @@ impl EnhancedSelectionModal {
         f.render_widget(input_widget, area);
     }
     
-    fn render_confirmation(&self, f: &mut Frame, area: Rect) {
-        let provider = self.get_current_provider();
-        let model = self.get_current_model();
-        let host = self.get_current_host();
-        
-        let text = if let (Some(p), Some(m)) = (provider, model) {
-            if let Some(h) = host {
-                format!("Provider: {}\nModel: {}\nHost: {}\n\nPress Enter to confirm, Esc to cancel", 
-                       p.display_name, m.display_name, h.display_name)
-            } else {
-                format!("Provider: {}\nModel: {}\n\nPress Enter to confirm, Esc to cancel", 
-                       p.display_name, m.display_name)
-            }
-        } else {
-            "Invalid selection".to_string()
-        };
-        
-        let confirmation_widget = Paragraph::new(text)
-            .style(Style::default().fg(Color::Green))
-            .block(Block::default().borders(Borders::ALL).title("Confirm Selection"));
-        f.render_widget(confirmation_widget, area);
-    }
     
     fn render_instructions(&self, f: &mut Frame, area: Rect) {
         let instructions = match self.current_level {
@@ -887,7 +861,6 @@ impl EnhancedSelectionModal {
             },
             SelectionLevel::Host => "↑↓ Navigate, →/Enter Confirm, ←/Esc Back",
             SelectionLevel::Auth => "Type API key, Enter Save, Esc Cancel",
-            SelectionLevel::Confirmation => "Enter Confirm, Esc Cancel",
         };
         
         let instructions_widget = Paragraph::new(instructions)
