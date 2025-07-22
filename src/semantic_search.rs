@@ -381,13 +381,25 @@ impl SemanticCodeSearch {
         metrics.embedding_duration = embedding_start.elapsed();
         
         // Build HNSW index if needed
-        let stats = self.vector_search.get_stats();
-        if stats.total_vectors > 0 && !stats.index_built {
-            info!("Building search index");
+        if self.vector_search.needs_index_build() {
+            let stats = self.vector_search.get_stats();
+            info!("Building search index for {} vectors", stats.total_vectors);
+            
+            // Show user-friendly message only once per session
+            static INDEX_BUILD_SHOWN: std::sync::Once = std::sync::Once::new();
+            INDEX_BUILD_SHOWN.call_once(|| {
+                if stats.total_vectors > 1000 {
+                    println!("⏳ Building search index for the first query...");
+                    println!("   This is a one-time operation (30-60 seconds).");
+                    println!("   Future searches will be instant!");
+                }
+            });
+            
             self.vector_search.build_index()?;
-            // Save index after building
+            
+            // Save index state after building
             if let Err(e) = self.vector_search.save_index().await {
-                warn!("Failed to save index: {}", e);
+                warn!("Failed to save index state: {}", e);
             }
         }
         
@@ -464,13 +476,25 @@ impl SemanticCodeSearch {
         metrics.embedding_duration = embedding_start.elapsed();
         
         // Build HNSW index if needed
-        let stats = self.vector_search.get_stats();
-        if stats.total_vectors > 0 && !stats.index_built {
-            info!("Building search index");
+        if self.vector_search.needs_index_build() {
+            let stats = self.vector_search.get_stats();
+            info!("Building search index for {} vectors", stats.total_vectors);
+            
+            // Show user-friendly message only once per session
+            static INDEX_BUILD_SHOWN: std::sync::Once = std::sync::Once::new();
+            INDEX_BUILD_SHOWN.call_once(|| {
+                if stats.total_vectors > 1000 {
+                    println!("⏳ Building search index for the first query...");
+                    println!("   This is a one-time operation (30-60 seconds).");
+                    println!("   Future searches will be instant!");
+                }
+            });
+            
             self.vector_search.build_index()?;
-            // Save index after building
+            
+            // Save index state after building
             if let Err(e) = self.vector_search.save_index().await {
-                warn!("Failed to save index: {}", e);
+                warn!("Failed to save index state: {}", e);
             }
         }
         

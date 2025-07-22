@@ -501,6 +501,244 @@ impl CliApp {
                             )
                     )
             )
+            .subcommand(
+                Command::new("mcp")
+                    .about("Model Context Protocol (MCP) client management")
+                    .subcommand(
+                        Command::new("list")
+                            .about("List configured MCP servers")
+                            .arg(
+                                Arg::new("verbose")
+                                    .long("verbose")
+                                    .help("Show detailed server information")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("add")
+                            .about("Add a new MCP server configuration")
+                            .arg(
+                                Arg::new("name")
+                                    .help("Server name (unique identifier)")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("server_type")
+                                    .help("Server type")
+                                    .required(true)
+                                    .index(2)
+                                    .value_parser(["stdio", "http"]),
+                            )
+                            .arg(
+                                Arg::new("command")
+                                    .long("command")
+                                    .help("Command to execute (for stdio servers)")
+                                    .value_name("CMD"),
+                            )
+                            .arg(
+                                Arg::new("args")
+                                    .long("args")
+                                    .help("Command arguments (for stdio servers)")
+                                    .value_delimiter(' ')
+                                    .action(clap::ArgAction::Append),
+                            )
+                            .arg(
+                                Arg::new("url")
+                                    .long("url")
+                                    .help("Server URL (for HTTP servers)")
+                                    .value_name("URL"),
+                            )
+                            .arg(
+                                Arg::new("api_key")
+                                    .long("api-key")
+                                    .help("API key for authentication")
+                                    .value_name("KEY"),
+                            )
+                            .arg(
+                                Arg::new("description")
+                                    .short('d')
+                                    .long("description")
+                                    .help("Server description")
+                                    .value_name("DESC"),
+                            )
+                            .arg(
+                                Arg::new("tags")
+                                    .long("tags")
+                                    .help("Tags for categorization")
+                                    .value_delimiter(',')
+                                    .action(clap::ArgAction::Append),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("remove")
+                            .about("Remove an MCP server configuration")
+                            .arg(
+                                Arg::new("name")
+                                    .help("Server name to remove")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("force")
+                                    .long("force")
+                                    .help("Force removal without confirmation")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("connect")
+                            .about("Connect to an MCP server")
+                            .arg(
+                                Arg::new("name")
+                                    .help("Server name to connect to")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("timeout")
+                                    .long("timeout")
+                                    .help("Connection timeout in seconds")
+                                    .value_name("SECS")
+                                    .default_value("30")
+                                    .value_parser(clap::value_parser!(u64)),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("disconnect")
+                            .about("Disconnect from an MCP server")
+                            .arg(
+                                Arg::new("name")
+                                    .help("Server name to disconnect from")
+                                    .required(true)
+                                    .index(1),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("status")
+                            .about("Show server status")
+                            .arg(
+                                Arg::new("name")
+                                    .help("Server name (show all if not specified)")
+                                    .index(1),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("tools")
+                            .about("List available tools from connected servers")
+                            .arg(
+                                Arg::new("server")
+                                    .long("server")
+                                    .help("Filter by server name")
+                                    .value_name("NAME"),
+                            )
+                            .arg(
+                                Arg::new("tag")
+                                    .long("tag")
+                                    .help("Filter by tag")
+                                    .value_name("TAG"),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("resources")
+                            .about("List available resources from connected servers")
+                            .arg(
+                                Arg::new("server")
+                                    .long("server")
+                                    .help("Filter by server name")
+                                    .value_name("NAME"),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("call")
+                            .about("Execute a tool from an MCP server")
+                            .arg(
+                                Arg::new("tool")
+                                    .help("Tool name (format: server_name.tool_name or just tool_name)")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("args")
+                                    .long("args")
+                                    .help("Tool arguments as JSON")
+                                    .value_name("JSON"),
+                            )
+                            .arg(
+                                Arg::new("pretty")
+                                    .long("pretty")
+                                    .help("Pretty print output")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("get")
+                            .about("Get a resource from an MCP server")
+                            .arg(
+                                Arg::new("uri")
+                                    .help("Resource URI")
+                                    .required(true)
+                                    .index(1),
+                            )
+                            .arg(
+                                Arg::new("server")
+                                    .long("server")
+                                    .help("Server name (auto-detect if not specified)")
+                                    .value_name("NAME"),
+                            )
+                    )
+            )
+            .subcommand(
+                Command::new("benchmark")
+                    .about("Vector search backend performance benchmarking")
+                    .subcommand(
+                        Command::new("compare")
+                            .about("Compare performance between vector search backends")
+                            .arg(
+                                Arg::new("vectors")
+                                    .long("vectors")
+                                    .help("Number of vectors to test with")
+                                    .value_name("COUNT")
+                                    .default_value("2000")
+                                    .value_parser(clap::value_parser!(usize)),
+                            )
+                            .arg(
+                                Arg::new("dimension")
+                                    .long("dimension")
+                                    .help("Vector dimension")
+                                    .value_name("DIM")
+                                    .default_value("768")
+                                    .value_parser(clap::value_parser!(usize)),
+                            )
+                            .arg(
+                                Arg::new("queries")
+                                    .long("queries")
+                                    .help("Number of search queries to test")
+                                    .value_name("COUNT")
+                                    .default_value("200")
+                                    .value_parser(clap::value_parser!(usize)),
+                            )
+                            .arg(
+                                Arg::new("k")
+                                    .long("k")
+                                    .help("Number of nearest neighbors to retrieve")
+                                    .value_name("NUM")
+                                    .default_value("10")
+                                    .value_parser(clap::value_parser!(usize)),
+                            )
+                            .arg(
+                                Arg::new("name")
+                                    .long("name")
+                                    .help("Benchmark name")
+                                    .value_name("NAME")
+                                    .default_value("CLI Backend Comparison"),
+                            )
+                    )
+                    .subcommand(
+                        Command::new("run")
+                            .about("Run the comprehensive release benchmark")
+                    )
+            )
             .get_matches_from(args);
 
         // Handle subcommands first
@@ -520,8 +758,16 @@ impl CliApp {
             return self.handle_embedding_commands(embedding_matches).await;
         }
         
+        if let Some(mcp_matches) = matches.subcommand_matches("mcp") {
+            return self.handle_mcp_commands(mcp_matches).await;
+        }
+        
         if let Some(session_matches) = matches.subcommand_matches("session") {
             return self.handle_session_commands(session_matches).await;
+        }
+        
+        if let Some(benchmark_matches) = matches.subcommand_matches("benchmark") {
+            return self.handle_benchmark_commands(benchmark_matches).await;
         }
 
         let message = matches.get_one::<String>("message");
@@ -1006,5 +1252,162 @@ impl CliApp {
         
         let embedding_args = EmbeddingArgs { command: embedding_command };
         handle_embedding_command(embedding_args).await
+    }
+    
+    async fn handle_mcp_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
+        use crate::commands::mcp::{McpCommand, ServerType, handle_mcp_command};
+        
+        let mcp_command = match matches.subcommand() {
+            Some(("list", sub_matches)) => {
+                let verbose = sub_matches.get_flag("verbose");
+                Some(McpCommand::List { verbose })
+            }
+            
+            Some(("add", sub_matches)) => {
+                let name = sub_matches.get_one::<String>("name").unwrap().clone();
+                let server_type_str = sub_matches.get_one::<String>("server_type").unwrap();
+                let server_type = match server_type_str.as_str() {
+                    "stdio" => ServerType::Stdio,
+                    "http" => ServerType::Http,
+                    _ => {
+                        eprintln!("❌ Invalid server type: {}", server_type_str);
+                        std::process::exit(1);
+                    }
+                };
+                let command = sub_matches.get_one::<String>("command").cloned();
+                let args = sub_matches.get_many::<String>("args")
+                    .map(|v| v.cloned().collect())
+                    .or(Some(vec![]));
+                let url = sub_matches.get_one::<String>("url").cloned();
+                let api_key = sub_matches.get_one::<String>("api_key").cloned();
+                let description = sub_matches.get_one::<String>("description").cloned();
+                let tags = sub_matches.get_many::<String>("tags")
+                    .map(|v| v.cloned().collect())
+                    .or(Some(vec![]));
+                
+                Some(McpCommand::Add {
+                    name,
+                    server_type,
+                    command,
+                    args,
+                    url,
+                    api_key,
+                    description,
+                    tags,
+                })
+            }
+            
+            Some(("remove", sub_matches)) => {
+                let name = sub_matches.get_one::<String>("name").unwrap().clone();
+                let force = sub_matches.get_flag("force");
+                Some(McpCommand::Remove { name, force })
+            }
+            
+            Some(("connect", sub_matches)) => {
+                let name = sub_matches.get_one::<String>("name").unwrap().clone();
+                let timeout = *sub_matches.get_one::<u64>("timeout").unwrap();
+                Some(McpCommand::Connect { name, timeout })
+            }
+            
+            Some(("disconnect", sub_matches)) => {
+                let name = sub_matches.get_one::<String>("name").unwrap().clone();
+                Some(McpCommand::Disconnect { name })
+            }
+            
+            Some(("status", sub_matches)) => {
+                let name = sub_matches.get_one::<String>("name").cloned();
+                Some(McpCommand::Status { name })
+            }
+            
+            Some(("tools", sub_matches)) => {
+                let server = sub_matches.get_one::<String>("server").cloned();
+                let tag = sub_matches.get_one::<String>("tag").cloned();
+                Some(McpCommand::Tools { server, tag })
+            }
+            
+            Some(("resources", sub_matches)) => {
+                let server = sub_matches.get_one::<String>("server").cloned();
+                Some(McpCommand::Resources { server })
+            }
+            
+            Some(("call", sub_matches)) => {
+                let tool = sub_matches.get_one::<String>("tool").unwrap().clone();
+                let args = sub_matches.get_one::<String>("args").cloned();
+                let pretty = sub_matches.get_flag("pretty");
+                Some(McpCommand::Call { tool, args, pretty })
+            }
+            
+            Some(("get", sub_matches)) => {
+                let uri = sub_matches.get_one::<String>("uri").unwrap().clone();
+                let server = sub_matches.get_one::<String>("server").cloned();
+                Some(McpCommand::Get { uri, server })
+            }
+            
+            None => Some(McpCommand::List { verbose: false }), // Default: list servers
+            
+            _ => {
+                eprintln!("❌ Unknown MCP subcommand");
+                std::process::exit(1);
+            }
+        };
+        
+        if let Some(command) = mcp_command {
+            let mcp_args = crate::commands::mcp::McpArgs { command };
+            handle_mcp_command(mcp_args).await
+        } else {
+            Ok(())
+        }
+    }
+    
+    #[cfg(any(test, feature = "benchmarks"))]
+    async fn handle_benchmark_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
+        use crate::benchmarks::backend_comparison::{compare_backends, run_release_benchmark};
+        use crate::benchmarks::BenchmarkConfig;
+        
+        match matches.subcommand() {
+            Some(("compare", sub_matches)) => {
+                let vector_count = *sub_matches.get_one::<usize>("vectors").unwrap();
+                let dimension = *sub_matches.get_one::<usize>("dimension").unwrap();
+                let search_queries = *sub_matches.get_one::<usize>("queries").unwrap();
+                let k_nearest = *sub_matches.get_one::<usize>("k").unwrap();
+                let name = sub_matches.get_one::<String>("name").unwrap().clone();
+                
+                let config = BenchmarkConfig {
+                    name,
+                    vector_count,
+                    dimension,
+                    search_queries,
+                    k_nearest,
+                };
+                
+                println!("🚀 Starting backend comparison benchmark...");
+                let results = compare_backends(config).await?;
+                
+                if results.is_empty() {
+                    println!("⚠️  No benchmark results obtained");
+                } else {
+                    println!("\n✅ Benchmark completed successfully!");
+                    println!("   {} backend(s) tested", results.len());
+                }
+                
+                Ok(())
+            }
+            
+            Some(("run", _)) => {
+                println!("🏃 Running comprehensive release benchmark...");
+                run_release_benchmark().await
+            }
+            
+            _ => {
+                eprintln!("❌ Unknown benchmark subcommand");
+                std::process::exit(1);
+            }
+        }
+    }
+    
+    #[cfg(not(any(test, feature = "benchmarks")))]
+    async fn handle_benchmark_commands(&mut self, _matches: &clap::ArgMatches) -> Result<()> {
+        eprintln!("❌ Benchmarking not available. Compile with '--features benchmarks' to enable.");
+        std::process::exit(1);
     }
 }

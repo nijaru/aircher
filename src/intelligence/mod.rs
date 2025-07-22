@@ -10,11 +10,14 @@ pub mod memory;
 pub mod tools;
 pub mod tui_tools;
 pub mod file_monitor;
+pub mod mcp_integration;
+pub mod mcp_examples;
 
 pub use context::*;
 pub use narrative::*;
 pub use memory::*;
 pub use tools::*;
+pub use mcp_integration::*;
 
 /// Intelligence Engine - Context-aware development assistant for AI agents
 pub struct IntelligenceEngine {
@@ -38,6 +41,11 @@ impl IntelligenceEngine {
             narrative_tracker,
             memory_system,
         })
+    }
+    
+    /// Create an MCP-enhanced version of this intelligence engine
+    pub async fn with_mcp_enhancement(self) -> Result<McpEnhancedIntelligenceEngine<Self>> {
+        McpEnhancedIntelligenceEngine::new(self).await
     }
 }
 

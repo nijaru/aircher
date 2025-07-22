@@ -23,3 +23,6 @@ pub mod testing;
 
 #[cfg(any(test, feature = "testing"))]
 pub mod benchmarks;
+
+#[cfg(feature = "mcp")]
+pub mod mcp;
