@@ -97,7 +97,7 @@ pub struct StreamChunk {
 
 pub type ResponseStream = mpsc::Receiver<Result<StreamChunk>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PricingModel {
     PerToken {
         input_cost_per_1m: f64,
@@ -113,7 +113,7 @@ pub enum PricingModel {
     Free,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SubscriptionTier {
     Pro,
     Max,

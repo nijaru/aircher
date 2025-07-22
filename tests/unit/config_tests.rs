@@ -124,6 +124,7 @@ fn test_provider_config_creation() {
         name: "test-provider".to_string(),
         api_key_env: "TEST_API_KEY".to_string(),
         base_url: "https://api.test.com".to_string(),
+        fallback_urls: vec![],
         models: vec![],
         timeout_seconds: 30,
         max_retries: 3,
