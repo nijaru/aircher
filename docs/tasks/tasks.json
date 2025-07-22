@@ -1,12 +1,12 @@
 {
   "priorities": {
     "next_sequence": [
-      "EMBEDDING-004",
-      "SPRINT-008", 
-      "SPRINT-001B",
-      "EMBEDDING-005"
+      "UX-POLISH-001",
+      "PERFORMANCE-001", 
+      "MCP-INTEGRATION-001",
+      "CROSS-FILE-INTELLIGENCE"
     ],
-    "current_focus": "CLI Design Complete - Final refinements implemented. Next: Auto-download system with progress bars and background indexing"
+    "current_focus": "Production-Ready with Demo Mode - Zero barriers to entry achieved. Next: User experience polish and advanced features"
   },
   "project": {
     "name": "Aircher",
@@ -22,7 +22,7 @@
       "tracing"
     ],
     "last_updated": "July 2025",
-    "current_phase": "Phase 5 (Semantic Search)",
+    "current_phase": "Phase 6 (Production Polish)",
     "architecture": "Pure Rust Single Binary"
   },
   "metrics": {
@@ -32,7 +32,8 @@
       "phase_2_providers": 100,
       "phase_3_intelligence": 100,
       "phase_4_advanced_features": 100,
-      "phase_5_semantic_search": 100
+      "phase_5_semantic_search": 100,
+      "phase_6_production_polish": 95
     },
     "quality_targets": {
       "test_coverage_goal": 80,
@@ -790,6 +791,184 @@
       ],
       "estimated_effort": "small",
       "notes": "Final UX polish to align with standard CLI patterns and user feedback"
+    },
+    "TUI-DEMO-MODE": {
+      "id": "TUI-DEMO-MODE",
+      "title": "Graceful TUI Auth Flow and Demo Mode",
+      "status": "completed",
+      "priority": "critical", 
+      "description": "Implement zero-barrier entry with graceful auth setup and full demo mode",
+      "completion_date": "2025-01-22",
+      "files": [
+        "src/ui/mod.rs",
+        "src/ui/selection.rs",
+        "src/cli/mod.rs"
+      ],
+      "acceptance_criteria": [
+        "✅ TUI launches immediately without API keys required",
+        "✅ Interactive auth setup screen guides users through configuration",
+        "✅ Demo mode provides full semantic search and file monitoring",
+        "✅ Graceful fallback when API keys unavailable",
+        "✅ Clear visual indicators for demo vs full functionality",
+        "✅ Enhanced error handling prevents crashes on missing API keys"
+      ],
+      "dependencies": [
+        "TUI-INTEGRATION",
+        "EMBEDDING-002"
+      ],
+      "estimated_effort": "large",
+      "notes": "✅ Revolutionary UX improvement - users can explore full interface before API setup\\n✅ SelectionModal::from_config() for demo mode initialization\\n✅ Auth setup screens with clear user guidance\\n✅ Demo mode indicators throughout interface\\n✅ Seamless transition from demo to full mode"
+    },
+    "CODE-QUALITY-001": {
+      "id": "CODE-QUALITY-001", 
+      "title": "Zero Compiler Warnings Achievement",
+      "status": "completed",
+      "priority": "high",
+      "description": "Eliminate all compiler warnings and achieve production-grade code quality",
+      "completion_date": "2025-01-22",
+      "files": [
+        "src/app/mod.rs",
+        "src/providers/mod.rs",
+        "src/ui/mod.rs",
+        "tests/unit/config_tests.rs"
+      ],
+      "acceptance_criteria": [
+        "✅ Reduced compiler warnings from ~190 to absolute zero",
+        "✅ Fixed unused fields in provider API response structs",
+        "✅ Cleaned up config/storage field warnings", 
+        "✅ Removed or implemented interactive mode code",
+        "✅ Fixed test compilation errors",
+        "✅ Enhanced code organization and documentation"
+      ],
+      "dependencies": [
+        "TESTING-FRAMEWORK"
+      ],
+      "estimated_effort": "medium",
+      "notes": "✅ Major code quality milestone - demonstrates production readiness\\n✅ Systematic cleanup of dead code and unused imports\\n✅ Added proper #[allow(dead_code)] annotations where appropriate\\n✅ Fixed all test compilation issues maintaining test coverage"
+    },
+    "MODEL-LICENSING-001": {
+      "id": "MODEL-LICENSING-001",
+      "title": "Apache/MIT Model Licensing Compliance", 
+      "status": "completed",
+      "priority": "high",
+      "description": "Replace proprietary models with Apache/MIT licensed alternatives for commercial safety",
+      "completion_date": "2025-01-21",
+      "files": [
+        "src/cost/swerank_integration.rs",
+        "src/semantic_search.rs",
+        "LEGAL_NOTICE.md"
+      ],
+      "acceptance_criteria": [
+        "✅ Replaced SweRankEmbed with Apache/MIT licensed models",
+        "✅ MiniLM-L6-v2 as commercial-safe default (90MB)",
+        "✅ GTE-Large as premium commercial option (670MB)",
+        "✅ User choice model strategy implementation", 
+        "✅ Model selection on first run with clear licensing info",
+        "✅ Performance tiers with commercial-safe defaults"
+      ],
+      "dependencies": [
+        "EMBEDDING-003"
+      ],
+      "estimated_effort": "large", 
+      "notes": "✅ Critical legal compliance for commercial deployments\\n✅ User-choice strategy balances quality and licensing\\n✅ Clear documentation of licensing implications\\n✅ Fallback systems maintain functionality"
+    },
+    "QUERY-INTELLIGENCE-001": {
+      "id": "QUERY-INTELLIGENCE-001",
+      "title": "Advanced Query Intelligence and Expansion",
+      "status": "completed", 
+      "priority": "medium",
+      "description": "Implement intelligent query expansion, typo correction, and suggestion system",
+      "completion_date": "2025-01-20",
+      "files": [
+        "src/query_intelligence.rs",
+        "src/commands/search.rs",
+        "src/search_presets.rs"
+      ],
+      "acceptance_criteria": [
+        "✅ Automatic synonym expansion for broader coverage",
+        "✅ Typo correction for programming terms",
+        "✅ Query complexity analysis and suggestions", 
+        "✅ Search presets for saving complex filter combinations",
+        "✅ Enhanced search display with syntax highlighting",
+        "✅ Advanced filtering by file types, languages, scope"
+      ],
+      "dependencies": [
+        "EMBEDDING-002"
+      ],
+      "estimated_effort": "medium",
+      "notes": "✅ Major search experience improvement\\n✅ Programming-focused typo correction dictionary\\n✅ Context-aware synonym expansion\\n✅ Search result quality significantly enhanced"
+    },
+    "UX-POLISH-001": {
+      "id": "UX-POLISH-001",
+      "title": "User Experience Polish and Refinement",
+      "status": "pending",
+      "priority": "high",
+      "description": "Polish user experience with better search display, error messages, and help",
+      "files": [
+        "src/search_display.rs",
+        "src/ui/help.rs",
+        "src/commands/search.rs"
+      ],
+      "acceptance_criteria": [
+        "Better syntax highlighting in search results",
+        "Improved context display around matches",
+        "File structure breadcrumbs and navigation",
+        "Enhanced error messages throughout application",
+        "Better help text and onboarding guidance",
+        "Search history and favorites system"
+      ],
+      "dependencies": [
+        "TUI-DEMO-MODE",
+        "QUERY-INTELLIGENCE-001"
+      ],
+      "estimated_effort": "medium",
+      "notes": "Next priority for improving user experience and discoverability"
+    },
+    "PERFORMANCE-001": {
+      "id": "PERFORMANCE-001",
+      "title": "Performance Optimization and Vector Database Migration",
+      "status": "pending", 
+      "priority": "medium",
+      "description": "Investigate hnswlib-rs migration and optimize large codebase performance",
+      "files": [
+        "src/vector_search.rs",
+        "src/semantic_search.rs"
+      ],
+      "acceptance_criteria": [
+        "Benchmark hnswlib-rs vs instant-distance performance",
+        "Optimize handling of projects with >10MB files",
+        "Improve binary file detection algorithms",
+        "Enhanced progress indicators for large operations",
+        "Maintain compatibility and reliability during migration"
+      ],
+      "dependencies": [
+        "EMBEDDING-002"
+      ],
+      "estimated_effort": "large",
+      "notes": "Performance improvements for enterprise-scale codebases"
+    },
+    "MCP-INTEGRATION-001": {
+      "id": "MCP-INTEGRATION-001",
+      "title": "MCP Client Integration",
+      "status": "pending",
+      "priority": "medium", 
+      "description": "Connect to and use other MCP servers for enhanced capabilities",
+      "files": [
+        "src/mcp/client.rs",
+        "src/mcp/integration.rs"
+      ],
+      "acceptance_criteria": [
+        "Connect to external MCP servers",
+        "Unified tool interface for external capabilities", 
+        "Enhanced intelligence through tool composition",
+        "Discovery and configuration of available MCP servers",
+        "Seamless integration with existing TUI and CLI"
+      ],
+      "dependencies": [
+        "TUI-DEMO-MODE"
+      ],
+      "estimated_effort": "large",
+      "notes": "Advanced feature for ecosystem integration and enhanced capabilities"
     }
   }
 }
