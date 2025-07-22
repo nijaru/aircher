@@ -1,0 +1,117 @@
+use anyhow::Result;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
+use thiserror::Error;
+
+pub mod file_ops;
+pub mod code_analysis;
+pub mod system_ops;
+
+pub use file_ops::{ReadFileTool, WriteFileTool, EditFileTool, ListFilesTool};
+pub use code_analysis::{SearchCodeTool, FindDefinitionTool};
+pub use system_ops::{RunCommandTool, GitStatusTool};
+
+#[derive(Debug, Error)]
+pub enum ToolError {
+    #[error("Invalid parameters: {0}")]
+    InvalidParameters(String),
+    
+    #[error("Execution failed: {0}")]
+    ExecutionFailed(String),
+    
+    #[error("Permission denied: {0}")]
+    PermissionDenied(String),
+    
+    #[error("Resource not found: {0}")]
+    NotFound(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolOutput {
+    pub success: bool,
+    pub result: Value,
+    pub error: Option<String>,
+    pub usage: Option<TokenUsage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenUsage {
+    pub prompt_tokens: usize,
+    pub completion_tokens: usize,
+    pub total_tokens: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolCall {
+    pub name: String,
+    pub parameters: Value,
+}
+
+#[async_trait]
+pub trait AgentTool: Send + Sync {
+    /// Unique name for the tool
+    fn name(&self) -> &str;
+    
+    /// Description of what the tool does
+    fn description(&self) -> &str;
+    
+    /// JSON schema for the tool's parameters
+    fn parameters_schema(&self) -> Value;
+    
+    /// Execute the tool with given parameters
+    async fn execute(&self, params: Value) -> Result<ToolOutput, ToolError>;
+}
+
+/// Registry for all available tools
+pub struct ToolRegistry {
+    tools: HashMap<String, Box<dyn AgentTool>>,
+}
+
+impl ToolRegistry {
+    pub fn new() -> Self {
+        Self {
+            tools: HashMap::new(),
+        }
+    }
+    
+    pub fn register(&mut self, tool: Box<dyn AgentTool>) {
+        self.tools.insert(tool.name().to_string(), tool);
+    }
+    
+    pub fn get(&self, name: &str) -> Option<&Box<dyn AgentTool>> {
+        self.tools.get(name)
+    }
+    
+    pub fn list_tools(&self) -> Vec<ToolInfo> {
+        self.tools.values().map(|tool| ToolInfo {
+            name: tool.name().to_string(),
+            description: tool.description().to_string(),
+            parameters: tool.parameters_schema(),
+        }).collect()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolInfo {
+    pub name: String,
+    pub description: String,
+    pub parameters: Value,
+}
+
+impl Default for ToolRegistry {
+    fn default() -> Self {
+        let mut registry = Self::new();
+        
+        // Register default tools
+        registry.register(Box::new(ReadFileTool::new()));
+        registry.register(Box::new(WriteFileTool::new()));
+        registry.register(Box::new(EditFileTool::new()));
+        registry.register(Box::new(ListFilesTool::new()));
+        registry.register(Box::new(SearchCodeTool::new()));
+        registry.register(Box::new(RunCommandTool::new()));
+        
+        registry
+    }
+}
