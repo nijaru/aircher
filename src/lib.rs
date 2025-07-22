@@ -20,3 +20,6 @@ pub mod utils;
 
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
+
+#[cfg(any(test, feature = "testing"))]
+pub mod benchmarks;
