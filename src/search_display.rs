@@ -383,8 +383,16 @@ impl BasicHighlighter {
 pub struct SearchResultDisplay;
 
 impl SearchResultDisplay {
-    pub fn new() -> Self {
-        Self
+    /// Get a thread-local syntax highlighter instance
+    fn with_highlighter<F, R>(f: F) -> R
+    where
+        F: FnOnce(&mut SyntaxHighlighter) -> R,
+    {
+        thread_local! {
+            static HIGHLIGHTER: std::cell::RefCell<SyntaxHighlighter> = std::cell::RefCell::new(SyntaxHighlighter::new());
+        }
+        
+        HIGHLIGHTER.with(|h| f(&mut h.borrow_mut()))
     }
 
     /// Format and display a search result with enhanced syntax highlighting and context
@@ -425,19 +433,45 @@ impl SearchResultDisplay {
         // Determine language from file extension for better syntax highlighting
         let language = Self::get_language_from_path(&result.file_path);
         
-        for (i, line) in lines.iter().take(display_lines).enumerate() {
-            let line_num = result.chunk.start_line + i;
-            // Use optimized highlighting for search results
-            let highlighted_line = if line.trim().is_empty() {
-                line.to_string()
-            } else {
-                BasicHighlighter::highlight_line(line, &language)
-            };
-            output.push_str(&format!(
-                "   │ {} {}\n",
-                format!("{}{:4}{}", BRIGHT_BLACK, line_num, RESET),
-                highlighted_line
-            ));
+        // For multi-line chunks, use advanced syntax highlighter
+        let use_advanced = lines.len() > 1 && !language.is_empty();
+        
+        if use_advanced {
+            // Get the full chunk content for AST-based highlighting
+            let chunk_to_highlight: String = lines.iter()
+                .take(display_lines)
+                .map(|&line| line)
+                .collect::<Vec<_>>()
+                .join("\n");
+            
+            let highlighted_chunk = Self::with_highlighter(|highlighter| {
+                highlighter.highlight_code(&chunk_to_highlight, &language)
+            });
+            
+            // Split highlighted chunk back into lines and display
+            for (i, highlighted_line) in highlighted_chunk.lines().enumerate() {
+                let line_num = result.chunk.start_line + i;
+                output.push_str(&format!(
+                    "   │ {} {}\n",
+                    format!("{}{:4}{}", BRIGHT_BLACK, line_num, RESET),
+                    highlighted_line
+                ));
+            }
+        } else {
+            // For single lines or unsupported languages, use basic highlighting
+            for (i, line) in lines.iter().take(display_lines).enumerate() {
+                let line_num = result.chunk.start_line + i;
+                let highlighted_line = if line.trim().is_empty() {
+                    line.to_string()
+                } else {
+                    BasicHighlighter::highlight_line(line, &language)
+                };
+                output.push_str(&format!(
+                    "   │ {} {}\n",
+                    format!("{}{:4}{}", BRIGHT_BLACK, line_num, RESET),
+                    highlighted_line
+                ));
+            }
         }
         
         if total_lines > display_lines {

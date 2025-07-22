@@ -1,12 +1,55 @@
 use anyhow::Result;
 use std::time::{Duration, Instant};
 
+// Serde helpers for Duration serialization
+mod duration_serde {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use std::time::Duration;
+
+    pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_f64(duration.as_secs_f64())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let secs = f64::deserialize(deserializer)?;
+        Ok(Duration::from_secs_f64(secs))
+    }
+}
+
+mod duration_vec_serde {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::time::Duration;
+
+    pub fn serialize<S>(durations: &Vec<Duration>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let secs: Vec<f64> = durations.iter().map(|d| d.as_secs_f64()).collect();
+        secs.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Duration>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let secs: Vec<f64> = Vec::deserialize(deserializer)?;
+        Ok(secs.into_iter().map(Duration::from_secs_f64).collect())
+    }
+}
+
 pub mod vector_benchmark;
+pub mod backend_comparison;
 
 #[cfg(feature = "hnswlib-rs")]
 pub mod hnswlib_benchmark;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BenchmarkConfig {
     pub name: String,
     pub vector_count: usize,
@@ -15,17 +58,19 @@ pub struct BenchmarkConfig {
     pub k_nearest: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BenchmarkResult {
     pub config: BenchmarkConfig,
     pub library_name: String,
+    #[serde(with = "duration_serde")]
     pub index_construction_time: Duration,
+    #[serde(with = "duration_vec_serde")]
     pub search_times: Vec<Duration>,
     pub memory_usage_mb: f64,
     pub accuracy_metrics: AccuracyMetrics,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AccuracyMetrics {
     pub recall_at_k: f64,
     pub precision_at_k: f64,

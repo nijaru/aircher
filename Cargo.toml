@@ -10,9 +10,12 @@ keywords = ["ai", "terminal", "assistant", "tui", "llm"]
 categories = ["command-line-utilities", "development-tools"]
 
 [features]
-default = []
+default = ["hnswlib-rs"]
 testing = []
 benchmarks = ["hnswlib-rs", "testing"]
+mcp = ["rmcp", "rmcp-macros"]
+instant-distance = []
+hnswlib-rs = ["hnsw_rs"]
 
 [dependencies]
 # Async runtime
@@ -70,7 +73,7 @@ tokio-util = { version = "0.7", features = ["codec", "io"] }
 
 # Vector search and ML
 instant-distance = "0.6"
-hnswlib-rs = { version = "0.2", optional = true }
+hnsw_rs = { version = "0.3.2", optional = true }
 rayon = "1.10"
 
 # Code parsing for better chunking
@@ -132,6 +135,10 @@ candle-core = "0.9.1"
 candle-nn = "0.9.1"
 candle-transformers = "0.9.1"
 safetensors = "0.6.0"
+
+# MCP (Model Context Protocol) integration
+rmcp = { version = "0.1", optional = true }
+rmcp-macros = { version = "0.1", optional = true }
 
 [dev-dependencies]
 tempfile = "3.0"

@@ -46,7 +46,10 @@
       "Bash(git gc:*)",
       "Bash(git config:*)",
       "Bash(git fetch:*)",
-      "Bash(unset:*)"
+      "Bash(unset:*)",
+      "WebFetch(domain:modelcontextprotocol.io)",
+      "Bash(RUST_BACKTRACE=1 cargo build --features mcp)",
+      "WebFetch(domain:crates.io)"
     ],
     "deny": []
   }
