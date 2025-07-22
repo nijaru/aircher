@@ -9,9 +9,10 @@
 **Full-featured AI development assistant with semantic code search:**
 
 ```bash
-# Launch intelligent TUI (primary mode)
+# Launch intelligent TUI (primary mode) - works immediately without API keys!
 aircher
-# Auto-detects project, creates .aircher/ directory, starts session
+# Auto-detects project, creates .aircher/ directory, starts in demo mode
+# Use semantic search, configure API keys later for full AI chat
 
 # Semantic code search (NEW!)
 aircher search query "error handling patterns"    # Finds conceptually similar code
@@ -75,7 +76,12 @@ aircher session export session_id --format markdown
   - Ollama integration for local models
   - Fallback to text search when embeddings unavailable
   - Smart model selection based on system capabilities
-- ✅ **Project-aware TUI** - Automatically detects and initializes `.aircher/` projects
+- ✅ **Project-aware TUI with Demo Mode** - Full interface without API key requirements:
+  - **Try first, configure later** - Complete TUI experience available without any setup
+  - Interactive auth setup screen guides users through API key configuration
+  - Demo mode clearly indicates available features vs. full functionality
+  - Graceful fallback to semantic search and file monitoring when API keys unavailable
+  - Automatically detects and initializes `.aircher/` projects
 - ✅ **Intelligent TUI Integration** - TUI with full intelligence engine integration:
   - Project detection and automatic `.aircher/` directory management
   - Background file monitoring and analysis
