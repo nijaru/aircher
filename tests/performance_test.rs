@@ -448,7 +448,7 @@ pub async fn cleanup_expired_entries<T: Clone>(cache: &Cache<T>) {
             for (query, description) in &queries {
                 let start_search = Instant::now();
                 match search.search(query, 3).await {
-                    Ok(results) => {
+                    Ok((results, _metrics)) => {
                         let search_time = start_search.elapsed();
                         total_search_time += search_time;
                         total_results += results.len();

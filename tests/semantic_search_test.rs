@@ -65,7 +65,7 @@ struct User {
     // Step 6: Test search
     println!("🔍 Testing search...");
     match search.search("add function", 2).await {
-        Ok(results) => {
+        Ok((results, _metrics)) => {
             println!("✅ Search successful: {} results", results.len());
             for result in results {
                 println!("  - {} (score: {:.3})", result.chunk.content.lines().next().unwrap_or(""), result.similarity_score);
