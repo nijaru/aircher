@@ -10,12 +10,10 @@ keywords = ["ai", "terminal", "assistant", "tui", "llm"]
 categories = ["command-line-utilities", "development-tools"]
 
 [features]
-default = ["hnswlib-rs"]
+default = []
 testing = []
-benchmarks = ["hnswlib-rs", "testing"]
+benchmarks = ["testing"]
 mcp = ["rmcp", "rmcp-macros"]
-instant-distance = []
-hnswlib-rs = ["hnsw_rs"]
 
 [dependencies]
 # Async runtime
@@ -72,8 +70,7 @@ futures = "0.3"
 tokio-util = { version = "0.7", features = ["codec", "io"] }
 
 # Vector search and ML
-instant-distance = "0.6"
-hnsw_rs = { version = "0.3.2", optional = true }
+hnsw_rs = "0.3.2"
 rayon = "1.10"
 
 # Code parsing for better chunking

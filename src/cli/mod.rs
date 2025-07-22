@@ -690,53 +690,18 @@ impl CliApp {
             )
             .subcommand(
                 Command::new("benchmark")
-                    .about("Vector search backend performance benchmarking")
+                    .about("Vector search performance benchmarking")
                     .subcommand(
-                        Command::new("compare")
-                            .about("Compare performance between vector search backends")
-                            .arg(
-                                Arg::new("vectors")
-                                    .long("vectors")
-                                    .help("Number of vectors to test with")
-                                    .value_name("COUNT")
-                                    .default_value("2000")
-                                    .value_parser(clap::value_parser!(usize)),
-                            )
-                            .arg(
-                                Arg::new("dimension")
-                                    .long("dimension")
-                                    .help("Vector dimension")
-                                    .value_name("DIM")
-                                    .default_value("768")
-                                    .value_parser(clap::value_parser!(usize)),
-                            )
-                            .arg(
-                                Arg::new("queries")
-                                    .long("queries")
-                                    .help("Number of search queries to test")
-                                    .value_name("COUNT")
-                                    .default_value("200")
-                                    .value_parser(clap::value_parser!(usize)),
-                            )
-                            .arg(
-                                Arg::new("k")
-                                    .long("k")
-                                    .help("Number of nearest neighbors to retrieve")
-                                    .value_name("NUM")
-                                    .default_value("10")
-                                    .value_parser(clap::value_parser!(usize)),
-                            )
-                            .arg(
-                                Arg::new("name")
-                                    .long("name")
-                                    .help("Benchmark name")
-                                    .value_name("NAME")
-                                    .default_value("CLI Backend Comparison"),
-                            )
+                        Command::new("vector")
+                            .about("Benchmark the current vector search implementation")
                     )
                     .subcommand(
-                        Command::new("run")
-                            .about("Run the comprehensive release benchmark")
+                        Command::new("performance")
+                            .about("Run comprehensive performance benchmark")
+                    )
+                    .subcommand(
+                        Command::new("tune")
+                            .about("Tune hnswlib-rs parameters for optimal performance")
                     )
             )
             .get_matches_from(args);
@@ -1361,45 +1326,35 @@ impl CliApp {
     
     #[cfg(any(test, feature = "benchmarks"))]
     async fn handle_benchmark_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
-        use crate::benchmarks::backend_comparison::{compare_backends, run_release_benchmark};
-        use crate::benchmarks::BenchmarkConfig;
+        use crate::benchmarks::vector_benchmark::benchmark_current_implementation;
+        use crate::benchmarks::hnswlib_benchmark::{run_performance_benchmark, tune_hnswlib_parameters};
         
         match matches.subcommand() {
-            Some(("compare", sub_matches)) => {
-                let vector_count = *sub_matches.get_one::<usize>("vectors").unwrap();
-                let dimension = *sub_matches.get_one::<usize>("dimension").unwrap();
-                let search_queries = *sub_matches.get_one::<usize>("queries").unwrap();
-                let k_nearest = *sub_matches.get_one::<usize>("k").unwrap();
-                let name = sub_matches.get_one::<String>("name").unwrap().clone();
-                
-                let config = BenchmarkConfig {
-                    name,
-                    vector_count,
-                    dimension,
-                    search_queries,
-                    k_nearest,
-                };
-                
-                println!("🚀 Starting backend comparison benchmark...");
-                let results = compare_backends(config).await?;
-                
-                if results.is_empty() {
-                    println!("⚠️  No benchmark results obtained");
-                } else {
-                    println!("\n✅ Benchmark completed successfully!");
-                    println!("   {} backend(s) tested", results.len());
-                }
-                
+            Some(("vector", _)) => {
+                println!("🚀 Starting vector search benchmark...");
+                let result = benchmark_current_implementation().await?;
+                println!("\n✅ Benchmark completed successfully!");
+                println!("{}", result.format_summary());
                 Ok(())
             }
             
-            Some(("run", _)) => {
-                println!("🏃 Running comprehensive release benchmark...");
-                run_release_benchmark().await
+            Some(("performance", _)) => {
+                println!("🏃 Running comprehensive performance benchmark...");
+                run_performance_benchmark().await?;
+                Ok(())
+            }
+            
+            Some(("tune", _)) => {
+                println!("🔧 Running parameter tuning for hnswlib-rs...");
+                tune_hnswlib_parameters().await
             }
             
             _ => {
                 eprintln!("❌ Unknown benchmark subcommand");
+                eprintln!("Available subcommands:");
+                eprintln!("  vector      - Benchmark current vector search implementation");
+                eprintln!("  performance - Run comprehensive performance benchmark");
+                eprintln!("  tune        - Tune hnswlib-rs parameters");
                 std::process::exit(1);
             }
         }

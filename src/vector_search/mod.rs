@@ -1,38 +1,18 @@
 use anyhow::Result;
 use std::path::PathBuf;
-use instant_distance::Point;
 
 // Backend abstraction
 pub mod backend;
-pub use backend::{VectorSearchBackend, VectorBackend, IndexStats};
+pub use backend::{VectorSearchBackend, IndexStats};
 
 // Backend implementations
-pub mod instant_distance_backend;
-pub use instant_distance_backend::InstantDistanceBackend;
-
-#[cfg(feature = "hnswlib-rs")]
 pub mod hnswlib_backend;
-#[cfg(feature = "hnswlib-rs")]
 pub use hnswlib_backend::HnswlibBackend;
 
 // Core data types
 #[derive(Debug, Clone)]
 pub struct EmbeddingVector(pub Vec<f32>);
 
-impl Point for EmbeddingVector {
-    fn distance(&self, other: &Self) -> f32 {
-        // Cosine distance calculation
-        let dot_product: f32 = self.0.iter().zip(other.0.iter()).map(|(a, b)| a * b).sum();
-        let norm_a: f32 = self.0.iter().map(|a| a * a).sum::<f32>().sqrt();
-        let norm_b: f32 = other.0.iter().map(|b| b * b).sum::<f32>().sqrt();
-        
-        if norm_a == 0.0 || norm_b == 0.0 {
-            1.0 // Maximum distance for zero vectors
-        } else {
-            1.0 - (dot_product / (norm_a * norm_b))
-        }
-    }
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ChunkMetadata {
@@ -125,144 +105,67 @@ impl SearchFilter {
     }
 }
 
-/// Enum holding different backend implementations
-pub enum VectorSearchBackendImpl {
-    InstantDistance(InstantDistanceBackend),
-    #[cfg(feature = "hnswlib-rs")]
-    HnswRs(HnswlibBackend),
-}
 
-/// Unified vector search engine that supports multiple backends
+/// Unified vector search engine using HnswlibBackend
 pub struct VectorSearchEngine {
-    backend: VectorSearchBackendImpl,
-    backend_type: VectorBackend,
+    backend: HnswlibBackend,
 }
 
 impl VectorSearchEngine {
-    /// Create new vector search engine with specified backend
-    pub fn new_with_backend(
-        storage_path: PathBuf, 
-        dimension: usize, 
-        backend_type: VectorBackend
-    ) -> Result<Self> {
-        let backend = match backend_type {
-            VectorBackend::InstantDistance => {
-                VectorSearchBackendImpl::InstantDistance(
-                    InstantDistanceBackend::new(storage_path, dimension)?
-                )
-            }
-            #[cfg(feature = "hnswlib-rs")]
-            VectorBackend::HnswRs => {
-                VectorSearchBackendImpl::HnswRs(
-                    HnswlibBackend::new(storage_path, dimension)?
-                )
-            }
-        };
-        
-        Ok(Self {
-            backend,
-            backend_type,
-        })
-    }
-    
-    /// Create new vector search engine with default backend
+    /// Create new vector search engine
     pub fn new(storage_path: PathBuf, dimension: usize) -> Result<Self> {
-        Self::new_with_backend(storage_path, dimension, VectorBackend::default())
-    }
-    
-    /// Get the current backend type
-    pub fn backend_type(&self) -> VectorBackend {
-        self.backend_type
+        let backend = HnswlibBackend::new(storage_path, dimension)?;
+        Ok(Self { backend })
     }
     
     /// Get backend name
     pub fn backend_name(&self) -> &str {
-        match &self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.backend_name(),
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.backend_name(),
-        }
+        self.backend.backend_name()
     }
     
     /// Add embedding to the index
     pub fn add_embedding(&mut self, embedding: Vec<f32>, metadata: ChunkMetadata) -> Result<()> {
-        match &mut self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.add_embedding(embedding, metadata),
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.add_embedding(embedding, metadata),
-        }
+        self.backend.add_embedding(embedding, metadata)
     }
     
     /// Build the HNSW index from accumulated embeddings
     pub fn build_index(&mut self) -> Result<()> {
-        match &mut self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.build_index(),
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.build_index(),
-        }
+        self.backend.build_index()
     }
     
     /// Search for similar vectors
     pub fn search(&self, query_embedding: &[f32], k: usize) -> Result<Vec<SearchResult>> {
-        match &self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.search(query_embedding, k),
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.search(query_embedding, k),
-        }
+        self.backend.search(query_embedding, k)
     }
     
     /// Search with pre-filtering for better performance
     pub fn search_with_filter(&self, query_embedding: &[f32], k: usize, filter: &SearchFilter) -> Result<Vec<SearchResult>> {
-        match &self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.search_with_filter(query_embedding, k, filter),
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.search_with_filter(query_embedding, k, filter),
-        }
+        self.backend.search_with_filter(query_embedding, k, filter)
     }
     
     /// Save index to disk
     pub async fn save_index(&self) -> Result<()> {
-        match &self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.save_index().await,
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.save_index().await,
-        }
+        self.backend.save_index().await
     }
     
     /// Load index from disk
     pub async fn load_index(&mut self) -> Result<()> {
-        match &mut self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.load_index().await,
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.load_index().await,
-        }
+        self.backend.load_index().await
     }
     
     /// Get statistics about the index
     pub fn get_stats(&self) -> IndexStats {
-        match &self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.get_stats(),
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.get_stats(),
-        }
+        self.backend.get_stats()
     }
     
     /// Check if we need to build the index
     pub fn needs_index_build(&self) -> bool {
-        match &self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.needs_index_build(),
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.needs_index_build(),
-        }
+        self.backend.needs_index_build()
     }
     
     /// Clear the index and metadata
     pub fn clear(&mut self) {
-        match &mut self.backend {
-            VectorSearchBackendImpl::InstantDistance(backend) => backend.clear(),
-            #[cfg(feature = "hnswlib-rs")]
-            VectorSearchBackendImpl::HnswRs(backend) => backend.clear(),
-        }
+        self.backend.clear()
     }
 }
 
@@ -313,30 +216,39 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let storage_path = temp_dir.path().join("test_index");
         
-        // Test default backend
+        // Test engine creation
         let engine = VectorSearchEngine::new(storage_path.clone(), 768).unwrap();
-        #[cfg(feature = "hnswlib-rs")]
-        assert_eq!(engine.backend_type(), VectorBackend::HnswRs);
-        #[cfg(not(feature = "hnswlib-rs"))]
-        assert_eq!(engine.backend_type(), VectorBackend::InstantDistance);
-        
-        // Test specific backend
-        let engine_instant = VectorSearchEngine::new_with_backend(
-            storage_path, 768, VectorBackend::InstantDistance
-        ).unwrap();
-        assert_eq!(engine_instant.backend_type(), VectorBackend::InstantDistance);
+        assert_eq!(engine.backend_name(), "hnswlib-rs");
     }
 
     #[test]
-    fn test_backend_selection() {
-        assert_eq!(VectorBackend::from_str("instant-distance"), Some(VectorBackend::InstantDistance));
+    fn test_search_filter() {
+        let filter = SearchFilter {
+            file_types: Some(vec!["rs".to_string()]),
+            chunk_types: Some(vec![ChunkType::Function]),
+            exclude_patterns: None,
+            include_patterns: None,
+        };
         
-        #[cfg(feature = "hnswlib-rs")]
-        {
-            assert_eq!(VectorBackend::from_str("hnswlib-rs"), Some(VectorBackend::HnswRs));
-            assert_eq!(VectorBackend::from_str("hnsw-rs"), Some(VectorBackend::HnswRs));
-        }
+        let metadata = ChunkMetadata {
+            file_path: PathBuf::from("test.rs"),
+            start_line: 1,
+            end_line: 10,
+            chunk_type: ChunkType::Function,
+            content: "fn test() {}".to_string(),
+        };
         
-        assert_eq!(VectorBackend::from_str("invalid"), None);
+        assert!(filter.matches(&metadata));
+        
+        // Test non-matching filter
+        let metadata2 = ChunkMetadata {
+            file_path: PathBuf::from("test.py"),
+            start_line: 1,
+            end_line: 10,
+            chunk_type: ChunkType::Function,
+            content: "def test(): pass".to_string(),
+        };
+        
+        assert!(!filter.matches(&metadata2));
     }
 }

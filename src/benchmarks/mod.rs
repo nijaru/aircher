@@ -44,9 +44,6 @@ mod duration_vec_serde {
 }
 
 pub mod vector_benchmark;
-pub mod backend_comparison;
-
-#[cfg(feature = "hnswlib-rs")]
 pub mod hnswlib_benchmark;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
