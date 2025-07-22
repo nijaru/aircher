@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Arg, Command};
 use std::env;
+use std::rc::Rc;
 use tracing::{error, info};
 
 use crate::commands::search::{SearchArgs, handle_search_command};
@@ -16,7 +17,7 @@ use crate::ui::TuiManager;
 
 pub struct CliApp {
     config: ConfigManager,
-    providers: Option<ProviderManager>,
+    providers: Option<Rc<ProviderManager>>,
 }
 
 impl CliApp {
@@ -29,12 +30,12 @@ impl CliApp {
         })
     }
 
-    async fn get_providers(&mut self) -> Result<&ProviderManager> {
+    async fn get_providers(&mut self) -> Result<Rc<ProviderManager>> {
         if self.providers.is_none() {
             let provider_manager = ProviderManager::new(&self.config).await?;
-            self.providers = Some(provider_manager);
+            self.providers = Some(Rc::new(provider_manager));
         }
-        Ok(self.providers.as_ref().unwrap())
+        Ok(self.providers.as_ref().unwrap().clone())
     }
 
     pub async fn run(&mut self, args: Vec<String>) -> Result<()> {
@@ -609,28 +610,32 @@ impl CliApp {
             provider_name, model
         );
 
-        // Check if we have API key first
-        self.check_api_key(provider_name)?;
-
         // Clone config first
         let config = self.config.clone();
 
-        // Get providers
-        let providers = self.get_providers().await?;
+        // Check API key status (but don't fail immediately)
+        let has_api_key = self.check_api_key(provider_name).is_ok();
+        
+        // Try to get providers (may fail without API keys, but TUI can handle this)
+        let providers = if has_api_key {
+            match self.get_providers().await {
+                Ok(providers) => Some(providers),
+                Err(e) => {
+                    // Provider initialization failed, likely due to API key issues
+                    // Log the error but proceed with demo mode
+                    info!("Provider initialization failed (entering demo mode): {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
-        // Create TUI manager
-        let mut tui_manager = TuiManager::new(&config, providers).await?;
+        // Create TUI manager with optional providers
+        let mut tui_manager = TuiManager::new_with_auth_state(&config, providers, provider_name.clone(), model.clone()).await?;
 
-        // Verify provider exists
-        if providers.get_provider_or_host(provider_name).is_none() {
-            return Err(anyhow::anyhow!(
-                "Provider '{}' not found or not configured",
-                provider_name
-            ));
-        }
-
-        // Run TUI
-        tui_manager.run(providers).await
+        // Run TUI (it will handle auth setup internally if needed)
+        tui_manager.run().await
     }
 
     fn check_api_key(&self, provider_name: &str) -> Result<()> {
@@ -955,7 +960,7 @@ impl CliApp {
         // Create providers first to avoid borrowing issues
         let _providers = if self.providers.is_none() {
             let provider_manager = ProviderManager::new(&self.config).await?;
-            self.providers = Some(provider_manager);
+            self.providers = Some(Rc::new(provider_manager));
         };
         let providers = self.providers.as_ref().unwrap();
         handle_model_command(model_args, &mut self.config, providers).await

@@ -40,6 +40,28 @@ impl SelectionModal {
         }
     }
 
+    /// Create SelectionModal from config only (for demo mode without ProviderManager)
+    pub fn from_config(config: &ConfigManager) -> Self {
+        let provider_names: Vec<String> = config.providers.keys().cloned().collect();
+        let mut models = HashMap::new();
+        
+        // Get models for each provider from config
+        for provider_name in &provider_names {
+            if let Some(provider_config) = config.providers.get(provider_name) {
+                models.insert(provider_name.clone(), provider_config.models.clone());
+            }
+        }
+
+        Self {
+            visible: false,
+            selected_tab: 0,
+            selected_provider: 0,
+            selected_model: 0,
+            providers: provider_names,
+            models,
+        }
+    }
+
     pub fn toggle(&mut self) {
         self.visible = !self.visible;
     }

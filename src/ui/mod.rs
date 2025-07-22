@@ -13,6 +13,7 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io::stdout;
+use std::rc::Rc;
 use tokio::sync::mpsc;
 use tracing::{debug, info};
 
@@ -63,12 +64,120 @@ pub struct TuiManager {
     help_modal: HelpModal,
     // Autocomplete
     autocomplete: AutocompleteEngine,
+    // Authentication state
+    providers: Option<Rc<ProviderManager>>,
+    auth_required: bool,
+    show_auth_setup: bool,
     // State
     budget_warning_shown: bool,
     cost_warnings: Vec<String>,
 }
 
 impl TuiManager {
+    /// Create TUI manager with authentication state handling
+    pub async fn new_with_auth_state(
+        config: &ConfigManager, 
+        providers: Option<Rc<ProviderManager>>,
+        provider_name: String,
+        model: String
+    ) -> Result<Self> {
+        let auth_required = providers.is_none();
+        
+        // Initialize project manager
+        let mut project_manager = ProjectManager::new()?;
+        
+        // Initialize project if needed
+        if !project_manager.is_project_initialized() {
+            project_manager.initialize_project()?;
+            info!("Initialized new .aircher project");
+        }
+        
+        // Initialize session manager
+        let database_manager = DatabaseManager::new(config).await?;
+        let session_manager = SessionManager::new(&database_manager).await?;
+        
+        // Initialize intelligence tools
+        let mut intelligence_tools = TuiIntelligenceTools::new()?;
+        intelligence_tools.initialize_project()?;
+        
+        // Initialize semantic search (works without API keys)
+        let mut semantic_search = crate::semantic_search::SemanticCodeSearch::new();
+        semantic_search.ensure_model_available().await?;
+        
+        // Start background file monitoring with semantic search integration
+        let semantic_search_monitor = crate::semantic_search::SemanticCodeSearch::new();
+        let file_monitor = if !auth_required {
+            Some(file_monitor::start_background_monitoring(
+                project_manager.clone(),
+                intelligence_tools.clone(),
+                semantic_search_monitor,
+            ).await?)
+        } else {
+            // In auth mode, we can still monitor files but without provider integration
+            Some(file_monitor::start_background_monitoring(
+                project_manager.clone(),
+                intelligence_tools.clone(),
+                semantic_search_monitor,
+            ).await?)
+        };
+        
+        // Create or continue session (if providers available)
+        let current_session = if let Some(ref _providers) = providers {
+            let project_info = project_manager.get_project_info();
+            let session_title = format!("{} - TUI Session", project_info.name);
+            
+            Some(session_manager.create_session(
+                session_title,
+                provider_name.clone(),
+                model.clone(),
+                Some("TUI session for project".to_string()),
+                vec!["tui".to_string()],
+            ).await?)
+        } else {
+            None
+        };
+        
+        info!("TUI Manager initialized with auth_required: {}", auth_required);
+        
+        Ok(Self {
+            config: config.clone(),
+            provider_name,
+            model,
+            messages: Vec::new(),
+            input: String::new(),
+            cursor_position: 0,
+            scroll_offset: 0,
+            session_cost: 0.0,
+            session_tokens: 0,
+            // Session management
+            _project_manager: project_manager,
+            session_manager,
+            current_session,
+            intelligence_tools,
+            file_monitor,
+            // Semantic search
+            semantic_search,
+            // Modals
+            selection_modal: if let Some(ref providers) = providers {
+                SelectionModal::new(providers.as_ref(), config)
+            } else {
+                // In demo mode, create a selection modal from config only
+                SelectionModal::from_config(config)
+            },
+            settings_modal: SettingsModal::new(config),
+            help_modal: HelpModal::new(),
+            // Autocomplete
+            autocomplete: AutocompleteEngine::new(),
+            // Authentication state
+            providers,
+            auth_required,
+            show_auth_setup: auth_required,
+            // State
+            budget_warning_shown: false,
+            cost_warnings: Vec::new(),
+        })
+    }
+
     pub async fn new(config: &ConfigManager, providers: &ProviderManager) -> Result<Self> {
         // Initialize project manager
         let mut project_manager = ProjectManager::new()?;
@@ -160,14 +269,18 @@ impl TuiManager {
             help_modal: HelpModal::new(),
             // Initialize autocomplete
             autocomplete: AutocompleteEngine::new(),
+            // Authentication state (providers available in this constructor)
+            providers: Some(Rc::new(ProviderManager::new(config).await?)),
+            auth_required: false,
+            show_auth_setup: false,
             // Initialize state
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
         })
     }
 
-    pub async fn run(&mut self, providers: &ProviderManager) -> Result<()> {
-        info!("Starting TUI interface");
+    pub async fn run(&mut self) -> Result<()> {
+        info!("Starting TUI interface (auth_required: {})", self.auth_required);
 
         // Setup terminal
         enable_raw_mode()?;
@@ -189,6 +302,13 @@ impl TuiManager {
                         // Check if any modal is handling the event
                         if self.handle_modal_events(key)? {
                             continue;
+                        }
+
+                        // Handle auth setup events if in auth mode
+                        if self.show_auth_setup {
+                            if self.handle_auth_setup_events(key).await? {
+                                continue;
+                            }
                         }
 
                         // Handle main interface events
@@ -240,18 +360,25 @@ impl TuiManager {
                                             ));
                                         }
                                     } else {
-                                        // Check budget before sending to AI
-                                        if self.check_budget_limits(providers).await? {
-                                            // Add user message
+                                        // Handle message based on auth state
+                                        if self.providers.is_some() {
+                                            // Add user message first
                                             self.messages.push(Message::user(message.clone()));
-
-                                            // Send request to AI
-                                            if let Err(e) = self.send_message(message, providers).await {
+                                            
+                                            // Send to AI (methods will handle the borrowing internally)
+                                            if let Err(e) = self.handle_ai_message(message).await {
                                                 self.messages.push(Message::new(
                                                     MessageRole::System,
                                                     format!("Error: {}", e),
                                                 ));
                                             }
+                                        } else {
+                                            // Demo mode - show that AI features require API key
+                                            self.messages.push(Message::user(message.clone()));
+                                            self.messages.push(Message::new(
+                                                MessageRole::System,
+                                                "\u{1f4a1} Demo Mode: AI chat requires API key configuration. Press F2 for Settings or type '/search <query>' to explore the codebase.".to_string(),
+                                            ));
                                         }
                                     }
                                 }
@@ -341,6 +468,12 @@ impl TuiManager {
     }
 
     fn draw(&self, f: &mut Frame) {
+        // Show auth setup screen if needed
+        if self.show_auth_setup {
+            self.draw_auth_setup_screen(f);
+            return;
+        }
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -351,12 +484,13 @@ impl TuiManager {
             ])
             .split(f.area());
 
-        // Title bar
+        // Title bar with auth status
+        let auth_status = if self.auth_required { "[Demo Mode]" } else { "" };
         let title = Paragraph::new(format!(
-            "🏹 Aircher - {} - {} | F1: Help | F2: Settings | Tab: Select | /search <query> [--filters]",
-            self.provider_name, self.model
+            "🏹 Aircher {} - {} - {} | F1: Help | F2: Settings | Tab: Select | /search <query> [--filters]",
+            auth_status, self.provider_name, self.model
         ))
-        .style(Style::default().fg(Color::Cyan))
+        .style(Style::default().fg(if self.auth_required { Color::Yellow } else { Color::Cyan }))
         .block(Block::default().borders(Borders::BOTTOM));
         f.render_widget(title, chunks[0]);
 
@@ -1113,6 +1247,143 @@ impl TuiManager {
         }
         
         results
+    }
+
+    /// Handle auth setup events
+    async fn handle_auth_setup_events(&mut self, key: ratatui::crossterm::event::KeyEvent) -> Result<bool> {
+        match key.code {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Allow Ctrl+C to quit even in auth setup
+                return Ok(false);
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                // 's' to skip auth setup and enter demo mode
+                self.show_auth_setup = false;
+                self.messages.push(Message::new(
+                    MessageRole::System,
+                    "🚀 Entering Demo Mode! You can explore the codebase with '/search <query>' commands. API chat features require configuration.".to_string(),
+                ));
+                return Ok(true);
+            }
+            KeyCode::F(2) => {
+                // F2 to go to settings for API key setup
+                self.settings_modal.toggle();
+                self.show_auth_setup = false;
+                return Ok(true);
+            }
+            KeyCode::Esc => {
+                // Esc to skip auth setup
+                self.show_auth_setup = false;
+                self.messages.push(Message::new(
+                    MessageRole::System,
+                    "🚀 Welcome to Demo Mode! Use '/search <query>' to explore code or press F2 for Settings.".to_string(),
+                ));
+                return Ok(true);
+            }
+            _ => return Ok(true), // Consume other events in auth mode
+        }
+    }
+
+    /// Draw the auth setup screen
+    fn draw_auth_setup_screen(&self, f: &mut Frame) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Min(0),    // Main content
+                Constraint::Length(3), // Instructions
+            ])
+            .split(f.area());
+
+        // Title
+        let title = Paragraph::new("🏹 Welcome to Aircher!")
+            .style(Style::default().fg(Color::Cyan))
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(title, chunks[0]);
+
+        // Main content area
+        let content_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(2), // Status
+                Constraint::Length(4), // Demo mode info
+                Constraint::Length(4), // API setup info
+                Constraint::Min(0),    // Available features
+            ])
+            .split(chunks[1]);
+
+        // API key status
+        let status_text = if self.auth_required {
+            "❌ No API keys configured"
+        } else {
+            "✅ API keys configured"
+        };
+        let status = Paragraph::new(status_text)
+            .style(Style::default().fg(if self.auth_required { Color::Red } else { Color::Green }))
+            .block(Block::default().borders(Borders::ALL).title("Status"));
+        f.render_widget(status, content_chunks[0]);
+
+        // Demo mode info
+        let demo_info = Paragraph::new(
+            "🚀 Demo Mode Available:\n\
+             • Semantic code search with '/search <query>'\n\
+             • File monitoring and project analysis\n\
+             • Full TUI interface exploration"
+        )
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default().borders(Borders::ALL).title("Demo Features"));
+        f.render_widget(demo_info, content_chunks[1]);
+
+        // API setup info
+        let api_info = Paragraph::new(
+            "🔑 Full Features (requires API keys):\n\
+             • AI chat assistance\n\
+             • Code generation and analysis\n\
+             • Intelligent context suggestions"
+        )
+        .style(Style::default().fg(Color::Blue))
+        .block(Block::default().borders(Borders::ALL).title("Full Features"));
+        f.render_widget(api_info, content_chunks[2]);
+
+        // Available features in demo mode
+        let features = vec![
+            "✅ Semantic Search - Find code by meaning",
+            "✅ File Monitoring - Track project changes", 
+            "✅ Intelligence Tools - Project analysis",
+            "✅ TUI Interface - Full terminal experience",
+            "⚙️  Settings Panel - Configure API keys",
+        ];
+
+        let feature_items: Vec<ratatui::widgets::ListItem> = features
+            .iter()
+            .map(|f| ratatui::widgets::ListItem::new(*f))
+            .collect();
+
+        let features_list = ratatui::widgets::List::new(feature_items)
+            .block(Block::default().borders(Borders::ALL).title("Available Now"));
+        f.render_widget(features_list, content_chunks[3]);
+
+        // Instructions
+        let instructions = Paragraph::new(
+            "📋 Options:\n\
+             [S] Start Demo Mode | [F2] Configure API Keys | [Ctrl+C] Exit | [Esc] Skip Setup"
+        )
+        .style(Style::default().fg(Color::White))
+        .block(Block::default().borders(Borders::ALL).title("Instructions"));
+        f.render_widget(instructions, chunks[2]);
+    }
+
+    /// Handle AI message sending with proper borrowing
+    async fn handle_ai_message(&mut self, message: String) -> Result<()> {
+        // Clone the Rc to avoid borrowing issues
+        if let Some(providers) = self.providers.clone() {
+            // Check budget limits
+            if self.check_budget_limits(&providers).await? {
+                // Send message to AI
+                self.send_message(message, &providers).await?;
+            }
+        }
+        Ok(())
     }
 }
 

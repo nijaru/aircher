@@ -12,6 +12,7 @@ use crate::ui::TuiManager;
 pub struct ArcherApp {
     #[allow(dead_code)]
     config: ConfigManager,
+    #[allow(dead_code)]
     providers: ProviderManager,
     ui: TuiManager,
     storage: DatabaseManager,
@@ -58,7 +59,7 @@ impl ArcherApp {
         info!("Starting main application loop");
 
         // Start the TUI
-        self.ui.run(&self.providers).await?;
+        self.ui.run().await?;
 
         info!("Application loop completed");
         Ok(())

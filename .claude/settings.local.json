@@ -45,7 +45,8 @@
       "Bash(git lfs track:*)",
       "Bash(git gc:*)",
       "Bash(git config:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(unset:*)"
     ],
     "deny": []
   }
