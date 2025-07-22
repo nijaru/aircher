@@ -143,16 +143,6 @@ impl ConfigManager {
         Ok(config)
     }
 
-    fn get_config_path() -> PathBuf {
-        env::var("AIRCHER_CONFIG")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs::config_dir()
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join("aircher")
-                    .join("config.toml")
-            })
-    }
 
     fn resolve_env_vars(&mut self) -> Result<()> {
         // Resolve environment variables in provider configs

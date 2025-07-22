@@ -217,7 +217,7 @@ mod tests {
         let selector = SimpleModelSelector::default();
         let cost_aware = CostAwareSelector::new(selector);
         
-        let (model, reason, warning) = cost_aware.select_with_cost_info(
+        let (model, _reason, warning) = cost_aware.select_with_cost_info(
             "openai", 
             None, 
             Some((10000, 5000)) // Large token count

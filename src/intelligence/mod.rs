@@ -18,8 +18,8 @@ pub use tools::*;
 
 /// Intelligence Engine - Context-aware development assistant for AI agents
 pub struct IntelligenceEngine {
-    config: ConfigManager,
-    storage: DatabaseManager,
+    _config: ConfigManager,
+    _storage: DatabaseManager,
     context_engine: ContextualRelevanceEngine,
     narrative_tracker: DevelopmentNarrativeTracker,
     memory_system: ConversationalMemorySystem,
@@ -32,8 +32,8 @@ impl IntelligenceEngine {
         let memory_system = ConversationalMemorySystem::new(storage).await?;
 
         Ok(Self {
-            config: config.clone(),
-            storage: storage.clone(),
+            _config: config.clone(),
+            _storage: storage.clone(),
             context_engine,
             narrative_tracker,
             memory_system,

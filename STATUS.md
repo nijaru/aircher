@@ -1,6 +1,6 @@
 # Aircher Development Status
 
-**Last Updated**: 2025-07-21
+**Last Updated**: 2025-07-22
 
 ## 🎉 Current State: Production Ready
 
@@ -31,6 +31,8 @@ The core semantic search system is now **production-ready** with professional-gr
 - **Search presets**: Save and reuse complex filter combinations
 - **Enhanced display**: Syntax highlighting and context in results
 - **Advanced filtering**: File types, languages, scope, similarity thresholds
+- **Query expansion**: Automatic synonym expansion and typo correction
+- **Query intelligence**: Smart suggestions based on query complexity
 
 ## 🔄 Current Development Phase
 
@@ -39,7 +41,7 @@ The core semantic search system is now **production-ready** with professional-gr
 With the core engine complete and performant, the focus shifts to:
 
 1. **Code Quality** (In Progress)
-   - Clean up remaining ~200 compiler warnings
+   - Clean up remaining ~190 compiler warnings
    - Improve code organization and documentation
    - Enhance test coverage
 
@@ -56,10 +58,11 @@ With the core engine complete and performant, the focus shifts to:
    - Add code syntax highlighting
    - Show file structure context
 
-2. **Query Intelligence**
-   - Query suggestions based on codebase
-   - "Did you mean?" functionality
-   - Search history and favorites
+2. **Query Intelligence** ✅ (Completed)
+   - ✅ "Did you mean?" functionality for typo correction
+   - ✅ Automatic synonym expansion for broader coverage
+   - ✅ Query complexity analysis and suggestions
+   - 🔄 Search history and favorites (future enhancement)
 
 3. **TUI Demo Mode**
    - Allow trying the interface without API keys

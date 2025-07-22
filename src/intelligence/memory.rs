@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 /// Conversational Memory System - Learns from AI interactions
 pub struct ConversationalMemorySystem {
-    storage: DatabaseManager,
+    _storage: DatabaseManager,
     pattern_cache: HashMap<String, Vec<Pattern>>,
     outcome_history: Vec<ConversationOutcome>,
 }
@@ -25,7 +25,7 @@ pub struct ConversationOutcome {
 impl ConversationalMemorySystem {
     pub async fn new(storage: &DatabaseManager) -> Result<Self> {
         Ok(Self {
-            storage: storage.clone(),
+            _storage: storage.clone(),
             pattern_cache: HashMap::new(),
             outcome_history: Vec::new(),
         })

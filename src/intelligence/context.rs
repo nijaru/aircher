@@ -22,7 +22,7 @@ pub struct FileInfo {
 
 /// Contextual Relevance Engine - Multi-layered file relevance scoring
 pub struct ContextualRelevanceEngine {
-    config: ConfigManager,
+    _config: ConfigManager,
     project_root: PathBuf,
     git_repo: Arc<Mutex<Option<Repository>>>,
     file_cache: HashMap<String, FileInfo>,
@@ -37,7 +37,7 @@ impl ContextualRelevanceEngine {
         let git_repo = Arc::new(Mutex::new(Repository::open(&project_root).ok()));
         
         let mut engine = Self {
-            config: config.clone(),
+            _config: config.clone(),
             project_root,
             git_repo,
             file_cache: HashMap::new(),

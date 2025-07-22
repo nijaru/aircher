@@ -32,10 +32,10 @@ pub struct FileChangeEvent {
 /// File metadata for tracking changes
 #[derive(Debug, Clone)]
 struct FileMetadata {
-    path: PathBuf,
+    _path: PathBuf,
     modified: SystemTime,
     size: u64,
-    exists: bool,
+    _exists: bool,
 }
 
 /// Background file monitor for intelligent analysis
@@ -192,10 +192,10 @@ impl FileMonitor {
         let metadata = tokio::fs::metadata(path).await?;
         
         Ok(FileMetadata {
-            path: path.to_path_buf(),
+            _path: path.to_path_buf(),
             modified: metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH),
             size: metadata.len(),
-            exists: true,
+            _exists: true,
         })
     }
     

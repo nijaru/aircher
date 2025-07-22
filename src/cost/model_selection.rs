@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use tracing::{debug, info};
 
 use crate::config::{ConfigManager, ModelConfig};
-use crate::cost::{CostTracker, PricingEngine, QualityTier, ModelRegistry};
+use crate::cost::{CostTracker, QualityTier};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelSelectionConfig {
@@ -166,8 +166,6 @@ impl TaskType {
 pub struct IntelligentModelSelector {
     config: ModelSelectionConfig,
     available_models: HashMap<String, Vec<ModelConfig>>, // provider -> models
-    pricing_engine: PricingEngine,
-    model_registry: ModelRegistry,
 }
 
 impl IntelligentModelSelector {
@@ -182,8 +180,6 @@ impl IntelligentModelSelector {
         Self {
             config: ModelSelectionConfig::default(),
             available_models,
-            pricing_engine: PricingEngine::new(),
-            model_registry: ModelRegistry::load_or_default("models.toml"),
         }
     }
 

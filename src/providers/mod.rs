@@ -18,7 +18,7 @@ use crate::cost::{CostTracker, CostDecision, IntelligentModelSelector, TaskType}
 pub struct ProviderManager {
     providers: HashMap<String, Box<dyn LLMProvider>>,
     hosts: HashMap<String, Box<dyn LLMProvider>>,
-    config: ConfigManager,
+    _config: ConfigManager,
     cost_tracker: CostTracker,
     model_selector: IntelligentModelSelector,
 }
@@ -202,7 +202,7 @@ impl ProviderManager {
         Ok(Self {
             providers,
             hosts,
-            config: config.clone(),
+            _config: config.clone(),
             cost_tracker: CostTracker::new(config.cost.clone()),
             model_selector: IntelligentModelSelector::new(config),
         })

@@ -8,10 +8,10 @@ use std::sync::{Arc, Mutex};
 
 /// Development Narrative Tracker - Maintains the story of the codebase
 pub struct DevelopmentNarrativeTracker {
-    config: ConfigManager,
+    _config: ConfigManager,
     project_root: std::path::PathBuf,
     git_repo: Arc<Mutex<Option<Repository>>>,
-    cached_narrative: Option<DevelopmentNarrative>,
+    _cached_narrative: Option<DevelopmentNarrative>,
 }
 
 impl DevelopmentNarrativeTracker {
@@ -20,10 +20,10 @@ impl DevelopmentNarrativeTracker {
         let git_repo = Arc::new(Mutex::new(Repository::open(&project_root).ok()));
         
         Ok(Self {
-            config: config.clone(),
+            _config: config.clone(),
             project_root,
             git_repo,
-            cached_narrative: None,
+            _cached_narrative: None,
         })
     }
 

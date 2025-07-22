@@ -12,9 +12,9 @@ use std::collections::HashMap;
 /// with a compact 137M parameter model specifically trained for software issue localization.
 pub struct SweRankEmbedModel {
     model_info: ModelInfo,
-    model: Option<BertModel>,
-    device: Device,
-    tokenizer_data: Option<HashMap<String, serde_json::Value>>,
+    _model: Option<BertModel>,
+    _device: Device,
+    _tokenizer_data: Option<HashMap<String, serde_json::Value>>,
 }
 
 #[derive(Debug, Clone)]
@@ -63,9 +63,9 @@ impl SweRankEmbedModel {
         
         Ok(Self {
             model_info,
-            model: None, // Will be Some() when full implementation is complete
-            device,
-            tokenizer_data: None,
+            _model: None, // Will be Some() when full implementation is complete
+            _device: device,
+            _tokenizer_data: None,
         })
     }
 

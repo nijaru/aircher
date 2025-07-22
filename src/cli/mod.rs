@@ -13,8 +13,6 @@ use crate::sessions::{SessionFilter, ExportFormat, SessionManager, MessageRole};
 use crate::storage::DatabaseManager;
 use crate::ui::TuiManager;
 
-mod interactive;
-use interactive::InteractiveSession;
 
 pub struct CliApp {
     config: ConfigManager,
@@ -601,39 +599,6 @@ impl CliApp {
         }
     }
 
-    async fn handle_interactive(&mut self, matches: &clap::ArgMatches) -> Result<()> {
-        let provider_name = matches.get_one::<String>("provider").unwrap();
-        let model = matches.get_one::<String>("model").unwrap();
-
-        info!(
-            "Starting interactive mode: provider={}, model={}",
-            provider_name, model
-        );
-
-        // Check if we have API key first
-        self.check_api_key(provider_name)?;
-
-        // Get providers
-        let providers = self.get_providers().await?;
-
-        // Verify provider exists
-        if providers.get_provider_or_host(provider_name).is_none() {
-            return Err(anyhow::anyhow!(
-                "Provider '{}' not found or not configured",
-                provider_name
-            ));
-        }
-
-        // Create and run interactive session
-        let mut session = InteractiveSession::new(
-            provider_name.clone(),
-            model.clone(),
-            matches.get_one::<u32>("max-tokens").copied(),
-            matches.get_one::<f32>("temperature").copied(),
-        );
-
-        session.run(providers).await
-    }
 
     async fn handle_tui(&mut self, matches: &clap::ArgMatches) -> Result<()> {
         let provider_name = matches.get_one::<String>("provider").unwrap();
