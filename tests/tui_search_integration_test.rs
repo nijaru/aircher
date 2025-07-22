@@ -69,7 +69,7 @@ async fn test_tui_search_integration() {
         println!("\nTesting search query: '{}'", query);
         
         match search.search(query, 5).await {
-            Ok(results) => {
+            Ok((results, _metrics)) => {
                 if results.is_empty() {
                     println!("  No results found (this is okay for empty index)");
                 } else {

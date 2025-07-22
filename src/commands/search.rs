@@ -291,6 +291,17 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             // Use corrected query if available
             let search_query = suggestions.corrected_query.as_ref().unwrap_or(&query);
             
+            // Prepare expanded queries for comprehensive search
+            let mut search_queries = vec![search_query.clone()];
+            
+            // Add synonym expansions for broader coverage (but limit to avoid too many queries)
+            if !suggestions.expanded_queries.is_empty() {
+                search_queries.extend(suggestions.expanded_queries.iter().take(3).cloned());
+                if debug_filters {
+                    println!("🔍 Expanding search with synonyms: {:?}", &suggestions.expanded_queries[..suggestions.expanded_queries.len().min(3)]);
+                }
+            }
+            
             if debug_filters {
                 println!("🐛 Debug: Active filters:");
                 if let Some(ref types) = effective_file_types {
@@ -342,8 +353,50 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
             }
             
             println!("🔎 Starting search...");
-            match search.search(search_query, effective_limit * 3).await { // Get more results to filter
-                Ok((mut results, mut metrics)) => {
+            
+            // Execute multiple searches for expanded coverage
+            let mut all_results = Vec::new();
+            let mut combined_metrics = None;
+            
+            for (i, query) in search_queries.iter().enumerate() {
+                if debug_filters && i > 0 {
+                    println!("🔍 Searching expansion {}: '{}'", i, query);
+                }
+                
+                match search.search(query, effective_limit * 2).await {
+                    Ok((results, metrics)) => {
+                        all_results.extend(results);
+                        if combined_metrics.is_none() {
+                            combined_metrics = Some(metrics);
+                        }
+                    }
+                    Err(e) if i == 0 => {
+                        // If the main query fails, propagate the error
+                        return Err(e);
+                    }
+                    Err(e) => {
+                        // If expansion queries fail, just log and continue
+                        debug!("Expansion query '{}' failed: {}", query, e);
+                    }
+                }
+            }
+            
+            // Deduplicate results by file_path + start_line + content hash
+            all_results.sort_by(|a, b| {
+                a.file_path.cmp(&b.file_path)
+                    .then_with(|| a.chunk.start_line.cmp(&b.chunk.start_line))
+                    .then_with(|| a.chunk.content.cmp(&b.chunk.content))
+            });
+            all_results.dedup_by(|a, b| {
+                a.file_path == b.file_path && a.chunk.start_line == b.chunk.start_line && a.chunk.content == b.chunk.content
+            });
+            
+            // Sort by relevance score (descending)
+            all_results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score).unwrap_or(std::cmp::Ordering::Equal));
+            
+            match combined_metrics {
+                Some(mut metrics) => {
+                    let mut results = all_results;
                     let original_count = results.len();
                     
                     // Apply advanced filters
@@ -433,9 +486,8 @@ pub async fn handle_search_command(args: SearchArgs) -> Result<()> {
                         }
                     }
                 }
-                Err(e) => {
-                    println!("❌ Search failed: {}", e);
-                    println!("💡 Ensure embedding models are available: aircher embedding status");
+                None => {
+                    println!("❌ No search results found - all queries failed");
                 }
             }
         }
