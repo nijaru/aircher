@@ -1,4 +1,6 @@
 use std::path::Path;
+use anyhow::Result;
+use tree_sitter::{Parser, Tree, Node};
 use crate::semantic_search::SearchResult;
 use crate::vector_search::ChunkType;
 
@@ -15,11 +17,377 @@ const MAGENTA: &str = "\x1b[35m";
 const BRIGHT_BLACK: &str = "\x1b[90m";
 const WHITE: &str = "\x1b[37m";
 
+/// AST-based syntax highlighter using tree-sitter
+pub struct SyntaxHighlighter {
+    parser: Parser,
+}
+
+impl SyntaxHighlighter {
+    pub fn new() -> Self {
+        Self {
+            parser: Parser::new(),
+        }
+    }
+
+    /// Highlight code using AST analysis with tree-sitter (optimized for performance)
+    pub fn highlight_code(&mut self, content: &str, language: &str) -> String {
+        // For single lines or small content, use basic highlighting for performance
+        if content.lines().count() <= 1 || content.len() < 100 {
+            return BasicHighlighter::highlight_line(content, language);
+        }
+        
+        // Only use tree-sitter for supported languages and larger content
+        match self.parse_and_highlight(content, language) {
+            Ok(highlighted) => highlighted,
+            Err(_) => {
+                // Fallback to basic highlighting if tree-sitter fails
+                BasicHighlighter::highlight_line(content, language)
+            }
+        }
+    }
+
+    fn parse_and_highlight(&mut self, content: &str, language: &str) -> Result<String> {
+        // Set the appropriate language for tree-sitter (only stable languages for now)
+        let tree_language = match language {
+            "rust" | "rs" => tree_sitter_rust::LANGUAGE.into(),
+            "javascript" | "js" => tree_sitter_javascript::LANGUAGE.into(),
+            "typescript" | "ts" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            "python" | "py" => tree_sitter_python::LANGUAGE.into(),
+            "go" => tree_sitter_go::LANGUAGE.into(),
+            "c" => tree_sitter_c::LANGUAGE.into(),
+            "cpp" | "cc" | "cxx" => tree_sitter_cpp::LANGUAGE.into(),
+            "java" => tree_sitter_java::LANGUAGE.into(),
+            "json" => tree_sitter_json::LANGUAGE.into(),
+            "bash" | "sh" => tree_sitter_bash::LANGUAGE.into(),
+            // Other languages fall back to basic highlighting
+            _ => return Err(anyhow::anyhow!("Using fallback highlighting for language: {}", language)),
+        };
+
+        self.parser.set_language(&tree_language)?;
+        let tree = self.parser.parse(content, None);
+
+        match tree {
+            Some(tree) => Ok(self.traverse_and_highlight(&tree, content)),
+            None => Err(anyhow::anyhow!("Failed to parse content")),
+        }
+    }
+
+    fn traverse_and_highlight(&self, tree: &Tree, source: &str) -> String {
+        let root_node = tree.root_node();
+        let mut result = String::new();
+        let mut last_pos = 0;
+
+        self.highlight_node(&root_node, source, &mut result, &mut last_pos);
+        
+        // Add any remaining content
+        if last_pos < source.len() {
+            result.push_str(&source[last_pos..]);
+        }
+
+        result
+    }
+
+    fn highlight_node(&self, node: &Node, source: &str, result: &mut String, last_pos: &mut usize) {
+        let start_byte = node.start_byte();
+        let end_byte = node.end_byte();
+
+        // Add any text between the last position and this node
+        if *last_pos < start_byte {
+            result.push_str(&source[*last_pos..start_byte]);
+        }
+
+        // Get node type and apply appropriate styling
+        let node_kind = node.kind();
+        let node_text = &source[start_byte..end_byte];
+
+        let styled_text = match node_kind {
+            // Keywords
+            "fn" | "let" | "mut" | "const" | "struct" | "enum" | "impl" | "trait" |
+            "pub" | "use" | "mod" | "async" | "await" | "match" | "if" | "else" |
+            "for" | "while" | "loop" | "return" | "function" | "class" | "def" |
+            "import" | "export" | "from" | "var" | "type" | "interface" => {
+                format!("{}{}{}{}", BLUE, BOLD, node_text, RESET)
+            }
+            
+            // Strings
+            "string_literal" | "raw_string_literal" | "string" => {
+                format!("{}{}{}", GREEN, node_text, RESET)
+            }
+            
+            // Numbers
+            "integer_literal" | "float_literal" | "number" => {
+                format!("{}{}{}", CYAN, node_text, RESET)
+            }
+            
+            // Comments
+            "comment" | "line_comment" | "block_comment" => {
+                format!("{}{}{}{}", BRIGHT_BLACK, ITALIC, node_text, RESET)
+            }
+            
+            // Function/method names
+            "function_item" | "method_definition" | "function_declaration" => {
+                if let Some(name_node) = node.child_by_field_name("name") {
+                    let name_text = &source[name_node.start_byte()..name_node.end_byte()];
+                    format!("{}{}{}{}", YELLOW, BOLD, name_text, RESET)
+                } else {
+                    node_text.to_string()
+                }
+            }
+            
+            // Types
+            "type_identifier" | "primitive_type" => {
+                format!("{}{}{}", MAGENTA, node_text, RESET)
+            }
+            
+            _ => {
+                // For compound nodes, recursively process children
+                if node.child_count() > 0 {
+                    let mut child_result = String::new();
+                    let mut child_pos = start_byte;
+                    
+                    let mut cursor = node.walk();
+                    cursor.goto_first_child();
+                    
+                    loop {
+                        let child = cursor.node();
+                        self.highlight_node(&child, source, &mut child_result, &mut child_pos);
+                        
+                        if !cursor.goto_next_sibling() {
+                            break;
+                        }
+                    }
+                    
+                    // Add any remaining content within this node
+                    if child_pos < end_byte {
+                        child_result.push_str(&source[child_pos..end_byte]);
+                    }
+                    
+                    child_result
+                } else {
+                    node_text.to_string()
+                }
+            }
+        };
+
+        result.push_str(&styled_text);
+        *last_pos = end_byte;
+    }
+}
+
+/// Basic fallback highlighter for unsupported languages
+struct BasicHighlighter;
+
+impl BasicHighlighter {
+    fn highlight_line(line: &str, language: &str) -> String {
+        // Use basic highlighting for all languages as fallback
+        match language {
+            "rust" | "rs" => Self::highlight_rust(line),
+            "javascript" | "js" | "typescript" | "ts" | "jsx" | "tsx" => Self::highlight_javascript(line),
+            "python" | "py" => Self::highlight_python(line),
+            "go" => Self::highlight_go(line),
+            "php" => Self::highlight_php(line),
+            "ruby" | "rb" => Self::highlight_ruby(line),
+            "swift" => Self::highlight_swift(line),
+            "kotlin" | "kt" => Self::highlight_kotlin(line),
+            "csharp" | "cs" => Self::highlight_csharp(line),
+            "css" => Self::highlight_css(line),
+            "html" | "htm" => Self::highlight_html(line),
+            "yaml" | "yml" => Self::highlight_yaml(line),
+            "sql" => Self::highlight_sql(line),
+            _ => Self::highlight_generic(line),
+        }
+    }
+
+    fn highlight_rust(line: &str) -> String {
+        // Optimized highlighting with word boundary checking to avoid issues like "function" matching "fn"
+        let mut result = line.to_string();
+        
+        // Only highlight if the line is not too long (performance protection)
+        if result.len() > 500 {
+            return result;
+        }
+        
+        // Simple keyword highlighting with word boundaries
+        if result.contains(" fn ") || result.starts_with("fn ") {
+            result = result.replace(" fn ", &format!(" {}{}{} ", BLUE, "fn", RESET));
+            if result.starts_with("fn ") {
+                result = result.replacen("fn ", &format!("{}{}{} ", BLUE, "fn", RESET), 1);
+            }
+        }
+        
+        if result.contains(" let ") {
+            result = result.replace(" let ", &format!(" {}{}{} ", BLUE, "let", RESET));
+        }
+        
+        if result.contains(" pub ") || result.starts_with("pub ") {
+            result = result.replace(" pub ", &format!(" {}{}{} ", BLUE, "pub", RESET));
+            if result.starts_with("pub ") {
+                result = result.replacen("pub ", &format!("{}{}{} ", BLUE, "pub", RESET), 1);
+            }
+        }
+        
+        result
+    }
+    
+    fn highlight_javascript(line: &str) -> String {
+        let mut result = line.to_string();
+        
+        // Performance protection
+        if result.len() > 500 {
+            return result;
+        }
+        
+        // Simple highlighting for common JS keywords
+        if result.contains(" function ") || result.starts_with("function ") {
+            result = result.replace(" function ", &format!(" {}{}{} ", BLUE, "function", RESET));
+        }
+        
+        if result.contains(" const ") {
+            result = result.replace(" const ", &format!(" {}{}{} ", BLUE, "const", RESET));
+        }
+        
+        result
+    }
+    
+    fn highlight_python(line: &str) -> String {
+        let mut result = line.to_string();
+        
+        // Performance protection
+        if result.len() > 500 {
+            return result;
+        }
+        
+        // Simple highlighting for common Python keywords
+        if result.contains(" def ") || result.starts_with("def ") {
+            result = result.replace(" def ", &format!(" {}{}{} ", BLUE, "def", RESET));
+            if result.starts_with("def ") {
+                result = result.replacen("def ", &format!("{}{}{} ", BLUE, "def", RESET), 1);
+            }
+        }
+        
+        if result.contains(" class ") || result.starts_with("class ") {
+            result = result.replace(" class ", &format!(" {}{}{} ", BLUE, "class", RESET));
+            if result.starts_with("class ") {
+                result = result.replacen("class ", &format!("{}{}{} ", BLUE, "class", RESET), 1);
+            }
+        }
+        
+        result
+    }
+    
+    fn highlight_go(line: &str) -> String {
+        let mut result = line.to_string();
+        
+        // Performance protection
+        if result.len() > 500 {
+            return result;
+        }
+        
+        // Simple highlighting for Go
+        if result.contains(" func ") || result.starts_with("func ") {
+            result = result.replace(" func ", &format!(" {}{}{} ", BLUE, "func", RESET));
+            if result.starts_with("func ") {
+                result = result.replacen("func ", &format!("{}{}{} ", BLUE, "func", RESET), 1);
+            }
+        }
+        
+        result
+    }
+
+    // Simplified, fast highlighting methods for all other languages
+    fn highlight_php(line: &str) -> String {
+        Self::simple_highlight(line, "<?php", "function", "class")
+    }
+
+    fn highlight_ruby(line: &str) -> String {
+        Self::simple_highlight(line, "def", "class", "module")
+    }
+
+    fn highlight_swift(line: &str) -> String {
+        Self::simple_highlight(line, "func", "var", "let")
+    }
+
+    fn highlight_kotlin(line: &str) -> String {
+        Self::simple_highlight(line, "fun", "val", "var")
+    }
+
+    fn highlight_csharp(line: &str) -> String {
+        Self::simple_highlight(line, "class", "interface", "struct")
+    }
+
+    fn highlight_css(line: &str) -> String {
+        if line.len() > 200 { return line.to_string(); }
+        if line.trim().starts_with('.') || line.trim().starts_with('#') {
+            format!("{}{}{}", GREEN, line, RESET)
+        } else {
+            line.to_string()
+        }
+    }
+
+    fn highlight_html(line: &str) -> String {
+        if line.len() > 200 { return line.to_string(); }
+        if line.contains('<') && line.contains('>') {
+            // Very simple tag highlighting - just color the whole line if it has tags
+            format!("{}{}{}", BLUE, line, RESET)
+        } else {
+            line.to_string()
+        }
+    }
+
+    fn highlight_yaml(line: &str) -> String {
+        if line.len() > 200 { return line.to_string(); }
+        if line.contains(':') && !line.trim().starts_with('#') {
+            format!("{}{}{}", GREEN, line, RESET)
+        } else {
+            line.to_string()
+        }
+    }
+
+    fn highlight_sql(line: &str) -> String {
+        Self::simple_highlight(line, "SELECT", "FROM", "WHERE")
+    }
+
+    fn highlight_generic(line: &str) -> String {
+        // Just return the line as-is for generic highlighting
+        line.to_string()
+    }
+
+    // Helper method for safe, simple highlighting
+    fn simple_highlight(line: &str, keyword1: &str, keyword2: &str, keyword3: &str) -> String {
+        if line.len() > 200 {
+            return line.to_string();
+        }
+        
+        let mut result = line.to_string();
+        
+        // Simple, safe keyword highlighting
+        let check_and_highlight = |text: &str, kw: &str| -> String {
+            if text.contains(&format!(" {} ", kw)) {
+                text.replace(&format!(" {} ", kw), &format!(" {}{}{} ", BLUE, kw, RESET))
+            } else if text.starts_with(&format!("{} ", kw)) {
+                text.replacen(&format!("{} ", kw), &format!("{}{}{} ", BLUE, kw, RESET), 1)
+            } else {
+                text.to_string()
+            }
+        };
+        
+        result = check_and_highlight(&result, keyword1);
+        result = check_and_highlight(&result, keyword2);
+        result = check_and_highlight(&result, keyword3);
+        
+        result
+    }
+}
+
 /// Enhanced display formatting for search results
 pub struct SearchResultDisplay;
 
 impl SearchResultDisplay {
-    /// Format and display a search result with syntax highlighting and context
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Format and display a search result with enhanced syntax highlighting and context
     pub fn format_result(result: &SearchResult, index: usize, show_context: bool) -> String {
         let mut output = String::new();
         
@@ -54,12 +422,21 @@ impl SearchResultDisplay {
         let display_lines = if show_context { 10 } else { 5 };
         let total_lines = lines.len();
         
+        // Determine language from file extension for better syntax highlighting
+        let language = Self::get_language_from_path(&result.file_path);
+        
         for (i, line) in lines.iter().take(display_lines).enumerate() {
             let line_num = result.chunk.start_line + i;
+            // Use optimized highlighting for search results
+            let highlighted_line = if line.trim().is_empty() {
+                line.to_string()
+            } else {
+                BasicHighlighter::highlight_line(line, &language)
+            };
             output.push_str(&format!(
                 "   │ {} {}\n",
                 format!("{}{:4}{}", BRIGHT_BLACK, line_num, RESET),
-                Self::highlight_line(line, &result.file_path)
+                highlighted_line
             ));
         }
         
@@ -73,120 +450,67 @@ impl SearchResultDisplay {
         
         output.push_str("   ╰─────\n");
         
-        // Context preview if available
-        if show_context && !result.context_lines.is_empty() {
-            output.push_str(&format!(
-                "   {} {}\n",
-                format!("{}Context:{}", BRIGHT_BLACK, RESET),
-                format!("{}{}{}", BRIGHT_BLACK, result.context_lines.join(" ").chars().take(80).collect::<String>(), RESET)
-            ));
+        // Enhanced context display
+        if show_context {
+            output.push_str(&Self::format_enhanced_context(result));
         }
         
         output.push('\n');
         output
     }
     
-    /// Basic syntax highlighting based on file extension and content
-    fn highlight_line(line: &str, file_path: &Path) -> String {
-        let ext = file_path.extension()
+    /// Extract language identifier from file path
+    fn get_language_from_path(file_path: &Path) -> String {
+        let extension = file_path.extension()
             .and_then(|s| s.to_str())
             .unwrap_or("");
         
-        // Skip empty lines
-        if line.trim().is_empty() {
-            return line.to_string();
+        match extension {
+            "rs" => "rust".to_string(),
+            "js" | "jsx" => "javascript".to_string(),
+            "ts" | "tsx" => "typescript".to_string(),
+            "py" => "python".to_string(),
+            "go" => "go".to_string(),
+            "c" => "c".to_string(),
+            "cpp" | "cc" | "cxx" | "c++" => "cpp".to_string(),
+            "java" => "java".to_string(),
+            "cs" => "csharp".to_string(),
+            "php" => "php".to_string(),
+            "rb" => "ruby".to_string(),
+            "swift" => "swift".to_string(),
+            "kt" => "kotlin".to_string(),
+            _ => extension.to_string(), // Fallback to extension
         }
-        
-        // Comments (most languages)
-        if line.trim().starts_with("//") || line.trim().starts_with("#") {
-            return format!("{}{}{}{}", BRIGHT_BLACK, ITALIC, line, RESET);
-        }
-        
-        // Multi-line comment markers
-        if line.contains("/*") || line.contains("*/") || line.trim().starts_with("*") {
-            return format!("{}{}{}{}", BRIGHT_BLACK, ITALIC, line, RESET);
-        }
-        
-        // Simple keyword highlighting
-        let highlighted = match ext {
-            "rs" => Self::highlight_rust(line),
-            "js" | "ts" | "jsx" | "tsx" => Self::highlight_javascript(line),
-            "py" => Self::highlight_python(line),
-            "go" => Self::highlight_go(line),
-            _ => line.to_string(),
-        };
-        
-        highlighted
     }
     
-    fn highlight_rust(line: &str) -> String {
-        let keywords = ["fn", "let", "mut", "const", "struct", "enum", "impl", "trait", 
-                        "pub", "use", "mod", "async", "await", "match", "if", "else", 
-                        "for", "while", "loop", "return", "self", "Self"];
+    /// Enhanced context display with better structure understanding
+    fn format_enhanced_context(result: &SearchResult) -> String {
+        let mut context = String::new();
         
-        let mut result = line.to_string();
-        for keyword in &keywords {
-            if result.contains(keyword) {
-                result = result.replace(keyword, &format!("{}{}{}", BLUE, keyword, RESET));
+        if !result.context_lines.is_empty() {
+            context.push_str(&format!(
+                "   {} {}\n",
+                format!("{}📍 Context:{}", BRIGHT_BLACK, RESET),
+                format!("{}{}{}", 
+                    BRIGHT_BLACK,
+                    result.context_lines.join(" • ").chars().take(100).collect::<String>(),
+                    RESET
+                )
+            ));
+        }
+        
+        // Add file structure hint if available
+        if let Some(parent) = result.file_path.parent() {
+            if let Some(parent_name) = parent.file_name().and_then(|n| n.to_str()) {
+                context.push_str(&format!(
+                    "   {} {}\n",
+                    format!("{}📂 Directory:{}", BRIGHT_BLACK, RESET),
+                    format!("{}{}{}", BRIGHT_BLACK, parent_name, RESET)
+                ));
             }
         }
         
-        // Highlight strings
-        if let Some(start) = result.find('"') {
-            if let Some(end) = result[start+1..].find('"') {
-                let before = &result[..start];
-                let string_content = &result[start+1..start+1+end];
-                let after = &result[start+1+end+1..];
-                result = format!("{}{}\"{}\"{}{}", before, GREEN, string_content, RESET, after);
-            }
-        }
-        
-        result
-    }
-    
-    fn highlight_javascript(line: &str) -> String {
-        let keywords = ["function", "const", "let", "var", "class", "async", "await",
-                        "if", "else", "for", "while", "return", "import", "export",
-                        "from", "new", "this", "super", "extends"];
-        
-        let mut result = line.to_string();
-        for keyword in &keywords {
-            if result.contains(keyword) {
-                result = result.replace(keyword, &format!("{}{}{}", BLUE, keyword, RESET));
-            }
-        }
-        
-        result
-    }
-    
-    fn highlight_python(line: &str) -> String {
-        let keywords = ["def", "class", "import", "from", "if", "else", "elif",
-                        "for", "while", "return", "async", "await", "with",
-                        "try", "except", "finally", "pass", "break", "continue"];
-        
-        let mut result = line.to_string();
-        for keyword in &keywords {
-            if result.contains(keyword) {
-                result = result.replace(keyword, &format!("{}{}{}", BLUE, keyword, RESET));
-            }
-        }
-        
-        result
-    }
-    
-    fn highlight_go(line: &str) -> String {
-        let keywords = ["func", "var", "const", "type", "struct", "interface",
-                        "if", "else", "for", "range", "return", "package",
-                        "import", "go", "defer", "select", "case", "switch"];
-        
-        let mut result = line.to_string();
-        for keyword in &keywords {
-            if result.contains(keyword) {
-                result = result.replace(keyword, &format!("{}{}{}", BLUE, keyword, RESET));
-            }
-        }
-        
-        result
+        context
     }
     
     /// Format the search summary with enhanced statistics
