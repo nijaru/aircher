@@ -12,6 +12,7 @@ categories = ["command-line-utilities", "development-tools"]
 [features]
 default = []
 testing = []
+benchmarks = ["hnswlib-rs", "testing"]
 
 [dependencies]
 # Async runtime
@@ -69,6 +70,7 @@ tokio-util = { version = "0.7", features = ["codec", "io"] }
 
 # Vector search and ML
 instant-distance = "0.6"
+hnswlib-rs = { version = "0.2", optional = true }
 rayon = "1.10"
 
 # Code parsing for better chunking
