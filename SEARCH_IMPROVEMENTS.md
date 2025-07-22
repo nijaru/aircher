@@ -1,6 +1,6 @@
 # Aircher Search Improvements Summary
 
-**Date**: 2025-07-21
+**Date**: 2025-07-22
 
 ## Completed Improvements
 
@@ -28,7 +28,9 @@
   - Complexity assessment (Simple/Moderate/Complex)
   - Specificity scoring (Low/Medium/High)
   - Helpful suggestions for improving queries
-- **Synonym Support**: Framework for query expansion
+- **Synonym Expansion**: Automatic expansion with related terms
+  - Example: "auth" → "authentication", "authorization", "login"
+- **Multi-Query Search**: Parallel execution with result deduplication
 - **Debug Mode**: Detailed analysis of query processing
 
 ### 4. Search Presets ✅
@@ -64,27 +66,30 @@
 ## Next Steps (Priority Order)
 
 ### High Priority
-1. **Migrate to hnswlib-rs**
-   - Expected 50-75% performance improvement
-   - Multithreaded index building
-   - Better tuning parameters
-   - Higher recall rates (0.92-0.99)
+1. **Clean Up Warnings**
+   - Remove ~190 compiler warnings
+   - Fix unused imports and dead code
+   - Improve code maintainability
+   - Essential for professional code quality
 
-2. **Implement Query Expansion**
-   - Use synonyms for automatic query expansion
-   - Search for related concepts automatically
-   - Improve recall for conceptual searches
+2. **Improve User Experience**
+   - Better error messages
+   - Enhanced help text
+   - Search history and favorites
+   - Interactive tutorials
 
 ### Medium Priority
-3. **Clean Up Warnings**
-   - Remove unused imports and dead code
-   - Fix visibility issues
-   - Improve code organization
-
-4. **Advanced Search Features**
+3. **Advanced Search Features**
    - Cross-file relationship detection
    - Import/dependency analysis
    - Architecture understanding
+   - Pattern recognition
+
+### Low Priority
+4. **Consider hnswlib-rs Migration**
+   - Current performance (0.02s) is already excellent
+   - Migration would provide marginal gains
+   - Focus on user-facing improvements first
 
 5. **Search History**
    - Track successful searches

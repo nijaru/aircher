@@ -380,7 +380,6 @@ impl Default for PresetManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_preset_creation() {

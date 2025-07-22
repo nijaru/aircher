@@ -6,7 +6,7 @@ use tracing::{debug, info};
 use crate::semantic_search::{SemanticCodeSearch};
 use crate::search_presets::{PresetManager, SearchPreset, SearchFilters};
 use crate::search_display::SearchResultDisplay;
-use crate::query_intelligence::{QueryIntelligence, QueryComplexity};
+use crate::query_intelligence::QueryIntelligence;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {

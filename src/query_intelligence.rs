@@ -1,6 +1,4 @@
-use anyhow::Result;
 use std::collections::HashMap;
-use tracing::{debug, info};
 
 /// Query intelligence for improving search queries
 pub struct QueryIntelligence {
