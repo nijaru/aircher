@@ -1,23 +1,22 @@
 use super::{VectorSearchBenchmark, BenchmarkConfig, BenchmarkResult};
 use anyhow::Result;
 use std::time::Instant;
-use instant_distance::Point; // For the distance method
 
 // Import our current vector search implementation
 use crate::vector_search::{VectorSearchEngine, EmbeddingVector};
 
-/// Benchmark implementation for instant-distance (our current library)
-pub struct InstantDistanceBenchmark {
+/// Benchmark implementation for hnswlib-rs (our current library)
+pub struct HnswlibRsBenchmark {
     dimension: usize,
 }
 
-impl InstantDistanceBenchmark {
+impl HnswlibRsBenchmark {
     pub fn new(dimension: usize) -> Self {
         Self { dimension }
     }
 }
 
-impl VectorSearchBenchmark for InstantDistanceBenchmark {
+impl VectorSearchBenchmark for HnswlibRsBenchmark {
     type Point = EmbeddingVector;
     type Index = VectorSearchEngine;
     type SearchResult = crate::vector_search::SearchResult;
@@ -57,7 +56,13 @@ impl VectorSearchBenchmark for InstantDistanceBenchmark {
     }
     
     fn get_point_distance(&self, p1: &Self::Point, p2: &Self::Point) -> f32 {
-        p1.distance(p2)
+        // Calculate cosine distance manually
+        let dot_product: f32 = p1.0.iter().zip(p2.0.iter()).map(|(a, b)| a * b).sum();
+        let norm_p1: f32 = p1.0.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let norm_p2: f32 = p2.0.iter().map(|x| x * x).sum::<f32>().sqrt();
+        
+        // Cosine distance = 1 - cosine similarity
+        1.0 - (dot_product / (norm_p1 * norm_p2))
     }
 }
 
@@ -76,7 +81,7 @@ pub fn generate_test_data(count: usize, dimension: usize) -> Vec<EmbeddingVector
         .collect()
 }
 
-/// Run a quick benchmark of our current instant-distance implementation
+/// Run a quick benchmark of our current hnswlib-rs implementation
 pub async fn benchmark_current_implementation() -> Result<BenchmarkResult> {
     let config = BenchmarkConfig {
         name: "Aircher Current Implementation".to_string(),
@@ -90,8 +95,8 @@ pub async fn benchmark_current_implementation() -> Result<BenchmarkResult> {
     let test_data = generate_test_data(config.vector_count, config.dimension);
     let query_data = generate_test_data(config.search_queries, config.dimension);
     
-    println!("🚀 Benchmarking instant-distance implementation...");
-    let benchmark = InstantDistanceBenchmark::new(config.dimension);
+    println!("🚀 Benchmarking hnswlib-rs implementation...");
+    let benchmark = HnswlibRsBenchmark::new(config.dimension);
     
     // Build index and measure time
     let construction_start = Instant::now();
@@ -125,7 +130,7 @@ pub async fn benchmark_current_implementation() -> Result<BenchmarkResult> {
     
     let result = BenchmarkResult {
         config,
-        library_name: "instant-distance".to_string(),
+        library_name: "hnswlib-rs".to_string(),
         index_construction_time: construction_time,
         search_times,
         memory_usage_mb: memory_usage,
@@ -150,12 +155,12 @@ mod tests {
     }
     
     #[tokio::test]
-    async fn test_instant_distance_benchmark() {
+    async fn test_hnswlib_rs_benchmark() {
         let result = benchmark_current_implementation().await;
         assert!(result.is_ok());
         
         let benchmark_result = result.unwrap();
-        assert_eq!(benchmark_result.library_name, "instant-distance");
+        assert_eq!(benchmark_result.library_name, "hnswlib-rs");
         assert!(benchmark_result.index_construction_time.as_secs() < 60); // Should be fast for 1000 vectors
     }
 }

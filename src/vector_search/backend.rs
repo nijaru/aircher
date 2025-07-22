@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
-use super::{EmbeddingVector, ChunkMetadata, SearchResult, SearchFilter};
+use super::{ChunkMetadata, SearchResult, SearchFilter};
 
 /// Abstract vector search backend interface
 pub trait VectorSearchBackend: Send + Sync {
@@ -46,56 +46,3 @@ pub struct IndexStats {
     pub index_built: bool,
 }
 
-/// Vector search backend type selection
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VectorBackend {
-    InstantDistance,
-    #[cfg(feature = "hnswlib-rs")]
-    HnswRs,
-}
-
-impl VectorBackend {
-    /// Get the default backend based on available features
-    pub fn default() -> Self {
-        #[cfg(feature = "hnswlib-rs")]
-        return VectorBackend::HnswRs;
-        
-        #[cfg(not(feature = "hnswlib-rs"))]
-        VectorBackend::InstantDistance
-    }
-    
-    /// Get backend name as string
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            VectorBackend::InstantDistance => "instant-distance",
-            #[cfg(feature = "hnswlib-rs")]
-            VectorBackend::HnswRs => "hnswlib-rs",
-        }
-    }
-    
-    /// Parse backend from string
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "instant-distance" => Some(VectorBackend::InstantDistance),
-            #[cfg(feature = "hnswlib-rs")]
-            "hnswlib-rs" | "hnsw-rs" => Some(VectorBackend::HnswRs),
-            _ => None,
-        }
-    }
-    
-    /// Get all available backends
-    pub fn available_backends() -> Vec<VectorBackend> {
-        let mut backends = vec![VectorBackend::InstantDistance];
-        
-        #[cfg(feature = "hnswlib-rs")]
-        backends.push(VectorBackend::HnswRs);
-        
-        backends
-    }
-}
-
-impl std::fmt::Display for VectorBackend {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}

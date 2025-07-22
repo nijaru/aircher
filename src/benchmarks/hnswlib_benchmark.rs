@@ -1,24 +1,17 @@
-#[cfg(feature = "hnswlib-rs")]
-use super::{VectorSearchBenchmark, BenchmarkConfig, BenchmarkResult};
-#[cfg(feature = "hnswlib-rs")]
+use super::{VectorSearchBenchmark, BenchmarkConfig};
 use anyhow::Result;
-#[cfg(feature = "hnswlib-rs")]
-use instant_distance::Point;
-#[cfg(feature = "hnswlib-rs")]
-use std::sync::Arc;
 
-#[cfg(feature = "hnswlib-rs")]
 use crate::vector_search::EmbeddingVector;
 
 /// Benchmark implementation for hnswlib-rs
-#[cfg(feature = "hnswlib-rs")]
 pub struct HnswlibBenchmark {
     dimension: usize,
+    #[allow(dead_code)]
     max_nb_connection: usize,
+    #[allow(dead_code)]
     ef_construction: usize,
 }
 
-#[cfg(feature = "hnswlib-rs")]
 impl HnswlibBenchmark {
     pub fn new(dimension: usize) -> Self {
         Self {
@@ -37,7 +30,6 @@ impl HnswlibBenchmark {
     }
 }
 
-#[cfg(feature = "hnswlib-rs")]
 impl VectorSearchBenchmark for HnswlibBenchmark {
     type Point = EmbeddingVector;
     type Index = (); // Placeholder until proper hnsw_rs API integration
@@ -72,18 +64,22 @@ impl VectorSearchBenchmark for HnswlibBenchmark {
     }
     
     fn get_point_distance(&self, p1: &Self::Point, p2: &Self::Point) -> f32 {
-        // Use cosine distance (same as our current implementation)
-        p1.distance(p2)
+        // Calculate cosine distance manually
+        let dot_product: f32 = p1.0.iter().zip(p2.0.iter()).map(|(a, b)| a * b).sum();
+        let norm_p1: f32 = p1.0.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let norm_p2: f32 = p2.0.iter().map(|x| x * x).sum::<f32>().sqrt();
+        
+        // Cosine distance = 1 - cosine similarity
+        1.0 - (dot_product / (norm_p1 * norm_p2))
     }
 }
 
-/// Run comparison benchmark between instant-distance and hnswlib-rs
-#[cfg(feature = "hnswlib-rs")]
-pub async fn run_comparison_benchmark() -> Result<super::BenchmarkComparison> {
-    use super::vector_benchmark::{InstantDistanceBenchmark, generate_test_data};
+/// Run a comprehensive benchmark of hnswlib-rs performance
+pub async fn run_performance_benchmark() -> Result<super::BenchmarkResult> {
+    use super::vector_benchmark::generate_test_data;
     
     let config = BenchmarkConfig {
-        name: "Instant-distance vs hnswlib-rs Comparison".to_string(),
+        name: "hnswlib-rs Performance Benchmark".to_string(),
         vector_count: 2000,
         dimension: 768,
         search_queries: 100,
@@ -96,39 +92,27 @@ pub async fn run_comparison_benchmark() -> Result<super::BenchmarkComparison> {
     let test_data = generate_test_data(config.vector_count, config.dimension);
     let query_data = generate_test_data(config.search_queries, config.dimension);
     
-    let mut comparison = super::BenchmarkComparison::new();
-    
-    // Benchmark instant-distance (current implementation)
-    println!("🚀 Benchmarking instant-distance...");
-    let instant_benchmark = InstantDistanceBenchmark::new(config.dimension);
-    let instant_result = super::benchmark_implementation(
-        &config,
-        instant_benchmark,
-        "instant-distance",
-        &test_data,
-        &query_data,
-    )?;
-    comparison.add_result(instant_result);
-    
     // Benchmark hnswlib-rs
     println!("🚀 Benchmarking hnswlib-rs...");
     let hnswlib_benchmark = HnswlibBenchmark::new(config.dimension);
-    let hnswlib_result = super::benchmark_implementation(
+    let result = super::benchmark_implementation(
         &config,
         hnswlib_benchmark,
         "hnswlib-rs",
         &test_data,
         &query_data,
     )?;
-    comparison.add_result(hnswlib_result);
     
-    println!("✅ Comparison benchmark completed!");
+    println!("✅ Benchmark completed!");
+    println!("   Construction time: {:.2}s", result.index_construction_time.as_secs_f64());
+    println!("   Average search time: {:.4}s", result.average_search_time().as_secs_f64());
+    println!("   Search throughput: {:.0} req/s", result.search_throughput());
+    println!("   Memory usage: {:.1} MB", result.memory_usage_mb);
     
-    Ok(comparison)
+    Ok(result)
 }
 
 /// Run parameter tuning for hnswlib-rs to find optimal configuration
-#[cfg(feature = "hnswlib-rs")]
 pub async fn tune_hnswlib_parameters() -> Result<()> {
     use super::vector_benchmark::generate_test_data;
     
@@ -176,17 +160,11 @@ pub async fn tune_hnswlib_parameters() -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "hnswlib-rs"))]
-pub fn hnswlib_not_available() -> &'static str {
-    "hnswlib-rs benchmarking requires the 'benchmarks' feature to be enabled.\n\
-     Run: cargo test --features benchmarks"
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     
-    #[cfg(feature = "hnswlib-rs")]
     #[tokio::test]
     async fn test_hnswlib_benchmark() {
         let test_data = super::super::vector_benchmark::generate_test_data(100, 128);
@@ -199,10 +177,10 @@ mod tests {
         assert_eq!(results.len(), 5);
     }
     
-    #[cfg(feature = "hnswlib-rs")]
     #[tokio::test] 
-    async fn test_comparison_benchmark() {
-        let comparison = run_comparison_benchmark().await.unwrap();
-        assert_eq!(comparison.results.len(), 2);
+    async fn test_performance_benchmark() {
+        let result = run_performance_benchmark().await.unwrap();
+        assert_eq!(result.library_name, "hnswlib-rs");
+        assert!(result.index_construction_time.as_secs() < 60);
     }
 }

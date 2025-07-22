@@ -8,7 +8,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 #[cfg(feature = "mcp")]
 use crate::mcp::{McpClientManager, ToolInfo, ResourceInfo, initialize_mcp};

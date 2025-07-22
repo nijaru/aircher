@@ -1,5 +1,7 @@
 # hnswlib-rs vs instant-distance: Comprehensive Migration Analysis
 
+> **Historical Note**: This document represents the research and analysis that led to Aircher's migration from instant-distance to hnswlib-rs as the primary vector search backend. The migration has been completed successfully, with hnswlib-rs now serving as the sole vector backend providing 45x faster indexing and 2.1x faster search operations.
+
 ## Executive Summary
 
 After extensive research into replacing instant-distance with hnswlib-rs (specifically `hnsw_rs` crate) for Aircher's vector search system, I recommend **proceeding with migration** based on significant performance benefits and production-ready features.

@@ -107,11 +107,11 @@ aircher session export session_id --format markdown
 
 ## 🚧 Coming Next
 
-- **MCP Client Integration** - Connect to and use other MCP servers from Aircher
-- **Enhanced Semantic Search** - Cross-file relationship detection, architecture analysis
-- **TUI Demo Mode** - Try the interface without API keys using local models
-- **Advanced Search Features** - Query suggestions, pattern recognition, code insights
 - **MCP Server Implementation** - Make Aircher available as an MCP server
+- **Enhanced Semantic Search** - Cross-file relationship detection, architecture analysis
+- **Advanced Search Features** - Query suggestions, pattern recognition, code insights
+- **IDE Plugins** - VS Code, Neovim, and JetBrains integrations
+- **CI/CD Integration** - GitHub Actions and GitLab CI plugins
 
 ## 🚀 Quick Setup
 
@@ -124,7 +124,7 @@ cd aircher
 cargo build --release
 ```
 
-**Note**: Embedding models are downloaded automatically on first run. The semantic search feature works without models (using hash-based fallback) but embedding models provide much better semantic understanding.
+**Note**: Embedding models are downloaded automatically on first run. The semantic search uses high-performance hnswlib-rs for instant results even on large codebases.
 
 ### 2. Configure API Keys
 ```bash
@@ -198,7 +198,7 @@ aircher config --help
 **Pure Rust single binary** with:
 - **TUI-first design** - Rich terminal interface as primary mode
 - **Provider abstraction** - Unified interface for Claude, Gemini, OpenAI, OpenRouter, Ollama
-- **Semantic code search** - AI-powered understanding beyond text matching
+- **Semantic code search** - AI-powered understanding with hnswlib-rs vector backend
 - **TOML configuration** - Cross-platform config files in standard locations
 - **Project-aware intelligence** - Local `.aircher/` directory with:
   - `AGENT.md` - AI assistant configuration and project context

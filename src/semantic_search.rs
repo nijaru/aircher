@@ -9,7 +9,7 @@ use crate::cost::{EmbeddingManager, EmbeddingConfig};
 use crate::vector_search::{VectorSearchEngine, ChunkMetadata, ChunkType as VectorChunkType};
 use crate::code_chunking::{CodeChunker, ChunkType as CodeChunkType};
 
-/// Semantic code search using embeddings and instant-distance HNSW
+/// Semantic code search using embeddings and hnswlib-rs vector backend
 pub struct SemanticCodeSearch {
     embedding_manager: EmbeddingManager,
     vector_search: VectorSearchEngine,
@@ -720,8 +720,8 @@ impl SemanticCodeSearch {
             let _removed_file = self.indexed_files.remove(index);
             
             // Remove embeddings from vector search
-            // Note: Current instant-distance implementation doesn't support removal
-            // For now we'll rebuild the index when needed
+            // Note: Current implementation requires index rebuild for removal
+            // This is handled efficiently during the next index operation
             info!("Removed file from index: {:?}", file_path);
             Ok(true)
         } else {
