@@ -9,7 +9,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
     Frame, Terminal,
 };
 use std::io::stdout;
@@ -506,7 +506,16 @@ impl TuiManager {
                                 if self.autocomplete.is_visible() {
                                     self.autocomplete.move_selection_down();
                                 } else {
-                                    self.scroll_offset += 1;
+                                    // Limit scroll to available messages
+                                    let visible_height = 20; // Approximate, could be calculated more precisely
+                                    let max_scroll = if self.messages.len() > visible_height {
+                                        (self.messages.len() - visible_height) as u16
+                                    } else {
+                                        0
+                                    };
+                                    if self.scroll_offset < max_scroll {
+                                        self.scroll_offset += 1;
+                                    }
                                 }
                             }
                             KeyCode::Left => {
@@ -681,10 +690,29 @@ impl TuiManager {
             })
             .collect();
 
-        let messages_list =
-            List::new(messages).block(Block::default().borders(Borders::ALL).title("Chat"));
+        // Clean list without borders - like Claude Code's clean chat
+        let messages_list = List::new(messages)
+            .block(Block::default())
+            .style(Style::default());
 
-        f.render_widget(messages_list, area);
+        // Implement scrolling
+        let mut state = ListState::default();
+        if !self.messages.is_empty() {
+            // Calculate which message should be at the top based on scroll_offset
+            let visible_height = area.height as usize;
+            let total_messages = self.messages.len();
+            
+            if total_messages > visible_height {
+                // Auto-scroll to bottom unless user has scrolled up
+                let max_scroll = total_messages.saturating_sub(visible_height);
+                let actual_scroll = (max_scroll as u16).saturating_sub(self.scroll_offset);
+                state.select(Some(actual_scroll as usize));
+            } else {
+                state.select(Some(0));
+            }
+        }
+
+        f.render_stateful_widget(messages_list, area, &mut state);
     }
 
     fn draw_input_box(&self, f: &mut Frame, area: Rect) {
