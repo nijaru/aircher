@@ -122,13 +122,16 @@ impl AutocompleteEngine {
         self.suggestions.clear();
         self.selected_index = 0;
         
+        // Bounds check cursor position
+        let safe_cursor_position = cursor_position.min(input.len());
+        
         // Debug logging
-        debug!("Generating suggestions for input: '{}', cursor: {}", input, cursor_position);
+        debug!("Generating suggestions for input: '{}', cursor: {} (safe: {})", input, cursor_position, safe_cursor_position);
         
         // Special case: show slash commands immediately when typing /
-        if input.trim() == "/" {
-            debug!("Showing slash commands for '/'");
-            self.add_command_suggestions("/");
+        if input == "/" || input.starts_with('/') {
+            debug!("Showing slash commands for '{}'", input);
+            self.add_command_suggestions(input);
             self.is_visible = !self.suggestions.is_empty();
             debug!("Generated {} slash command suggestions", self.suggestions.len());
             return Ok(());
@@ -139,8 +142,8 @@ impl AutocompleteEngine {
             return Ok(());
         }
         
-        let current_word = self.get_current_word(input, cursor_position);
-        let prefix = &input[..cursor_position];
+        let current_word = self.get_current_word(input, safe_cursor_position);
+        let prefix = &input[..safe_cursor_position];
         
         // Generate different types of suggestions
         self.add_command_suggestions(&current_word);
@@ -162,7 +165,14 @@ impl AutocompleteEngine {
     }
     
     fn get_current_word(&self, input: &str, cursor_position: usize) -> String {
-        let before_cursor = &input[..cursor_position];
+        // Ensure cursor position is within bounds
+        let safe_cursor_position = cursor_position.min(input.len());
+        
+        if safe_cursor_position == 0 {
+            return String::new();
+        }
+        
+        let before_cursor = &input[..safe_cursor_position];
         
         // Find the start of the current word
         let word_start = before_cursor.rfind(|c: char| c.is_whitespace() || c == '/')
@@ -397,14 +407,28 @@ impl AutocompleteEngine {
         // For slash commands, render in a more compact style below the input
         let first_suggestion = &self.suggestions[0];
         if first_suggestion.suggestion_type == SuggestionType::Command {
-            // Calculate popup area (below the input box, like Claude Code)
+            // Calculate popup area (above the input box to avoid overflow)
             let popup_height = (self.suggestions.len() as u16).min(8) + 1;
+            
+            // Ensure we don't go out of bounds - position above input if necessary
+            let popup_y = if area.y >= popup_height {
+                area.y.saturating_sub(popup_height)
+            } else {
+                // If no space above, show at top of screen
+                0
+            };
+            
             let popup_area = Rect {
                 x: area.x,
-                y: area.y + area.height,
+                y: popup_y,
                 width: area.width.min(60),
-                height: popup_height,
+                height: popup_height.min(area.y), // Don't exceed available space
             };
+            
+            // Don't render if no space available
+            if popup_area.height == 0 {
+                return;
+            }
             
             // Create suggestion items in a compact format
             let items: Vec<ListItem> = self.suggestions
@@ -488,5 +512,81 @@ impl AutocompleteEngine {
 impl Default for AutocompleteEngine {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_autocomplete_engine_creation() {
+        let engine = AutocompleteEngine::new();
+        assert!(!engine.is_visible);
+        assert_eq!(engine.selected_index, 0);
+        assert!(engine.suggestions.is_empty());
+        assert!(!engine.common_patterns.is_empty());
+    }
+
+    #[test]
+    fn test_slash_command_suggestions() {
+        let mut engine = AutocompleteEngine::new();
+        
+        // Test slash command detection
+        engine.generate_suggestions("/h", 2);
+        assert!(engine.is_visible);
+        assert!(!engine.suggestions.is_empty());
+        
+        // Should contain help command
+        assert!(engine.suggestions.iter().any(|s| 
+            s.completion.contains("/help") && s.suggestion_type == SuggestionType::Command
+        ));
+    }
+
+    #[test]
+    fn test_common_phrase_suggestions() {
+        let mut engine = AutocompleteEngine::new();
+        
+        // Test partial word matching
+        engine.generate_suggestions("fi", 2);
+        
+        // Should have suggestions for "fix"
+        assert!(engine.suggestions.iter().any(|s| 
+            s.text.starts_with("fix") && s.suggestion_type == SuggestionType::CommonPhrase
+        ));
+    }
+
+    #[test]
+    fn test_suggestion_selection() {
+        let mut engine = AutocompleteEngine::new();
+        engine.generate_suggestions("/h", 2);
+        
+        if !engine.suggestions.is_empty() {
+            // Test navigation
+            let initial_index = engine.selected_index;
+            engine.move_selection_down();
+            assert_eq!(engine.selected_index, (initial_index + 1) % engine.suggestions.len());
+            
+            engine.move_selection_up();
+            assert_eq!(engine.selected_index, initial_index);
+            
+            // Test accepting suggestion
+            let completion = engine.accept_suggestion();
+            assert!(completion.is_some());
+            assert!(!engine.is_visible);
+        }
+    }
+
+    #[test]
+    fn test_visibility_control() {
+        let mut engine = AutocompleteEngine::new();
+        
+        assert!(!engine.is_visible);
+        
+        engine.generate_suggestions("/test", 2);
+        // Should be visible if suggestions were generated
+        
+        engine.hide();
+        assert!(!engine.is_visible);
     }
 }

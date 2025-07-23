@@ -7,6 +7,11 @@ pub struct SlashCommand {
 
 pub const SLASH_COMMANDS: &[SlashCommand] = &[
     SlashCommand {
+        command: "/init",
+        description: "Initialize project with AGENT.md configuration",
+        aliases: &[],
+    },
+    SlashCommand {
         command: "/model",
         description: "Select model/provider (Tab to switch modes)",
         aliases: &["/m"],
@@ -107,10 +112,82 @@ pub fn format_help() -> Vec<String> {
     }
     
     lines.push(String::new());
-    lines.push("Tips:".to_string());
+    lines.push("Keyboard Shortcuts:".to_string());
     lines.push("  • Type / to see command suggestions".to_string());
-    lines.push("  • Use Tab to autocomplete commands".to_string());
-    lines.push("  • Press F2 for settings".to_string());
+    lines.push("  • Alt+Enter (or Shift+Enter) for newlines".to_string());
+    lines.push("  • Ctrl+C to clear input, Ctrl+C again to quit".to_string());
+    lines.push("  • Tab to autocomplete commands".to_string());
+    lines.push("  • Shift+Tab to cycle modes (auto-accept, plan mode)".to_string());
+    lines.push("  • F1 for help, F2 for settings".to_string());
+    
+    lines.push(String::new());
+    lines.push("Modes:".to_string());
+    lines.push("  • Default: Prompt before making file changes".to_string());
+    lines.push("  • Auto-accept: Apply file changes automatically".to_string());
+    lines.push("  • Plan mode: Build execution plans before changes".to_string());
     
     lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_slash_command_parsing() {
+        // Valid commands
+        assert_eq!(parse_slash_command("/help"), Some(("/help", "")));
+        assert_eq!(parse_slash_command("/model gpt-4"), Some(("/model", "gpt-4")));
+        assert_eq!(parse_slash_command("/search test query"), Some(("/search", "test query")));
+        
+        // Aliases  
+        assert_eq!(parse_slash_command("/h"), Some(("/help", "")));
+        assert_eq!(parse_slash_command("/m claude"), Some(("/model", "claude")));
+        assert_eq!(parse_slash_command("/s find this"), Some(("/search", "find this")));
+        
+        // Invalid commands
+        assert_eq!(parse_slash_command("/unknown"), None);
+        assert_eq!(parse_slash_command("not a command"), None);
+        assert_eq!(parse_slash_command(""), None);
+    }
+
+    #[test]
+    fn test_command_suggestions() {
+        let suggestions = get_command_suggestions("/h");
+        assert!(!suggestions.is_empty());
+        assert!(suggestions.iter().any(|s| s.command == "/help"));
+        
+        let suggestions = get_command_suggestions("/m");
+        assert!(suggestions.iter().any(|s| s.command == "/model"));
+        
+        let suggestions = get_command_suggestions("/se");
+        assert!(suggestions.iter().any(|s| s.command == "/search"));
+        
+        // No suggestions for non-slash input
+        let suggestions = get_command_suggestions("test");
+        assert!(suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_help_formatting() {
+        let help_lines = format_help();
+        assert!(!help_lines.is_empty());
+        
+        // Should contain available commands header
+        assert!(help_lines.iter().any(|line| line.contains("Available commands")));
+        
+        // Should contain some known commands
+        assert!(help_lines.iter().any(|line| line.contains("/help")));
+        assert!(help_lines.iter().any(|line| line.contains("/model")));
+        assert!(help_lines.iter().any(|line| line.contains("/search")));
+        
+        // Should contain keyboard shortcuts section
+        assert!(help_lines.iter().any(|line| line.contains("Keyboard Shortcuts")));
+        assert!(help_lines.iter().any(|line| line.contains("Shift+Tab")));
+        
+        // Should contain modes section
+        assert!(help_lines.iter().any(|line| line.contains("Modes:")));
+        assert!(help_lines.iter().any(|line| line.contains("Auto-accept")));
+        assert!(help_lines.iter().any(|line| line.contains("Plan mode")));
+    }
 }

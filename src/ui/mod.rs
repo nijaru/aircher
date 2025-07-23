@@ -14,6 +14,7 @@ use ratatui::{
 };
 use std::io::stdout;
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, info};
 
@@ -81,6 +82,18 @@ pub struct TuiManager {
     budget_warning_shown: bool,
     cost_warnings: Vec<String>,
     should_quit: bool,
+    // Loading animation
+    is_loading: bool,
+    loading_start_time: Option<Instant>,
+    loading_symbols: Vec<&'static str>,
+    // Ctrl+C handling
+    last_ctrl_c_time: Option<Instant>,
+    // UI modes
+    auto_accept_edits: bool,
+    plan_mode: bool,
+    // Message history
+    message_history: Vec<String>,
+    history_index: Option<usize>,
 }
 
 impl TuiManager {
@@ -193,6 +206,17 @@ impl TuiManager {
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
             should_quit: false,
+            // Initialize loading animation with archer-themed symbols
+            is_loading: false,
+            loading_start_time: None,
+            loading_symbols: vec!["➤", "🎯", "⟳"], // Archer-themed rotating symbols
+            // Initialize Ctrl+C handling
+            last_ctrl_c_time: None,
+            // Initialize UI modes (session-based, reset on restart)
+            auto_accept_edits: false,
+            plan_mode: false,
+            message_history: Vec::new(),
+            history_index: None,
         })
     }
 
@@ -298,6 +322,17 @@ impl TuiManager {
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
             should_quit: false,
+            // Initialize loading animation with archer-themed symbols
+            is_loading: false,
+            loading_start_time: None,
+            loading_symbols: vec!["➤", "🎯", "⟳"], // Archer-themed rotating symbols
+            // Initialize Ctrl+C handling
+            last_ctrl_c_time: None,
+            // Initialize UI modes (session-based, reset on restart)
+            auto_accept_edits: false,
+            plan_mode: false,
+            message_history: Vec::new(),
+            history_index: None,
         })
     }
 
@@ -343,7 +378,26 @@ impl TuiManager {
                             KeyCode::Char('c')
                                 if key.modifiers.contains(KeyModifiers::CONTROL) =>
                             {
-                                break;
+                                // 2-stage Ctrl+C like Claude Code: first clears input, second quits
+                                let now = Instant::now();
+                                if let Some(last_time) = self.last_ctrl_c_time {
+                                    // If less than 2 seconds since last Ctrl+C, quit
+                                    if now.duration_since(last_time) < Duration::from_secs(2) {
+                                        break;
+                                    }
+                                }
+                                
+                                // First Ctrl+C or too much time passed
+                                if !self.input.is_empty() {
+                                    // Clear input if there's text
+                                    self.input.clear();
+                                    self.cursor_position = 0;
+                                    self.autocomplete.hide();
+                                    self.last_ctrl_c_time = Some(now);
+                                } else {
+                                    // No text to clear, quit immediately
+                                    break;
+                                }
                             }
                             KeyCode::F(1) => {
                                 self.help_modal.toggle();
@@ -352,11 +406,16 @@ impl TuiManager {
                                 self.settings_modal.toggle();
                             }
                             KeyCode::Tab => {
-                                self.selection_modal.toggle();
+                                // Shift+Tab cycles modes, regular Tab opens selection modal
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    self.cycle_modes();
+                                } else {
+                                    self.selection_modal.toggle();
+                                }
                             }
                             KeyCode::Enter => {
-                                // Check if Shift+Enter was pressed for newline
-                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                // Check if Alt+Enter or Shift+Enter was pressed for newline
+                                if key.modifiers.contains(KeyModifiers::ALT) || key.modifiers.contains(KeyModifiers::SHIFT) {
                                     // Add newline to input
                                     self.input.insert(self.cursor_position, '\n');
                                     self.cursor_position += 1;
@@ -371,10 +430,32 @@ impl TuiManager {
                                     self.input.clear();
                                     self.cursor_position = 0;
                                     
+                                    // Add to message history (but not duplicates of the last message)
+                                    if self.message_history.is_empty() || 
+                                       self.message_history.last() != Some(&message) {
+                                        self.message_history.push(message.clone());
+                                        // Keep history size reasonable (e.g., last 1000 messages)
+                                        if self.message_history.len() > 1000 {
+                                            self.message_history.remove(0);
+                                        }
+                                    }
+                                    // Reset history navigation
+                                    self.history_index = None;
+                                    
                                     debug!("Processing user message: '{}'", message);
 
+                                    // Check for help shortcut
+                                    if message.trim() == "?" {
+                                        // Show help
+                                        for line in format_help() {
+                                            self.messages.push(Message::new(
+                                                MessageRole::System,
+                                                line,
+                                            ));
+                                        }
+                                    }
                                     // Check for slash commands
-                                    if let Some((command, args)) = parse_slash_command(&message) {
+                                    else if let Some((command, args)) = parse_slash_command(&message) {
                                         match command {
                                             "/model" => {
                                                 self.model_selection_overlay.show();
@@ -395,6 +476,14 @@ impl TuiManager {
                                                     self.messages.push(Message::new(
                                                         MessageRole::System,
                                                         "Usage: /search <query>".to_string(),
+                                                    ));
+                                                }
+                                            }
+                                            "/init" => {
+                                                if let Err(e) = self.handle_init_command().await {
+                                                    self.messages.push(Message::new(
+                                                        MessageRole::System,
+                                                        format!("Init failed: {}", e),
                                                     ));
                                                 }
                                             }
@@ -425,11 +514,20 @@ impl TuiManager {
                                                 ));
                                             }
                                             "/compact" => {
-                                                // TODO: Implement conversation compaction
-                                                self.messages.push(Message::new(
-                                                    MessageRole::System,
-                                                    "Conversation compaction coming soon!".to_string(),
-                                                ));
+                                                // Store custom instructions if provided
+                                                if !args.is_empty() {
+                                                    self.messages.push(Message::new(
+                                                        MessageRole::System,
+                                                        format!("Compaction with instructions: {}", args),
+                                                    ));
+                                                    // TODO: Implement conversation compaction with custom instructions
+                                                    // These instructions can be added to context after compaction
+                                                } else {
+                                                    self.messages.push(Message::new(
+                                                        MessageRole::System,
+                                                        "Usage: /compact [custom instructions]".to_string(),
+                                                    ));
+                                                }
                                             }
                                             "/quit" => {
                                                 self.should_quit = true;
@@ -484,6 +582,12 @@ impl TuiManager {
                                 self.input.insert(self.cursor_position, c);
                                 self.cursor_position += 1;
                                 
+                                // Reset Ctrl+C timer when user starts typing
+                                self.last_ctrl_c_time = None;
+                                
+                                // Reset history navigation when user types
+                                self.history_index = None;
+                                
                                 // Generate autocomplete suggestions
                                 let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
                             }
@@ -491,6 +595,9 @@ impl TuiManager {
                                 if self.cursor_position > 0 {
                                     self.input.remove(self.cursor_position - 1);
                                     self.cursor_position -= 1;
+                                    
+                                    // Reset Ctrl+C timer when user edits
+                                    self.last_ctrl_c_time = None;
                                     
                                     // Update autocomplete suggestions
                                     if self.input.is_empty() {
@@ -503,23 +610,40 @@ impl TuiManager {
                             KeyCode::Up => {
                                 if self.autocomplete.is_visible() {
                                     self.autocomplete.move_selection_up();
-                                } else if self.scroll_offset > 0 {
-                                    self.scroll_offset -= 1;
+                                } else if !self.message_history.is_empty() {
+                                    // Navigate through message history
+                                    match self.history_index {
+                                        None => {
+                                            // Start from the most recent message
+                                            self.history_index = Some(self.message_history.len() - 1);
+                                            self.input = self.message_history[self.message_history.len() - 1].clone();
+                                            self.cursor_position = self.input.len();
+                                        }
+                                        Some(idx) if idx > 0 => {
+                                            // Go to older message
+                                            self.history_index = Some(idx - 1);
+                                            self.input = self.message_history[idx - 1].clone();
+                                            self.cursor_position = self.input.len();
+                                        }
+                                        _ => {} // Already at oldest message
+                                    }
                                 }
                             }
                             KeyCode::Down => {
                                 if self.autocomplete.is_visible() {
                                     self.autocomplete.move_selection_down();
-                                } else {
-                                    // Limit scroll to available messages
-                                    let visible_height = 20; // Approximate, could be calculated more precisely
-                                    let max_scroll = if self.messages.len() > visible_height {
-                                        (self.messages.len() - visible_height) as u16
+                                } else if let Some(idx) = self.history_index {
+                                    // Navigate through message history
+                                    if idx < self.message_history.len() - 1 {
+                                        // Go to newer message
+                                        self.history_index = Some(idx + 1);
+                                        self.input = self.message_history[idx + 1].clone();
+                                        self.cursor_position = self.input.len();
                                     } else {
-                                        0
-                                    };
-                                    if self.scroll_offset < max_scroll {
-                                        self.scroll_offset += 1;
+                                        // Reached the newest, clear input to allow new typing
+                                        self.history_index = None;
+                                        self.input.clear();
+                                        self.cursor_position = 0;
                                     }
                                 }
                             }
@@ -586,26 +710,26 @@ impl TuiManager {
             ])
             .split(f.area());
 
-        // Show welcome box and tip only when chat is empty
+        // Show welcome box only when chat is empty
         if self.messages.is_empty() {
             self.draw_welcome_box(f, chunks[0]);
-            self.draw_tip_line(f, chunks[1]);
         }
 
         // Chat area
-        let chat_area = if self.messages.is_empty() { chunks[2] } else { chunks[0] };
+        let chat_area = if self.messages.is_empty() { chunks[1] } else { chunks[0] };
         self.draw_chat_area(f, chat_area);
 
         // Input box area  
-        let input_area = if self.messages.is_empty() { chunks[3] } else { chunks[1] };
+        let input_area = if self.messages.is_empty() { chunks[2] } else { chunks[1] };
         self.draw_input_box(f, input_area);
 
         // Status line
-        let status_area = if self.messages.is_empty() { chunks[4] } else { chunks[2] };
+        let status_area = if self.messages.is_empty() { chunks[3] } else { chunks[2] };
         self.draw_status_bar(f, status_area);
 
-        // Render autocomplete suggestions
+        // Render autocomplete suggestions safely
         if self.autocomplete.is_visible() {
+            // Pass the input area but render above it
             self.autocomplete.render(f, input_area);
         }
 
@@ -641,6 +765,11 @@ impl TuiManager {
             ]),
             Line::from(""),
             Line::from(vec![
+                Span::styled("  Type ", Style::default().fg(Color::Rgb(107, 114, 128))), // Gray like tips
+                Span::styled("/", Style::default().fg(Color::Rgb(139, 92, 246))), // Purple highlight
+                Span::styled(" to see available commands", Style::default().fg(Color::Rgb(107, 114, 128))),
+            ]),
+            Line::from(vec![
                 Span::styled("  /help", Style::default().fg(Color::Rgb(139, 92, 246))), // Purple highlights
                 Span::styled(" for help, ", Style::default().fg(Color::Rgb(163, 136, 186))), // Low-sat purple like Claude's beige
                 Span::styled("/model", Style::default().fg(Color::Rgb(139, 92, 246))),
@@ -655,19 +784,6 @@ impl TuiManager {
         f.render_widget(welcome_paragraph, welcome_area);
     }
     
-    fn draw_tip_line(&self, f: &mut Frame, area: Rect) {
-        // Tip line like Claude Code's "※ Tip: Hit shift+tab..."
-        let tip_text = Line::from(vec![
-            Span::styled(" ※ Tip: Type ", Style::default().fg(Color::Rgb(107, 114, 128))), // Gray like Claude's tips
-            Span::styled("/", Style::default().fg(Color::Rgb(139, 92, 246))),
-            Span::styled(" to see available commands", Style::default().fg(Color::Rgb(107, 114, 128))),
-        ]);
-        
-        let tip_paragraph = Paragraph::new(tip_text)
-            .alignment(Alignment::Left);
-        
-        f.render_widget(tip_paragraph, area);
-    }
 
     fn draw_chat_area(&self, f: &mut Frame, area: Rect) {
         let messages: Vec<ListItem> = self
@@ -735,7 +851,7 @@ impl TuiManager {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(3),    // Input box (expandable)
+                Constraint::Length(3), // Input box (fixed 3 lines max)
                 Constraint::Length(1), // Bottom info line
             ])
             .split(area);
@@ -769,7 +885,7 @@ impl TuiManager {
         // Handle multi-line input display or show placeholder
         if self.input.is_empty() && !self.autocomplete.is_visible() {
             // Show placeholder text in input box with padding
-            let placeholder = Paragraph::new("Type your message and press Enter")
+            let placeholder = Paragraph::new("Type your message and press Enter (Alt+Enter for newlines)")
                 .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Gray placeholder
                 .alignment(Alignment::Left);
             f.render_widget(placeholder, padded_area);
@@ -829,11 +945,22 @@ impl TuiManager {
             ])
             .split(area);
 
-        // Left side: shortcuts and help
+        // Left side: dynamic status based on conversation state and modes
         let shortcuts = if self.autocomplete.is_visible() {
-            "↑↓ navigate • Enter accept • Esc cancel"
+            "↑↓ navigate • Enter accept • Esc cancel".to_string()
+        } else if self.messages.is_empty() {
+            // Show help discovery when chat is empty
+            "? for shortcuts".to_string()
         } else {
-            "? for shortcuts • Shift+Enter for newlines | Ctrl+C to quit"
+            // Show current mode during conversation (like Claude Code)
+            if self.plan_mode {
+                "⏸ plan mode on (shift+tab to cycle)".to_string()
+            } else if self.auto_accept_edits {
+                "⏵⏵ auto-accept edits on (shift+tab to cycle)".to_string()
+            } else {
+                // Default mode - could show nothing or current state
+                "shift+tab to cycle modes".to_string()
+            }
         };
         
         // Add left padding to shortcuts like Claude Code
@@ -849,28 +976,78 @@ impl TuiManager {
             .alignment(Alignment::Left);
         f.render_widget(shortcuts_text, padded_shortcuts_area);
 
-        // Right side: model info and context usage
-        let mut right_parts = vec![];
+        // Right side: model info and context usage (responsive for narrow terminals)
         
-        // Model info
-        right_parts.push(format!("{} ({})", self.model, self.provider_name));
+        // Clean up model name (remove dates for status bar)
+        let clean_model_name = self.model
+            .replace("-20241022", "")
+            .replace("-20250104", "")
+            .replace("-20250114", "");
         
-        // Context usage percentage (if we have session data)
-        if self.session_tokens > 0 {
-            // Assume a reasonable context window (adjust based on actual model)
-            let estimated_context_window = 100000; // 100k tokens as example
-            let usage_percent = (self.session_tokens as f32 / estimated_context_window as f32 * 100.0).min(100.0);
-            right_parts.push(format!("{}% context", usage_percent as u32));
+        // Fix provider name mapping
+        let display_provider = match self.provider_name.as_str() {
+            "claude" => "anthropic",
+            provider => provider,
+        };
+        
+        // Context usage percentage - always show when not 100%, show 100% too for clarity
+        let estimated_context_window = match self.model.as_str() {
+            m if m.contains("gpt-4") => 128000,
+            m if m.contains("gpt-3.5") => 16000,
+            m if m.contains("claude-3-5-sonnet") => 200000,
+            m if m.contains("claude-3-opus") => 200000,
+            m if m.contains("claude-3-haiku") => 200000,
+            _ => 100000, // Default fallback
+        };
+        
+        let usage_percent = if self.session_tokens > 0 {
+            (self.session_tokens as f32 / estimated_context_window as f32 * 100.0).min(100.0)
+        } else {
+            0.0
+        };
+        
+        let remaining_percent = if usage_percent >= 100.0 {
+            0
+        } else {
+            ((1.0 - usage_percent / 100.0) * 100.0) as u32
+        };
+        
+        // Build right side with model info and context percentage
+        let mut parts: Vec<String> = Vec::new();
+        
+        // Model info (always show if space allows)
+        let available_width = chunks[1].width as usize;
+        if available_width >= 20 {
+            if available_width >= 40 {
+                // Full format
+                parts.push(format!("{} ({})", clean_model_name, display_provider));
+            } else {
+                // Compact format - just model name
+                parts.push(clean_model_name);
+            }
         }
         
-        // Cost if significant
-        if self.session_cost > 0.001 {
-            right_parts.push(format!("${:.3}", self.session_cost));
+        // Context percentage (always show)
+        parts.push(format!("{}%", remaining_percent));
+        
+        // Cost if significant and space allows
+        if self.session_cost > 0.001 && available_width >= 60 {
+            parts.push(format!("${:.3}", self.session_cost));
         }
         
-        let right_text = right_parts.join(" • ");
+        let right_text = parts.join(" • ");
+        
+        // Choose color based on context remaining - graduated warning system
+        let text_color = if remaining_percent < 5 {
+            Color::Red  // Critical red when very low
+        } else if remaining_percent < 20 {
+            Color::Rgb(255, 165, 0)  // Orange warning when low
+        } else {
+            Color::Rgb(107, 114, 128)  // Normal comment gray
+        };
+        
         let right_paragraph = Paragraph::new(right_text)
-            .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Comment gray
+            .style(Style::default().fg(text_color))
             .alignment(Alignment::Right);
         f.render_widget(right_paragraph, chunks[1]);
     }
@@ -878,6 +1055,12 @@ impl TuiManager {
     fn draw_status_bar(&self, f: &mut Frame, area: Rect) {
         // Simple status like Claude Code's bottom status (often empty unless there's an alert)
         let mut status_parts = vec![];
+        
+        // Loading indicator if active
+        if self.is_loading {
+            let loading_symbol = self.get_loading_symbol();
+            status_parts.push(format!("{} Processing...", loading_symbol));
+        }
         
         // Budget warning if applicable
         if let Some(limit) = self.config.global.budget_limit {
@@ -1117,6 +1300,9 @@ impl TuiManager {
     }
 
     async fn send_message(&mut self, message: String, providers: &ProviderManager) -> Result<()> {
+        // Start loading animation
+        self.start_loading();
+        
         // Ensure agent controller is initialized
         self.ensure_agent_initialized(providers).await?;
         
@@ -1154,6 +1340,8 @@ impl TuiManager {
                         self.session_manager.add_message(&session.id.to_string(), &session_message).await?;
                     }
                     
+                    // Stop loading animation
+                    self.stop_loading();
                     Ok(())
                 }
                 Err(e) => {
@@ -1249,10 +1437,14 @@ impl TuiManager {
                 }
             }
             Err(e) => {
+                // Stop loading animation on error
+                self.stop_loading();
                 return Err(e);
             }
         }
 
+        // Stop loading animation on success
+        self.stop_loading();
         Ok(())
     }
     
@@ -1682,7 +1874,7 @@ impl TuiManager {
         // Skip auth setup screen immediately
         self.show_auth_setup = false;
         
-        // Allow Ctrl+C to quit
+        // Allow Ctrl+C to quit (single press since no input to clear in auth screen)
         if matches!(key.code, KeyCode::Char('c')) && key.modifiers.contains(KeyModifiers::CONTROL) {
             return Ok(false);
         }
@@ -1781,20 +1973,6 @@ impl TuiManager {
                 .style(Style::default().fg(Color::DarkGray));
             f.render_widget(cwd_widget, welcome_chunks[4]);
             
-            // Tip below the welcome box
-            let tip_y = welcome_area.y + welcome_area.height + 1;
-            if tip_y < chunks[1].y + chunks[1].height - 1 {
-                let tip_area = Rect::new(chunks[1].x, tip_y, chunks[1].width, 1);
-                let tip = if self.providers.is_none() {
-                    " ※ Tip: Configure a provider with /config or F2"
-                } else {
-                    " ※ Tip: Use /model to change models, /search to explore code"
-                };
-                let tip_widget = Paragraph::new(tip)
-                    .style(Style::default().fg(Color::DarkGray))
-                    .alignment(Alignment::Center);
-                f.render_widget(tip_widget, tip_area);
-            }
         } else {
             // Draw normal chat area
             self.draw_chat_area(f, chunks[1]);
@@ -1829,6 +2007,188 @@ impl TuiManager {
             }
         }
         Ok(())
+    }
+
+    /// Start loading animation
+    pub fn start_loading(&mut self) {
+        self.is_loading = true;
+        self.loading_start_time = Some(Instant::now());
+    }
+
+    /// Stop loading animation
+    pub fn stop_loading(&mut self) {
+        self.is_loading = false;
+        self.loading_start_time = None;
+    }
+
+    /// Get current loading symbol based on elapsed time
+    pub fn get_loading_symbol(&self) -> &str {
+        if !self.is_loading || self.loading_start_time.is_none() {
+            return "";
+        }
+
+        let elapsed = self.loading_start_time.unwrap().elapsed();
+        let cycle_duration = Duration::from_millis(500); // Switch every 500ms
+        let symbol_index = (elapsed.as_millis() / cycle_duration.as_millis()) % self.loading_symbols.len() as u128;
+        
+        self.loading_symbols[symbol_index as usize]
+    }
+
+    /// Cycle through UI modes (like Claude Code's shift+tab)
+    fn cycle_modes(&mut self) {
+        if !self.plan_mode && !self.auto_accept_edits {
+            // Default -> Auto-accept
+            self.auto_accept_edits = true;
+            self.messages.push(Message::new(
+                MessageRole::System,
+                "⏵⏵ Auto-accept edits enabled. File changes will be applied automatically.".to_string(),
+            ));
+        } else if self.auto_accept_edits && !self.plan_mode {
+            // Auto-accept -> Plan mode
+            self.auto_accept_edits = false;
+            self.plan_mode = true;
+            self.messages.push(Message::new(
+                MessageRole::System,
+                "⏸ Plan mode enabled. Will create plans before making changes.".to_string(),
+            ));
+        } else {
+            // Plan mode -> Default
+            self.plan_mode = false;
+            self.auto_accept_edits = false;
+            self.messages.push(Message::new(
+                MessageRole::System,
+                "Default mode. Will prompt for approval before making changes.".to_string(),
+            ));
+        }
+    }
+
+    /// Handle /init command to create or update AGENT.md
+    async fn handle_init_command(&mut self) -> Result<()> {
+        self.messages.push(Message::new(
+            MessageRole::System,
+            "🎯 Analyzing your codebase to create AGENT.md configuration...".to_string(),
+        ));
+
+        // Check if AGENT.md already exists
+        let agent_path = if let Ok(path) = self._project_manager.get_agent_config_path() {
+            path
+        } else {
+            std::env::current_dir()?.join("AGENT.md")
+        };
+
+        if agent_path.exists() {
+            self.messages.push(Message::new(
+                MessageRole::System,
+                format!("✅ AGENT.md already exists at: {}", agent_path.display()),
+            ));
+            self.messages.push(Message::new(
+                MessageRole::System,
+                "Use your editor to customize it, or delete it to regenerate.".to_string(),
+            ));
+            return Ok(());
+        }
+
+        // Analyze the codebase
+        let project_root = std::env::current_dir()?;
+        let project_name = project_root
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        // Detect language and build tools
+        let (language, build_commands) = self.detect_project_setup(&project_root)?;
+
+        // Create AGENT.md content
+        let agent_content = self.generate_agent_md_content(&project_name, &language, &build_commands)?;
+
+        // Write AGENT.md
+        std::fs::write(&agent_path, agent_content)?;
+
+        self.messages.push(Message::new(
+            MessageRole::System,
+            format!("✅ Created AGENT.md at: {}", agent_path.display()),
+        ));
+        self.messages.push(Message::new(
+            MessageRole::System,
+            "This file will be automatically loaded in future sessions for consistent AI context.".to_string(),
+        ));
+
+        Ok(())
+    }
+
+    /// Detect project setup and build commands
+    fn detect_project_setup(&self, root: &std::path::Path) -> Result<(String, Vec<String>)> {
+        let mut language = "Unknown".to_string();
+        let mut build_commands = Vec::new();
+
+        // Detect language and build system
+        if root.join("Cargo.toml").exists() {
+            language = "Rust".to_string();
+            build_commands.push("cargo build".to_string());
+            build_commands.push("cargo test".to_string());
+            build_commands.push("cargo check".to_string());
+        } else if root.join("package.json").exists() {
+            language = "JavaScript/TypeScript".to_string();
+            build_commands.push("npm install".to_string());
+            build_commands.push("npm run build".to_string());
+            build_commands.push("npm test".to_string());
+        } else if root.join("requirements.txt").exists() || root.join("pyproject.toml").exists() {
+            language = "Python".to_string();
+            build_commands.push("pip install -r requirements.txt".to_string());
+            build_commands.push("python -m pytest".to_string());
+        } else if root.join("go.mod").exists() {
+            language = "Go".to_string();
+            build_commands.push("go build".to_string());
+            build_commands.push("go test ./...".to_string());
+        }
+
+        Ok((language, build_commands))
+    }
+
+    /// Generate AGENT.md content based on project analysis
+    fn generate_agent_md_content(&self, project_name: &str, language: &str, build_commands: &[String]) -> Result<String> {
+        let mut content = String::new();
+        
+        content.push_str(&format!("# {} Agent Configuration\n\n", project_name));
+        content.push_str("This file provides context and instructions for AI agents working with this project.\n\n");
+        
+        content.push_str("## Project Overview\n\n");
+        content.push_str(&format!("{} is a {} project.\n\n", project_name, language));
+        
+        if !build_commands.is_empty() {
+            content.push_str("## Build Commands\n\n");
+            for cmd in build_commands {
+                content.push_str(&format!("- `{}`\n", cmd));
+            }
+            content.push_str("\n");
+        }
+        
+        content.push_str("## Development Guidelines\n\n");
+        content.push_str("### Code Quality\n");
+        content.push_str("- Write clean, readable code with proper error handling\n");
+        content.push_str("- Follow existing code style and conventions\n");
+        content.push_str("- Add tests for new functionality\n\n");
+        
+        content.push_str("### Architecture\n");
+        content.push_str("- Maintain separation of concerns\n");
+        content.push_str("- Use appropriate design patterns\n");
+        content.push_str("- Document complex logic and decisions\n\n");
+        
+        content.push_str("## Notes for AI Agents\n\n");
+        content.push_str("- Prioritize code quality and maintainability\n");
+        content.push_str("- Consider performance implications of changes\n");
+        content.push_str("- Preserve existing functionality unless explicitly changing it\n");
+        content.push_str("- Ask for clarification when requirements are unclear\n\n");
+        
+        content.push_str("## Quick Commands\n\n");
+        content.push_str("```bash\n");
+        for cmd in build_commands {
+            content.push_str(&format!("# {}\n", cmd));
+        }
+        content.push_str("```\n");
+
+        Ok(content)
     }
 }
 
