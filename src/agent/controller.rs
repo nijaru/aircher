@@ -1,10 +1,10 @@
 use anyhow::Result;
-use serde_json::{json, Value};
+use serde_json::Value;
 use tracing::{debug, info, warn};
 
 use crate::intelligence::IntelligenceEngine;
 use crate::providers::{LLMProvider, ChatRequest, Message, MessageRole};
-use crate::agent::tools::{ToolRegistry, ToolCall, ToolOutput};
+use crate::agent::tools::{ToolRegistry, ToolCall};
 use crate::agent::parser::{ToolCallParser, format_tool_results};
 use crate::agent::conversation::{CodingConversation, Message as ConvMessage, MessageRole as ConvRole, ProjectContext};
 

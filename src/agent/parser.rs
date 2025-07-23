@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use regex::Regex;
 use serde_json::Value;
 use crate::agent::tools::ToolCall;
