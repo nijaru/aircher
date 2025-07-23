@@ -53,13 +53,14 @@ impl SweRankEmbedModel {
         let tokenizer_path = Self::get_tokenizer_path();
         
         if !model_path.exists() || !config_path.exists() || !tokenizer_path.exists() {
-            warn!("Model files not found, using fallback implementation");
-            warn!("Expected files: {}, {}, {}", model_path.display(), config_path.display(), tokenizer_path.display());
+            // Use debug level to avoid disrupting TUI display
+            debug!("Model files not found, using fallback implementation");
+            debug!("Expected files: {}, {}, {}", model_path.display(), config_path.display(), tokenizer_path.display());
         } else {
-            info!("Model files found, ready for full implementation");
+            debug!("Model files found, ready for full implementation");
         }
 
-        info!("✅ SweRankEmbed-Small model initialized ({} MB)", model_info.size_mb);
+        debug!("✅ SweRankEmbed-Small model initialized ({} MB)", model_info.size_mb);
         
         Ok(Self {
             model_info,
