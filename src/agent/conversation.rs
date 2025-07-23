@@ -53,6 +53,22 @@ pub enum ProgrammingLanguage {
     Other(String),
 }
 
+impl std::fmt::Display for ProgrammingLanguage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Rust => write!(f, "Rust"),
+            Self::Python => write!(f, "Python"),
+            Self::JavaScript => write!(f, "JavaScript"),
+            Self::TypeScript => write!(f, "TypeScript"),
+            Self::Go => write!(f, "Go"),
+            Self::Java => write!(f, "Java"),
+            Self::CSharp => write!(f, "C#"),
+            Self::Cpp => write!(f, "C++"),
+            Self::Other(s) => write!(f, "{}", s),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitChange {
     pub file_path: PathBuf,

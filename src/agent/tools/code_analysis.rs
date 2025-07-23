@@ -1,5 +1,5 @@
 use super::{AgentTool, ToolError, ToolOutput};
-use crate::vector_search::{VectorSearchEngine, SearchFilter, ChunkType};
+use crate::semantic_search::SemanticCodeSearch;
 use crate::intelligence::IntelligenceEngine;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 
 pub struct SearchCodeTool {
-    search_engine: Option<VectorSearchEngine>,
+    semantic_search: Option<Box<SemanticCodeSearch>>,
     intelligence: Option<IntelligenceEngine>,
 }
 
@@ -31,14 +31,14 @@ impl SearchCodeTool {
     pub fn new() -> Self {
         // These will be injected when the tool is registered with the controller
         Self {
-            search_engine: None,
+            semantic_search: None,
             intelligence: None,
         }
     }
     
-    pub fn with_engines(search_engine: VectorSearchEngine, intelligence: IntelligenceEngine) -> Self {
+    pub fn with_semantic_search(semantic_search: SemanticCodeSearch, intelligence: IntelligenceEngine) -> Self {
         Self {
-            search_engine: Some(search_engine),
+            semantic_search: Some(Box::new(semantic_search)),
             intelligence: Some(intelligence),
         }
     }
@@ -91,35 +91,14 @@ impl AgentTool for SearchCodeTool {
         let params: SearchCodeParams = serde_json::from_value(params)
             .map_err(|e| ToolError::InvalidParameters(e.to_string()))?;
         
-        let search_engine = self.search_engine.as_ref()
-            .ok_or_else(|| ToolError::ExecutionFailed("Search engine not initialized".to_string()))?;
-        
-        // Build search filter
-        let mut filter = SearchFilter::default();
-        if let Some(file_types) = params.file_types {
-            filter.file_types = Some(file_types);
-        }
-        if let Some(chunk_types) = params.chunk_types {
-            filter.chunk_types = Some(chunk_types.into_iter()
-                .filter_map(|t| match t.as_str() {
-                    "function" => Some(ChunkType::Function),
-                    "class" => Some(ChunkType::Class),
-                    "module" => Some(ChunkType::Module),
-                    "comment" => Some(ChunkType::Comment),
-                    "generic" => Some(ChunkType::Generic),
-                    _ => None,
-                })
-                .collect());
-        }
-        
-        // For now, return a placeholder - we'll implement proper search integration later
+        // For now, return a simple indication that search is available but needs integration
         Ok(ToolOutput {
             success: true,
             result: json!({
                 "query": params.query,
                 "results": [],
                 "count": 0,
-                "message": "Search integration pending"
+                "message": "Search tool ready - integration with TUI in progress"
             }),
             error: None,
             usage: None,
