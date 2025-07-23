@@ -80,12 +80,6 @@ impl CliApp {
                     .value_name("TEMP")
                     .value_parser(clap::value_parser!(f32)),
             )
-            .arg(
-                Arg::new("tui")
-                    .long("tui")
-                    .help("Launch TUI interface")
-                    .action(clap::ArgAction::SetTrue),
-            )
             .subcommand(
                 Command::new("config")
                     .about("Configuration management")
@@ -689,25 +683,6 @@ impl CliApp {
                     )
             )
             .subcommand(
-                Command::new("agent")
-                    .about("Start AI coding assistant session")
-                    .arg(
-                        Arg::new("provider")
-                            .long("provider")
-                            .short('p')
-                            .help("Provider to use")
-                            .value_name("PROVIDER")
-                            .default_value("ollama"),
-                    )
-                    .arg(
-                        Arg::new("model")
-                            .long("model")
-                            .short('m')
-                            .help("Model to use")
-                            .value_name("MODEL"),
-                    )
-            )
-            .subcommand(
                 Command::new("benchmark")
                     .about("Vector search performance benchmarking")
                     .subcommand(
@@ -748,10 +723,6 @@ impl CliApp {
         
         if let Some(session_matches) = matches.subcommand_matches("session") {
             return self.handle_session_commands(session_matches).await;
-        }
-        
-        if let Some(agent_matches) = matches.subcommand_matches("agent") {
-            return self.handle_agent_command(agent_matches).await;
         }
         
         if let Some(benchmark_matches) = matches.subcommand_matches("benchmark") {
@@ -1389,10 +1360,4 @@ impl CliApp {
         std::process::exit(1);
     }
     
-    async fn handle_agent_command(&mut self, matches: &clap::ArgMatches) -> Result<()> {
-        let provider_name = matches.get_one::<String>("provider").map(|s| s.to_string());
-        let model_name = matches.get_one::<String>("model").map(|s| s.to_string());
-        
-        crate::commands::agent::run_agent_session(&self.config, provider_name, model_name).await
-    }
 }
