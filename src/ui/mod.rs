@@ -392,10 +392,13 @@ impl TuiManager {
                                                 }
                                             }
                                             "/help" => {
-                                                self.messages.push(Message::new(
-                                                    MessageRole::System,
-                                                    format_help(),
-                                                ));
+                                                // Add each help line as a separate message for proper display
+                                                for line in format_help() {
+                                                    self.messages.push(Message::new(
+                                                        MessageRole::System,
+                                                        line,
+                                                    ));
+                                                }
                                             }
                                             "/clear" => {
                                                 self.messages.clear();

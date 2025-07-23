@@ -105,13 +105,7 @@ impl AutocompleteEngine {
             "check for errors".to_string(),
         ]);
         
-        // Commands
-        common_patterns.insert("/".to_string(), vec![
-            "/search".to_string(),
-            "/help".to_string(),
-            "/clear".to_string(),
-            "/history".to_string(),
-        ]);
+        // Commands - removed since we'll get these from SLASH_COMMANDS
         
         Self {
             suggestions: Vec::new(),
@@ -126,6 +120,13 @@ impl AutocompleteEngine {
     pub fn generate_suggestions(&mut self, input: &str, cursor_position: usize) -> Result<()> {
         self.suggestions.clear();
         self.selected_index = 0;
+        
+        // Special case: show slash commands immediately when typing /
+        if input.trim() == "/" {
+            self.add_command_suggestions("/");
+            self.is_visible = !self.suggestions.is_empty();
+            return Ok(());
+        }
         
         if input.len() < 2 {
             self.is_visible = false;
@@ -165,25 +166,32 @@ impl AutocompleteEngine {
     
     fn add_command_suggestions(&mut self, current_word: &str) {
         if current_word.starts_with('/') {
-            let commands = vec![
-                ("search", "Search through code files"),
-                ("help", "Show help information"),
-                ("clear", "Clear chat history"),
-                ("history", "Show command history"),
-                ("config", "Show configuration"),
-                ("cost", "Show session cost"),
-            ];
+            // Import SLASH_COMMANDS from slash_commands module
+            use crate::ui::slash_commands::SLASH_COMMANDS;
             
-            for (cmd, desc) in commands {
-                let full_cmd = format!("/{}", cmd);
-                if full_cmd.starts_with(current_word) {
+            for cmd in SLASH_COMMANDS {
+                // Check main command
+                if cmd.command.starts_with(current_word) {
                     self.suggestions.push(Suggestion {
                         text: current_word.to_string(),
-                        completion: full_cmd,
-                        description: desc.to_string(),
+                        completion: cmd.command.to_string(),
+                        description: cmd.description.to_string(),
                         suggestion_type: SuggestionType::Command,
-                        confidence: 0.9,
+                        confidence: 0.95,
                     });
+                }
+                
+                // Check aliases
+                for alias in cmd.aliases {
+                    if alias.starts_with(current_word) {
+                        self.suggestions.push(Suggestion {
+                            text: current_word.to_string(),
+                            completion: alias.to_string(),
+                            description: format!("{} (alias for {})", cmd.description, cmd.command),
+                            suggestion_type: SuggestionType::Command,
+                            confidence: 0.9,
+                        });
+                    }
                 }
             }
         }
@@ -376,54 +384,85 @@ impl AutocompleteEngine {
             return;
         }
         
-        // Calculate popup area (above the input box)
-        let popup_height = (self.suggestions.len() as u16 + 2).min(10);
-        let popup_area = Rect {
-            x: area.x,
-            y: area.y.saturating_sub(popup_height),
-            width: area.width.min(80),
-            height: popup_height,
-        };
-        
-        // Create suggestion items
-        let items: Vec<ListItem> = self.suggestions
-            .iter()
-            .enumerate()
-            .map(|(i, suggestion)| {
-                let icon = match suggestion.suggestion_type {
-                    SuggestionType::Command => "⚡",
-                    SuggestionType::CodeContext => "🧠",
-                    SuggestionType::Question => "❓",
-                    SuggestionType::FileReference => "📁",
-                    SuggestionType::CommonPhrase => "💬",
-                };
-                
-                let style = if i == self.selected_index {
-                    Style::default().fg(Color::Yellow).bg(Color::DarkGray)
-                } else {
-                    Style::default().fg(Color::Gray)
-                };
-                
-                let confidence_bar = "█".repeat((suggestion.confidence * 5.0) as usize);
-                
-                ListItem::new(Line::from(vec![
-                    Span::styled(format!("{} ", icon), style),
-                    Span::styled(&suggestion.completion, style),
-                    Span::styled(format!(" [{}]", confidence_bar), Style::default().fg(Color::DarkGray)),
-                ]))
-            })
-            .collect();
-        
-        let title = format!("Suggestions ({}/{})", self.selected_index + 1, self.suggestions.len());
-        let suggestions_list = List::new(items)
-            .block(Block::default()
-                .borders(Borders::ALL)
-                .title(title)
-                .border_style(Style::default().fg(Color::Cyan)));
-        
-        // Clear the background and render
-        f.render_widget(ratatui::widgets::Clear, popup_area);
-        f.render_widget(suggestions_list, popup_area);
+        // For slash commands, render in a more compact style below the input
+        let first_suggestion = &self.suggestions[0];
+        if first_suggestion.suggestion_type == SuggestionType::Command {
+            // Calculate popup area (below the input box, like Claude Code)
+            let popup_height = (self.suggestions.len() as u16).min(8) + 1;
+            let popup_area = Rect {
+                x: area.x,
+                y: area.y + area.height,
+                width: area.width.min(60),
+                height: popup_height,
+            };
+            
+            // Create suggestion items in a compact format
+            let items: Vec<ListItem> = self.suggestions
+                .iter()
+                .enumerate()
+                .map(|(i, suggestion)| {
+                    let style = if i == self.selected_index {
+                        Style::default().fg(Color::Cyan).bg(Color::DarkGray)
+                    } else {
+                        Style::default().fg(Color::Gray)
+                    };
+                    
+                    // Format: command (alias) description
+                    let text = if suggestion.description.contains("alias for") {
+                        // Extract the alias format
+                        format!("{:20} {}", suggestion.completion, suggestion.description)
+                    } else {
+                        format!("{:20} {}", suggestion.completion, suggestion.description)
+                    }
+                    
+                    ListItem::new(Line::from(vec![
+                        Span::styled(" ", style),
+                        Span::styled(text, style),
+                    ]))
+                })
+                .collect();
+            
+            let suggestions_list = List::new(items)
+                .block(Block::default());
+            
+            // Clear the background and render
+            f.render_widget(ratatui::widgets::Clear, popup_area);
+            f.render_widget(suggestions_list, popup_area);
+        } else {
+            // Regular suggestions (keep existing style for non-commands)
+            let popup_height = (self.suggestions.len() as u16 + 2).min(10);
+            let popup_area = Rect {
+                x: area.x,
+                y: area.y.saturating_sub(popup_height),
+                width: area.width.min(80),
+                height: popup_height,
+            };
+            
+            let items: Vec<ListItem> = self.suggestions
+                .iter()
+                .enumerate()
+                .map(|(i, suggestion)| {
+                    let style = if i == self.selected_index {
+                        Style::default().fg(Color::Yellow).bg(Color::DarkGray)
+                    } else {
+                        Style::default().fg(Color::Gray)
+                    };
+                    
+                    ListItem::new(Line::from(vec![
+                        Span::styled(&suggestion.completion, style),
+                        Span::styled(format!(" - {}", suggestion.description), Style::default().fg(Color::DarkGray)),
+                    ]))
+                })
+                .collect();
+            
+            let suggestions_list = List::new(items)
+                .block(Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Gray)));
+            
+            f.render_widget(ratatui::widgets::Clear, popup_area);
+            f.render_widget(suggestions_list, popup_area);
+        }
     }
     
     /// Get suggestion preview text for inline display

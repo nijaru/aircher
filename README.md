@@ -33,6 +33,9 @@ aircher
    - src/main.rs: Application entry point
    - src/ui/mod.rs: TUI implementation with session management
    - src/intelligence/: Intelligence engine for context-aware assistance
+> /help  # Shows all available slash commands
+> /model  # Interactive model/provider selection
+> /search error handling  # Semantic code search
 > /quit
 
 # Different providers with same intelligent context
@@ -76,10 +79,11 @@ aircher session export session_id --format markdown
   - Ollama integration for local models
   - Fallback to text search when embeddings unavailable
   - Smart model selection based on system capabilities
-- ✅ **Project-aware TUI with Demo Mode** - Full interface without API key requirements:
+- ✅ **Project-aware TUI with Slash Commands** - Full interface without API key requirements:
   - **Try first, configure later** - Complete TUI experience available without any setup
-  - Interactive auth setup screen guides users through API key configuration
-  - Demo mode clearly indicates available features vs. full functionality
+  - **Slash command system** - `/help`, `/model`, `/search`, `/config`, `/clear`, and more
+  - **Fuzzy command completion** - Type `/` to see available commands with descriptions
+  - **Interactive model selection** - Press `/model` for typeahead model/provider switching
   - Graceful fallback to semantic search and file monitoring when API keys unavailable
   - Automatically detects and initializes `.aircher/` projects
 - ✅ **Intelligent TUI Integration** - TUI with full intelligence engine integration:
@@ -160,6 +164,8 @@ aircher config set providers.gemini.api_key your_key
 ```bash
 # Primary interface - Rich TUI
 aircher                          # Interactive terminal UI
+# Press /help to see all available slash commands
+# Type / to see command suggestions with fuzzy completion
 
 # Quick one-shot queries  
 aircher "Explain Rust ownership"

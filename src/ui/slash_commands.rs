@@ -84,20 +84,33 @@ pub fn get_command_suggestions(partial: &str) -> Vec<&'static SlashCommand> {
 }
 
 /// Format help text for all commands
-pub fn format_help() -> String {
-    let mut help = String::from("Available commands:\n\n");
+pub fn format_help() -> Vec<String> {
+    let mut lines = Vec::new();
+    
+    lines.push("Available commands:".to_string());
+    lines.push(String::new());
+    
+    // Find the longest command for alignment
+    let max_len = SLASH_COMMANDS.iter()
+        .map(|cmd| cmd.command.len())
+        .max()
+        .unwrap_or(0);
     
     for cmd in SLASH_COMMANDS {
-        help.push_str(&format!("  {} - {}\n", cmd.command, cmd.description));
+        let padding = " ".repeat(max_len - cmd.command.len());
+        lines.push(format!("  {}{}  {}", cmd.command, padding, cmd.description));
+        
         if !cmd.aliases.is_empty() {
-            help.push_str(&format!("    Aliases: {}\n", cmd.aliases.join(", ")));
+            let alias_str = cmd.aliases.join(", ");
+            lines.push(format!("  {}  Aliases: {}", " ".repeat(max_len), alias_str));
         }
     }
     
-    help.push_str("\nTips:\n");
-    help.push_str("  • Type / to see command suggestions\n");
-    help.push_str("  • Use Tab to autocomplete commands\n");
-    help.push_str("  • Press F2 for settings, F3 for model selection\n");
+    lines.push(String::new());
+    lines.push("Tips:".to_string());
+    lines.push("  • Type / to see command suggestions".to_string());
+    lines.push("  • Use Tab to autocomplete commands".to_string());
+    lines.push("  • Press F2 for settings".to_string());
     
-    help
+    lines
 }
