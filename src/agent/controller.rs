@@ -11,7 +11,6 @@ use crate::agent::conversation::{CodingConversation, Message as ConvMessage, Mes
 pub struct AgentController {
     tools: ToolRegistry,
     intelligence: IntelligenceEngine,
-    provider: Box<dyn LLMProvider>,
     parser: ToolCallParser,
     conversation: CodingConversation,
     max_iterations: usize,
@@ -19,14 +18,12 @@ pub struct AgentController {
 
 impl AgentController {
     pub fn new(
-        provider: Box<dyn LLMProvider>,
         intelligence: IntelligenceEngine,
         project_context: ProjectContext,
     ) -> Result<Self> {
         Ok(Self {
             tools: ToolRegistry::default(),
             intelligence,
-            provider,
             parser: ToolCallParser::new()?,
             conversation: CodingConversation {
                 messages: Vec::new(),
@@ -39,7 +36,7 @@ impl AgentController {
     }
     
     /// Process a user message and return the assistant's response
-    pub async fn process_message(&mut self, user_message: &str) -> Result<String> {
+    pub async fn process_message(&mut self, user_message: &str, provider: &dyn LLMProvider) -> Result<String> {
         info!("Processing user message: {}", user_message);
         
         // Add user message to conversation
@@ -99,7 +96,7 @@ impl AgentController {
                 tools: None,
             };
             
-            let response = self.provider.chat(&request).await?;
+            let response = provider.chat(&request).await?;
             let assistant_message = response.content;
             
             // Parse tool calls
