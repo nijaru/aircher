@@ -783,10 +783,18 @@ impl TuiManager {
             "? for shortcuts | Ctrl+C to quit"
         };
         
+        // Add left padding to shortcuts like Claude Code
+        let padded_shortcuts_area = Rect {
+            x: chunks[0].x + 1, // Left padding
+            y: chunks[0].y,
+            width: chunks[0].width.saturating_sub(1),
+            height: chunks[0].height,
+        };
+        
         let shortcuts_text = Paragraph::new(shortcuts)
             .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Comment gray
             .alignment(Alignment::Left);
-        f.render_widget(shortcuts_text, chunks[0]);
+        f.render_widget(shortcuts_text, padded_shortcuts_area);
 
         // Right side: model info and context usage
         let mut right_parts = vec![];
