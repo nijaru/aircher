@@ -413,7 +413,7 @@ impl AutocompleteEngine {
                         format!("{:20} {}", suggestion.completion, suggestion.description)
                     } else {
                         format!("{:20} {}", suggestion.completion, suggestion.description)
-                    }
+                    };
                     
                     ListItem::new(Line::from(vec![
                         Span::styled(" ", style),

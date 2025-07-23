@@ -555,38 +555,80 @@ impl TuiManager {
             return;
         }
 
+        // Dark background
+        f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(17, 17, 27))), f.area());
+
+        // Add proper margins
+        let main_area = Layout::default()
+            .direction(Direction::Horizontal)
+            .margin(2)
+            .constraints([Constraint::Percentage(100)])
+            .split(f.area())[0];
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1), // Title bar
-                Constraint::Min(0),    // Chat area
-                Constraint::Length(3), // Input box
-                Constraint::Length(1), // Status bar
+                Constraint::Length(if self.messages.is_empty() { 7 } else { 0 }), // Welcome box (only when no messages)
+                Constraint::Min(1),    // Chat area
+                Constraint::Length(6), // Input box area with more space
+                Constraint::Length(1), // Status line
             ])
-            .split(f.area());
+            .split(main_area);
 
-        // Title bar with auth status
-        let auth_status = if self.auth_required { "[Demo Mode]" } else { "" };
-        let title = Paragraph::new(format!(
-            "🏹 Aircher {} - {} - {} | F1: Help | F2: Settings | Tab: Select | /search <query> [--filters]",
-            auth_status, self.provider_name, self.model
-        ))
-        .style(Style::default().fg(if self.auth_required { Color::Yellow } else { Color::Cyan }))
-        .block(Block::default().borders(Borders::BOTTOM));
-        f.render_widget(title, chunks[0]);
+        // Show welcome box only when chat is empty
+        if self.messages.is_empty() {
+            self.draw_welcome_box(f, chunks[0]);
+        }
 
-        // Chat area
-        self.draw_chat_area(f, chunks[1]);
+        // Chat area (no borders, clean display)
+        let chat_area = if self.messages.is_empty() { 
+            chunks[1] 
+        } else {
+            // When messages exist, recalculate layout without welcome box
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(1),    // Chat area
+                    Constraint::Length(6), // Input box
+                    Constraint::Length(1), // Status line
+                ])
+                .split(main_area)[0]
+        };
+        self.draw_chat_area(f, chat_area);
 
-        // Input box
-        self.draw_input_box(f, chunks[2]);
+        // Input box area
+        let input_area = if self.messages.is_empty() { 
+            chunks[2] 
+        } else {
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(1),
+                    Constraint::Length(6),
+                    Constraint::Length(1),
+                ])
+                .split(main_area)[1]
+        };
+        self.draw_input_box(f, input_area);
 
-        // Status bar
-        self.draw_status_bar(f, chunks[3]);
+        // Status line
+        let status_area = if self.messages.is_empty() { 
+            chunks[3] 
+        } else {
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(1),
+                    Constraint::Length(6),
+                    Constraint::Length(1),
+                ])
+                .split(main_area)[2]
+        };
+        self.draw_status_bar(f, status_area);
 
-        // Render autocomplete suggestions (above input box)
+        // Render autocomplete suggestions
         if self.autocomplete.is_visible() {
-            self.autocomplete.render(f, chunks[2]);
+            self.autocomplete.render(f, input_area);
         }
 
         // Render modals (on top of everything)
@@ -596,27 +638,67 @@ impl TuiManager {
         self.model_selection_overlay.render(f, f.area());
     }
 
+    fn draw_welcome_box(&self, f: &mut Frame, area: Rect) {
+        // Create a centered welcome box like Claude Code
+        let welcome_width = 60;
+        let welcome_height = 5;
+        let x = (area.width.saturating_sub(welcome_width)) / 2;
+        let y = 0;
+        
+        let welcome_area = Rect::new(
+            area.x + x,
+            area.y + y,
+            welcome_width.min(area.width),
+            welcome_height.min(area.height)
+        );
+
+        let welcome_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Rgb(139, 92, 246))) // Purple border
+            .style(Style::default().bg(Color::Rgb(17, 17, 27)));
+
+        let welcome_content = vec![
+            Line::from(vec![
+                Span::styled("✻ Welcome to Aircher!", 
+                    Style::default().fg(Color::Rgb(167, 139, 250)).add_modifier(Modifier::BOLD))
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  /help", Style::default().fg(Color::Rgb(139, 92, 246))),
+                Span::styled(" for help, ", Style::default().fg(Color::Gray)),
+                Span::styled("/model", Style::default().fg(Color::Rgb(139, 92, 246))),
+                Span::styled(" to select AI model", Style::default().fg(Color::Gray)),
+            ]),
+        ];
+
+        let welcome_paragraph = Paragraph::new(welcome_content)
+            .block(welcome_block)
+            .alignment(Alignment::Center);
+        
+        f.render_widget(welcome_paragraph, welcome_area);
+    }
+
     fn draw_chat_area(&self, f: &mut Frame, area: Rect) {
         let messages: Vec<ListItem> = self
             .messages
             .iter()
             .map(|msg| {
                 let prefix = match msg.role {
-                    MessageRole::User => "👤 You: ",
-                    MessageRole::Assistant => "🤖 AI: ",
-                    MessageRole::System => "⚙️ System: ",
-                    MessageRole::Tool => "🔧 Tool: ",
+                    MessageRole::User => "You: ",
+                    MessageRole::Assistant => "Aircher: ",
+                    MessageRole::System => "",
+                    MessageRole::Tool => "Tool: ",
                 };
 
                 let style = match msg.role {
-                    MessageRole::User => Style::default().fg(Color::Green),
-                    MessageRole::Assistant => Style::default().fg(Color::Blue),
-                    MessageRole::System => Style::default().fg(Color::Red),
-                    MessageRole::Tool => Style::default().fg(Color::Yellow),
+                    MessageRole::User => Style::default().fg(Color::Rgb(167, 139, 250)), // Light purple
+                    MessageRole::Assistant => Style::default().fg(Color::Rgb(229, 231, 235)), // Light gray
+                    MessageRole::System => Style::default().fg(Color::Rgb(156, 163, 175)), // Gray
+                    MessageRole::Tool => Style::default().fg(Color::Rgb(251, 191, 36)), // Amber
                 };
 
                 ListItem::new(Line::from(vec![
-                    Span::styled(prefix, style),
+                    Span::styled(prefix, style.add_modifier(Modifier::BOLD)),
                     Span::raw(&msg.content),
                 ]))
             })
@@ -629,64 +711,106 @@ impl TuiManager {
     }
 
     fn draw_input_box(&self, f: &mut Frame, area: Rect) {
-        // Create input display with cursor and preview
-        let mut input_display = self.input.clone();
-        
-        // Add inline preview if available
-        if let Some(preview) = self.autocomplete.get_inline_preview() {
-            input_display.push_str(&preview);
-        }
-        
-        // Create title with autocomplete hint
-        let title = if self.autocomplete.is_visible() {
-            "Message (↑↓ navigate, Enter accept, Esc cancel)"
+        // Split area for label and input
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Label
+                Constraint::Min(3),    // Input box (expandable)
+            ])
+            .split(area);
+
+        // Input label (subtle hint)
+        let label = if self.autocomplete.is_visible() {
+            Span::styled("Message (↑↓ navigate • Enter accept • Esc cancel)", 
+                Style::default().fg(Color::Rgb(107, 114, 128)).add_modifier(Modifier::ITALIC))
+        } else if self.input.is_empty() {
+            Span::styled("Type your message and press Enter | Ctrl+C to quit", 
+                Style::default().fg(Color::Rgb(107, 114, 128)).add_modifier(Modifier::ITALIC))
         } else {
-            "Message (Ctrl+Space for suggestions)"
+            Span::raw("")
         };
         
-        let input_style = if self.autocomplete.is_visible() {
-            Style::default().fg(Color::Green)
+        f.render_widget(Paragraph::new(label), chunks[0]);
+
+        // Input box with rounded corners (simulated)
+        let input_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Rgb(75, 85, 99))) // Slightly lighter border
+            .style(Style::default().bg(Color::Rgb(31, 41, 55))); // Slightly lighter background
+
+        let input_inner = input_block.inner(chunks[1]);
+        f.render_widget(input_block, chunks[1]);
+
+        // Handle multi-line input display
+        let lines: Vec<&str> = self.input.split('\n').collect();
+        let _line_count = lines.len();
+        let visible_lines = input_inner.height as usize;
+        
+        // Calculate which lines to show based on cursor position
+        let cursor_line = self.input[..self.cursor_position].matches('\n').count();
+        let start_line = if cursor_line >= visible_lines {
+            cursor_line - visible_lines + 1
         } else {
-            Style::default().fg(Color::Yellow)
+            0
         };
         
-        let input = Paragraph::new(input_display.as_str())
-            .style(input_style)
-            .block(Block::default().borders(Borders::ALL).title(title));
-        f.render_widget(input, area);
+        let visible_text = lines.iter()
+            .skip(start_line)
+            .take(visible_lines)
+            .cloned()
+            .collect::<Vec<&str>>()
+            .join("\n");
+
+        // Input text with proper styling
+        let input_text = Paragraph::new(visible_text)
+            .style(Style::default().fg(Color::Rgb(229, 231, 235))) // Light gray text
+            .wrap(ratatui::widgets::Wrap { trim: false });
+        f.render_widget(input_text, input_inner);
+
+        // Calculate cursor position for multi-line
+        let cursor_line_in_view = cursor_line.saturating_sub(start_line);
+        let cursor_col = if cursor_line < lines.len() {
+            let line_start = lines[..cursor_line].iter().map(|l| l.len() + 1).sum::<usize>();
+            self.cursor_position.saturating_sub(line_start)
+        } else {
+            0
+        };
+
+        // Set cursor position
+        f.set_cursor_position((
+            input_inner.x + cursor_col as u16,
+            input_inner.y + cursor_line_in_view as u16
+        ));
     }
 
     fn draw_status_bar(&self, f: &mut Frame, area: Rect) {
+        // Simple status line like Claude Code
         let mut status_parts = vec![];
         
-        // Cost and tokens
+        // Model info
+        status_parts.push(format!("{} ({})", self.model, self.provider_name));
+        
+        // Cost if any
         if self.session_cost > 0.0 {
-            status_parts.push(format!("💰 ${:.4}", self.session_cost));
-            status_parts.push(format!("📊 {} tokens", self.session_tokens));
+            status_parts.push(format!("${:.4}", self.session_cost));
         }
         
-        // Budget warning
+        // Budget warning if applicable
         if let Some(limit) = self.config.global.budget_limit {
             if self.session_cost > limit * 0.8 {
-                status_parts.push("⚠️  Approaching budget limit".to_string());
+                status_parts.push("⚠️ Approaching budget limit".to_string());
             }
         }
         
-        // Add basic instructions
-        if status_parts.is_empty() {
-            status_parts.push("Type your message and press Enter | Ctrl+C to quit".to_string());
-        } else {
-            status_parts.push("Ctrl+C to quit".to_string());
-        }
+        // Help hint
+        status_parts.push("Type /help for commands".to_string());
         
         let status_text = status_parts.join(" | ");
-        let status_color = if self.cost_warnings.is_empty() {
-            Color::Gray
-        } else {
-            Color::Yellow
-        };
+        let status = Paragraph::new(status_text)
+            .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Gray text
+            .alignment(Alignment::Left);
         
-        let status = Paragraph::new(status_text).style(Style::default().fg(status_color));
         f.render_widget(status, area);
     }
 
