@@ -725,10 +725,20 @@ impl TuiManager {
             ])
             .split(area);
 
-        // Input box with subtle border and placeholder
+        // Input box with rounded corners using Unicode characters
         let input_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Rgb(163, 136, 186))); // Low-sat purple like Claude's beige border
+            .border_style(Style::default().fg(Color::Rgb(163, 136, 186))) // Low-sat purple like Claude's beige border
+            .border_set(ratatui::symbols::border::Set {
+                top_left: "╭",     // ╭
+                top_right: "╮",    // ╮
+                bottom_left: "╰",  // ╰
+                bottom_right: "╯", // ╯
+                vertical_left: "│",   // │
+                vertical_right: "│",  // │
+                horizontal_top: "─",  // ─
+                horizontal_bottom: "─", // ─
+            });
 
         let input_inner = input_block.inner(chunks[0]);
         f.render_widget(input_block, chunks[0]);
