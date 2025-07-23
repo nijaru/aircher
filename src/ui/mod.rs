@@ -555,75 +555,36 @@ impl TuiManager {
             return;
         }
 
-        // Dark background
-        f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(17, 17, 27))), f.area());
+        // Let terminal handle background colors
 
-        // Add proper margins
-        let main_area = Layout::default()
-            .direction(Direction::Horizontal)
-            .margin(2)
-            .constraints([Constraint::Percentage(100)])
-            .split(f.area())[0];
-
+        // Minimal margins like Claude Code
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(if self.messages.is_empty() { 7 } else { 0 }), // Welcome box (only when no messages)
+                Constraint::Length(if self.messages.is_empty() { 5 } else { 0 }), // Welcome box
+                Constraint::Length(if self.messages.is_empty() { 1 } else { 0 }), // Tip line
                 Constraint::Min(1),    // Chat area
-                Constraint::Length(6), // Input box area with more space
+                Constraint::Length(4), // Input box area
                 Constraint::Length(1), // Status line
             ])
-            .split(main_area);
+            .split(f.area());
 
-        // Show welcome box only when chat is empty
+        // Show welcome box and tip only when chat is empty
         if self.messages.is_empty() {
             self.draw_welcome_box(f, chunks[0]);
+            self.draw_tip_line(f, chunks[1]);
         }
 
-        // Chat area (no borders, clean display)
-        let chat_area = if self.messages.is_empty() { 
-            chunks[1] 
-        } else {
-            // When messages exist, recalculate layout without welcome box
-            Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Min(1),    // Chat area
-                    Constraint::Length(6), // Input box
-                    Constraint::Length(1), // Status line
-                ])
-                .split(main_area)[0]
-        };
+        // Chat area
+        let chat_area = if self.messages.is_empty() { chunks[2] } else { chunks[0] };
         self.draw_chat_area(f, chat_area);
 
-        // Input box area
-        let input_area = if self.messages.is_empty() { 
-            chunks[2] 
-        } else {
-            Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Min(1),
-                    Constraint::Length(6),
-                    Constraint::Length(1),
-                ])
-                .split(main_area)[1]
-        };
+        // Input box area  
+        let input_area = if self.messages.is_empty() { chunks[3] } else { chunks[1] };
         self.draw_input_box(f, input_area);
 
         // Status line
-        let status_area = if self.messages.is_empty() { 
-            chunks[3] 
-        } else {
-            Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Min(1),
-                    Constraint::Length(6),
-                    Constraint::Length(1),
-                ])
-                .split(main_area)[2]
-        };
+        let status_area = if self.messages.is_empty() { chunks[4] } else { chunks[2] };
         self.draw_status_bar(f, status_area);
 
         // Render autocomplete suggestions
@@ -640,7 +601,7 @@ impl TuiManager {
 
     fn draw_welcome_box(&self, f: &mut Frame, area: Rect) {
         // Create a centered welcome box like Claude Code
-        let welcome_width = 60;
+        let welcome_width = 55;
         let welcome_height = 5;
         let x = (area.width.saturating_sub(welcome_width)) / 2;
         let y = 0;
@@ -654,20 +615,19 @@ impl TuiManager {
 
         let welcome_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Rgb(139, 92, 246))) // Purple border
-            .style(Style::default().bg(Color::Rgb(17, 17, 27)));
+            .border_style(Style::default().fg(Color::Rgb(139, 92, 246))); // Purple border, no background override
 
         let welcome_content = vec![
             Line::from(vec![
-                Span::styled("✻ Welcome to Aircher!", 
-                    Style::default().fg(Color::Rgb(167, 139, 250)).add_modifier(Modifier::BOLD))
+                Span::styled("🏹 Welcome to Aircher!", 
+                    Style::default().fg(Color::White).add_modifier(Modifier::BOLD)) // White and bold like Claude
             ]),
             Line::from(""),
             Line::from(vec![
-                Span::styled("  /help", Style::default().fg(Color::Rgb(139, 92, 246))),
-                Span::styled(" for help, ", Style::default().fg(Color::Gray)),
+                Span::styled("  /help", Style::default().fg(Color::Rgb(139, 92, 246))), // Purple highlights
+                Span::styled(" for help, ", Style::default().fg(Color::Rgb(163, 136, 186))), // Low-sat purple like Claude's beige
                 Span::styled("/model", Style::default().fg(Color::Rgb(139, 92, 246))),
-                Span::styled(" to select AI model", Style::default().fg(Color::Gray)),
+                Span::styled(" to select AI model", Style::default().fg(Color::Rgb(163, 136, 186))),
             ]),
         ];
 
@@ -676,6 +636,20 @@ impl TuiManager {
             .alignment(Alignment::Center);
         
         f.render_widget(welcome_paragraph, welcome_area);
+    }
+    
+    fn draw_tip_line(&self, f: &mut Frame, area: Rect) {
+        // Tip line like Claude Code's "※ Tip: Hit shift+tab..."
+        let tip_text = Line::from(vec![
+            Span::styled(" ※ Tip: Type ", Style::default().fg(Color::Rgb(107, 114, 128))), // Gray like Claude's tips
+            Span::styled("/", Style::default().fg(Color::Rgb(139, 92, 246))),
+            Span::styled(" to see available commands", Style::default().fg(Color::Rgb(107, 114, 128))),
+        ]);
+        
+        let tip_paragraph = Paragraph::new(tip_text)
+            .alignment(Alignment::Left);
+        
+        f.render_widget(tip_paragraph, area);
     }
 
     fn draw_chat_area(&self, f: &mut Frame, area: Rect) {
