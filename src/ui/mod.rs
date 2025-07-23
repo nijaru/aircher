@@ -461,7 +461,7 @@ impl TuiManager {
                                             self.messages.push(Message::user(message.clone()));
                                             self.messages.push(Message::new(
                                                 MessageRole::System,
-                                                "⚠️ No AI provider configured. Type /model to select one or /config to set up API keys.".to_string(),
+                                                "No AI provider configured. Type /model to select one or /config to set up API keys.".to_string(),
                                             ));
                                         }
                                     }
@@ -612,10 +612,10 @@ impl TuiManager {
     }
 
     fn draw_welcome_box(&self, f: &mut Frame, area: Rect) {
-        // Create a centered welcome box like Claude Code
+        // Create a left-aligned welcome box like Claude Code
         let welcome_width = 55;
         let welcome_height = 5;
-        let x = (area.width.saturating_sub(welcome_width)) / 2;
+        let x = 0; // Left-aligned like Claude Code
         let y = 0;
         
         let welcome_area = Rect::new(
@@ -669,23 +669,33 @@ impl TuiManager {
             .messages
             .iter()
             .map(|msg| {
-                let prefix = match msg.role {
-                    MessageRole::User => "You: ",
-                    MessageRole::Assistant => "Aircher: ",
-                    MessageRole::System => "",
-                    MessageRole::Tool => "Tool: ",
-                };
-
-                let style = match msg.role {
-                    MessageRole::User => Style::default().fg(Color::Rgb(167, 139, 250)), // Light purple
-                    MessageRole::Assistant => Style::default().fg(Color::Rgb(229, 231, 235)), // Light gray
-                    MessageRole::System => Style::default().fg(Color::Rgb(156, 163, 175)), // Gray
-                    MessageRole::Tool => Style::default().fg(Color::Rgb(251, 191, 36)), // Amber
+                // Format messages like Claude Code with proper prefixes and colors
+                let (prefix, content, style) = match msg.role {
+                    MessageRole::User => (
+                        "> ",
+                        msg.content.as_str(),
+                        Style::default().fg(Color::Rgb(163, 136, 186)) // Beige-like purple for user messages
+                    ),
+                    MessageRole::Assistant => (
+                        "",
+                        msg.content.as_str(), 
+                        Style::default().fg(Color::White) // Standard color for main responses
+                    ),
+                    MessageRole::System => (
+                        "ℹ ", // Generic info symbol for system messages
+                        msg.content.as_str(),
+                        Style::default().fg(Color::Rgb(163, 136, 186)) // Beige-like purple for system
+                    ),
+                    MessageRole::Tool => (
+                        "🔧 ", // Tool/wrench emoji for tool use  
+                        msg.content.as_str(),
+                        Style::default().fg(Color::Rgb(163, 136, 186)) // Beige-like purple for tools
+                    ),
                 };
 
                 ListItem::new(Line::from(vec![
-                    Span::styled(prefix, style.add_modifier(Modifier::BOLD)),
-                    Span::raw(&msg.content),
+                    Span::styled(prefix, style),
+                    Span::styled(content, style),
                 ]))
             })
             .collect();
