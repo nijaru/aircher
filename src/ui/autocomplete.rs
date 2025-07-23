@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
+use tracing::debug;
 use ratatui::{
     layout::Rect,
     style::{Color, Style},
@@ -121,10 +122,15 @@ impl AutocompleteEngine {
         self.suggestions.clear();
         self.selected_index = 0;
         
+        // Debug logging
+        debug!("Generating suggestions for input: '{}', cursor: {}", input, cursor_position);
+        
         // Special case: show slash commands immediately when typing /
         if input.trim() == "/" {
+            debug!("Showing slash commands for '/'");
             self.add_command_suggestions("/");
             self.is_visible = !self.suggestions.is_empty();
+            debug!("Generated {} slash command suggestions", self.suggestions.len());
             return Ok(());
         }
         
@@ -142,8 +148,10 @@ impl AutocompleteEngine {
         self.add_recent_command_suggestions(&current_word);
         self.add_contextual_suggestions(input);
         
-        // Sort suggestions by confidence
-        self.suggestions.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        // Sort suggestions by confidence (handle NaN values safely)
+        self.suggestions.sort_by(|a, b| {
+            b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal)
+        });
         
         // Limit to top 8 suggestions for UI
         self.suggestions.truncate(8);
@@ -168,6 +176,8 @@ impl AutocompleteEngine {
         if current_word.starts_with('/') {
             // Import SLASH_COMMANDS from slash_commands module
             use crate::ui::slash_commands::SLASH_COMMANDS;
+            
+            debug!("Adding command suggestions for: '{}'", current_word);
             
             for cmd in SLASH_COMMANDS {
                 // Check main command
