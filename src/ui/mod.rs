@@ -365,6 +365,8 @@ impl TuiManager {
                                     let message = self.input.clone();
                                     self.input.clear();
                                     self.cursor_position = 0;
+                                    
+                                    debug!("Processing user message: '{}'", message);
 
                                     // Check for slash commands
                                     if let Some((command, args)) = parse_slash_command(&message) {
@@ -455,10 +457,11 @@ impl TuiManager {
                                             }
                                         } else {
                                             // Demo mode - show that AI features require API key
+                                            debug!("No providers configured, showing demo mode message");
                                             self.messages.push(Message::user(message.clone()));
                                             self.messages.push(Message::new(
                                                 MessageRole::System,
-                                                "⚠️ No AI provider configured. Press F2 or type /config to set one up.".to_string(),
+                                                "⚠️ No AI provider configured. Type /model to select one or /config to set up API keys.".to_string(),
                                             ));
                                         }
                                     }
@@ -685,90 +688,135 @@ impl TuiManager {
     }
 
     fn draw_input_box(&self, f: &mut Frame, area: Rect) {
-        // Split area for label and input
+        // Split area for input and bottom info line
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1), // Label
                 Constraint::Min(3),    // Input box (expandable)
+                Constraint::Length(1), // Bottom info line
             ])
             .split(area);
 
-        // Input label (subtle hint)
-        let label = if self.autocomplete.is_visible() {
-            Span::styled("Message (↑↓ navigate • Enter accept • Esc cancel)", 
-                Style::default().fg(Color::Rgb(107, 114, 128)).add_modifier(Modifier::ITALIC))
-        } else if self.input.is_empty() {
-            Span::styled("Type your message and press Enter | Ctrl+C to quit", 
-                Style::default().fg(Color::Rgb(107, 114, 128)).add_modifier(Modifier::ITALIC))
-        } else {
-            Span::raw("")
-        };
-        
-        f.render_widget(Paragraph::new(label), chunks[0]);
-
-        // Input box with rounded corners (simulated)
+        // Input box with subtle border and placeholder
         let input_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Rgb(75, 85, 99))) // Slightly lighter border
-            .style(Style::default().bg(Color::Rgb(31, 41, 55))); // Slightly lighter background
+            .border_style(Style::default().fg(Color::Rgb(163, 136, 186))); // Low-sat purple like Claude's beige border
 
-        let input_inner = input_block.inner(chunks[1]);
-        f.render_widget(input_block, chunks[1]);
+        let input_inner = input_block.inner(chunks[0]);
+        f.render_widget(input_block, chunks[0]);
 
-        // Handle multi-line input display
-        let lines: Vec<&str> = self.input.split('\n').collect();
-        let _line_count = lines.len();
-        let visible_lines = input_inner.height as usize;
-        
-        // Calculate which lines to show based on cursor position
-        let cursor_line = self.input[..self.cursor_position].matches('\n').count();
-        let start_line = if cursor_line >= visible_lines {
-            cursor_line - visible_lines + 1
-        } else {
-            0
-        };
-        
-        let visible_text = lines.iter()
-            .skip(start_line)
-            .take(visible_lines)
-            .cloned()
-            .collect::<Vec<&str>>()
-            .join("\n");
-
-        // Input text with proper styling
-        let input_text = Paragraph::new(visible_text)
-            .style(Style::default().fg(Color::Rgb(229, 231, 235))) // Light gray text
-            .wrap(ratatui::widgets::Wrap { trim: false });
-        f.render_widget(input_text, input_inner);
-
-        // Calculate cursor position for multi-line
-        let cursor_line_in_view = cursor_line.saturating_sub(start_line);
-        let cursor_col = if cursor_line < lines.len() {
-            let line_start = lines[..cursor_line].iter().map(|l| l.len() + 1).sum::<usize>();
-            self.cursor_position.saturating_sub(line_start)
-        } else {
-            0
+        // Add padding inside the input box like Claude Code
+        let padded_area = Rect {
+            x: input_inner.x + 1, // Left padding
+            y: input_inner.y,
+            width: input_inner.width.saturating_sub(2), // Account for left and right padding
+            height: input_inner.height,
         };
 
-        // Set cursor position
-        f.set_cursor_position((
-            input_inner.x + cursor_col as u16,
-            input_inner.y + cursor_line_in_view as u16
-        ));
+        // Handle multi-line input display or show placeholder
+        if self.input.is_empty() && !self.autocomplete.is_visible() {
+            // Show placeholder text in input box with padding
+            let placeholder = Paragraph::new("Type your message and press Enter")
+                .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Gray placeholder
+                .alignment(Alignment::Left);
+            f.render_widget(placeholder, padded_area);
+        } else {
+            let lines: Vec<&str> = self.input.split('\n').collect();
+            let _line_count = lines.len();
+            let visible_lines = input_inner.height as usize;
+            
+            // Calculate which lines to show based on cursor position
+            let cursor_line = self.input[..self.cursor_position].matches('\n').count();
+            let start_line = if cursor_line >= visible_lines {
+                cursor_line - visible_lines + 1
+            } else {
+                0
+            };
+            
+            let visible_text = lines.iter()
+                .skip(start_line)
+                .take(visible_lines)
+                .cloned()
+                .collect::<Vec<&str>>()
+                .join("\n");
+
+            // Input text using terminal's default text color with padding
+            let input_text = Paragraph::new(visible_text)
+                .style(Style::default().fg(Color::White)) // Use terminal white
+                .wrap(ratatui::widgets::Wrap { trim: false });
+            f.render_widget(input_text, padded_area);
+
+            // Calculate cursor position for multi-line
+            let cursor_line_in_view = cursor_line.saturating_sub(start_line);
+            let cursor_col = if cursor_line < lines.len() {
+                let line_start = lines[..cursor_line].iter().map(|l| l.len() + 1).sum::<usize>();
+                self.cursor_position.saturating_sub(line_start)
+            } else {
+                0
+            };
+
+            // Set cursor position with padding
+            f.set_cursor_position((
+                padded_area.x + cursor_col as u16,
+                padded_area.y + cursor_line_in_view as u16
+            ));
+        }
+
+        // Bottom info line with shortcuts on left and model info on right
+        self.draw_input_info_line(f, chunks[1]);
+    }
+    
+    fn draw_input_info_line(&self, f: &mut Frame, area: Rect) {
+        // Split the line: left side for shortcuts, right side for model info
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(60), // Left side
+                Constraint::Percentage(40), // Right side
+            ])
+            .split(area);
+
+        // Left side: shortcuts and help
+        let shortcuts = if self.autocomplete.is_visible() {
+            "↑↓ navigate • Enter accept • Esc cancel"
+        } else {
+            "? for shortcuts | Ctrl+C to quit"
+        };
+        
+        let shortcuts_text = Paragraph::new(shortcuts)
+            .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Comment gray
+            .alignment(Alignment::Left);
+        f.render_widget(shortcuts_text, chunks[0]);
+
+        // Right side: model info and context usage
+        let mut right_parts = vec![];
+        
+        // Model info
+        right_parts.push(format!("{} ({})", self.model, self.provider_name));
+        
+        // Context usage percentage (if we have session data)
+        if self.session_tokens > 0 {
+            // Assume a reasonable context window (adjust based on actual model)
+            let estimated_context_window = 100000; // 100k tokens as example
+            let usage_percent = (self.session_tokens as f32 / estimated_context_window as f32 * 100.0).min(100.0);
+            right_parts.push(format!("{}% context", usage_percent as u32));
+        }
+        
+        // Cost if significant
+        if self.session_cost > 0.001 {
+            right_parts.push(format!("${:.3}", self.session_cost));
+        }
+        
+        let right_text = right_parts.join(" • ");
+        let right_paragraph = Paragraph::new(right_text)
+            .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Comment gray
+            .alignment(Alignment::Right);
+        f.render_widget(right_paragraph, chunks[1]);
     }
 
     fn draw_status_bar(&self, f: &mut Frame, area: Rect) {
-        // Simple status line like Claude Code
+        // Simple status like Claude Code's bottom status (often empty unless there's an alert)
         let mut status_parts = vec![];
-        
-        // Model info
-        status_parts.push(format!("{} ({})", self.model, self.provider_name));
-        
-        // Cost if any
-        if self.session_cost > 0.0 {
-            status_parts.push(format!("${:.4}", self.session_cost));
-        }
         
         // Budget warning if applicable
         if let Some(limit) = self.config.global.budget_limit {
@@ -777,15 +825,15 @@ impl TuiManager {
             }
         }
         
-        // Help hint
-        status_parts.push("Type /help for commands".to_string());
-        
-        let status_text = status_parts.join(" | ");
-        let status = Paragraph::new(status_text)
-            .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Gray text
-            .alignment(Alignment::Left);
-        
-        f.render_widget(status, area);
+        // Only show status if there's something important
+        if !status_parts.is_empty() {
+            let status_text = status_parts.join(" | ");
+            let status = Paragraph::new(status_text)
+                .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Comment gray
+                .alignment(Alignment::Left);
+            
+            f.render_widget(status, area);
+        }
     }
 
     fn handle_modal_events(&mut self, key: ratatui::crossterm::event::KeyEvent) -> Result<bool> {
