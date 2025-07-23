@@ -107,14 +107,26 @@ impl ModelSelectionOverlay {
             .cloned()
             .unwrap_or_default();
 
-        let model_items: Vec<TypeaheadItem> = models.into_iter()
+        let mut model_items: Vec<TypeaheadItem> = Vec::new();
+        
+        // Add "Default" option for Anthropic provider (similar to Claude Code)
+        if self.current_provider == "anthropic" {
+            model_items.push(TypeaheadItem {
+                label: "Default (Opus 4 for up to 50% of usage limits, then use Sonnet 4)".to_string(),
+                value: "default".to_string(),
+                description: Some("Smart model selection based on usage limits".to_string()),
+                available: true,
+            });
+        }
+        
+        // Add regular models
+        model_items.extend(models.into_iter()
             .map(|model| TypeaheadItem {
                 label: model.name.clone(),
                 value: model.name.clone(),
                 description: format_model_description(&model),
                 available: true, // Models are available if provider is configured
-            })
-            .collect();
+            }));
 
         self.model_typeahead.set_items(model_items);
         self.model_typeahead.set_current_value(Some(self.current_model.clone()));
