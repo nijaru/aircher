@@ -6,10 +6,10 @@ use ratatui::{
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
         ExecutableCommand,
     },
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame, Terminal,
 };
 use std::io::stdout;
@@ -35,11 +35,16 @@ pub mod enhanced_selection;
 pub mod settings;
 pub mod help;
 pub mod autocomplete;
+pub mod slash_commands;
+pub mod typeahead;
+pub mod model_selection;
 
 use selection::SelectionModal;
 use settings::SettingsModal;
 use help::HelpModal;
 use autocomplete::AutocompleteEngine;
+use model_selection::ModelSelectionOverlay;
+use slash_commands::{parse_slash_command, format_help};
 
 pub struct TuiManager {
     config: ConfigManager,
@@ -65,6 +70,7 @@ pub struct TuiManager {
     selection_modal: SelectionModal,
     settings_modal: SettingsModal,
     help_modal: HelpModal,
+    model_selection_overlay: ModelSelectionOverlay,
     // Autocomplete
     autocomplete: AutocompleteEngine,
     // Authentication state
@@ -74,6 +80,7 @@ pub struct TuiManager {
     // State
     budget_warning_shown: bool,
     cost_warnings: Vec<String>,
+    should_quit: bool,
 }
 
 impl TuiManager {
@@ -171,15 +178,21 @@ impl TuiManager {
             },
             settings_modal: SettingsModal::new(config),
             help_modal: HelpModal::new(),
+            model_selection_overlay: if let Some(ref providers) = providers {
+                ModelSelectionOverlay::with_providers(config, providers.as_ref())
+            } else {
+                ModelSelectionOverlay::new(config)
+            },
             // Autocomplete
             autocomplete: AutocompleteEngine::new(),
             // Authentication state
             providers,
             auth_required,
-            show_auth_setup: auth_required,
+            show_auth_setup: false, // Always start with normal interface
             // State
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
+            should_quit: false,
         })
     }
 
@@ -274,6 +287,7 @@ impl TuiManager {
             selection_modal: SelectionModal::new(providers, config),
             settings_modal: SettingsModal::new(config),
             help_modal: HelpModal::new(),
+            model_selection_overlay: ModelSelectionOverlay::with_providers(config, providers),
             // Initialize autocomplete
             autocomplete: AutocompleteEngine::new(),
             // Authentication state (providers available in this constructor)
@@ -283,6 +297,7 @@ impl TuiManager {
             // Initialize state
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
+            should_quit: false,
         })
     }
 
@@ -299,6 +314,11 @@ impl TuiManager {
 
         // Main TUI loop
         loop {
+            // Check if we should exit
+            if self.should_quit {
+                break;
+            }
+            
             // Draw the UI
             terminal.draw(|f| self.draw(f))?;
 
@@ -346,28 +366,79 @@ impl TuiManager {
                                     self.input.clear();
                                     self.cursor_position = 0;
 
-                                    // Check if it's a search command
-                                    if message.starts_with("/search ") {
-                                        let query = message.strip_prefix("/search ").unwrap_or("").trim();
-                                        if !query.is_empty() {
-                                            // Add user message showing the search command
-                                            self.messages.push(Message::user(message.clone()));
-                                            
-                                            // Perform semantic search
-                                            if let Err(e) = self.handle_search_command(query).await {
+                                    // Check for slash commands
+                                    if let Some((command, args)) = parse_slash_command(&message) {
+                                        match command {
+                                            "/model" => {
+                                                self.model_selection_overlay.show();
+                                            }
+                                            "/search" => {
+                                                if !args.is_empty() {
+                                                    // Add user message showing the search command
+                                                    self.messages.push(Message::user(message.clone()));
+                                                    
+                                                    // Perform semantic search
+                                                    if let Err(e) = self.handle_search_command(args).await {
+                                                        self.messages.push(Message::new(
+                                                            MessageRole::System,
+                                                            format!("Search error: {}", e),
+                                                        ));
+                                                    }
+                                                } else {
+                                                    self.messages.push(Message::new(
+                                                        MessageRole::System,
+                                                        "Usage: /search <query>".to_string(),
+                                                    ));
+                                                }
+                                            }
+                                            "/help" => {
                                                 self.messages.push(Message::new(
                                                     MessageRole::System,
-                                                    format!("Search error: {}", e),
+                                                    format_help(),
                                                 ));
                                             }
-                                        } else {
-                                            self.messages.push(Message::new(
-                                                MessageRole::System,
-                                                "Usage: /search <query>".to_string(),
-                                            ));
+                                            "/clear" => {
+                                                self.messages.clear();
+                                                self.messages.push(Message::new(
+                                                    MessageRole::System,
+                                                    "Conversation cleared. Context reset.".to_string(),
+                                                ));
+                                            }
+                                            "/config" => {
+                                                self.settings_modal.toggle();
+                                            }
+                                            "/sessions" => {
+                                                // TODO: Implement session browser
+                                                self.messages.push(Message::new(
+                                                    MessageRole::System,
+                                                    "Session browser coming soon!".to_string(),
+                                                ));
+                                            }
+                                            "/compact" => {
+                                                // TODO: Implement conversation compaction
+                                                self.messages.push(Message::new(
+                                                    MessageRole::System,
+                                                    "Conversation compaction coming soon!".to_string(),
+                                                ));
+                                            }
+                                            "/quit" => {
+                                                self.should_quit = true;
+                                            }
+                                            _ => {
+                                                self.messages.push(Message::new(
+                                                    MessageRole::System,
+                                                    format!("Unknown command: {}. Type /help for available commands.", command),
+                                                ));
+                                            }
                                         }
+                                    } else if message.starts_with("/") {
+                                        // Unknown slash command
+                                        self.messages.push(Message::new(
+                                            MessageRole::System,
+                                            "Unknown command. Type /help for available commands.".to_string(),
+                                        ));
                                     } else {
-                                        // Handle message based on auth state
+                                        // Handle regular message based on auth state
                                         if self.providers.is_some() {
                                             // Add user message first
                                             self.messages.push(Message::user(message.clone()));
@@ -384,7 +455,7 @@ impl TuiManager {
                                             self.messages.push(Message::user(message.clone()));
                                             self.messages.push(Message::new(
                                                 MessageRole::System,
-                                                "\u{1f4a1} Demo Mode: AI chat requires API key configuration. Press F2 for Settings or type '/search <query>' to explore the codebase.".to_string(),
+                                                "⚠️ No AI provider configured. Press F2 or type /config to set one up.".to_string(),
                                             ));
                                         }
                                     }
@@ -519,6 +590,7 @@ impl TuiManager {
         self.selection_modal.render(f, f.area());
         self.settings_modal.render(f, f.area());
         self.help_modal.render(f, f.area());
+        self.model_selection_overlay.render(f, f.area());
     }
 
     fn draw_chat_area(&self, f: &mut Frame, area: Rect) {
@@ -616,6 +688,53 @@ impl TuiManager {
     }
 
     fn handle_modal_events(&mut self, key: ratatui::crossterm::event::KeyEvent) -> Result<bool> {
+        // Model selection overlay
+        if self.model_selection_overlay.is_visible() {
+            match key.code {
+                KeyCode::Esc => {
+                    self.model_selection_overlay.hide();
+                    return Ok(true);
+                }
+                KeyCode::Tab => {
+                    self.model_selection_overlay.switch_mode();
+                    return Ok(true);
+                }
+                KeyCode::Enter => {
+                    if let Some((provider, model)) = self.model_selection_overlay.get_selected() {
+                        self.provider_name = provider;
+                        self.model = model;
+                        self.model_selection_overlay.hide();
+                    }
+                    return Ok(true);
+                }
+                KeyCode::Up => {
+                    self.model_selection_overlay.move_selection_up();
+                    return Ok(true);
+                }
+                KeyCode::Down => {
+                    self.model_selection_overlay.move_selection_down();
+                    return Ok(true);
+                }
+                KeyCode::Left => {
+                    self.model_selection_overlay.move_cursor_left();
+                    return Ok(true);
+                }
+                KeyCode::Right => {
+                    self.model_selection_overlay.move_cursor_right();
+                    return Ok(true);
+                }
+                KeyCode::Backspace => {
+                    self.model_selection_overlay.handle_backspace();
+                    return Ok(true);
+                }
+                KeyCode::Char(c) => {
+                    self.model_selection_overlay.handle_char(c);
+                    return Ok(true);
+                }
+                _ => return Ok(true), // Consume all other events
+            }
+        }
+
         // Help modal
         if self.help_modal.is_visible() {
             match key.code {
@@ -1350,126 +1469,143 @@ impl TuiManager {
 
     /// Handle auth setup events
     async fn handle_auth_setup_events(&mut self, key: ratatui::crossterm::event::KeyEvent) -> Result<bool> {
-        match key.code {
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                // Allow Ctrl+C to quit even in auth setup
-                return Ok(false);
-            }
-            KeyCode::Char('s') | KeyCode::Char('S') => {
-                // 's' to skip auth setup and enter demo mode
-                self.show_auth_setup = false;
-                self.messages.push(Message::new(
-                    MessageRole::System,
-                    "🚀 Entering Demo Mode! You can explore the codebase with '/search <query>' commands. API chat features require configuration.".to_string(),
-                ));
-                return Ok(true);
-            }
-            KeyCode::F(2) => {
-                // F2 to go to settings for API key setup
-                self.settings_modal.toggle();
-                self.show_auth_setup = false;
-                return Ok(true);
-            }
-            KeyCode::Esc => {
-                // Esc to skip auth setup
-                self.show_auth_setup = false;
-                self.messages.push(Message::new(
-                    MessageRole::System,
-                    "🚀 Welcome to Demo Mode! Use '/search <query>' to explore code or press F2 for Settings.".to_string(),
-                ));
-                return Ok(true);
-            }
-            _ => return Ok(true), // Consume other events in auth mode
+        // Skip auth setup screen immediately
+        self.show_auth_setup = false;
+        
+        // Allow Ctrl+C to quit
+        if matches!(key.code, KeyCode::Char('c')) && key.modifiers.contains(KeyModifiers::CONTROL) {
+            return Ok(false);
         }
+        
+        Ok(true)
     }
 
     /// Draw the auth setup screen
     fn draw_auth_setup_screen(&self, f: &mut Frame) {
+        // Simplified welcome like Claude Code
+        let area = f.area();
+        
+        // Show regular UI with welcome message
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3), // Title
-                Constraint::Min(0),    // Main content
-                Constraint::Length(3), // Instructions
+                Constraint::Length(1), // Title bar
+                Constraint::Min(0),    // Chat area
+                Constraint::Length(3), // Input box
+                Constraint::Length(1), // Status bar
             ])
-            .split(f.area());
+            .split(area);
 
-        // Title
-        let title = Paragraph::new("🏹 Welcome to Aircher!")
-            .style(Style::default().fg(Color::Cyan))
-            .block(Block::default().borders(Borders::ALL));
+        // Title bar
+        let title = Paragraph::new(format!(
+            "🏹 Aircher - {} - {} | F1: Help | F2: Settings | /help for commands",
+            self.provider_name, self.model
+        ))
+        .style(Style::default().fg(Color::Cyan))
+        .block(Block::default().borders(Borders::BOTTOM));
         f.render_widget(title, chunks[0]);
 
-        // Main content area
-        let content_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(2), // Status
-                Constraint::Length(4), // Demo mode info
-                Constraint::Length(4), // API setup info
-                Constraint::Min(0),    // Available features
-            ])
-            .split(chunks[1]);
-
-        // API key status
-        let status_text = if self.auth_required {
-            "❌ No API keys configured"
+        // Chat area with welcome message
+        if self.messages.is_empty() {
+            // Show welcome box in center of chat area
+            let welcome_width = 60.min(chunks[1].width - 4);
+            let welcome_height = 12.min(chunks[1].height - 4);
+            
+            let x = chunks[1].x + (chunks[1].width - welcome_width) / 2;
+            let y = chunks[1].y + (chunks[1].height - welcome_height) / 2;
+            
+            let welcome_area = Rect::new(x, y, welcome_width, welcome_height);
+            
+            // Clear and draw welcome box
+            f.render_widget(Clear, welcome_area);
+            
+            let welcome_block = Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::DarkGray));
+            
+            let inner = welcome_block.inner(welcome_area);
+            f.render_widget(welcome_block, welcome_area);
+            
+            // Welcome content
+            let welcome_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(2), // Title
+                    Constraint::Length(1), // Space
+                    Constraint::Length(2), // Instructions
+                    Constraint::Length(1), // Space
+                    Constraint::Length(2), // CWD
+                    Constraint::Min(0),    // Space
+                ])
+                .split(inner);
+            
+            // Title
+            let welcome_title = Paragraph::new("🏹 Welcome to Aircher!")
+                .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+                .alignment(Alignment::Center);
+            f.render_widget(welcome_title, welcome_chunks[0]);
+            
+            // Instructions based on auth state
+            let instructions = if self.providers.is_none() {
+                vec![
+                    Line::from("  /help for help, /config to set API keys"),
+                    Line::from(""),
+                ]
+            } else {
+                vec![
+                    Line::from("  /help for help, /model to select model"),
+                    Line::from(""),
+                ]
+            };
+            let instructions_widget = Paragraph::new(instructions)
+                .style(Style::default())
+                .alignment(Alignment::Left);
+            f.render_widget(instructions_widget, welcome_chunks[2]);
+            
+            // Current working directory
+            let cwd = std::env::current_dir()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| "unknown".to_string());
+            let cwd_text = format!("  cwd: {}", cwd);
+            let cwd_widget = Paragraph::new(cwd_text)
+                .style(Style::default().fg(Color::DarkGray));
+            f.render_widget(cwd_widget, welcome_chunks[4]);
+            
+            // Tip below the welcome box
+            let tip_y = welcome_area.y + welcome_area.height + 1;
+            if tip_y < chunks[1].y + chunks[1].height - 1 {
+                let tip_area = Rect::new(chunks[1].x, tip_y, chunks[1].width, 1);
+                let tip = if self.providers.is_none() {
+                    " ※ Tip: Configure a provider with /config or F2"
+                } else {
+                    " ※ Tip: Use /model to change models, /search to explore code"
+                };
+                let tip_widget = Paragraph::new(tip)
+                    .style(Style::default().fg(Color::DarkGray))
+                    .alignment(Alignment::Center);
+                f.render_widget(tip_widget, tip_area);
+            }
         } else {
-            "✅ API keys configured"
-        };
-        let status = Paragraph::new(status_text)
-            .style(Style::default().fg(if self.auth_required { Color::Red } else { Color::Green }))
-            .block(Block::default().borders(Borders::ALL).title("Status"));
-        f.render_widget(status, content_chunks[0]);
+            // Draw normal chat area
+            self.draw_chat_area(f, chunks[1]);
+        }
 
-        // Demo mode info
-        let demo_info = Paragraph::new(
-            "🚀 Demo Mode Available:\n\
-             • Semantic code search with '/search <query>'\n\
-             • File monitoring and project analysis\n\
-             • Full TUI interface exploration"
-        )
-        .style(Style::default().fg(Color::Yellow))
-        .block(Block::default().borders(Borders::ALL).title("Demo Features"));
-        f.render_widget(demo_info, content_chunks[1]);
+        // Input box
+        self.draw_input_box(f, chunks[2]);
 
-        // API setup info
-        let api_info = Paragraph::new(
-            "🔑 Full Features (requires API keys):\n\
-             • AI chat assistance\n\
-             • Code generation and analysis\n\
-             • Intelligent context suggestions"
-        )
-        .style(Style::default().fg(Color::Blue))
-        .block(Block::default().borders(Borders::ALL).title("Full Features"));
-        f.render_widget(api_info, content_chunks[2]);
+        // Status bar
+        self.draw_status_bar(f, chunks[3]);
 
-        // Available features in demo mode
-        let features = vec![
-            "✅ Semantic Search - Find code by meaning",
-            "✅ File Monitoring - Track project changes", 
-            "✅ Intelligence Tools - Project analysis",
-            "✅ TUI Interface - Full terminal experience",
-            "⚙️  Settings Panel - Configure API keys",
-        ];
+        // Render autocomplete suggestions
+        if self.autocomplete.is_visible() {
+            self.autocomplete.render(f, chunks[2]);
+        }
 
-        let feature_items: Vec<ratatui::widgets::ListItem> = features
-            .iter()
-            .map(|f| ratatui::widgets::ListItem::new(*f))
-            .collect();
-
-        let features_list = ratatui::widgets::List::new(feature_items)
-            .block(Block::default().borders(Borders::ALL).title("Available Now"));
-        f.render_widget(features_list, content_chunks[3]);
-
-        // Instructions
-        let instructions = Paragraph::new(
-            "📋 Options:\n\
-             [S] Start Demo Mode | [F2] Configure API Keys | [Ctrl+C] Exit | [Esc] Skip Setup"
-        )
-        .style(Style::default().fg(Color::White))
-        .block(Block::default().borders(Borders::ALL).title("Instructions"));
-        f.render_widget(instructions, chunks[2]);
+        // Render modals
+        self.selection_modal.render(f, f.area());
+        self.settings_modal.render(f, f.area());
+        self.help_modal.render(f, f.area());
+        self.model_selection_overlay.render(f, f.area());
     }
 
     /// Handle AI message sending with proper borrowing
