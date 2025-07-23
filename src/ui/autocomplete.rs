@@ -190,8 +190,12 @@ impl AutocompleteEngine {
             debug!("Adding command suggestions for: '{}'", current_word);
             
             for cmd in SLASH_COMMANDS {
-                // Check main command
-                if cmd.command.starts_with(current_word) {
+                // Check if main command or any alias matches
+                let matches = cmd.command.starts_with(current_word) || 
+                             cmd.aliases.iter().any(|alias| alias.starts_with(current_word));
+                
+                if matches {
+                    // Only add the primary command, not aliases
                     self.suggestions.push(Suggestion {
                         text: current_word.to_string(),
                         completion: cmd.command.to_string(),
@@ -199,19 +203,6 @@ impl AutocompleteEngine {
                         suggestion_type: SuggestionType::Command,
                         confidence: 0.95,
                     });
-                }
-                
-                // Check aliases
-                for alias in cmd.aliases {
-                    if alias.starts_with(current_word) {
-                        self.suggestions.push(Suggestion {
-                            text: current_word.to_string(),
-                            completion: alias.to_string(),
-                            description: format!("{} (alias for {})", cmd.description, cmd.command),
-                            suggestion_type: SuggestionType::Command,
-                            confidence: 0.9,
-                        });
-                    }
                 }
             }
         }
@@ -421,7 +412,7 @@ impl AutocompleteEngine {
             let popup_area = Rect {
                 x: area.x,
                 y: popup_y,
-                width: area.width.min(60),
+                width: area.width.min(80), // Increased width for full descriptions
                 height: popup_height.min(area.y), // Don't exceed available space
             };
             
@@ -441,13 +432,8 @@ impl AutocompleteEngine {
                         Style::default().fg(Color::Gray)
                     };
                     
-                    // Format: command (alias) description
-                    let text = if suggestion.description.contains("alias for") {
-                        // Extract the alias format
-                        format!("{:20} {}", suggestion.completion, suggestion.description)
-                    } else {
-                        format!("{:20} {}", suggestion.completion, suggestion.description)
-                    };
+                    // Format: command with description
+                    let text = format!("{:15} {}", suggestion.completion, suggestion.description);
                     
                     ListItem::new(Line::from(vec![
                         Span::styled(" ", style),

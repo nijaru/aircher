@@ -94,6 +94,8 @@ pub struct TuiManager {
     // Message history
     message_history: Vec<String>,
     history_index: Option<usize>,
+    // Error handling
+    recent_error: Option<(Instant, String)>,
 }
 
 impl TuiManager {
@@ -217,6 +219,7 @@ impl TuiManager {
             plan_mode: false,
             message_history: Vec::new(),
             history_index: None,
+            recent_error: None,
         })
     }
 
@@ -333,7 +336,52 @@ impl TuiManager {
             plan_mode: false,
             message_history: Vec::new(),
             history_index: None,
+            recent_error: None,
         })
+    }
+
+    /// Set an error message to display
+    fn set_error(&mut self, error: String) {
+        self.recent_error = Some((Instant::now(), error.clone()));
+        
+        // Also log to file for debugging
+        self.log_error_to_file(&error);
+    }
+    
+    /// Log errors to a file for debugging
+    fn log_error_to_file(&self, error: &str) {
+        use std::fs::OpenOptions;
+        use std::io::Write;
+        
+        // Get log file path - using data dir for cross-platform compatibility
+        let log_file = dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("aircher")
+            .join("tui-errors.log");
+            
+        // Create directory if needed
+        if let Some(parent) = log_file.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        
+        // Append error to log file with timestamp
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_file)
+        {
+            let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+            writeln!(file, "[{}] {}", timestamp, error).ok();
+        }
+    }
+    
+    /// Check if error should still be displayed (expires after 5 seconds)
+    fn should_show_error(&self) -> bool {
+        if let Some((timestamp, _)) = &self.recent_error {
+            Instant::now().duration_since(*timestamp) < Duration::from_secs(5)
+        } else {
+            false
+        }
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -467,10 +515,7 @@ impl TuiManager {
                                                     
                                                     // Perform semantic search
                                                     if let Err(e) = self.handle_search_command(args).await {
-                                                        self.messages.push(Message::new(
-                                                            MessageRole::System,
-                                                            format!("Search error: {}", e),
-                                                        ));
+                                                        self.set_error(format!("Search failed: {}", e));
                                                     }
                                                 } else {
                                                     self.messages.push(Message::new(
@@ -844,6 +889,39 @@ impl TuiManager {
         }
 
         f.render_stateful_widget(messages_list, area, &mut state);
+        
+        // Draw error box if we have a recent error
+        if self.should_show_error() {
+            if let Some((_, error)) = &self.recent_error {
+                // Position error box at bottom of chat area
+                let error_height = 3;
+                let error_y = area.y + area.height.saturating_sub(error_height + 1);
+                let error_area = Rect {
+                    x: area.x + 2,
+                    y: error_y,
+                    width: area.width.saturating_sub(4),
+                    height: error_height,
+                };
+                
+                // Create error message with word wrapping
+                let error_text = vec![
+                    Line::from(error.as_str()),
+                ];
+                
+                let error_widget = Paragraph::new(error_text)
+                    .block(Block::default()
+                        .title(" ⚠ Error ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Red))
+                        .style(Style::default().bg(Color::Black)))
+                    .style(Style::default().fg(Color::Yellow))
+                    .wrap(ratatui::widgets::Wrap { trim: true });
+                
+                // Clear background and render error
+                f.render_widget(Clear, error_area);
+                f.render_widget(error_widget, error_area);
+            }
+        }
     }
 
     fn draw_input_box(&self, f: &mut Frame, area: Rect) {
