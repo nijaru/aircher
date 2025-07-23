@@ -355,8 +355,13 @@ impl TuiManager {
                                 self.selection_modal.toggle();
                             }
                             KeyCode::Enter => {
-                                // Check if autocomplete is visible and accept suggestion
-                                if self.autocomplete.is_visible() {
+                                // Check if Shift+Enter was pressed for newline
+                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    // Add newline to input
+                                    self.input.insert(self.cursor_position, '\n');
+                                    self.cursor_position += 1;
+                                } else if self.autocomplete.is_visible() {
+                                    // Accept autocomplete suggestion
                                     if let Some(completion) = self.autocomplete.accept_suggestion() {
                                         self.input = completion;
                                         self.cursor_position = self.input.len();
@@ -828,7 +833,7 @@ impl TuiManager {
         let shortcuts = if self.autocomplete.is_visible() {
             "↑↓ navigate • Enter accept • Esc cancel"
         } else {
-            "? for shortcuts | Ctrl+C to quit"
+            "? for shortcuts • Shift+Enter for newlines | Ctrl+C to quit"
         };
         
         // Add left padding to shortcuts like Claude Code
