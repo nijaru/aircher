@@ -14,11 +14,11 @@ aircher
 # Auto-detects project, creates .aircher/ directory, starts in demo mode
 # Use semantic search, configure API keys later for full AI chat
 
-# Semantic code search (NEW!)
+# Semantic code search with 20x performance improvement!
 aircher search query "error handling patterns"    # Finds conceptually similar code
-aircher search query "database connection logic"  # Works across languages
+aircher search query "database connection logic"  # Works across languages  
 aircher search index                              # Index current directory
-aircher model current                             # Show configured models
+aircher search stats                              # Show index statistics
 
 # One-shot conversations with project context
 aircher "How do I refactor this function?"
@@ -61,8 +61,8 @@ aircher session export session_id --format markdown
 **Working Features:**
 - ✅ **Semantic Code Search** - Production-ready AI-powered code understanding:
   - Find code by concept, not just text matching ("error handling patterns")
-  - **99.9% faster searches** with index persistence (0.02s vs 20s)
-  - **80% faster indexing** with batch processing (15-20s for typical projects)
+  - **20x faster index building** with hnswlib-rs HNSW algorithm (0.7s for 4K+ vectors)
+  - **Sub-second search performance** even on large codebases
   - Cross-language semantic similarity detection for 19+ languages
   - Intelligent code chunking with tree-sitter semantic parsing
   - Choose your model: Apache/MIT licensed (commercial OK) or premier quality (private use)
@@ -107,6 +107,7 @@ aircher session export session_id --format markdown
 
 ## 🚧 Coming Next
 
+- **Complete AI Agent Integration** - Full tool execution in TUI interface
 - **MCP Server Implementation** - Make Aircher available as an MCP server
 - **Enhanced Semantic Search** - Cross-file relationship detection, architecture analysis
 - **Advanced Search Features** - Query suggestions, pattern recognition, code insights
@@ -217,7 +218,9 @@ aircher config --help
 - **Phase 6: Configuration** - 100% complete (Hierarchical config ✅, Global/local ✅, Environment overrides ✅)
 - **Phase 7: Background Integration** - 100% complete (File monitoring ✅, Incremental updates ✅, Automatic indexing ✅)
 
-**Next**: Tree-sitter runtime improvements and cross-file relationship detection
+**Phase 8: AI Agent Integration** - 90% complete (Agent framework ✅, TUI integration ✅, Tool execution pending full provider support)
+
+**Next**: Complete agent-TUI integration, resolve provider constraints, MCP server implementation
 
 ## 🔥 Latest: Semantic Code Search
 
