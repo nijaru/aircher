@@ -788,15 +788,52 @@ impl TuiManager {
     }
 
     async fn send_message(&mut self, message: String, providers: &ProviderManager) -> Result<()> {
-        // Try to use agent controller if available, otherwise fall back to direct provider
-        if let Some(_agent) = &mut self.agent_controller {
-            // TODO: Use agent.process_message() once provider trait object issues are resolved
-            info!("Agent controller available but not yet fully integrated - using fallback");
-            self.send_message_fallback(message, providers).await
+        // Ensure agent controller is initialized
+        self.ensure_agent_initialized(providers).await?;
+        
+        // Try to use agent controller for enhanced functionality
+        if let Some(ref mut agent) = self.agent_controller {
+            // Get provider for agent
+            let provider = providers
+                .get_provider_or_host(&self.provider_name)
+                .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", self.provider_name))?;
+            
+            info!("Using agent controller for enhanced AI assistance");
+            
+            // Process message through agent
+            match agent.process_message(&message, provider).await {
+                Ok(response) => {
+                    // Add user message to local display
+                    let user_msg = Message::new(MessageRole::User, message.clone());
+                    self.messages.push(user_msg);
+                    
+                    // Add agent response to local display
+                    let assistant_msg = Message::new(MessageRole::Assistant, response.clone());
+                    self.messages.push(assistant_msg);
+                    
+                    // Update session if available
+                    if let Some(ref session) = self.current_session {
+                        // Convert providers::Message to sessions::Message for storage
+                        let session_message = crate::sessions::Message {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            role: crate::sessions::MessageRole::Assistant,
+                            content: response,
+                            timestamp: chrono::Utc::now(),
+                            tokens_used: None,
+                            cost: None,
+                        };
+                        self.session_manager.add_message(&session.id.to_string(), &session_message).await?;
+                    }
+                    
+                    Ok(())
+                }
+                Err(e) => {
+                    info!("Agent processing failed, falling back to direct provider: {}", e);
+                    self.send_message_fallback(message, providers).await
+                }
+            }
         } else {
-            // Initialize agent if needed (currently placeholder)
-            self.ensure_agent_initialized(providers).await?;
-            // Use fallback for now
+            // Fallback to direct provider if agent initialization failed
             self.send_message_fallback(message, providers).await
         }
     }
@@ -891,11 +928,37 @@ impl TuiManager {
     }
     
     /// Initialize agent controller for coding assistance  
-    /// Note: Currently placeholder - will be properly integrated once provider trait object issues are resolved
     async fn ensure_agent_initialized(&mut self, _providers: &ProviderManager) -> Result<()> {
         if self.agent_controller.is_none() {
-            info!("Agent controller initialization deferred - will integrate after resolving provider trait object constraints");
-            // TODO: Properly initialize agent controller once provider ownership is resolved
+            // Create database manager for intelligence engine
+            let database_manager = DatabaseManager::new(&self.config).await?;
+            
+            // Create intelligence engine
+            let intelligence = crate::intelligence::IntelligenceEngine::new(&self.config, &database_manager).await?;
+            
+            // Detect project language and create project context
+            let root_path = std::env::current_dir()?;
+            let language = detect_language(&root_path);
+            let project_context = crate::agent::conversation::ProjectContext {
+                root_path,
+                language,
+                framework: None,
+                recent_changes: Vec::new(),
+            };
+            
+            // Initialize agent controller
+            let mut controller = AgentController::new(intelligence, project_context)?;
+            
+            // Register default tools
+            controller.register_tool(Box::new(crate::agent::tools::file_ops::ReadFileTool::new()));
+            controller.register_tool(Box::new(crate::agent::tools::file_ops::WriteFileTool::new()));
+            controller.register_tool(Box::new(crate::agent::tools::file_ops::ListFilesTool::new()));
+            controller.register_tool(Box::new(crate::agent::tools::code_analysis::SearchCodeTool::new()));
+            controller.register_tool(Box::new(crate::agent::tools::code_analysis::FindDefinitionTool::new()));
+            controller.register_tool(Box::new(crate::agent::tools::system_ops::RunCommandTool::new()));
+            
+            self.agent_controller = Some(controller);
+            info!("Agent controller initialized successfully");
         }
         Ok(())
     }
