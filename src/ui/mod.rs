@@ -26,6 +26,7 @@ use crate::intelligence::tui_tools::TuiIntelligenceTools;
 use crate::intelligence::tools::IntelligenceTools;
 use crate::intelligence::file_monitor;
 use crate::semantic_search::SemanticCodeSearch;
+use crate::agent::{AgentController, conversation::ProgrammingLanguage};
 
 pub mod chat;
 pub mod components;
@@ -58,6 +59,8 @@ pub struct TuiManager {
     file_monitor: Option<file_monitor::FileMonitor>,
     // Semantic search
     semantic_search: SemanticCodeSearch,
+    // AI Agent
+    agent_controller: Option<AgentController>,
     // Modals
     selection_modal: SelectionModal,
     settings_modal: SettingsModal,
@@ -157,6 +160,8 @@ impl TuiManager {
             file_monitor,
             // Semantic search
             semantic_search,
+            // AI Agent
+            agent_controller: None, // Will be initialized when needed
             // Modals
             selection_modal: if let Some(ref providers) = providers {
                 SelectionModal::new(providers.as_ref(), config)
@@ -263,6 +268,8 @@ impl TuiManager {
             file_monitor: Some(file_monitor),
             // Semantic search
             semantic_search,
+            // AI Agent
+            agent_controller: None, // Will be initialized when needed
             // Initialize modals
             selection_modal: SelectionModal::new(providers, config),
             settings_modal: SettingsModal::new(config),
@@ -781,6 +788,25 @@ impl TuiManager {
     }
 
     async fn send_message(&mut self, message: String, providers: &ProviderManager) -> Result<()> {
+        // Try to use agent controller if available, otherwise fall back to direct provider
+        if let Some(_agent) = &mut self.agent_controller {
+            // TODO: Use agent.process_message() once provider trait object issues are resolved
+            info!("Agent controller available but not yet fully integrated - using fallback");
+            self.send_message_fallback(message, providers).await
+        } else {
+            // Initialize agent if needed (currently placeholder)
+            self.ensure_agent_initialized(providers).await?;
+            // Use fallback for now
+            self.send_message_fallback(message, providers).await
+        }
+    }
+
+    /// Fallback message sending using direct provider (current implementation)
+    async fn send_message_fallback(&mut self, message: String, providers: &ProviderManager) -> Result<()> {
+        // Add user message to local messages
+        let user_msg = Message::new(MessageRole::User, message.clone());
+        self.messages.push(user_msg);
+
         // Get provider
         let provider = providers
             .get_provider_or_host(&self.provider_name)
@@ -861,6 +887,16 @@ impl TuiManager {
             }
         }
 
+        Ok(())
+    }
+    
+    /// Initialize agent controller for coding assistance  
+    /// Note: Currently placeholder - will be properly integrated once provider trait object issues are resolved
+    async fn ensure_agent_initialized(&mut self, _providers: &ProviderManager) -> Result<()> {
+        if self.agent_controller.is_none() {
+            info!("Agent controller initialization deferred - will integrate after resolving provider trait object constraints");
+            // TODO: Properly initialize agent controller once provider ownership is resolved
+        }
         Ok(())
     }
     
@@ -1384,6 +1420,27 @@ impl TuiManager {
             }
         }
         Ok(())
+    }
+}
+
+/// Detect programming language from project directory
+fn detect_language(root: &std::path::Path) -> ProgrammingLanguage {
+    if root.join("Cargo.toml").exists() {
+        ProgrammingLanguage::Rust
+    } else if root.join("package.json").exists() {
+        if root.join("tsconfig.json").exists() {
+            ProgrammingLanguage::TypeScript
+        } else {
+            ProgrammingLanguage::JavaScript
+        }
+    } else if root.join("requirements.txt").exists() || root.join("pyproject.toml").exists() {
+        ProgrammingLanguage::Python
+    } else if root.join("go.mod").exists() {
+        ProgrammingLanguage::Go
+    } else if root.join("pom.xml").exists() {
+        ProgrammingLanguage::Java
+    } else {
+        ProgrammingLanguage::Other("Unknown".to_string())
     }
 }
 
