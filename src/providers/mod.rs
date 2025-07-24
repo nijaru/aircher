@@ -14,11 +14,14 @@ pub mod openai;
 
 use crate::config::ConfigManager;
 use crate::cost::{CostTracker, CostDecision, IntelligentModelSelector, TaskType};
+use crate::auth::AuthManager;
+use std::sync::Arc;
 
 pub struct ProviderManager {
     providers: HashMap<String, Box<dyn LLMProvider>>,
     hosts: HashMap<String, Box<dyn LLMProvider>>,
     _config: ConfigManager,
+    auth_manager: Arc<AuthManager>,
     cost_tracker: CostTracker,
     model_selector: IntelligentModelSelector,
 }
@@ -165,44 +168,75 @@ pub trait LLMProvider: Send + Sync {
 }
 
 impl ProviderManager {
-    pub async fn new(config: &ConfigManager) -> Result<Self> {
+    pub async fn new(config: &ConfigManager, auth_manager: Arc<AuthManager>) -> Result<Self> {
         let mut providers: HashMap<String, Box<dyn LLMProvider>> = HashMap::new();
         let mut hosts: HashMap<String, Box<dyn LLMProvider>> = HashMap::new();
 
         // Initialize Claude API provider
         if let Some(claude_config) = config.get_provider("claude") {
-            let claude_provider = claude_api::ClaudeApiProvider::new(claude_config.clone()).await?;
-            providers.insert("claude".to_string(), Box::new(claude_provider));
+            match claude_api::ClaudeApiProvider::new(claude_config.clone(), auth_manager.clone()).await {
+                Ok(claude_provider) => {
+                    providers.insert("claude".to_string(), Box::new(claude_provider));
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to initialize Claude provider: {}", e);
+                }
+            }
         }
 
         // Initialize Gemini provider
         if let Some(gemini_config) = config.get_provider("gemini") {
-            let gemini_provider = gemini::GeminiProvider::new(gemini_config.clone()).await?;
-            providers.insert("gemini".to_string(), Box::new(gemini_provider));
+            match gemini::GeminiProvider::new(gemini_config.clone(), auth_manager.clone()).await {
+                Ok(gemini_provider) => {
+                    providers.insert("gemini".to_string(), Box::new(gemini_provider));
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to initialize Gemini provider: {}", e);
+                }
+            }
         }
 
         // Initialize OpenAI provider
         if let Some(openai_config) = config.get_provider("openai") {
-            let openai_provider = openai::OpenAIProvider::new(openai_config.clone())?;
-            providers.insert("openai".to_string(), Box::new(openai_provider));
+            match openai::OpenAIProvider::new(openai_config.clone(), auth_manager.clone()) {
+                Ok(openai_provider) => {
+                    providers.insert("openai".to_string(), Box::new(openai_provider));
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to initialize OpenAI provider: {}", e);
+                }
+            }
         }
 
         // Initialize Ollama provider
         if let Some(ollama_config) = config.get_provider("ollama") {
-            let ollama_provider = ollama::OllamaProvider::new(ollama_config.clone()).await?;
-            providers.insert("ollama".to_string(), Box::new(ollama_provider));
+            match ollama::OllamaProvider::new(ollama_config.clone(), auth_manager.clone()).await {
+                Ok(ollama_provider) => {
+                    providers.insert("ollama".to_string(), Box::new(ollama_provider));
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to initialize Ollama provider: {}", e);
+                }
+            }
         }
 
         // Initialize OpenRouter host
         if let Some(openrouter_config) = config.get_host("openrouter") {
-            let openrouter_host = hosts::OpenRouterHost::new(openrouter_config.clone()).await?;
-            hosts.insert("openrouter".to_string(), Box::new(openrouter_host));
+            match hosts::OpenRouterHost::new(openrouter_config.clone(), auth_manager.clone()).await {
+                Ok(openrouter_host) => {
+                    hosts.insert("openrouter".to_string(), Box::new(openrouter_host));
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to initialize OpenRouter host: {}", e);
+                }
+            }
         }
 
         Ok(Self {
             providers,
             hosts,
             _config: config.clone(),
+            auth_manager,
             cost_tracker: CostTracker::new(config.cost.clone()),
             model_selector: IntelligentModelSelector::new(config),
         })

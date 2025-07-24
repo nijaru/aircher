@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
+use std::sync::RwLock;
 use tracing::{debug, info, warn};
 
 use crate::config::ConfigManager;
@@ -10,9 +10,9 @@ use crate::providers::ProviderManager;
 pub mod storage;
 pub mod cli;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct AuthManager {
-    storage: storage::AuthStorage,
+    storage: RwLock<storage::AuthStorage>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -51,7 +51,7 @@ impl AuthManager {
         let storage = storage::AuthStorage::new()?;
         
         Ok(Self {
-            storage,
+            storage: RwLock::new(storage),
         })
     }
 
@@ -87,7 +87,7 @@ impl AuthManager {
         }
 
         // Try to get API key from environment or storage
-        let api_key = match self.get_api_key(provider, &provider_config.api_key_env).await {
+        let api_key = match self.get_api_key_with_env(provider, &provider_config.api_key_env).await {
             Ok(Some(key)) => key,
             Ok(None) => {
                 return ProviderAuthInfo {
@@ -184,9 +184,9 @@ impl AuthManager {
     }
 
     /// Store API key for a provider
-    pub async fn store_api_key(&mut self, provider: &str, api_key: &str) -> Result<()> {
+    pub async fn store_api_key(&self, provider: &str, api_key: &str) -> Result<()> {
         info!("Storing API key for provider: {}", provider);
-        self.storage.store_api_key(provider, api_key).await
+        self.storage.write().unwrap().store_api_key(provider, api_key).await
             .context("Failed to store API key")?;
         
         info!("✓ API key stored for provider: {}", provider);
@@ -194,17 +194,37 @@ impl AuthManager {
     }
 
     /// Remove API key for a provider  
-    pub async fn remove_api_key(&mut self, provider: &str) -> Result<()> {
+    pub async fn remove_api_key(&self, provider: &str) -> Result<()> {
         info!("Removing API key for provider: {}", provider);
-        self.storage.remove_api_key(provider).await
+        self.storage.write().unwrap().remove_api_key(provider).await
             .context("Failed to remove API key")?;
         
         info!("✓ API key removed for provider: {}", provider);
         Ok(())
     }
+    
+    /// Clear all stored API keys
+    pub async fn clear_all(&self) -> Result<()> {
+        self.storage.write().unwrap().clear_all().await
+    }
+    
+    /// Get API key for a provider (public interface)
+    pub async fn get_api_key(&self, provider: &str) -> Result<String> {
+        let env_var = match provider {
+            "claude" | "anthropic" => "ANTHROPIC_API_KEY",
+            "gemini" | "google" => "GOOGLE_API_KEY",
+            "openai" => "OPENAI_API_KEY",
+            "openrouter" => "OPENROUTER_API_KEY",
+            "ollama" => return Err(anyhow::anyhow!("Ollama doesn't require an API key")),
+            _ => return Err(anyhow::anyhow!("Unknown provider: {}", provider)),
+        };
+        
+        self.get_api_key_with_env(provider, env_var).await?
+            .ok_or_else(|| anyhow::anyhow!("No API key found for provider {}", provider))
+    }
 
     /// Get API key for a provider (from storage or environment)
-    async fn get_api_key(&self, provider: &str, env_var: &str) -> Result<Option<String>> {
+    async fn get_api_key_with_env(&self, provider: &str, env_var: &str) -> Result<Option<String>> {
         // First try environment variable (highest priority)
         if let Ok(key) = env::var(env_var) {
             if !key.is_empty() {
@@ -214,7 +234,7 @@ impl AuthManager {
         }
 
         // Then try storage
-        match self.storage.get_api_key(provider).await? {
+        match self.storage.read().unwrap().get_api_key(provider).await? {
             Some(key) => {
                 debug!("Found API key for {} in storage", provider);
                 Ok(Some(key))

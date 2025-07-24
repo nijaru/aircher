@@ -16,6 +16,8 @@ use super::{
     PricingModel, ResponseStream, StreamChunk, UsageInfo,
 };
 use crate::config::ProviderConfig;
+use crate::auth::AuthManager;
+use std::sync::Arc;
 
 pub struct OpenAIProvider {
     client: Client,
@@ -109,9 +111,11 @@ struct OpenAIErrorDetails {
 }
 
 impl OpenAIProvider {
-    pub fn new(config: ProviderConfig) -> Result<Self> {
-        let api_key = env::var("OPENAI_API_KEY")
-            .context("OPENAI_API_KEY environment variable not found")?;
+    pub fn new(config: ProviderConfig, auth_manager: Arc<AuthManager>) -> Result<Self> {
+        // Try to get API key from auth manager first, fall back to environment variable
+        let api_key = futures::executor::block_on(auth_manager.get_api_key("openai"))
+            .or_else(|_| env::var("OPENAI_API_KEY"))
+            .context("No API key found for OpenAI provider (checked auth storage and OPENAI_API_KEY)")?;
 
         let client = Client::builder()
             .timeout(Duration::from_secs(120))

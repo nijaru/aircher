@@ -3,12 +3,12 @@ use ratatui::{
     Frame,
 };
 use std::collections::HashMap;
-use tracing::debug;
 
 use crate::config::{ConfigManager, ModelConfig};
 use crate::providers::ProviderManager;
 use crate::auth::{AuthManager, AuthStatus};
 use super::typeahead::{TypeaheadOverlay, TypeaheadItem};
+use std::sync::Arc;
 
 pub struct ModelSelectionOverlay {
     mode: SelectionMode,
@@ -18,6 +18,7 @@ pub struct ModelSelectionOverlay {
     current_model: String,
     provider_models: HashMap<String, Vec<ModelConfig>>,
     has_providers: bool,
+    auth_manager: Option<Arc<AuthManager>>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -56,6 +57,7 @@ impl ModelSelectionOverlay {
             current_model: current_model.clone(),
             provider_models,
             has_providers: false,
+            auth_manager: None,
         };
 
         overlay.update_items(config);
@@ -69,13 +71,48 @@ impl ModelSelectionOverlay {
         overlay
     }
 
+    pub fn with_auth_manager(config: &ConfigManager, auth_manager: Arc<AuthManager>) -> Self {
+        let mut overlay = Self::new(config);
+        overlay.auth_manager = Some(auth_manager);
+        overlay.update_items(config);
+        overlay
+    }
+
     fn update_items(&mut self, config: &ConfigManager) {
-        // Update provider items
+        // For now, use the old method when no auth manager is available
+        // This will be updated to be async when we refactor the callers
+        if self.auth_manager.is_none() {
+            let provider_items: Vec<TypeaheadItem> = config.providers.keys()
+                .map(|name| TypeaheadItem {
+                    label: format_provider_name_with_status_legacy(name, config),
+                    value: name.clone(),
+                    description: Some(format_provider_description_with_auth_legacy(name, config)),
+                    available: config.providers.get(name)
+                        .map(|p| p.api_key_env.is_empty() || std::env::var(&p.api_key_env).is_ok())
+                        .unwrap_or(false),
+                })
+                .collect();
+
+            self.provider_typeahead.set_items(provider_items);
+            self.provider_typeahead.set_current_value(Some(self.current_provider.clone()));
+            self.update_provider_description();
+
+            // Update model items for current provider
+            self.update_model_items();
+            return;
+        }
+
+        // Schedule async update - for now we'll use the legacy method as fallback
+        // TODO: Make this properly async
+        self.update_items_legacy(config);
+    }
+
+    fn update_items_legacy(&mut self, config: &ConfigManager) {
         let provider_items: Vec<TypeaheadItem> = config.providers.keys()
             .map(|name| TypeaheadItem {
-                label: format_provider_name_with_status(name, config),
+                label: format_provider_name_with_status_legacy(name, config),
                 value: name.clone(),
-                description: Some(format_provider_description_with_auth(name, config)),
+                description: Some(format_provider_description_with_auth_legacy(name, config)),
                 available: config.providers.get(name)
                     .map(|p| p.api_key_env.is_empty() || std::env::var(&p.api_key_env).is_ok())
                     .unwrap_or(false),
@@ -88,6 +125,39 @@ impl ModelSelectionOverlay {
 
         // Update model items for current provider
         self.update_model_items();
+    }
+
+    pub async fn update_items_with_auth(&mut self, config: &ConfigManager) {
+        if let Some(auth_manager) = &self.auth_manager {
+            let auth_statuses = auth_manager.get_all_provider_statuses(config).await;
+            
+            let provider_items: Vec<TypeaheadItem> = config.providers.keys()
+                .map(|name| {
+                    let auth_status = auth_statuses.get(name)
+                        .map(|info| &info.status)
+                        .unwrap_or(&AuthStatus::NotConfigured);
+                    
+                    TypeaheadItem {
+                        label: format_provider_name_with_auth_status(name, auth_status),
+                        value: name.clone(),
+                        description: Some(format_provider_description_with_auth_status(name, auth_status, config)),
+                        available: matches!(auth_status, AuthStatus::Authenticated) || 
+                                 config.providers.get(name)
+                                     .map(|p| p.api_key_env.is_empty())
+                                     .unwrap_or(false),
+                    }
+                })
+                .collect();
+
+            self.provider_typeahead.set_items(provider_items);
+            self.provider_typeahead.set_current_value(Some(self.current_provider.clone()));
+            self.update_provider_description();
+
+            // Update model items for current provider
+            self.update_model_items();
+        } else {
+            self.update_items_legacy(config);
+        }
     }
 
     fn update_provider_availability(&mut self, providers: &ProviderManager) {
@@ -266,15 +336,15 @@ fn format_provider_name(provider: &str) -> String {
     }
 }
 
-fn format_provider_name_with_status(provider: &str, config: &ConfigManager) -> String {
+fn format_provider_name_with_status_legacy(provider: &str, config: &ConfigManager) -> String {
     let base_name = format_provider_name(provider);
-    let status_icon = get_provider_auth_status_icon(provider, config);
+    let status_icon = get_provider_auth_status_icon_legacy(provider, config);
     format!("{} {}", status_icon, base_name)
 }
 
-fn format_provider_description_with_auth(provider: &str, config: &ConfigManager) -> String {
+fn format_provider_description_with_auth_legacy(provider: &str, config: &ConfigManager) -> String {
     let base_description = format_provider_description(provider);
-    let auth_status = get_provider_auth_description(provider, config);
+    let auth_status = get_provider_auth_description_legacy(provider, config);
     let model_count = config.providers.get(provider)
         .map(|p| p.models.len())
         .unwrap_or(0);
@@ -282,7 +352,23 @@ fn format_provider_description_with_auth(provider: &str, config: &ConfigManager)
     format!("{} • {} models • {}", base_description, model_count, auth_status)
 }
 
-fn get_provider_auth_status_icon(provider: &str, config: &ConfigManager) -> &'static str {
+fn format_provider_name_with_auth_status(provider: &str, auth_status: &AuthStatus) -> String {
+    let base_name = format_provider_name(provider);
+    let status_icon = get_auth_status_icon(auth_status);
+    format!("{} {}", status_icon, base_name)
+}
+
+fn format_provider_description_with_auth_status(provider: &str, auth_status: &AuthStatus, config: &ConfigManager) -> String {
+    let base_description = format_provider_description(provider);
+    let auth_description = get_auth_status_description(auth_status);
+    let model_count = config.providers.get(provider)
+        .map(|p| p.models.len())
+        .unwrap_or(0);
+    
+    format!("{} • {} models • {}", base_description, model_count, auth_description)
+}
+
+fn get_provider_auth_status_icon_legacy(provider: &str, config: &ConfigManager) -> &'static str {
     if let Some(provider_config) = config.get_provider(provider) {
         if provider_config.api_key_env.is_empty() {
             "⚡" // Local provider (no auth needed)
@@ -296,7 +382,7 @@ fn get_provider_auth_status_icon(provider: &str, config: &ConfigManager) -> &'st
     }
 }
 
-fn get_provider_auth_description(provider: &str, config: &ConfigManager) -> String {
+fn get_provider_auth_description_legacy(provider: &str, config: &ConfigManager) -> String {
     if let Some(provider_config) = config.get_provider(provider) {
         if provider_config.api_key_env.is_empty() {
             "local (no auth needed)".to_string()
@@ -307,6 +393,28 @@ fn get_provider_auth_description(provider: &str, config: &ConfigManager) -> Stri
         }
     } else {
         "not configured".to_string()
+    }
+}
+
+fn get_auth_status_icon(auth_status: &AuthStatus) -> &'static str {
+    match auth_status {
+        AuthStatus::Authenticated => "✓",
+        AuthStatus::NotConfigured => "○",
+        AuthStatus::Invalid => "❌",
+        AuthStatus::Expired => "⚠",
+        AuthStatus::RateLimited => "⚠",
+        AuthStatus::NetworkError => "⚠",
+    }
+}
+
+fn get_auth_status_description(auth_status: &AuthStatus) -> &'static str {
+    match auth_status {
+        AuthStatus::Authenticated => "authenticated",
+        AuthStatus::NotConfigured => "needs setup",
+        AuthStatus::Invalid => "invalid key",
+        AuthStatus::Expired => "expired key",
+        AuthStatus::RateLimited => "rate limited",
+        AuthStatus::NetworkError => "network error",
     }
 }
 

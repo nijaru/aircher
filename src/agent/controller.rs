@@ -1,16 +1,21 @@
 use anyhow::Result;
 use serde_json::Value;
+use std::sync::Arc;
 use tracing::{debug, info, warn};
 
+use crate::auth::AuthManager;
 use crate::intelligence::IntelligenceEngine;
 use crate::providers::{LLMProvider, ChatRequest, Message, MessageRole};
 use crate::agent::tools::{ToolRegistry, ToolCall};
 use crate::agent::parser::{ToolCallParser, format_tool_results};
+use crate::agent::tool_formatter::{format_tool_status, format_tool_result};
+use crate::agent::streaming::{AgentUpdate, AgentStream, create_agent_stream};
 use crate::agent::conversation::{CodingConversation, Message as ConvMessage, MessageRole as ConvRole, ProjectContext};
 
 pub struct AgentController {
     tools: ToolRegistry,
     intelligence: IntelligenceEngine,
+    auth_manager: Arc<AuthManager>,
     parser: ToolCallParser,
     conversation: CodingConversation,
     max_iterations: usize,
@@ -19,11 +24,13 @@ pub struct AgentController {
 impl AgentController {
     pub fn new(
         intelligence: IntelligenceEngine,
+        auth_manager: Arc<AuthManager>,
         project_context: ProjectContext,
     ) -> Result<Self> {
         Ok(Self {
             tools: ToolRegistry::default(),
             intelligence,
+            auth_manager,
             parser: ToolCallParser::new()?,
             conversation: CodingConversation {
                 messages: Vec::new(),
@@ -35,9 +42,60 @@ impl AgentController {
         })
     }
     
-    /// Process a user message and return the assistant's response
-    pub async fn process_message(&mut self, user_message: &str, provider: &dyn LLMProvider) -> Result<String> {
+    /// Validate that authentication is configured for the provider needed by this model
+    async fn validate_auth_for_model(&self, model: &str) -> Result<()> {
+        // Map model to provider - this is a simplified mapping
+        let provider_name = if model.contains("claude") || model.contains("anthropic") {
+            "anthropic"
+        } else if model.contains("gpt") || model.contains("openai") {
+            "openai"
+        } else if model.contains("gemini") || model.contains("google") {
+            "gemini"
+        } else if model.contains("llama") || model.contains("mistral") || model.contains("qwen") {
+            "ollama" // Local models don't need auth
+        } else {
+            // Default to anthropic for unknown models
+            "anthropic"
+        };
+        
+        // Skip auth check for local providers
+        if provider_name == "ollama" {
+            return Ok(());
+        }
+        
+        // Check if we have valid auth for this provider
+        match self.auth_manager.get_api_key(provider_name).await {
+            Ok(_) => {
+                debug!("Auth validated for provider: {}", provider_name);
+                Ok(())
+            }
+            Err(e) => {
+                let error_msg = format!(
+                    "Authentication required for model '{}' (provider: {}). \
+                    Please run 'aircher auth login {}' to set up your API key, \
+                    or set the {} environment variable.",
+                    model,
+                    provider_name,
+                    provider_name,
+                    match provider_name {
+                        "anthropic" => "ANTHROPIC_API_KEY",
+                        "openai" => "OPENAI_API_KEY", 
+                        "gemini" => "GOOGLE_API_KEY",
+                        _ => "API_KEY"
+                    }
+                );
+                warn!("Auth validation failed: {}", e);
+                Err(anyhow::anyhow!(error_msg))
+            }
+        }
+    }
+    
+    /// Process a user message and return the assistant's response with tool status
+    pub async fn process_message(&mut self, user_message: &str, provider: &dyn LLMProvider, model: &str) -> Result<(String, Vec<String>)> {
         info!("Processing user message: {}", user_message);
+        
+        // Validate authentication before making LLM calls
+        self.validate_auth_for_model(model).await?;
         
         // Add user message to conversation
         self.conversation.messages.push(ConvMessage {
@@ -49,6 +107,7 @@ impl AgentController {
         
         let mut iterations = 0;
         let mut final_response = String::new();
+        let mut tool_status_messages = Vec::new();
         
         loop {
             iterations += 1;
@@ -89,10 +148,10 @@ impl AgentController {
             // Get response from LLM
             let request = ChatRequest {
                 messages,
-                model: "llama3.3".to_string(), // Default model, will be overridden by provider
+                model: model.to_string(),
                 temperature: Some(0.7),
                 max_tokens: Some(2000),
-                stream: false,
+                stream: false, // TODO: Implement streaming support in agent
                 tools: None,
             };
             
@@ -118,7 +177,18 @@ impl AgentController {
             } else {
                 // Execute tool calls
                 info!("Executing {} tool calls", tool_calls.len());
+                
+                // Add tool status messages for UI
+                for call in &tool_calls {
+                    tool_status_messages.push(format_tool_status(&call.name, &call.parameters, true));
+                }
+                
                 let tool_results = self.execute_tools(&tool_calls).await;
+                
+                // Add result status messages
+                for (tool_name, result) in &tool_results {
+                    tool_status_messages.push(format_tool_result(tool_name, result));
+                }
                 
                 // Add assistant message with tool calls
                 self.conversation.messages.push(ConvMessage {
@@ -143,7 +213,191 @@ impl AgentController {
             }
         }
         
-        Ok(final_response)
+        Ok((final_response, tool_status_messages))
+    }
+    
+    /// Process a user message with streaming support
+    pub async fn process_message_streaming(&mut self, user_message: &str, provider: &dyn LLMProvider, model: &str) -> Result<AgentStream> {
+        let (tx, rx) = create_agent_stream();
+        
+        // Add user message to conversation immediately
+        self.conversation.messages.push(ConvMessage {
+            role: ConvRole::User,
+            content: user_message.to_string(),
+            tool_calls: None,
+            timestamp: chrono::Utc::now(),
+        });
+        
+        // Process directly without spawning (simpler approach)
+        match self.process_message_internal(user_message, provider, model, &tx).await {
+            Ok(_) => {
+                let _ = tx.send(Ok(AgentUpdate::Complete {
+                    total_tokens: 0, // TODO: Track actual tokens
+                    tool_status_messages: vec![],
+                })).await;
+            }
+            Err(e) => {
+                let _ = tx.send(Ok(AgentUpdate::Error(e.to_string()))).await;
+            }
+        }
+        
+        Ok(rx)
+    }
+    
+    /// Internal processing method that can send streaming updates
+    async fn process_message_internal(&mut self, user_message: &str, provider: &dyn LLMProvider, model: &str, tx: &crate::agent::streaming::AgentStreamSender) -> Result<()> {
+        info!("Processing user message with streaming: {}", user_message);
+        
+        // Validate authentication before making LLM calls
+        self.validate_auth_for_model(model).await?;
+        
+        let mut iterations = 0;
+        let mut tool_status_messages = Vec::new();
+        
+        loop {
+            iterations += 1;
+            if iterations > self.max_iterations {
+                warn!("Max iterations reached, stopping tool execution");
+                break;
+            }
+            
+            // Build chat request with system prompt
+            let mut messages = vec![
+                Message {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    role: MessageRole::System,
+                    content: self.build_system_prompt(),
+                    timestamp: chrono::Utc::now(),
+                    tokens_used: None,
+                    cost: None,
+                },
+            ];
+            
+            // Add conversation history
+            for msg in &self.conversation.messages {
+                messages.push(Message {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    role: match msg.role {
+                        ConvRole::User => MessageRole::User,
+                        ConvRole::Assistant => MessageRole::Assistant,
+                        ConvRole::System => MessageRole::System,
+                        ConvRole::Tool => MessageRole::User,
+                    },
+                    content: msg.content.clone(),
+                    timestamp: msg.timestamp,
+                    tokens_used: None,
+                    cost: None,
+                });
+            }
+            
+            // Create streaming request
+            let request = ChatRequest {
+                messages,
+                model: model.to_string(),
+                temperature: Some(0.7),
+                max_tokens: Some(2000),
+                stream: true, // Enable streaming
+                tools: None,
+            };
+            
+            // Use streaming for the response
+            match provider.stream(&request).await {
+                Ok(mut stream) => {
+                    let mut response_content = String::new();
+                    let mut total_tokens = 0;
+                    
+                    // Process streaming chunks
+                    while let Some(chunk_result) = stream.recv().await {
+                        match chunk_result {
+                            Ok(chunk) => {
+                                response_content.push_str(&chunk.content);
+                                if let Some(tokens) = chunk.tokens_used {
+                                    total_tokens = tokens;
+                                }
+                                
+                                // Send streaming update to UI
+                                let _ = tx.send(Ok(AgentUpdate::TextChunk {
+                                    content: chunk.content,
+                                    delta: chunk.delta,
+                                    tokens_used: chunk.tokens_used,
+                                })).await;
+                                
+                                // Check if stream is complete
+                                if chunk.finish_reason.is_some() {
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                let _ = tx.send(Ok(AgentUpdate::Error(e.to_string()))).await;
+                                return Err(anyhow::anyhow!("Streaming error: {}", e));
+                            }
+                        }
+                    }
+                    
+                    // Parse tool calls from complete response
+                    let (clean_text, tool_calls) = self.parser.parse_structured(&response_content)?;
+                    
+                    if tool_calls.is_empty() {
+                        // No tool calls, we're done
+                        self.conversation.messages.push(ConvMessage {
+                            role: ConvRole::Assistant,
+                            content: clean_text,
+                            tool_calls: None,
+                            timestamp: chrono::Utc::now(),
+                        });
+                        break;
+                    } else {
+                        // Execute tool calls
+                        info!("Executing {} tool calls", tool_calls.len());
+                        
+                        // Send tool status updates
+                        for call in &tool_calls {
+                            let status = format_tool_status(&call.name, &call.parameters, true);
+                            tool_status_messages.push(status.clone());
+                            let _ = tx.send(Ok(AgentUpdate::ToolStatus(status))).await;
+                        }
+                        
+                        let tool_results = self.execute_tools(&tool_calls).await;
+                        
+                        // Send tool result updates
+                        for (tool_name, result) in &tool_results {
+                            let status = format_tool_result(tool_name, result);
+                            tool_status_messages.push(status.clone());
+                            let _ = tx.send(Ok(AgentUpdate::ToolStatus(status))).await;
+                        }
+                        
+                        // Add assistant message with tool calls
+                        self.conversation.messages.push(ConvMessage {
+                            role: ConvRole::Assistant,
+                            content: clean_text,
+                            tool_calls: Some(tool_calls.iter().map(|tc| crate::agent::conversation::ToolCall {
+                                tool_name: tc.name.clone(),
+                                parameters: tc.parameters.clone(),
+                                result: None,
+                            }).collect()),
+                            timestamp: chrono::Utc::now(),
+                        });
+                        
+                        // Add tool results
+                        let formatted_results = format_tool_results(&tool_results);
+                        self.conversation.messages.push(ConvMessage {
+                            role: ConvRole::Tool,
+                            content: formatted_results,
+                            tool_calls: None,
+                            timestamp: chrono::Utc::now(),
+                        });
+                        
+                        // Continue the loop for next iteration
+                    }
+                }
+                Err(e) => {
+                    let _ = tx.send(Ok(AgentUpdate::Error(e.to_string()))).await;
+                    return Err(e);
+                }
+            }
+        }
+        
+        Ok(())
     }
     
     /// Execute a list of tool calls

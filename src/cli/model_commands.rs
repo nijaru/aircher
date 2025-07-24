@@ -183,7 +183,7 @@ fn show_example_configurations() {
 }
 
 async fn load_model_config() -> Result<ModelConfiguration> {
-    // In real implementation, load from ~/.config/aircher/models.toml
+    // In real implementation, load from ~/.aircher/config/models.toml
     // For now, return default
     Ok(ModelConfiguration::default())
     
@@ -198,7 +198,7 @@ async fn load_model_config() -> Result<ModelConfiguration> {
 }
 
 async fn save_model_config(config: &ModelConfiguration) -> Result<()> {
-    // In real implementation, save to ~/.config/aircher/models.toml
+    // In real implementation, save to ~/.aircher/config/models.toml
     // For now, just log
     tracing::info!("Would save model configuration");
     

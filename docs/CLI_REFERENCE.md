@@ -236,10 +236,10 @@ EDITOR=vim                         # Editor for 'config edit'
 ### Standard Locations (Cross-platform)
 ```bash
 # Linux/macOS
-~/.config/aircher/config.toml      # Main configuration
-~/.config/aircher/models.toml      # Model specifications
-~/.cache/aircher/models/           # Downloaded models
-~/.local/share/aircher/sessions/   # Session database
+~/.aircher/config.toml             # Main configuration
+~/.aircher/config/models.toml      # Model specifications
+~/.aircher/cache/models/           # Downloaded models
+~/.aircher/data/sessions.db        # Session database
 
 # Windows  
 %APPDATA%\aircher\config.toml

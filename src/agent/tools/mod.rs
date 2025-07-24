@@ -8,10 +8,15 @@ use thiserror::Error;
 pub mod file_ops;
 pub mod code_analysis;
 pub mod system_ops;
+pub mod permission_channel;
+
+#[cfg(test)]
+mod tests;
 
 pub use file_ops::{ReadFileTool, WriteFileTool, EditFileTool, ListFilesTool};
 pub use code_analysis::{SearchCodeTool, FindDefinitionTool};
-pub use system_ops::{RunCommandTool, GitStatusTool};
+pub use system_ops::RunCommandTool;
+pub use permission_channel::{PermissionRequest, PermissionResponse, PermissionRequestSender, PermissionRequestReceiver, create_permission_channel};
 
 #[derive(Debug, Error)]
 pub enum ToolError {

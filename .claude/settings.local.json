@@ -49,7 +49,14 @@
       "Bash(unset:*)",
       "WebFetch(domain:modelcontextprotocol.io)",
       "Bash(RUST_BACKTRACE=1 cargo build --features mcp)",
-      "WebFetch(domain:crates.io)"
+      "WebFetch(domain:crates.io)",
+      "Bash(RUST_LOG=debug cargo run --quiet)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(chmod:*)",
+      "Bash(./test_provider_auth)",
+      "Bash(echo:*)",
+      "Bash(echo \"XDG_DATA_HOME: $XDG_DATA_HOME:-$HOME/.local/share\")",
+      "Bash(diff:*)"
     ],
     "deny": []
   }

@@ -8,6 +8,7 @@ use crate::intelligence::IntelligenceEngine;
 use crate::providers::ProviderManager;
 use crate::storage::DatabaseManager;
 use crate::ui::TuiManager;
+use crate::auth::AuthManager;
 
 pub struct ArcherApp {
     #[allow(dead_code)]
@@ -33,8 +34,12 @@ impl ArcherApp {
         let storage = DatabaseManager::new(&config).await?;
         info!("Database initialized");
 
+        // Initialize auth manager
+        let auth_manager = Arc::new(AuthManager::new()?);
+        info!("Auth manager initialized");
+        
         // Initialize provider manager
-        let providers = ProviderManager::new(&config).await?;
+        let providers = ProviderManager::new(&config, auth_manager.clone()).await?;
         info!("Provider manager initialized");
 
         // Initialize intelligence engine
@@ -42,7 +47,7 @@ impl ArcherApp {
         info!("Intelligence engine initialized");
 
         // Initialize TUI
-        let ui = TuiManager::new(&config, &providers).await?;
+        let ui = TuiManager::new(&config, auth_manager, &providers).await?;
         info!("TUI initialized");
 
         Ok(Self {

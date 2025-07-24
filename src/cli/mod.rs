@@ -13,26 +13,31 @@ use crate::providers::{ChatRequest, Message, ProviderManager};
 use crate::sessions::{SessionFilter, ExportFormat, SessionManager, MessageRole};
 use crate::storage::DatabaseManager;
 use crate::ui::TuiManager;
+use crate::auth::AuthManager;
+use std::sync::Arc;
 
 
 pub struct CliApp {
     config: ConfigManager,
+    auth_manager: Arc<AuthManager>,
     providers: Option<Rc<ProviderManager>>,
 }
 
 impl CliApp {
     pub async fn new() -> Result<Self> {
         let config = ConfigManager::load().await?;
+        let auth_manager = Arc::new(AuthManager::new()?);
 
         Ok(Self {
             config,
+            auth_manager,
             providers: None,
         })
     }
 
     async fn get_providers(&mut self) -> Result<Rc<ProviderManager>> {
         if self.providers.is_none() {
-            let provider_manager = ProviderManager::new(&self.config).await?;
+            let provider_manager = ProviderManager::new(&self.config, self.auth_manager.clone()).await?;
             self.providers = Some(Rc::new(provider_manager));
         }
         Ok(self.providers.as_ref().unwrap().clone())
@@ -889,7 +894,7 @@ impl CliApp {
         };
 
         // Create TUI manager with optional providers
-        let mut tui_manager = TuiManager::new_with_auth_state(&config, providers, provider_name.clone(), model.clone()).await?;
+        let mut tui_manager = TuiManager::new_with_auth_state(&config, self.auth_manager.clone(), providers, provider_name.clone(), model.clone()).await?;
 
         // Run TUI (it will handle auth setup internally if needed)
         tui_manager.run().await
@@ -1216,7 +1221,7 @@ impl CliApp {
         let model_args = ModelArgs { command: model_command };
         // Create providers first to avoid borrowing issues
         let _providers = if self.providers.is_none() {
-            let provider_manager = ProviderManager::new(&self.config).await?;
+            let provider_manager = ProviderManager::new(&self.config, self.auth_manager.clone()).await?;
             self.providers = Some(Rc::new(provider_manager));
         };
         let providers = self.providers.as_ref().unwrap();
@@ -1224,9 +1229,9 @@ impl CliApp {
     }
     
     async fn handle_auth_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
-        use crate::auth::{AuthManager, cli::AuthCommand};
+        use crate::auth::cli::AuthCommand;
         
-        let mut auth_manager = AuthManager::new()?;
+        let auth_manager = self.auth_manager.clone();
         
         // Collect command args for parsing
         let mut args = vec!["auth".to_string()];
@@ -1277,7 +1282,7 @@ impl CliApp {
         
         auth_command.execute(
             &self.config, 
-            &mut auth_manager, 
+            &auth_manager, 
             provider_manager.as_deref()
         ).await
     }

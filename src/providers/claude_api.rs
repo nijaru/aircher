@@ -16,6 +16,8 @@ use super::{
     PricingModel, ResponseStream, StreamChunk, UsageInfo,
 };
 use crate::config::ProviderConfig;
+use crate::auth::AuthManager;
+use std::sync::Arc;
 
 pub struct ClaudeApiProvider {
     client: Client,
@@ -97,9 +99,12 @@ struct ClaudeError {
 }
 
 impl ClaudeApiProvider {
-    pub async fn new(config: ProviderConfig) -> Result<Self> {
-        let api_key = env::var(&config.api_key_env)
-            .with_context(|| format!("Environment variable {} not found", config.api_key_env))?;
+    pub async fn new(config: ProviderConfig, auth_manager: Arc<AuthManager>) -> Result<Self> {
+        // Try to get API key from auth manager first, fall back to environment variable
+        let api_key = auth_manager.get_api_key("claude")
+            .await
+            .or_else(|_| env::var(&config.api_key_env))
+            .with_context(|| format!("No API key found for Claude provider (checked auth storage and {})", config.api_key_env))?;
 
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));

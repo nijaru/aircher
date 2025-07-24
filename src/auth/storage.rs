@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::{debug, warn};
 
-use crate::utils::xdg_dirs::{XdgDirs, AircherFileType};
+use crate::utils::aircher_dirs::AircherDirs;
 
 /// Simple file-based auth storage
 /// Future: Can be enhanced with keychain/keyring integration
@@ -73,9 +73,9 @@ impl AuthStorage {
         self.keys.keys().cloned().collect()
     }
 
-    /// Get the auth file path using XDG spec
+    /// Get the auth file path
     fn get_auth_file_path() -> Result<PathBuf> {
-        XdgDirs::get_file_path(AircherFileType::Config, "auth.json")
+        AircherDirs::auth_path()
     }
 
     /// Load keys from auth file

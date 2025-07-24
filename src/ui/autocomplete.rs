@@ -399,7 +399,8 @@ impl AutocompleteEngine {
         let first_suggestion = &self.suggestions[0];
         if first_suggestion.suggestion_type == SuggestionType::Command {
             // Calculate popup area (above the input box to avoid overflow)
-            let popup_height = (self.suggestions.len() as u16).min(8) + 1;
+            let max_visible_items = 8;
+            let popup_height = (self.suggestions.len() as u16).min(max_visible_items) + 1;
             
             // Ensure we don't go out of bounds - position above input if necessary
             let popup_y = if area.y >= popup_height {
@@ -421,12 +422,21 @@ impl AutocompleteEngine {
                 return;
             }
             
+            // Calculate visible window for scrolling
+            let visible_start = if self.selected_index >= max_visible_items as usize {
+                self.selected_index - max_visible_items as usize + 1
+            } else {
+                0
+            };
+            let visible_end = (visible_start + max_visible_items as usize).min(self.suggestions.len());
+            
             // Create suggestion items in a compact format
-            let items: Vec<ListItem> = self.suggestions
+            let items: Vec<ListItem> = self.suggestions[visible_start..visible_end]
                 .iter()
                 .enumerate()
                 .map(|(i, suggestion)| {
-                    let style = if i == self.selected_index {
+                    let actual_index = visible_start + i;
+                    let style = if actual_index == self.selected_index {
                         Style::default().fg(Color::Cyan).bg(Color::DarkGray)
                     } else {
                         Style::default().fg(Color::Gray)
@@ -442,8 +452,18 @@ impl AutocompleteEngine {
                 })
                 .collect();
             
+            // Add scroll indicator in the title
+            let title = if self.suggestions.len() > max_visible_items as usize {
+                format!(" Commands ({}/{}) ", self.selected_index + 1, self.suggestions.len())
+            } else {
+                " Commands ".to_string()
+            };
+            
             let suggestions_list = List::new(items)
-                .block(Block::default());
+                .block(Block::default()
+                    .borders(Borders::ALL)
+                    .title(title)
+                    .border_style(Style::default().fg(Color::DarkGray)));
             
             // Clear the background and render
             f.render_widget(ratatui::widgets::Clear, popup_area);

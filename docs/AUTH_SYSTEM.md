@@ -7,12 +7,12 @@ Aircher provides a comprehensive authentication system for managing API keys acr
 The auth system consists of:
 - **CLI commands** for managing API keys from the command line
 - **TUI auth wizard** for interactive setup within the terminal interface
-- **Secure storage** with key obfuscation in XDG-compliant directories
+- **Secure storage** with key obfuscation
 - **Provider status tracking** with real-time validation
 
 ## Storage Location
 
-API keys are stored in `~/.config/aircher/auth.json` following the XDG Base Directory Specification.
+API keys are stored in `~/.aircher/auth.json` for simplicity and consistency with other developer tools.
 
 ## CLI Usage
 

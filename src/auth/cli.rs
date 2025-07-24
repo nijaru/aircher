@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use clap::{Arg, Command};
 use std::io::{self, Write};
-use tracing::{info, warn};
+use tracing::warn;
 
 use super::{AuthManager, AuthStatus};
 use crate::config::ConfigManager;
@@ -100,7 +100,7 @@ impl AuthCommand {
     pub async fn execute(
         &self,
         config: &ConfigManager,
-        auth_manager: &mut AuthManager,
+        auth_manager: &AuthManager,
         provider_manager: Option<&ProviderManager>,
     ) -> Result<()> {
         match self {
@@ -130,7 +130,7 @@ impl AuthCommand {
         provider: &str,
         api_key: Option<&str>,
         config: &ConfigManager,
-        auth_manager: &mut AuthManager,
+        auth_manager: &AuthManager,
     ) -> Result<()> {
         // Validate provider exists
         let provider_config = config.get_provider(provider)
@@ -186,7 +186,7 @@ impl AuthCommand {
     async fn handle_logout(
         &self,
         provider: &str,
-        auth_manager: &mut AuthManager,
+        auth_manager: &AuthManager,
     ) -> Result<()> {
         auth_manager.remove_api_key(provider).await
             .context("Failed to remove API key")?;
@@ -278,7 +278,7 @@ impl AuthCommand {
         Ok(())
     }
 
-    async fn handle_clear(&self, auth_manager: &mut AuthManager) -> Result<()> {
+    async fn handle_clear(&self, auth_manager: &AuthManager) -> Result<()> {
         print!("⚠️  This will remove ALL stored API keys. Are you sure? (y/N): ");
         io::stdout().flush()?;
         
@@ -286,7 +286,7 @@ impl AuthCommand {
         io::stdin().read_line(&mut confirm)?;
         
         if confirm.trim().to_lowercase().starts_with('y') {
-            auth_manager.storage.clear_all().await?;
+            auth_manager.clear_all().await?;
             println!("✓ All API keys cleared");
         } else {
             println!("Cancelled.");

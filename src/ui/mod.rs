@@ -2,7 +2,7 @@ use anyhow::Result;
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::{
-        event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind, EnableMouseCapture, DisableMouseCapture},
+        event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind, EnableMouseCapture, DisableMouseCapture},
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
         ExecutableCommand,
     },
@@ -14,6 +14,7 @@ use ratatui::{
 };
 use std::io::stdout;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, info};
@@ -157,6 +158,7 @@ pub struct TuiManager {
     // Permissions
     permissions_manager: crate::permissions::PermissionsManager,
     // Authentication state
+    auth_manager: Arc<AuthManager>,
     providers: Option<Rc<ProviderManager>>,
     auth_required: bool,
     show_auth_setup: bool,
@@ -198,7 +200,8 @@ struct QueuedMessage {
 impl TuiManager {
     /// Create TUI manager with authentication state handling
     pub async fn new_with_auth_state(
-        config: &ConfigManager, 
+        config: &ConfigManager,
+        auth_manager: Arc<AuthManager>,
         providers: Option<Rc<ProviderManager>>,
         provider_name: String,
         model: String
@@ -293,10 +296,13 @@ impl TuiManager {
             },
             settings_modal: SettingsModal::new(config),
             help_modal: HelpModal::new(),
-            model_selection_overlay: if let Some(ref providers) = providers {
-                ModelSelectionOverlay::with_providers(config, providers.as_ref())
-            } else {
-                ModelSelectionOverlay::new(config)
+            model_selection_overlay: {
+                let mut overlay = ModelSelectionOverlay::with_auth_manager(config, auth_manager.clone());
+                if let Some(ref providers) = providers {
+                    // Also update provider availability if providers are available
+                    overlay = ModelSelectionOverlay::with_providers(config, providers.as_ref());
+                }
+                overlay
             },
             session_browser: SessionBrowser::new(),
             diff_viewer: DiffViewer::new(),
@@ -309,6 +315,7 @@ impl TuiManager {
             // Permissions
             permissions_manager: crate::permissions::PermissionsManager::new()?,
             // Authentication state
+            auth_manager,
             providers,
             auth_required,
             show_auth_setup: false, // Always start with normal interface
@@ -338,7 +345,7 @@ impl TuiManager {
         })
     }
 
-    pub async fn new(config: &ConfigManager, providers: &ProviderManager) -> Result<Self> {
+    pub async fn new(config: &ConfigManager, auth_manager: Arc<AuthManager>, providers: &ProviderManager) -> Result<Self> {
         // Initialize project manager
         let mut project_manager = ProjectManager::new()?;
         
@@ -444,7 +451,8 @@ impl TuiManager {
             // Initialize permissions
             permissions_manager,
             // Authentication state (providers available in this constructor)
-            providers: Some(Rc::new(ProviderManager::new(config).await?)),
+            auth_manager: auth_manager.clone(),
+            providers: Some(Rc::new(ProviderManager::new(config, auth_manager).await?)),
             auth_required: false,
             show_auth_setup: false,
             // Initialize state
@@ -646,9 +654,8 @@ impl TuiManager {
                                     }
                                 } else if self.auth_wizard.is_visible() {
                                     // Handle auth wizard Enter key
-                                    let mut auth_manager = AuthManager::new()?;
                                     let providers = self.providers.as_ref().map(|p| p.as_ref());
-                                    self.auth_wizard.handle_enter(&mut auth_manager, &self.config, providers).await?;
+                                    self.auth_wizard.handle_enter(&self.auth_manager, &self.config, providers).await?;
                                 } else if !self.input.is_empty() {
                                     let message = self.input.clone();
                                     self.input.clear();
@@ -986,8 +993,14 @@ impl TuiManager {
                                             crate::ui::command_approval::ApprovalChoice::Yes => {
                                                 crate::agent::tools::permission_channel::PermissionResponse::Approved
                                             }
-                                            crate::ui::command_approval::ApprovalChoice::YesAndSimilar => {
+                                            crate::ui::command_approval::ApprovalChoice::YesForSession => {
                                                 crate::agent::tools::permission_channel::PermissionResponse::ApprovedSimilar
+                                            }
+                                            crate::ui::command_approval::ApprovalChoice::EditFeedback => {
+                                                crate::agent::tools::permission_channel::PermissionResponse::Denied
+                                            }
+                                            crate::ui::command_approval::ApprovalChoice::Abort => {
+                                                crate::agent::tools::permission_channel::PermissionResponse::Denied
                                             }
                                             crate::ui::command_approval::ApprovalChoice::No => {
                                                 crate::agent::tools::permission_channel::PermissionResponse::Denied
@@ -1363,7 +1376,7 @@ impl TuiManager {
             .split(area);
 
         // Left side: dynamic status based on conversation state and modes
-        let mut shortcuts = if self.autocomplete.is_visible() {
+        let shortcuts = if self.autocomplete.is_visible() {
             "↑↓ navigate • Enter accept • Esc cancel".to_string()
         } else if self.messages.is_empty() {
             // Show help discovery when chat is empty
@@ -1688,7 +1701,7 @@ impl TuiManager {
                             ));
                             // TODO: Actually execute the command
                         }
-                        ApprovalChoice::YesAndSimilar => {
+                        ApprovalChoice::YesForSession => {
                             // Approve this command and similar ones
                             let pattern = crate::permissions::PermissionsManager::get_command_pattern(&command);
                             if let Err(e) = self.permissions_manager.approve_pattern(pattern.clone()) {
@@ -1704,10 +1717,23 @@ impl TuiManager {
                             }
                             // TODO: Actually execute the command
                         }
+                        ApprovalChoice::EditFeedback => {
+                            let feedback = self.command_approval.get_feedback();
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("✗ Denied command with feedback: {} ({})", command, feedback),
+                            ));
+                        }
                         ApprovalChoice::No => {
                             self.add_message(Message::new(
                                 MessageRole::System,
                                 format!("✗ Denied command: {}", command),
+                            ));
+                        }
+                        ApprovalChoice::Abort => {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("✗ Aborted command execution: {}", command),
                             ));
                         }
                     }
@@ -2306,7 +2332,7 @@ impl TuiManager {
             };
             
             // Initialize agent controller
-            let mut controller = AgentController::new(intelligence, project_context)?;
+            let mut controller = AgentController::new(intelligence, self.auth_manager.clone(), project_context)?;
             
             // Register default tools
             controller.register_tool(Box::new(crate::agent::tools::file_ops::ReadFileTool::new()));
@@ -3450,11 +3476,8 @@ function farewell(name) {
 
     /// Handle /auth command to show authentication setup wizard
     async fn handle_auth_command(&mut self) -> Result<()> {
-        // Create auth manager
-        let mut auth_manager = AuthManager::new()?;
-        
-        // Show the auth wizard
-        self.auth_wizard.show(&self.config, &auth_manager).await;
+        // Show the auth wizard using shared auth manager
+        self.auth_wizard.show(&self.config, &self.auth_manager).await;
         
         Ok(())
     }

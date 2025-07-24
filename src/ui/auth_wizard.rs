@@ -1,12 +1,11 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
+    text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
 use std::io;
-use tracing::debug;
 
 use crate::auth::{AuthManager, AuthStatus};
 use crate::config::ConfigManager;
@@ -123,7 +122,7 @@ impl AuthWizard {
         }
     }
 
-    pub async fn handle_enter(&mut self, auth_manager: &mut AuthManager, config: &ConfigManager, providers: Option<&ProviderManager>) -> io::Result<()> {
+    pub async fn handle_enter(&mut self, auth_manager: &AuthManager, config: &ConfigManager, providers: Option<&ProviderManager>) -> io::Result<()> {
         match self.current_step {
             WizardStep::ProviderSelection => {
                 if let Some(provider) = self.available_providers.get(self.selected_provider_index) {
@@ -433,7 +432,7 @@ impl AuthWizard {
                 .block(Block::default().borders(Borders::ALL).title("Error"));
             f.render_widget(error_widget, chunks[3]);
         } else {
-            let help = Paragraph::new("Enter your API key. It will be stored securely in ~/.config/aircher/auth.json")
+            let help = Paragraph::new("Enter your API key. It will be stored securely in ~/.aircher/auth.json")
                 .style(Style::default().fg(Color::Gray))
                 .wrap(Wrap { trim: true })
                 .block(Block::default().borders(Borders::ALL).title("Help"));
