@@ -497,4 +497,18 @@ impl LLMProvider for GeminiProvider {
             Err(_) => Ok(false),
         }
     }
+
+    async fn list_available_models(&self) -> Result<Vec<String>> {
+        // For now, return configured models - could implement Gemini models API later
+        let models = self.config.models.iter()
+            .map(|m| m.name.clone())
+            .collect();
+        
+        debug!("Gemini available models: {:?}", models);
+        Ok(models)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }

@@ -30,19 +30,37 @@ impl ConfigHierarchy {
     }
 
     /// Create immutable hardcoded defaults
-    fn create_hardcoded_defaults() -> ConfigManager {
+    pub fn create_hardcoded_defaults() -> ConfigManager {
         let mut providers = HashMap::new();
         let mut hosts = HashMap::new();
 
-        // Claude provider configuration
+        // Alphabetical provider organization with proper naming
+
+        // Anthropic API (pay-per-use with API keys)
         providers.insert(
-            "claude".to_string(),
+            "anthropic-api".to_string(),
             ProviderConfig {
-                name: "Claude".to_string(),
+                name: "Anthropic API".to_string(),
                 api_key_env: "ANTHROPIC_API_KEY".to_string(),
                 base_url: "https://api.anthropic.com/v1".to_string(),
                 fallback_urls: vec![],
                 models: vec![
+                    ModelConfig {
+                        name: "claude-sonnet-4".to_string(), // Default ⭐
+                        context_window: 200_000,
+                        input_cost_per_1m: 3.0,
+                        output_cost_per_1m: 15.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "claude-opus-4".to_string(),
+                        context_window: 200_000,
+                        input_cost_per_1m: 15.0,
+                        output_cost_per_1m: 75.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
                     ModelConfig {
                         name: "claude-3-5-sonnet-20241022".to_string(),
                         context_window: 200_000,
@@ -65,15 +83,70 @@ impl ConfigHierarchy {
             },
         );
 
-        // Gemini provider configuration
+        // Anthropic Claude Pro/Max (subscription with OAuth)
         providers.insert(
-            "gemini".to_string(),
+            "anthropic-pro".to_string(),
             ProviderConfig {
-                name: "Gemini".to_string(),
+                name: "Anthropic Claude Pro/Max".to_string(),
+                api_key_env: "".to_string(), // No API key needed, uses OAuth
+                base_url: "https://claude.ai/api".to_string(),
+                fallback_urls: vec![],
+                models: vec![
+                    ModelConfig {
+                        name: "claude-sonnet-4".to_string(), // Default ⭐
+                        context_window: 200_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "claude-opus-4".to_string(),
+                        context_window: 200_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "claude-3-5-sonnet-20241022".to_string(),
+                        context_window: 200_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                ],
+                timeout_seconds: 60,
+                max_retries: 3,
+            },
+        );
+
+        // Google Gemini API
+        providers.insert(
+            "google-gemini".to_string(),
+            ProviderConfig {
+                name: "Google Gemini API".to_string(),
                 api_key_env: "GOOGLE_API_KEY".to_string(),
                 base_url: "https://generativelanguage.googleapis.com/v1beta/models/{model}".to_string(),
                 fallback_urls: vec![],
                 models: vec![
+                    ModelConfig {
+                        name: "gemini-2.5-pro".to_string(), // Default ⭐
+                        context_window: 2_000_000,
+                        input_cost_per_1m: 1.25,
+                        output_cost_per_1m: 5.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "gemini-2.5-flash".to_string(),
+                        context_window: 1_000_000,
+                        input_cost_per_1m: 0.075,
+                        output_cost_per_1m: 0.30,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
                     ModelConfig {
                         name: "gemini-2.0-flash-exp".to_string(),
                         context_window: 1_000_000,
@@ -88,7 +161,80 @@ impl ConfigHierarchy {
             },
         );
 
-        // OpenAI provider configuration
+        // Google Vertex AI
+        providers.insert(
+            "google-vertex".to_string(),
+            ProviderConfig {
+                name: "Google Vertex AI".to_string(),
+                api_key_env: "GOOGLE_APPLICATION_CREDENTIALS".to_string(),
+                base_url: "https://us-central1-aiplatform.googleapis.com/v1".to_string(),
+                fallback_urls: vec![],
+                models: vec![
+                    ModelConfig {
+                        name: "gemini-2.5-pro".to_string(), // Default ⭐
+                        context_window: 2_000_000,
+                        input_cost_per_1m: 1.25,
+                        output_cost_per_1m: 5.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "gemini-2.5-flash".to_string(),
+                        context_window: 1_000_000,
+                        input_cost_per_1m: 0.075,
+                        output_cost_per_1m: 0.30,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                ],
+                timeout_seconds: 60,
+                max_retries: 3,
+            },
+        );
+
+        // Ollama (local models)
+        providers.insert(
+            "ollama".to_string(),
+            ProviderConfig {
+                name: "Ollama (Local)".to_string(),
+                api_key_env: "".to_string(),
+                base_url: "".to_string(),
+                fallback_urls: vec![
+                    "http://localhost:11434".to_string(),
+                    "http://100.64.0.1:11434".to_string(),
+                ],
+                models: vec![
+                    ModelConfig {
+                        name: "llama3.3:70b".to_string(), // Default ⭐
+                        context_window: 128_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: false,
+                    },
+                    ModelConfig {
+                        name: "llama3.3:8b".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: false,
+                    },
+                    ModelConfig {
+                        name: "qwen2.5-coder:32b".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 0.0,
+                        output_cost_per_1m: 0.0,
+                        supports_streaming: true,
+                        supports_tools: false,
+                    },
+                ],
+                timeout_seconds: 120,
+                max_retries: 3,
+            },
+        );
+
+        // OpenAI
         providers.insert(
             "openai".to_string(),
             ProviderConfig {
@@ -97,6 +243,22 @@ impl ConfigHierarchy {
                 base_url: "https://api.openai.com/v1".to_string(),
                 fallback_urls: vec![],
                 models: vec![
+                    ModelConfig {
+                        name: "o3-mini".to_string(), // Default ⭐
+                        context_window: 128_000,
+                        input_cost_per_1m: 3.75,
+                        output_cost_per_1m: 15.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "o3".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 60.0,
+                        output_cost_per_1m: 240.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
                     ModelConfig {
                         name: "gpt-4o".to_string(),
                         context_window: 128_000,
@@ -113,30 +275,12 @@ impl ConfigHierarchy {
                         supports_streaming: true,
                         supports_tools: true,
                     },
-                ],
-                timeout_seconds: 120,
-                max_retries: 3,
-            },
-        );
-
-        // Ollama provider configuration
-        providers.insert(
-            "ollama".to_string(),
-            ProviderConfig {
-                name: "Ollama".to_string(),
-                api_key_env: "".to_string(),
-                base_url: "".to_string(),
-                fallback_urls: vec![
-                    "http://localhost:11434".to_string(),
-                    "http://100.64.0.1:11434".to_string(),
-                ],
-                models: vec![
                     ModelConfig {
-                        name: "llama3.3".to_string(),
+                        name: "o1-preview".to_string(),
                         context_window: 128_000,
-                        input_cost_per_1m: 0.0,
-                        output_cost_per_1m: 0.0,
-                        supports_streaming: true,
+                        input_cost_per_1m: 15.0,
+                        output_cost_per_1m: 60.0,
+                        supports_streaming: false,
                         supports_tools: false,
                     },
                 ],
@@ -145,7 +289,7 @@ impl ConfigHierarchy {
             },
         );
 
-        // OpenRouter provider configuration
+        // OpenRouter (multi-provider gateway)
         providers.insert(
             "openrouter".to_string(),
             ProviderConfig {
@@ -155,10 +299,34 @@ impl ConfigHierarchy {
                 fallback_urls: vec![],
                 models: vec![
                     ModelConfig {
-                        name: "anthropic/claude-3.5-sonnet".to_string(),
+                        name: "moonshot/kimi-k2".to_string(), // Default ⭐
+                        context_window: 2_000_000,
+                        input_cost_per_1m: 0.14,
+                        output_cost_per_1m: 0.28,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "anthropic/claude-sonnet-4".to_string(),
                         context_window: 200_000,
                         input_cost_per_1m: 3.0,
                         output_cost_per_1m: 15.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "openai/o3-mini".to_string(),
+                        context_window: 128_000,
+                        input_cost_per_1m: 3.75,
+                        output_cost_per_1m: 15.0,
+                        supports_streaming: true,
+                        supports_tools: true,
+                    },
+                    ModelConfig {
+                        name: "google/gemini-2.5-pro".to_string(),
+                        context_window: 2_000_000,
+                        input_cost_per_1m: 1.25,
+                        output_cost_per_1m: 5.0,
                         supports_streaming: true,
                         supports_tools: true,
                     },
@@ -210,8 +378,8 @@ impl ConfigHierarchy {
 
         ConfigManager {
             global: GlobalConfig {
-                default_provider: "claude".to_string(),
-                default_model: "claude-3-5-sonnet-20241022".to_string(),
+                default_provider: "anthropic-api".to_string(),
+                default_model: "claude-sonnet-4".to_string(),
                 default_host: "anthropic".to_string(),
                 max_context_tokens: 100_000,
                 budget_limit: None,
