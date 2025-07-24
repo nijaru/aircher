@@ -299,8 +299,8 @@ impl TuiManager {
             model_selection_overlay: {
                 let mut overlay = ModelSelectionOverlay::with_auth_manager(config, auth_manager.clone());
                 if let Some(ref providers) = providers {
-                    // Also update provider availability if providers are available
-                    overlay = ModelSelectionOverlay::with_providers(config, providers.as_ref());
+                    // Update provider availability while keeping auth manager
+                    overlay.update_provider_availability(providers.as_ref());
                 }
                 overlay
             },
@@ -439,7 +439,11 @@ impl TuiManager {
             selection_modal: SelectionModal::new(providers, config),
             settings_modal: SettingsModal::new(config),
             help_modal: HelpModal::new(),
-            model_selection_overlay: ModelSelectionOverlay::with_providers(config, providers),
+            model_selection_overlay: {
+                let mut overlay = ModelSelectionOverlay::with_auth_manager(config, auth_manager.clone());
+                overlay.update_provider_availability(providers);
+                overlay
+            },
             session_browser: SessionBrowser::new(),
             diff_viewer: DiffViewer::new(),
             command_approval: CommandApprovalModal::new(),
@@ -559,6 +563,9 @@ impl TuiManager {
 
     pub async fn run(&mut self) -> Result<()> {
         info!("Starting TUI interface (auth_required: {})", self.auth_required);
+
+        // Initialize auth status for UI components
+        self.model_selection_overlay.initialize_auth_status(&self.config).await;
 
         // Setup terminal
         enable_raw_mode()?;
@@ -3176,7 +3183,10 @@ function farewell(name) {
         // Refresh dependent UI components
         if let Some(providers) = &self.providers {
             self.selection_modal = SelectionModal::new(providers, &self.config);
-            self.model_selection_overlay = ModelSelectionOverlay::with_providers(&self.config, providers);
+            
+            // Create model selection overlay with auth manager and update with auth status
+            self.model_selection_overlay = ModelSelectionOverlay::with_auth_manager(&self.config, self.auth_manager.clone());
+            self.model_selection_overlay.update_items_with_auth(&self.config).await;
         }
         
         // Add success message

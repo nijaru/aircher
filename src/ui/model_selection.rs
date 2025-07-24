@@ -160,7 +160,7 @@ impl ModelSelectionOverlay {
         }
     }
 
-    fn update_provider_availability(&mut self, providers: &ProviderManager) {
+    pub fn update_provider_availability(&mut self, providers: &ProviderManager) {
         // Update availability based on actual provider manager
         let provider_list = providers.list_all();
         
@@ -171,6 +171,13 @@ impl ModelSelectionOverlay {
             })
             .collect::<Option<Vec<_>>>() {
             self.provider_typeahead.set_items(items);
+        }
+    }
+
+    /// Initialize auth status for the overlay - call this after construction
+    pub async fn initialize_auth_status(&mut self, config: &ConfigManager) {
+        if self.auth_manager.is_some() {
+            self.update_items_with_auth(config).await;
         }
     }
 
