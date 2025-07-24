@@ -5,10 +5,10 @@ use std::sync::RwLock;
 use tracing::{debug, info, warn};
 
 use crate::config::ConfigManager;
-use crate::providers::ProviderManager;
 
 pub mod storage;
 pub mod cli;
+pub mod testing;
 
 #[derive(Debug)]
 pub struct AuthManager {
@@ -137,47 +137,37 @@ impl AuthManager {
         statuses
     }
 
-    /// Test API key validity for a provider
-    pub async fn test_provider_auth(&self, provider: &str, config: &ConfigManager, providers: Option<&ProviderManager>) -> Result<ProviderAuthInfo> {
+    /// Test API key validity for a provider using lightweight auth testing
+    pub async fn test_provider_auth(&self, provider: &str, config: &ConfigManager) -> Result<ProviderAuthInfo> {
         info!("Testing authentication for provider: {}", provider);
 
         let mut auth_info = self.get_provider_status(provider, config).await;
 
-        // If we have a provider manager, do actual API test
-        if let Some(provider_manager) = providers {
-            if let Some(provider_impl) = provider_manager.get_provider_or_host(provider) {
-                match provider_impl.health_check().await {
-                    Ok(true) => {
-                        auth_info.status = AuthStatus::Authenticated;
-                        auth_info.last_validated = Some(chrono::Utc::now());
-                        auth_info.error_message = None;
-                        info!("✓ Provider {} authentication successful", provider);
-                    }
-                    Ok(false) => {
-                        auth_info.status = AuthStatus::Invalid;
-                        auth_info.error_message = Some("Health check failed".to_string());
-                        warn!("✗ Provider {} health check failed", provider);
-                    }
-                    Err(e) => {
-                        auth_info.status = AuthStatus::NetworkError;
-                        auth_info.error_message = Some(e.to_string());
-                        warn!("✗ Provider {} error: {}", provider, e);
-                    }
+        // Get the API key for testing
+        if let Ok(api_key) = self.get_api_key(provider).await {
+            let auth_tester = testing::AuthTester::new();
+            
+            match auth_tester.test_api_key(provider, &api_key).await {
+                Ok(true) => {
+                    auth_info.status = AuthStatus::Authenticated;
+                    auth_info.last_validated = Some(chrono::Utc::now());
+                    auth_info.error_message = None;
+                    info!("✓ Provider {} authentication successful", provider);
                 }
-
-                // Try to get usage info if available
-                if let Ok(Some(usage)) = provider_impl.get_usage_info().await {
-                    auth_info.usage_info = Some(ProviderUsageInfo {
-                        requests_used: None, // Not directly available in UsageInfo
-                        requests_limit: None, // Not directly available in UsageInfo  
-                        tokens_used: Some(usage.current_usage),
-                        tokens_limit: Some(usage.limit),
-                        cost_used: None, // Not directly available in UsageInfo
-                        cost_limit: None, // Not directly available in UsageInfo
-                        reset_time: Some(usage.reset_date),
-                    });
+                Ok(false) => {
+                    auth_info.status = AuthStatus::Invalid;
+                    auth_info.error_message = Some("API key validation failed".to_string());
+                    warn!("✗ Provider {} API key validation failed", provider);
+                }
+                Err(e) => {
+                    auth_info.status = AuthStatus::NetworkError;
+                    auth_info.error_message = Some(e.to_string());
+                    warn!("✗ Provider {} network error: {}", provider, e);
                 }
             }
+        } else {
+            // No API key available - this is handled by get_provider_status
+            debug!("No API key available for provider: {}", provider);
         }
 
         Ok(auth_info)
