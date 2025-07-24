@@ -69,6 +69,11 @@ impl AuthWizard {
         self.reset_state();
     }
 
+    /// Check if the wizard just completed successfully
+    pub fn is_completed_successfully(&self) -> bool {
+        matches!(self.current_step, WizardStep::Complete) && self.success_message.is_some()
+    }
+
     pub fn is_visible(&self) -> bool {
         self.visible
     }

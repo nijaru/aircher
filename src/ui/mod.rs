@@ -656,6 +656,11 @@ impl TuiManager {
                                     // Handle auth wizard Enter key
                                     let providers = self.providers.as_ref().map(|p| p.as_ref());
                                     self.auth_wizard.handle_enter(&self.auth_manager, &self.config, providers).await?;
+                                    
+                                    // Check if auth wizard completed successfully and refresh providers
+                                    if self.auth_wizard.is_completed_successfully() {
+                                        self.refresh_providers_after_auth().await?;
+                                    }
                                 } else if !self.input.is_empty() {
                                     let message = self.input.clone();
                                     self.input.clear();
@@ -3156,6 +3161,31 @@ function farewell(name) {
         let cycle_duration = Duration::from_millis(100); // Faster rotation for smooth animation
         let symbol_index = (elapsed.as_millis() / cycle_duration.as_millis()) as usize % self.streaming_spinners.len();
         self.streaming_spinners[symbol_index]
+    }
+
+    /// Refresh providers after successful authentication
+    pub async fn refresh_providers_after_auth(&mut self) -> Result<()> {
+        // Create new ProviderManager with updated authentication
+        let provider_manager = ProviderManager::new(&self.config, self.auth_manager.clone()).await?;
+        self.providers = Some(Rc::new(provider_manager));
+        
+        // Update auth state
+        self.auth_required = false;
+        self.show_auth_setup = false;
+        
+        // Refresh dependent UI components
+        if let Some(providers) = &self.providers {
+            self.selection_modal = SelectionModal::new(providers, &self.config);
+            self.model_selection_overlay = ModelSelectionOverlay::with_providers(&self.config, providers);
+        }
+        
+        // Add success message
+        self.add_message(Message::new(
+            MessageRole::System,
+            "✅ Authentication successful! Providers are now available for model selection.".to_string(),
+        ));
+        
+        Ok(())
     }
 
     /// Cycle through UI modes (like Claude Code's shift+tab)
