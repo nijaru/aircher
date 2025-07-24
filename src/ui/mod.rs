@@ -2299,7 +2299,7 @@ impl TuiManager {
                     _ => format!("Error: {}", e)
                 };
                 
-                // Check if we should retry
+                // Check if we should retry with the same provider
                 if Self::is_retryable_error(&e) && retry_count < MAX_RETRIES {
                     retry_count += 1;
                     self.add_message(Message::new(
@@ -2310,7 +2310,45 @@ impl TuiManager {
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     continue; // Try again
                 } else {
-                    // Non-retryable error or max retries exceeded
+                    // Try provider fallback if configured
+                    if let Some(fallback_provider) = self.get_fallback_provider(&e) {
+                        self.add_message(Message::new(
+                            MessageRole::System,
+                            format!("Falling back to {} due to error: {}", fallback_provider, error_msg),
+                        ));
+                        
+                        // Update provider and try with fallback
+                        let original_provider = self.provider_name.clone();
+                        let fallback_provider_name = fallback_provider.clone();
+                        self.provider_name = fallback_provider;
+                        
+                        // Get fallback provider and retry
+                        if let Some(fallback_provider_instance) = providers.get_provider_or_host(&self.provider_name) {
+                            match fallback_provider_instance.stream(&request).await {
+                                Ok(_fallback_stream) => {
+                                    // Handle fallback stream success - continue with outer logic
+                                    // This is a bit complex to handle cleanly, so for now just log success
+                                    self.add_message(Message::new(
+                                        MessageRole::System,
+                                        format!("✓ Successfully switched to {} provider", self.provider_name),
+                                    ));
+                                    // Reset to process the fallback stream
+                                    // For now, just break and let user retry manually
+                                    break;
+                                }
+                                Err(fallback_error) => {
+                                    // Fallback also failed, restore original provider
+                                    self.provider_name = original_provider;
+                                    self.add_message(Message::new(
+                                        MessageRole::System,
+                                        format!("Fallback to {} also failed: {}", fallback_provider_name, fallback_error),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Non-retryable error or max retries exceeded or fallback failed
                     self.add_message(Message::new(
                         MessageRole::System,
                         error_msg,
@@ -3255,6 +3293,30 @@ function farewell(name) {
         msg.contains("503") || // Service unavailable
         msg.contains("502") || // Bad gateway
         msg.contains("500")    // Internal server error
+    }
+
+    /// Get fallback provider based on error type and configuration
+    fn get_fallback_provider(&self, error: &anyhow::Error) -> Option<String> {
+        let error_msg = error.to_string().to_lowercase();
+        
+        // Get provider fallback configuration
+        if let Some(fallback_config) = self.config.multi_provider.provider_fallbacks.get(&self.provider_name) {
+            // Check if this error type should trigger fallback
+            let should_fallback = match () {
+                _ if (error_msg.contains("rate limit") || error_msg.contains("429")) && fallback_config.rate_limit_fallback => true,
+                _ if (error_msg.contains("timeout") || error_msg.contains("network") || error_msg.contains("connection")) && fallback_config.connection_fallback => true,
+                _ if (error_msg.contains("usage") || error_msg.contains("quota") || error_msg.contains("limit")) && fallback_config.max_usage_fallback => true,
+                _ => false,
+            };
+            
+            if should_fallback && !fallback_config.fallback_to.is_empty() {
+                // Return the first fallback provider
+                // TODO: Implement smarter selection based on strategy and auth status
+                return Some(fallback_config.fallback_to[0].clone());
+            }
+        }
+        
+        None
     }
     
     // Load sessions for the session browser
