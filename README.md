@@ -92,6 +92,11 @@ aircher session export session_id --format markdown
   - Context injection system for rich system prompts
   - File tree walking and project scanning capabilities
 - ✅ **Session persistence** - SQLite storage with conversation history and analytics
+- ✅ **Authentication system** - Secure API key management with CLI and TUI interfaces:
+  - Interactive auth wizard in TUI with `/auth` command
+  - Complete CLI auth commands for scripting and automation
+  - Secure key storage with obfuscation in XDG-compliant directories
+  - Real-time provider authentication status and validation
 - ✅ **Intelligence Engine** - Context-aware development assistant with:
   - File purpose analysis and relevance scoring
   - Architectural decision tracking
@@ -189,6 +194,12 @@ aircher search query "auth code" --preset auth-security
 aircher config show             # View current settings
 aircher config set ui.theme light
 aircher config set providers.claude.api_key sk-xxx
+
+# Authentication management
+aircher auth login claude       # Securely store API key
+aircher auth status            # Check all provider statuses
+aircher auth test openai       # Validate provider authentication
+aircher /auth                  # TUI auth wizard (when in TUI mode)
 
 # Session management  
 aircher session list
