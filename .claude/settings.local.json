@@ -56,7 +56,8 @@
       "Bash(./test_provider_auth)",
       "Bash(echo:*)",
       "Bash(echo \"XDG_DATA_HOME: $XDG_DATA_HOME:-$HOME/.local/share\")",
-      "Bash(diff:*)"
+      "Bash(diff:*)",
+      "Bash(awk:*)"
     ],
     "deny": []
   }
