@@ -438,4 +438,19 @@ impl LLMProvider for ClaudeApiProvider {
             Err(_) => Ok(false),
         }
     }
+
+    async fn list_available_models(&self) -> Result<Vec<String>> {
+        // Anthropic doesn't have a public models endpoint yet, so we use our configured models
+        // but could fallback to hardcoded current models
+        let models = self.config.models.iter()
+            .map(|m| m.name.clone())
+            .collect();
+        
+        debug!("Anthropic available models: {:?}", models);
+        Ok(models)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }

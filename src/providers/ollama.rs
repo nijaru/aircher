@@ -574,4 +574,23 @@ impl LLMProvider for OllamaProvider {
     async fn health_check(&self) -> Result<bool> {
         self.health_check().await
     }
+
+    async fn list_available_models(&self) -> Result<Vec<String>> {
+        // Ollama already has dynamic model fetching - use it
+        match self.get_available_models().await {
+            Ok(model_names) => {
+                debug!("Ollama available models: {:?}", model_names);
+                Ok(model_names)
+            }
+            Err(e) => {
+                debug!("Failed to fetch Ollama models: {}", e);
+                // Fallback to configured models
+                Ok(self.get_models().to_vec())
+            }
+        }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }

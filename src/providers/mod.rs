@@ -165,6 +165,12 @@ pub trait LLMProvider: Send + Sync {
 
     // Health check
     async fn health_check(&self) -> Result<bool>;
+    
+    // Dynamic model listing
+    async fn list_available_models(&self) -> Result<Vec<String>>;
+    
+    // For downcasting to concrete types
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 impl ProviderManager {
@@ -172,11 +178,11 @@ impl ProviderManager {
         let mut providers: HashMap<String, Box<dyn LLMProvider>> = HashMap::new();
         let mut hosts: HashMap<String, Box<dyn LLMProvider>> = HashMap::new();
 
-        // Initialize Claude API provider
-        if let Some(claude_config) = config.get_provider("claude") {
+        // Initialize Anthropic API provider
+        if let Some(claude_config) = config.get_provider("anthropic-api") {
             match claude_api::ClaudeApiProvider::new(claude_config.clone(), auth_manager.clone()).await {
                 Ok(claude_provider) => {
-                    providers.insert("claude".to_string(), Box::new(claude_provider));
+                    providers.insert("anthropic-api".to_string(), Box::new(claude_provider));
                 }
                 Err(e) => {
                     tracing::warn!("Failed to initialize Claude provider: {}", e);
@@ -266,6 +272,33 @@ impl ProviderManager {
         let mut all = self.list_providers();
         all.extend(self.list_hosts());
         all
+    }
+
+    /// Get available models from a specific provider
+    pub fn get_provider_models(&self, provider_name: &str) -> Vec<String> {
+        tracing::debug!("Getting models for provider: {}", provider_name);
+        
+        if let Some(_provider) = self.get_provider_or_host(provider_name) {
+            // For now, we'll handle Ollama specifically since it has a get_models method
+            if provider_name == "ollama" {
+                if let Some(ollama_provider) = self.providers.get("ollama") {
+                    tracing::debug!("Found ollama provider, attempting downcast");
+                    // Downcast to OllamaProvider to access get_models
+                    if let Some(ollama) = ollama_provider.as_any().downcast_ref::<crate::providers::ollama::OllamaProvider>() {
+                        let models = ollama.get_models();
+                        tracing::debug!("Ollama models: {:?}", models);
+                        return models.to_vec();
+                    } else {
+                        tracing::warn!("Failed to downcast to OllamaProvider");
+                    }
+                } else {
+                    tracing::warn!("No ollama provider found in providers map");
+                }
+            }
+        } else {
+            tracing::debug!("Provider {} not found", provider_name);
+        }
+        Vec::new()
     }
 
     pub async fn health_check_all(&self) -> HashMap<String, bool> {

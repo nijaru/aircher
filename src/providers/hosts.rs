@@ -573,4 +573,47 @@ impl LLMProvider for OpenRouterHost {
             Err(_) => Ok(false),
         }
     }
+
+    async fn list_available_models(&self) -> Result<Vec<String>> {
+        // OpenRouter has a models API we can use
+        let url = format!("{}/models", self.config.base_url);
+
+        let response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .context("Failed to fetch models from OpenRouter API")?;
+
+        if !response.status().is_success() {
+            debug!("OpenRouter models API failed");
+            return Err(anyhow!("Failed to fetch models from OpenRouter API"));
+        }
+
+        let models_response: serde_json::Value = response
+            .json()
+            .await
+            .context("Failed to parse OpenRouter models response")?;
+
+        let mut models = Vec::new();
+        if let Some(data) = models_response.get("data").and_then(|d| d.as_array()) {
+            for model in data {
+                if let Some(id) = model.get("id").and_then(|id| id.as_str()) {
+                    models.push(id.to_string());
+                }
+            }
+        }
+
+        debug!("OpenRouter available models: {:?}", models);
+        
+        if models.is_empty() {
+            Err(anyhow!("OpenRouter API returned no models"))
+        } else {
+            Ok(models)
+        }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }

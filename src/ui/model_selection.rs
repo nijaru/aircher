@@ -19,6 +19,9 @@ pub struct ModelSelectionOverlay {
     provider_models: HashMap<String, Vec<ModelConfig>>,
     has_providers: bool,
     auth_manager: Option<Arc<AuthManager>>,
+    provider_manager: Option<Arc<ProviderManager>>,
+    fetching_models: bool,
+    models_fetched_for: Option<String>, // Track which provider we've fetched models for
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -58,6 +61,9 @@ impl ModelSelectionOverlay {
             provider_models,
             has_providers: false,
             auth_manager: None,
+            provider_manager: None,
+            fetching_models: false,
+            models_fetched_for: None,
         };
 
         overlay.update_items(config);
@@ -68,6 +74,8 @@ impl ModelSelectionOverlay {
         let mut overlay = Self::new(config);
         overlay.has_providers = true;
         overlay.update_provider_availability(providers);
+        // Update models with dynamic data from providers
+        overlay.update_dynamic_models(providers);
         overlay
     }
 
@@ -76,6 +84,10 @@ impl ModelSelectionOverlay {
         overlay.auth_manager = Some(auth_manager);
         overlay.update_items(config);
         overlay
+    }
+
+    pub fn set_provider_manager(&mut self, provider_manager: Arc<ProviderManager>) {
+        self.provider_manager = Some(provider_manager);
     }
 
     fn update_items(&mut self, config: &ConfigManager) {
@@ -174,6 +186,33 @@ impl ModelSelectionOverlay {
         }
     }
 
+    /// Update model lists with dynamic data from providers
+    pub fn update_dynamic_models(&mut self, providers: &ProviderManager) {
+        // For Ollama, get dynamic model list instead of using config
+        let ollama_models = providers.get_provider_models("ollama");
+        if !ollama_models.is_empty() {
+            // Convert to ModelConfig format for consistency
+            let dynamic_models: Vec<crate::config::ModelConfig> = ollama_models.into_iter()
+                .map(|model_name| crate::config::ModelConfig {
+                    name: model_name,
+                    context_window: 4096, // Default for Ollama
+                    input_cost_per_1m: 0.0, // Free
+                    output_cost_per_1m: 0.0, // Free
+                    supports_streaming: true, // Ollama supports streaming
+                    supports_tools: false,
+                })
+                .collect();
+            
+            // Update the provider_models map for Ollama
+            self.provider_models.insert("ollama".to_string(), dynamic_models);
+            
+            // If current provider is Ollama, refresh the model items
+            if self.current_provider == "ollama" {
+                self.update_model_items();
+            }
+        }
+    }
+
     /// Initialize auth status for the overlay - call this after construction
     pub async fn initialize_auth_status(&mut self, config: &ConfigManager) {
         if self.auth_manager.is_some() {
@@ -182,18 +221,38 @@ impl ModelSelectionOverlay {
     }
 
     fn update_model_items(&mut self) {
+        // Check if provider is authenticated first
+        let is_authenticated = self.provider_typeahead.items.iter()
+            .find(|item| item.value == self.current_provider)
+            .map(|item| item.available)
+            .unwrap_or(false);
+
+        if !is_authenticated {
+            // Show message that auth is required
+            let no_auth_item = TypeaheadItem {
+                label: "Authentication required".to_string(),
+                value: "_no_auth".to_string(),
+                description: Some("Run /auth to set up API keys".to_string()),
+                available: false,
+            };
+            self.model_typeahead.set_items(vec![no_auth_item]);
+            self.model_typeahead.set_current_value(None);
+            self.update_model_description();
+            return;
+        }
+
         let models = self.provider_models.get(&self.current_provider)
             .cloned()
             .unwrap_or_default();
 
         let mut model_items: Vec<TypeaheadItem> = Vec::new();
         
-        // Add "Default" option for Anthropic provider (similar to Claude Code)
-        if self.current_provider == "anthropic" {
+        // Add "Default" option for Anthropic providers (similar to Claude Code)
+        if self.current_provider == "anthropic-api" || self.current_provider == "anthropic-pro" {
             model_items.push(TypeaheadItem {
-                label: "Default (Opus 4 for up to 50% of usage limits, then use Sonnet 4)".to_string(),
+                label: "Default (Smart model selection based on usage)".to_string(),
                 value: "default".to_string(),
-                description: Some("Smart model selection based on usage limits".to_string()),
+                description: Some("Automatically selects the best model based on task complexity and usage limits".to_string()),
                 available: true,
             });
         }
@@ -214,25 +273,77 @@ impl ModelSelectionOverlay {
 
     fn update_provider_description(&mut self) {
         self.provider_typeahead.description = format!(
-            "Current provider: {}\n{}",
-            format_provider_name(&self.current_provider),
-            "Press Tab to switch to model selection"
+            "Current provider: {}\n\n[ Tab ] or [←/→] Switch to model selection", 
+            format_provider_name(&self.current_provider)
         );
     }
 
     fn update_model_description(&mut self) {
         self.model_typeahead.description = format!(
-            "Current model: {}\n{}",
-            &self.current_model,
-            "Press Tab to switch to provider selection"
+            "Current model: {}\n\n[ Tab ] or [←/→] Switch to provider selection",
+            &self.current_model
         );
     }
 
     pub fn show(&mut self) {
+        // Smart default: check if current provider is authenticated
+        let should_start_with_provider = !self.is_current_provider_authenticated();
+        
+        if should_start_with_provider && self.mode == SelectionMode::Model {
+            // Switch to provider selection if current provider not authenticated
+            self.mode = SelectionMode::Provider;
+        }
+        
+        // Trigger model fetching for current provider if authenticated
+        if self.is_current_provider_authenticated() {
+            self.fetch_models_for_provider(&self.current_provider.clone());
+        }
+        
         match self.mode {
             SelectionMode::Model => self.model_typeahead.show(),
             SelectionMode::Provider => self.provider_typeahead.show(),
         }
+    }
+    
+    fn is_current_provider_authenticated(&self) -> bool {
+        self.provider_typeahead.items.iter()
+            .find(|item| item.value == self.current_provider)
+            .map(|item| item.available)
+            .unwrap_or(false)
+    }
+
+    fn fetch_models_for_provider(&mut self, provider_name: &str) {
+        // Don't fetch if already fetching or no provider manager
+        if self.fetching_models || self.provider_manager.is_none() {
+            return;
+        }
+
+        // Don't fetch if provider not authenticated
+        let is_authenticated = self.provider_typeahead.items.iter()
+            .find(|item| item.value == provider_name)
+            .map(|item| item.available)
+            .unwrap_or(false);
+
+        if !is_authenticated {
+            return;
+        }
+
+        self.fetching_models = true;
+        self.models_fetched_for = Some(provider_name.to_string());
+        
+        // Update model typeahead to show loading state
+        let loading_item = TypeaheadItem {
+            label: "Loading models...".to_string(),
+            value: "_loading".to_string(),
+            description: Some("Fetching available models from provider".to_string()),
+            available: false,
+        };
+        self.model_typeahead.set_items(vec![loading_item]);
+        self.update_model_description();
+
+        // Note: In a real implementation, we'd spawn a background task here
+        // For now, we'll add a placeholder that can be filled in when we have async context
+        // TODO: Implement actual async model fetching
     }
 
     pub fn hide(&mut self) {
@@ -287,17 +398,49 @@ impl ModelSelectionOverlay {
         }
     }
 
-    pub fn move_selection_up(&mut self) {
-        match self.mode {
-            SelectionMode::Model => self.model_typeahead.move_selection_up(),
-            SelectionMode::Provider => self.provider_typeahead.move_selection_up(),
-        }
-    }
-
     pub fn move_selection_down(&mut self) {
         match self.mode {
             SelectionMode::Model => self.model_typeahead.move_selection_down(),
-            SelectionMode::Provider => self.provider_typeahead.move_selection_down(),
+            SelectionMode::Provider => {
+                self.provider_typeahead.move_selection_down();
+                // Prefetch models for the currently highlighted provider
+                self.prefetch_models_for_current_selection();
+            }
+        }
+    }
+
+    pub fn move_selection_up(&mut self) {
+        match self.mode {
+            SelectionMode::Model => self.model_typeahead.move_selection_up(),
+            SelectionMode::Provider => {
+                self.provider_typeahead.move_selection_up();
+                // Prefetch models for the currently highlighted provider
+                self.prefetch_models_for_current_selection();
+            }
+        }
+    }
+
+    fn prefetch_models_for_current_selection(&mut self) {
+        if self.mode != SelectionMode::Provider {
+            return;
+        }
+
+        // Get the currently highlighted provider - clone the value to avoid borrowing issues
+        let provider_to_fetch = if let Some(highlighted_item) = self.provider_typeahead.get_selected() {
+            // Only prefetch if provider is authenticated and we haven't fetched models for it yet
+            if highlighted_item.available && 
+               self.models_fetched_for.as_ref() != Some(&highlighted_item.value) &&
+               !self.fetching_models {
+                Some(highlighted_item.value.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(provider_name) = provider_to_fetch {
+            self.fetch_models_for_provider(&provider_name);
         }
     }
 
@@ -305,16 +448,22 @@ impl ModelSelectionOverlay {
         match self.mode {
             SelectionMode::Model => {
                 if let Some(item) = self.model_typeahead.get_selected() {
-                    Some((self.current_provider.clone(), item.value.clone()))
+                    // Don't return selection if it's the no-auth placeholder
+                    if item.value == "_no_auth" {
+                        None
+                    } else {
+                        Some((self.current_provider.clone(), item.value.clone()))
+                    }
                 } else {
                     None
                 }
             }
             SelectionMode::Provider => {
                 if let Some(item) = self.provider_typeahead.get_selected() {
-                    // When provider is selected, update model list and switch to model selection
-                    self.current_provider = item.value.clone();
-                    self.update_model_items();
+                    // When provider is selected, fetch models and switch to model selection
+                    let provider_name = item.value.clone();
+                    self.current_provider = provider_name.clone();
+                    self.fetch_models_for_provider(&provider_name);
                     self.switch_mode();
                     None // Don't return selection yet, let user pick model
                 } else {
@@ -334,10 +483,12 @@ impl ModelSelectionOverlay {
 
 fn format_provider_name(provider: &str) -> String {
     match provider {
-        "claude" => "Anthropic Claude".to_string(),
-        "openai" => "OpenAI".to_string(),
-        "gemini" => "Google Gemini".to_string(),
+        "anthropic-api" => "Anthropic API".to_string(),
+        "anthropic-pro" => "Anthropic Claude Pro/Max".to_string(),
+        "google-gemini" => "Google Gemini API".to_string(),
+        "google-vertex" => "Google Vertex AI".to_string(),
         "ollama" => "Ollama (Local)".to_string(),
+        "openai" => "OpenAI".to_string(),
         "openrouter" => "OpenRouter".to_string(),
         _ => provider.to_string(),
     }
@@ -427,11 +578,13 @@ fn get_auth_status_description(auth_status: &AuthStatus) -> &'static str {
 
 fn format_provider_description(provider: &str) -> String {
     match provider {
-        "claude" => "Best for complex reasoning and coding".to_string(),
-        "openai" => "GPT models with broad capabilities".to_string(),
-        "gemini" => "Google's multimodal AI models".to_string(),
-        "ollama" => "Run models locally on your machine".to_string(),
-        "openrouter" => "Access multiple providers through one API".to_string(),
+        "anthropic-api" => "Pay-per-use API access with API keys".to_string(),
+        "anthropic-pro" => "Subscription access with OAuth authentication".to_string(),
+        "google-gemini" => "Direct Google AI API access".to_string(),
+        "google-vertex" => "Enterprise Google Cloud AI platform".to_string(),
+        "ollama" => "Local models running on your machine".to_string(),
+        "openai" => "OpenAI API with GPT and reasoning models".to_string(),
+        "openrouter" => "Multi-provider gateway with unified API".to_string(),
         _ => String::new(),
     }
 }

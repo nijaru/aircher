@@ -447,4 +447,74 @@ impl LLMProvider for OpenAIProvider {
 
         Ok(response.status().is_success())
     }
+
+    async fn list_available_models(&self) -> Result<Vec<String>> {
+        let headers = self.create_headers()?;
+        
+        debug!("Fetching available models from OpenAI API");
+        
+        let response = self
+            .client
+            .get("https://api.openai.com/v1/models")
+            .headers(headers)
+            .send()
+            .await
+            .context("Failed to fetch models from OpenAI API")?;
+
+        if !response.status().is_success() {
+            debug!("OpenAI models API failed, using configured models");
+            return Ok(self.config.models.iter().map(|m| m.name.clone()).collect());
+        }
+
+        let models_response: serde_json::Value = response
+            .json()
+            .await
+            .context("Failed to parse OpenAI models response")?;
+
+        let mut models = Vec::new();
+        if let Some(data) = models_response.get("data").and_then(|d| d.as_array()) {
+            for model in data {
+                if let Some(id) = model.get("id").and_then(|id| id.as_str()) {
+                    // Filter to only chat models (exclude embeddings, whisper, etc.)
+                    if id.starts_with("gpt-") || id.starts_with("o1-") || id.starts_with("o3-") {
+                        models.push(id.to_string());
+                    }
+                }
+            }
+        }
+
+        // Sort models by preference (newer models first)
+        models.sort_by(|a, b| {
+            let a_priority = get_model_priority(a);
+            let b_priority = get_model_priority(b);
+            a_priority.cmp(&b_priority)
+        });
+
+        debug!("OpenAI available models: {:?}", models);
+        
+        if models.is_empty() {
+            // Fallback to configured models if API doesn't return any
+            Ok(self.config.models.iter().map(|m| m.name.clone()).collect())
+        } else {
+            Ok(models)
+        }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+// Helper function to prioritize models
+fn get_model_priority(model: &str) -> i32 {
+    match model {
+        // Latest models first
+        m if m.starts_with("o3") => 1,
+        m if m.starts_with("o1") => 2,
+        m if m.starts_with("gpt-4o") => 3,
+        m if m.starts_with("gpt-4-turbo") => 4,
+        m if m.starts_with("gpt-4") => 5,
+        m if m.starts_with("gpt-3.5") => 6,
+        _ => 99, // Everything else at the end
+    }
 }
