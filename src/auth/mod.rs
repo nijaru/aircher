@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::env;
 use std::sync::RwLock;
+use tokio::sync::broadcast;
 use tracing::{debug, info, warn};
 
 use crate::config::ConfigManager;
@@ -13,6 +14,7 @@ pub mod testing;
 #[derive(Debug)]
 pub struct AuthManager {
     storage: RwLock<storage::AuthStorage>,
+    event_tx: broadcast::Sender<AuthEvent>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -46,13 +48,41 @@ pub struct ProviderUsageInfo {
     pub reset_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[derive(Debug, Clone)]
+pub enum AuthEvent {
+    /// A provider's authentication was added or updated
+    ProviderAuthenticated { provider: String },
+    /// A provider's authentication was removed
+    ProviderUnauthenticated { provider: String },
+    /// A provider's authentication failed validation
+    ProviderAuthFailed { provider: String, error: String },
+    /// All authentication was cleared
+    AllAuthCleared,
+}
+
 impl AuthManager {
     pub fn new() -> Result<Self> {
         let storage = storage::AuthStorage::new()?;
+        let (event_tx, _) = broadcast::channel(100); // Buffer up to 100 events
         
         Ok(Self {
             storage: RwLock::new(storage),
+            event_tx,
         })
+    }
+
+    /// Subscribe to authentication events
+    pub fn subscribe_events(&self) -> broadcast::Receiver<AuthEvent> {
+        self.event_tx.subscribe()
+    }
+
+    /// Broadcast an authentication event
+    fn broadcast_event(&self, event: AuthEvent) {
+        if let Err(e) = self.event_tx.send(event.clone()) {
+            debug!("Failed to broadcast auth event {:?}: {}", event, e);
+        } else {
+            debug!("Broadcasted auth event: {:?}", event);
+        }
     }
 
     /// Get authentication status for a specific provider
@@ -158,11 +188,23 @@ impl AuthManager {
                     auth_info.status = AuthStatus::Invalid;
                     auth_info.error_message = Some("API key validation failed".to_string());
                     warn!("✗ Provider {} API key validation failed", provider);
+                    
+                    // Broadcast authentication failure event
+                    self.broadcast_event(AuthEvent::ProviderAuthFailed { 
+                        provider: provider.to_string(),
+                        error: "API key validation failed".to_string()
+                    });
                 }
                 Err(e) => {
                     auth_info.status = AuthStatus::NetworkError;
                     auth_info.error_message = Some(e.to_string());
                     warn!("✗ Provider {} network error: {}", provider, e);
+                    
+                    // Broadcast authentication failure event
+                    self.broadcast_event(AuthEvent::ProviderAuthFailed { 
+                        provider: provider.to_string(),
+                        error: e.to_string()
+                    });
                 }
             }
         } else {
@@ -179,6 +221,11 @@ impl AuthManager {
         self.storage.write().unwrap().store_api_key(provider, api_key).await
             .context("Failed to store API key")?;
         
+        // Broadcast authentication event
+        self.broadcast_event(AuthEvent::ProviderAuthenticated { 
+            provider: provider.to_string() 
+        });
+        
         info!("✓ API key stored for provider: {}", provider);
         Ok(())
     }
@@ -189,13 +236,23 @@ impl AuthManager {
         self.storage.write().unwrap().remove_api_key(provider).await
             .context("Failed to remove API key")?;
         
+        // Broadcast unauthentication event
+        self.broadcast_event(AuthEvent::ProviderUnauthenticated { 
+            provider: provider.to_string() 
+        });
+        
         info!("✓ API key removed for provider: {}", provider);
         Ok(())
     }
     
     /// Clear all stored API keys
     pub async fn clear_all(&self) -> Result<()> {
-        self.storage.write().unwrap().clear_all().await
+        self.storage.write().unwrap().clear_all().await?;
+        
+        // Broadcast clear all event
+        self.broadcast_event(AuthEvent::AllAuthCleared);
+        
+        Ok(())
     }
     
     /// Get API key for a provider (public interface)
