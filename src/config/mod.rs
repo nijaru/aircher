@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use tracing::{debug, info};
 
 use crate::cost::CostConfig;
+use crate::utils::xdg_dirs::XdgDirs;
 
 pub mod toml_config;
 pub use toml_config::ArcherConfig;
@@ -22,6 +23,8 @@ pub struct ConfigManager {
     pub database: DatabaseConfig,
     pub intelligence: IntelligenceConfig,
     pub cost: CostConfig,
+    #[serde(default)]
+    pub multi_provider: MultiProviderConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,6 +95,195 @@ pub struct IntelligenceConfig {
     pub relevance_threshold: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiProviderConfig {
+    /// Map of model names to provider preferences (with priority order)
+    #[serde(default)]
+    pub model_preferences: HashMap<String, Vec<ModelPreference>>,
+    /// Map of task types to preferred model configurations  
+    #[serde(default)]
+    pub task_preferences: HashMap<String, TaskPreference>,
+    /// Global fallback strategy configuration
+    #[serde(default)]
+    pub fallback_strategy: FallbackStrategy,
+    /// Provider-specific fallback rules
+    #[serde(default)]
+    pub provider_fallbacks: HashMap<String, ProviderFallback>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelPreference {
+    /// Provider name (must match provider config key)
+    pub provider: String,
+    /// Priority (1 = highest priority)
+    pub priority: u8,
+    /// Cost multiplier for this provider (1.0 = baseline)
+    pub cost_multiplier: f64,
+    /// Optional conditions for using this provider
+    #[serde(default)]
+    pub conditions: Option<ProviderConditions>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderConditions {
+    /// Maximum usage percentage before fallback (for subscription tiers)
+    pub max_usage_percent: Option<f64>,
+    /// Required features (e.g., ["streaming", "tools"])
+    #[serde(default)]
+    pub required_features: Vec<String>,
+    /// Time-based restrictions (e.g., business hours only)
+    pub time_restrictions: Option<TimeRestrictions>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimeRestrictions {
+    /// Start hour (0-23)
+    pub start_hour: u8,
+    /// End hour (0-23)  
+    pub end_hour: u8,
+    /// Days of week (0 = Sunday, 6 = Saturday)
+    pub days: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskPreference {
+    /// Preferred model for this task type
+    pub model: String,
+    /// Override temperature for this task
+    pub temperature: Option<f64>,
+    /// Override max tokens for this task
+    pub max_tokens: Option<u32>,
+    /// Custom system prompt for this task
+    pub system_prompt_override: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FallbackStrategy {
+    /// Strategy type: "fastest", "cheapest", "cost_aware", "quality"
+    #[serde(default = "default_fallback_strategy")]
+    pub strategy: String,
+    /// Maximum cost increase multiplier for fallbacks (e.g., 2.0 = max 2x cost)
+    #[serde(default = "default_max_cost_increase")]
+    pub max_cost_increase: f64,
+    /// Allow fallback to free tiers when available
+    #[serde(default = "default_enable_free_fallback")]
+    pub enable_free_fallback: bool,
+    /// Maximum number of fallback attempts
+    #[serde(default = "default_max_fallback_attempts")]
+    pub max_fallback_attempts: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderFallback {
+    /// List of providers to try in order
+    pub fallback_to: Vec<String>,
+    /// Enable fallback when usage limits reached
+    #[serde(default)]
+    pub max_usage_fallback: bool,
+    /// Enable fallback on rate limits
+    #[serde(default)]
+    pub rate_limit_fallback: bool,
+    /// Enable fallback on connection failures
+    #[serde(default)]
+    pub connection_fallback: bool,
+}
+
+// Default functions for serde
+fn default_fallback_strategy() -> String {
+    "cost_aware".to_string()
+}
+
+fn default_max_cost_increase() -> f64 {
+    2.0
+}
+
+fn default_enable_free_fallback() -> bool {
+    true
+}
+
+fn default_max_fallback_attempts() -> u8 {
+    3
+}
+
+impl Default for MultiProviderConfig {
+    fn default() -> Self {
+        let mut model_preferences = HashMap::new();
+        let mut task_preferences = HashMap::new();
+        let mut provider_fallbacks = HashMap::new();
+
+        // Example model preferences - Claude Sonnet available from multiple providers
+        model_preferences.insert(
+            "claude-3-5-sonnet-20241022".to_string(),
+            vec![
+                ModelPreference {
+                    provider: "anthropic".to_string(),
+                    priority: 1,
+                    cost_multiplier: 1.0,
+                    conditions: None,
+                },
+                ModelPreference {
+                    provider: "openrouter".to_string(),
+                    priority: 2,
+                    cost_multiplier: 1.2,
+                    conditions: None,
+                },
+            ],
+        );
+
+        // Example task preferences
+        task_preferences.insert(
+            "agent_coding".to_string(),
+            TaskPreference {
+                model: "claude-3-5-sonnet-20241022".to_string(),
+                temperature: Some(0.1),
+                max_tokens: Some(4000),
+                system_prompt_override: None,
+            },
+        );
+        task_preferences.insert(
+            "general_chat".to_string(),
+            TaskPreference {
+                model: "claude-3-5-sonnet-20241022".to_string(),
+                temperature: Some(0.7),
+                max_tokens: Some(2000),
+                system_prompt_override: None,
+            },
+        );
+
+        // Example provider fallbacks
+        provider_fallbacks.insert(
+            "anthropic".to_string(),
+            ProviderFallback {
+                fallback_to: vec!["openrouter".to_string()],
+                max_usage_fallback: false,
+                rate_limit_fallback: true,
+                connection_fallback: true,
+            },
+        );
+        provider_fallbacks.insert(
+            "ollama".to_string(),
+            ProviderFallback {
+                fallback_to: vec!["openrouter".to_string(), "anthropic".to_string()],
+                max_usage_fallback: false,
+                rate_limit_fallback: false,
+                connection_fallback: true,
+            },
+        );
+
+        Self {
+            model_preferences,
+            task_preferences,
+            fallback_strategy: FallbackStrategy {
+                strategy: default_fallback_strategy(),
+                max_cost_increase: default_max_cost_increase(),
+                enable_free_fallback: default_enable_free_fallback(),
+                max_fallback_attempts: default_max_fallback_attempts(),
+            },
+            provider_fallbacks,
+        }
+    }
+}
+
 impl Default for GlobalConfig {
     fn default() -> Self {
         Self {
@@ -100,9 +292,8 @@ impl Default for GlobalConfig {
             default_host: "anthropic".to_string(),
             max_context_tokens: 100_000,
             budget_limit: None,
-            data_directory: dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join(".aircher"),
+            data_directory: XdgDirs::aircher_data_dir()
+                .unwrap_or_else(|_| PathBuf::from(".")),
         }
     }
 }
@@ -499,9 +690,8 @@ impl Default for ConfigManager {
             },
         );
 
-        let data_dir = dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".aircher");
+        let data_dir = XdgDirs::aircher_data_dir()
+            .unwrap_or_else(|_| PathBuf::from("."));
 
         Self {
             global: GlobalConfig::default(),
@@ -516,6 +706,7 @@ impl Default for ConfigManager {
             },
             intelligence: IntelligenceConfig::default(),
             cost: CostConfig::default(),
+            multi_provider: MultiProviderConfig::default(),
         }
     }
 }
