@@ -5,8 +5,9 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::{debug, info, warn};
 
-use super::{ConfigManager, GlobalConfig, ProviderConfig, ModelConfig, HostConfig, UiConfig, DatabaseConfig, IntelligenceConfig};
+use super::{ConfigManager, GlobalConfig, ProviderConfig, ModelConfig, HostConfig, UiConfig, DatabaseConfig, IntelligenceConfig, MultiProviderConfig};
 use crate::cost::CostConfig;
+use crate::utils::xdg_dirs::XdgDirs;
 
 /// Configuration hierarchy manager that implements the layered config approach:
 /// Hardcoded defaults -> Global config -> Local config -> Environment variables
@@ -204,9 +205,8 @@ impl ConfigHierarchy {
             },
         );
 
-        let data_dir = dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".aircher");
+        let data_dir = XdgDirs::aircher_data_dir()
+            .unwrap_or_else(|_| PathBuf::from("."));
 
         ConfigManager {
             global: GlobalConfig {
@@ -240,14 +240,13 @@ impl ConfigHierarchy {
                 relevance_threshold: 0.3,
             },
             cost: CostConfig::default(),
+            multi_provider: MultiProviderConfig::default(),
         }
     }
 
     /// Get the global configuration file path
     fn get_global_config_path() -> Result<PathBuf> {
-        Ok(dirs::config_dir()
-            .context("Could not determine config directory")?
-            .join("aircher")
+        Ok(XdgDirs::aircher_config_dir()?
             .join("config.toml"))
     }
 
