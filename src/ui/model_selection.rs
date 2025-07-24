@@ -3,9 +3,11 @@ use ratatui::{
     Frame,
 };
 use std::collections::HashMap;
+use tracing::debug;
 
 use crate::config::{ConfigManager, ModelConfig};
 use crate::providers::ProviderManager;
+use crate::auth::{AuthManager, AuthStatus};
 use super::typeahead::{TypeaheadOverlay, TypeaheadItem};
 
 pub struct ModelSelectionOverlay {
@@ -71,11 +73,11 @@ impl ModelSelectionOverlay {
         // Update provider items
         let provider_items: Vec<TypeaheadItem> = config.providers.keys()
             .map(|name| TypeaheadItem {
-                label: format_provider_name(name),
+                label: format_provider_name_with_status(name, config),
                 value: name.clone(),
-                description: Some(format_provider_description(name)),
+                description: Some(format_provider_description_with_auth(name, config)),
                 available: config.providers.get(name)
-                    .map(|p| std::env::var(&p.api_key_env).is_ok())
+                    .map(|p| p.api_key_env.is_empty() || std::env::var(&p.api_key_env).is_ok())
                     .unwrap_or(false),
             })
             .collect();
@@ -261,6 +263,50 @@ fn format_provider_name(provider: &str) -> String {
         "ollama" => "Ollama (Local)".to_string(),
         "openrouter" => "OpenRouter".to_string(),
         _ => provider.to_string(),
+    }
+}
+
+fn format_provider_name_with_status(provider: &str, config: &ConfigManager) -> String {
+    let base_name = format_provider_name(provider);
+    let status_icon = get_provider_auth_status_icon(provider, config);
+    format!("{} {}", status_icon, base_name)
+}
+
+fn format_provider_description_with_auth(provider: &str, config: &ConfigManager) -> String {
+    let base_description = format_provider_description(provider);
+    let auth_status = get_provider_auth_description(provider, config);
+    let model_count = config.providers.get(provider)
+        .map(|p| p.models.len())
+        .unwrap_or(0);
+    
+    format!("{} • {} models • {}", base_description, model_count, auth_status)
+}
+
+fn get_provider_auth_status_icon(provider: &str, config: &ConfigManager) -> &'static str {
+    if let Some(provider_config) = config.get_provider(provider) {
+        if provider_config.api_key_env.is_empty() {
+            "⚡" // Local provider (no auth needed)
+        } else if std::env::var(&provider_config.api_key_env).is_ok() {
+            "✓" // Authenticated
+        } else {
+            "❌" // Needs setup
+        }
+    } else {
+        "○" // Not configured
+    }
+}
+
+fn get_provider_auth_description(provider: &str, config: &ConfigManager) -> String {
+    if let Some(provider_config) = config.get_provider(provider) {
+        if provider_config.api_key_env.is_empty() {
+            "local (no auth needed)".to_string()
+        } else if std::env::var(&provider_config.api_key_env).is_ok() {
+            "authenticated".to_string()
+        } else {
+            "needs setup".to_string()
+        }
+    } else {
+        "not configured".to_string()
     }
 }
 

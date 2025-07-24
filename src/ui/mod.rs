@@ -2,7 +2,7 @@ use anyhow::Result;
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::{
-        event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
+        event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind, EnableMouseCapture, DisableMouseCapture},
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
         ExecutableCommand,
     },
@@ -28,24 +28,98 @@ use crate::intelligence::tools::IntelligenceTools;
 use crate::intelligence::file_monitor;
 use crate::semantic_search::SemanticCodeSearch;
 use crate::agent::{AgentController, conversation::ProgrammingLanguage};
+use crate::auth::AuthManager;
 
+#[derive(Debug, Clone, PartialEq)]
+enum NetworkStatus {
+    Online,
+    Offline,
+    Error,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum StreamingState {
+    /// Not streaming
+    Idle,
+    /// Uploading/sending message to API
+    Hustling {
+        start_time: Instant,
+        tokens_sent: u32,
+    },
+    /// Using tools/processing
+    Schlepping {
+        start_time: Instant,
+        tokens_used: u32,
+    },
+    /// Receiving response stream
+    Streaming {
+        start_time: Instant,
+        tokens_received: u32,
+    },
+}
+
+pub mod auth_wizard;
 pub mod chat;
+pub mod command_approval;
 pub mod components;
+pub mod diff_viewer;
 pub mod selection;
 pub mod enhanced_selection;
+pub mod session_browser;
 pub mod settings;
 pub mod help;
 pub mod autocomplete;
 pub mod slash_commands;
 pub mod typeahead;
 pub mod model_selection;
+pub mod syntax_highlight;
 
+use auth_wizard::AuthWizard;
 use selection::SelectionModal;
+use session_browser::SessionBrowser;
 use settings::SettingsModal;
 use help::HelpModal;
 use autocomplete::AutocompleteEngine;
+use command_approval::{CommandApprovalModal, ApprovalChoice};
 use model_selection::ModelSelectionOverlay;
+use diff_viewer::{DiffViewer, generate_diff};
 use slash_commands::{parse_slash_command, format_help};
+use syntax_highlight::SyntaxHighlighter;
+
+/// Fun streaming messages for different states
+const HUSTLING_MESSAGES: &[&str] = &[
+    "Launching arrows",
+    "Aiming at target",
+    "Drawing the bow", 
+    "Notching arrow",
+    "Taking aim",
+    "Pulling bowstring",
+    "Charging up",
+    "Preparing volley",
+];
+
+const SCHLEPPING_MESSAGES: &[&str] = &[
+    "Fletching arrows",
+    "Sharpening tools",
+    "Crafting arrows",
+    "Working the forge",
+    "Hammering away",
+    "Building tools",
+    "Tinkering around",
+    "Assembling gear",
+];
+
+const STREAMING_MESSAGES: &[&str] = &[
+    "Arrows in flight",
+    "Hitting targets",
+    "Bullseye incoming",
+    "Arrows landing",
+    "Finding the mark",
+    "Direct hit",
+    "On target",
+    "Precision shot",
+];
 
 pub struct TuiManager {
     config: ConfigManager,
@@ -72,8 +146,16 @@ pub struct TuiManager {
     settings_modal: SettingsModal,
     help_modal: HelpModal,
     model_selection_overlay: ModelSelectionOverlay,
+    session_browser: SessionBrowser,
+    diff_viewer: DiffViewer,
+    command_approval: CommandApprovalModal,
+    auth_wizard: AuthWizard,
     // Autocomplete
     autocomplete: AutocompleteEngine,
+    // Syntax highlighting
+    syntax_highlighter: SyntaxHighlighter,
+    // Permissions
+    permissions_manager: crate::permissions::PermissionsManager,
     // Authentication state
     providers: Option<Rc<ProviderManager>>,
     auth_required: bool,
@@ -82,20 +164,35 @@ pub struct TuiManager {
     budget_warning_shown: bool,
     cost_warnings: Vec<String>,
     should_quit: bool,
-    // Loading animation
-    is_loading: bool,
-    loading_start_time: Option<Instant>,
-    loading_symbols: Vec<&'static str>,
+    // Streaming state
+    streaming_state: StreamingState,
+    streaming_spinners: Vec<&'static str>,
     // Ctrl+C handling
     last_ctrl_c_time: Option<Instant>,
-    // UI modes
+    // UI modes (affect next message sent)
     auto_accept_edits: bool,
     plan_mode: bool,
+    turbo_mode: bool,
     // Message history
     message_history: Vec<String>,
     history_index: Option<usize>,
     // Error handling
-    recent_error: Option<(Instant, String)>,
+    recent_app_error: Option<(Instant, String)>,
+    network_status: NetworkStatus,
+    // Channel for triggering UI updates
+    update_tx: Option<mpsc::Sender<String>>,
+    // Channel for permission requests from tools
+    permission_rx: Option<crate::agent::tools::permission_channel::PermissionRequestReceiver>,
+    permission_tx: Option<crate::agent::tools::permission_channel::PermissionRequestSender>,
+    // Message queuing during agent processing
+    message_queue: Vec<QueuedMessage>,
+    agent_processing: bool,
+}
+
+#[derive(Debug, Clone)]
+struct QueuedMessage {
+    content: String,
+    timestamp: Instant,
 }
 
 impl TuiManager {
@@ -164,6 +261,9 @@ impl TuiManager {
         
         info!("TUI Manager initialized with auth_required: {}", auth_required);
         
+        // Initialize permissions manager
+        let permissions_manager = crate::permissions::PermissionsManager::new()?;
+        
         Ok(Self {
             config: config.clone(),
             provider_name,
@@ -198,8 +298,16 @@ impl TuiManager {
             } else {
                 ModelSelectionOverlay::new(config)
             },
+            session_browser: SessionBrowser::new(),
+            diff_viewer: DiffViewer::new(),
+            command_approval: CommandApprovalModal::new(),
+            auth_wizard: AuthWizard::new(),
             // Autocomplete
             autocomplete: AutocompleteEngine::new(),
+            // Syntax highlighting
+            syntax_highlighter: SyntaxHighlighter::new(),
+            // Permissions
+            permissions_manager: crate::permissions::PermissionsManager::new()?,
             // Authentication state
             providers,
             auth_required,
@@ -208,18 +316,25 @@ impl TuiManager {
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
             should_quit: false,
-            // Initialize loading animation with archer-themed symbols
-            is_loading: false,
-            loading_start_time: None,
-            loading_symbols: vec!["➤", "🎯", "⟳"], // Archer-themed rotating symbols
+            // Initialize streaming state
+            streaming_state: StreamingState::Idle,
+            // Using various circle/dot symbols that grow and shrink
+            streaming_spinners: vec!["·", "•", "●", "•", "·", "•", "●", "○"], // Growing/shrinking dots
             // Initialize Ctrl+C handling
             last_ctrl_c_time: None,
             // Initialize UI modes (session-based, reset on restart)
             auto_accept_edits: false,
             plan_mode: false,
+            turbo_mode: false,
             message_history: Vec::new(),
             history_index: None,
-            recent_error: None,
+            recent_app_error: None,
+            network_status: NetworkStatus::Unknown,
+            update_tx: None,
+            permission_rx: None,
+            permission_tx: None,
+            message_queue: Vec::new(),
+            agent_processing: false,
         })
     }
 
@@ -290,6 +405,9 @@ impl TuiManager {
             messages.push(provider_msg);
         }
         
+        // Initialize permissions manager
+        let permissions_manager = crate::permissions::PermissionsManager::new()?;
+        
         Ok(Self {
             config: config.clone(),
             provider_name: config.global.default_provider.clone(),
@@ -315,8 +433,16 @@ impl TuiManager {
             settings_modal: SettingsModal::new(config),
             help_modal: HelpModal::new(),
             model_selection_overlay: ModelSelectionOverlay::with_providers(config, providers),
+            session_browser: SessionBrowser::new(),
+            diff_viewer: DiffViewer::new(),
+            command_approval: CommandApprovalModal::new(),
+            auth_wizard: AuthWizard::new(),
             // Initialize autocomplete
             autocomplete: AutocompleteEngine::new(),
+            // Initialize syntax highlighting
+            syntax_highlighter: SyntaxHighlighter::new(),
+            // Initialize permissions
+            permissions_manager,
             // Authentication state (providers available in this constructor)
             providers: Some(Rc::new(ProviderManager::new(config).await?)),
             auth_required: false,
@@ -325,26 +451,55 @@ impl TuiManager {
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
             should_quit: false,
-            // Initialize loading animation with archer-themed symbols
-            is_loading: false,
-            loading_start_time: None,
-            loading_symbols: vec!["➤", "🎯", "⟳"], // Archer-themed rotating symbols
+            // Initialize streaming state
+            streaming_state: StreamingState::Idle,
+            // Using various circle/dot symbols that grow and shrink
+            streaming_spinners: vec!["·", "•", "●", "•", "·", "•", "●", "○"], // Growing/shrinking dots
             // Initialize Ctrl+C handling
             last_ctrl_c_time: None,
             // Initialize UI modes (session-based, reset on restart)
             auto_accept_edits: false,
             plan_mode: false,
+            turbo_mode: false,
             message_history: Vec::new(),
             history_index: None,
-            recent_error: None,
+            recent_app_error: None,
+            network_status: NetworkStatus::Unknown,
+            update_tx: None,
+            permission_rx: None,
+            permission_tx: None,
+            message_queue: Vec::new(),
+            agent_processing: false,
         })
     }
 
-    /// Set an error message to display
-    fn set_error(&mut self, error: String) {
-        self.recent_error = Some((Instant::now(), error.clone()));
+    /// Handle application errors - show in chat and update status
+    fn handle_app_error(&mut self, error: String) {
+        // Show error in conversation
+        self.add_message(Message::new(
+            MessageRole::System,
+            format!("⚠️ Error: {}", error),
+        ));
         
-        // Also log to file for debugging
+        // Update status for indicator
+        self.recent_app_error = Some((Instant::now(), error.clone()));
+        
+        // Log to file
+        self.log_error_to_file(&error);
+    }
+    
+    /// Handle network/API errors - show in chat and update network status
+    fn handle_network_error(&mut self, error: String) {
+        // Show error in conversation
+        self.add_message(Message::new(
+            MessageRole::System,
+            format!("🔴 Network Error: {}", error),
+        ));
+        
+        // Update network status
+        self.network_status = NetworkStatus::Error;
+        
+        // Log to file
         self.log_error_to_file(&error);
     }
     
@@ -377,8 +532,18 @@ impl TuiManager {
     
     /// Check if error should still be displayed (expires after 5 seconds)
     fn should_show_error(&self) -> bool {
-        if let Some((timestamp, _)) = &self.recent_error {
+        if let Some((timestamp, _)) = &self.recent_app_error {
             Instant::now().duration_since(*timestamp) < Duration::from_secs(5)
+        } else {
+            false
+        }
+    }
+    
+    /// Check if we have any recent errors (for status bar indicator)
+    fn has_recent_error(&self) -> bool {
+        if let Some((timestamp, _)) = &self.recent_app_error {
+            // Show indicator for 30 seconds after error
+            Instant::now().duration_since(*timestamp) < Duration::from_secs(30)
         } else {
             false
         }
@@ -390,10 +555,16 @@ impl TuiManager {
         // Setup terminal
         enable_raw_mode()?;
         stdout().execute(EnterAlternateScreen)?;
+        stdout().execute(EnableMouseCapture)?;
         let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
         // Create channel for async communication
-        let (_tx, mut rx) = mpsc::channel::<String>(10);
+        let (tx, mut rx) = mpsc::channel::<String>(10);
+        self.update_tx = Some(tx);
+        
+        // Create permission channel
+        let (perm_tx, mut perm_rx) = crate::agent::tools::permission_channel::create_permission_channel();
+        self.permission_tx = Some(perm_tx.clone());
 
         // Main TUI loop
         loop {
@@ -405,10 +576,10 @@ impl TuiManager {
             // Draw the UI
             terminal.draw(|f| self.draw(f))?;
 
-            // Handle events with timeout
-            if event::poll(std::time::Duration::from_millis(100))? {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press {
+            // Handle events with timeout (short timeout for responsive streaming)
+            if event::poll(std::time::Duration::from_millis(50))? {
+                match event::read()? {
+                    Event::Key(key) if key.kind == KeyEventKind::Press => {
                         // Check if any modal is handling the event
                         if self.handle_modal_events(key)? {
                             continue;
@@ -473,6 +644,11 @@ impl TuiManager {
                                         self.input = completion;
                                         self.cursor_position = self.input.len();
                                     }
+                                } else if self.auth_wizard.is_visible() {
+                                    // Handle auth wizard Enter key
+                                    let mut auth_manager = AuthManager::new()?;
+                                    let providers = self.providers.as_ref().map(|p| p.as_ref());
+                                    self.auth_wizard.handle_enter(&mut auth_manager, &self.config, providers).await?;
                                 } else if !self.input.is_empty() {
                                     let message = self.input.clone();
                                     self.input.clear();
@@ -496,7 +672,7 @@ impl TuiManager {
                                     if message.trim() == "?" {
                                         // Show help
                                         for line in format_help() {
-                                            self.messages.push(Message::new(
+                                            self.add_message(Message::new(
                                                 MessageRole::System,
                                                 line,
                                             ));
@@ -511,14 +687,17 @@ impl TuiManager {
                                             "/search" => {
                                                 if !args.is_empty() {
                                                     // Add user message showing the search command
-                                                    self.messages.push(Message::user(message.clone()));
+                                                    self.add_message(Message::user(message.clone()));
                                                     
                                                     // Perform semantic search
                                                     if let Err(e) = self.handle_search_command(args).await {
-                                                        self.set_error(format!("Search failed: {}", e));
+                                                        self.add_message(Message::new(
+                                                            MessageRole::System,
+                                                            format!("Search failed: {}", e),
+                                                        ));
                                                     }
                                                 } else {
-                                                    self.messages.push(Message::new(
+                                                    self.add_message(Message::new(
                                                         MessageRole::System,
                                                         "Usage: /search <query>".to_string(),
                                                     ));
@@ -526,7 +705,7 @@ impl TuiManager {
                                             }
                                             "/init" => {
                                                 if let Err(e) = self.handle_init_command().await {
-                                                    self.messages.push(Message::new(
+                                                    self.add_message(Message::new(
                                                         MessageRole::System,
                                                         format!("Init failed: {}", e),
                                                     ));
@@ -535,7 +714,7 @@ impl TuiManager {
                                             "/help" => {
                                                 // Add each help line as a separate message for proper display
                                                 for line in format_help() {
-                                                    self.messages.push(Message::new(
+                                                    self.add_message(Message::new(
                                                         MessageRole::System,
                                                         line,
                                                     ));
@@ -543,7 +722,8 @@ impl TuiManager {
                                             }
                                             "/clear" => {
                                                 self.messages.clear();
-                                                self.messages.push(Message::new(
+                                                self.scroll_offset = 0; // Reset scroll on clear
+                                                self.add_message(Message::new(
                                                     MessageRole::System,
                                                     "Conversation cleared. Context reset.".to_string(),
                                                 ));
@@ -551,34 +731,47 @@ impl TuiManager {
                                             "/config" => {
                                                 self.settings_modal.toggle();
                                             }
-                                            "/sessions" => {
-                                                // TODO: Implement session browser
-                                                self.messages.push(Message::new(
-                                                    MessageRole::System,
-                                                    "Session browser coming soon!".to_string(),
-                                                ));
-                                            }
-                                            "/compact" => {
-                                                // Store custom instructions if provided
-                                                if !args.is_empty() {
-                                                    self.messages.push(Message::new(
+                                            "/auth" => {
+                                                // Show auth setup wizard
+                                                if let Err(e) = self.handle_auth_command().await {
+                                                    self.add_message(Message::new(
                                                         MessageRole::System,
-                                                        format!("Compaction with instructions: {}", args),
-                                                    ));
-                                                    // TODO: Implement conversation compaction with custom instructions
-                                                    // These instructions can be added to context after compaction
-                                                } else {
-                                                    self.messages.push(Message::new(
-                                                        MessageRole::System,
-                                                        "Usage: /compact [custom instructions]".to_string(),
+                                                        format!("Auth setup failed: {}", e),
                                                     ));
                                                 }
+                                            }
+                                            "/sessions" => {
+                                                // Show session browser
+                                                self.session_browser.show();
+                                                self.load_sessions().await;
+                                            }
+                                            "/compact" => {
+                                                // Add user message showing the compact command
+                                                self.add_message(Message::user(message.clone()));
+                                                
+                                                // Perform conversation compaction
+                                                if let Err(e) = self.handle_compact_command(args).await {
+                                                    self.add_message(Message::new(
+                                                        MessageRole::System,
+                                                        format!("Compaction failed: {}", e),
+                                                    ));
+                                                }
+                                            }
+                                            "/turbo" => {
+                                                // Enable turbo mode directly
+                                                self.auto_accept_edits = false;
+                                                self.plan_mode = false;
+                                                self.turbo_mode = true;
+                                                self.add_message(Message::new(
+                                                    MessageRole::System,
+                                                    "🚀 Turbo mode activated! I'll autonomously execute complex tasks with full file permissions.".to_string(),
+                                                ));
                                             }
                                             "/quit" => {
                                                 self.should_quit = true;
                                             }
                                             _ => {
-                                                self.messages.push(Message::new(
+                                                self.add_message(Message::new(
                                                     MessageRole::System,
                                                     format!("Unknown command: {}. Type /help for available commands.", command),
                                                 ));
@@ -586,7 +779,7 @@ impl TuiManager {
                                         }
                                     } else if message.starts_with("/") {
                                         // Unknown slash command
-                                        self.messages.push(Message::new(
+                                        self.add_message(Message::new(
                                             MessageRole::System,
                                             "Unknown command. Type /help for available commands.".to_string(),
                                         ));
@@ -594,11 +787,11 @@ impl TuiManager {
                                         // Handle regular message based on auth state
                                         if self.providers.is_some() {
                                             // Add user message first
-                                            self.messages.push(Message::user(message.clone()));
+                                            self.add_message(Message::user(message.clone()));
                                             
                                             // Send to AI (methods will handle the borrowing internally)
                                             if let Err(e) = self.handle_ai_message(message).await {
-                                                self.messages.push(Message::new(
+                                                self.add_message(Message::new(
                                                     MessageRole::System,
                                                     format!("Error: {}", e),
                                                 ));
@@ -606,8 +799,8 @@ impl TuiManager {
                                         } else {
                                             // Demo mode - show that AI features require API key
                                             debug!("No providers configured, showing demo mode message");
-                                            self.messages.push(Message::user(message.clone()));
-                                            self.messages.push(Message::new(
+                                            self.add_message(Message::user(message.clone()));
+                                            self.add_message(Message::new(
                                                 MessageRole::System,
                                                 "No AI provider configured. Type /model to select one or /config to set up API keys.".to_string(),
                                             ));
@@ -707,22 +900,140 @@ impl TuiManager {
                             KeyCode::Esc => {
                                 if self.autocomplete.is_visible() {
                                     self.autocomplete.hide();
+                                } else if self.streaming_state != StreamingState::Idle {
+                                    // Interrupt streaming
+                                    self.stop_streaming();
+                                    self.add_message(Message::new(
+                                        MessageRole::System,
+                                        "Streaming interrupted by user".to_string(),
+                                    ));
                                 }
+                            }
+                            KeyCode::PageUp => {
+                                // Scroll up with overlap (80% of visible height)
+                                let visible_height = 20; // Approximate chat area height
+                                let scroll_amount = (visible_height * 4 / 5).max(1);
+                                self.scroll_offset = self.scroll_offset.saturating_add(scroll_amount);
+                            }
+                            KeyCode::PageDown => {
+                                // Scroll down with overlap
+                                let visible_height = 20; // Approximate chat area height
+                                let scroll_amount = (visible_height * 4 / 5).max(1);
+                                self.scroll_offset = self.scroll_offset.saturating_sub(scroll_amount);
+                            }
+                            KeyCode::End => {
+                                // Jump to bottom
+                                self.scroll_offset = 0;
+                            }
+                            KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Ctrl+L to jump to bottom (like terminal clear)
+                                self.scroll_offset = 0;
                             }
                             _ => {}
                         }
                     }
+                    Event::Mouse(mouse) => {
+                        match mouse.kind {
+                            MouseEventKind::ScrollUp => {
+                                // Scroll up by 3 lines
+                                self.scroll_offset = self.scroll_offset.saturating_add(3);
+                            }
+                            MouseEventKind::ScrollDown => {
+                                // Scroll down by 3 lines
+                                self.scroll_offset = self.scroll_offset.saturating_sub(3);
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
                 }
             }
 
-            // Handle async messages
-            if let Ok(msg) = rx.try_recv() {
+            // Handle async messages (trigger redraw on streaming updates)
+            while let Ok(msg) = rx.try_recv() {
                 debug!("Received async message: {:?}", msg);
+                if msg == "update" {
+                    // Trigger redraw for streaming updates
+                    terminal.draw(|f| self.draw(f))?;
+                }
+            }
+            
+            // Handle permission requests
+            while let Ok((request, response_tx)) = perm_rx.try_recv() {
+                    // Show command approval modal
+                    let full_command = if request.args.is_empty() {
+                        request.command.clone()
+                    } else {
+                        format!("{} {}", request.command, request.args.join(" "))
+                    };
+                    
+                    self.command_approval.show(full_command, request.description);
+                    terminal.draw(|f| self.draw(f))?;
+                    
+                    // Wait for user response
+                    loop {
+                        if let Event::Key(key) = event::read()? {
+                            if key.kind == KeyEventKind::Press {
+                                match key.code {
+                                    KeyCode::Esc => {
+                                        let _ = response_tx.send(crate::agent::tools::permission_channel::PermissionResponse::Denied);
+                                        self.command_approval.hide();
+                                        break;
+                                    }
+                                    KeyCode::Enter => {
+                                        let choice = self.command_approval.get_selected();
+                                        let response = match choice {
+                                            crate::ui::command_approval::ApprovalChoice::Yes => {
+                                                crate::agent::tools::permission_channel::PermissionResponse::Approved
+                                            }
+                                            crate::ui::command_approval::ApprovalChoice::YesAndSimilar => {
+                                                crate::agent::tools::permission_channel::PermissionResponse::ApprovedSimilar
+                                            }
+                                            crate::ui::command_approval::ApprovalChoice::No => {
+                                                crate::agent::tools::permission_channel::PermissionResponse::Denied
+                                            }
+                                        };
+                                        let _ = response_tx.send(response);
+                                        self.command_approval.hide();
+                                        break;
+                                    }
+                                    KeyCode::Tab | KeyCode::Right => {
+                                        self.command_approval.select_next();
+                                        terminal.draw(|f| self.draw(f))?;
+                                    }
+                                    KeyCode::Left => {
+                                        self.command_approval.select_prev();
+                                        terminal.draw(|f| self.draw(f))?;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    
+                // Redraw after modal is hidden
+                terminal.draw(|f| self.draw(f))?;
+            }
+            
+            // Process queued messages if agent is not currently processing
+            if !self.agent_processing && !self.message_queue.is_empty() {
+                if let Some(providers) = self.providers.clone() {
+                    let queued = self.message_queue.remove(0);
+                    debug!("Processing queued message from main loop: {}", queued.content);
+                    if let Err(e) = self.send_message(queued.content, &providers).await {
+                        tracing::error!("Failed to process queued message: {}", e);
+                        self.add_message(Message::new(
+                            MessageRole::System, 
+                            format!("❌ Failed to process queued message: {}", e)
+                        ));
+                    }
+                }
             }
         }
 
         // Cleanup
         disable_raw_mode()?;
+        stdout().execute(DisableMouseCapture)?;
         stdout().execute(LeaveAlternateScreen)?;
         
         // Stop file monitoring
@@ -734,7 +1045,7 @@ impl TuiManager {
         Ok(())
     }
 
-    fn draw(&self, f: &mut Frame) {
+    fn draw(&mut self, f: &mut Frame) {
         // Show auth setup screen if needed
         if self.show_auth_setup {
             self.draw_auth_setup_screen(f);
@@ -760,22 +1071,19 @@ impl TuiManager {
             self.draw_welcome_box(f, chunks[0]);
         }
 
-        // Chat area
-        let chat_area = if self.messages.is_empty() { chunks[1] } else { chunks[0] };
-        self.draw_chat_area(f, chat_area);
+        // Chat area is always at index 2
+        self.draw_chat_area(f, chunks[2]);
 
-        // Input box area  
-        let input_area = if self.messages.is_empty() { chunks[2] } else { chunks[1] };
-        self.draw_input_box(f, input_area);
+        // Input box area is always at index 3
+        self.draw_input_box(f, chunks[3]);
 
-        // Status line
-        let status_area = if self.messages.is_empty() { chunks[3] } else { chunks[2] };
-        self.draw_status_bar(f, status_area);
+        // Status line is always at index 4
+        self.draw_status_bar(f, chunks[4]);
 
         // Render autocomplete suggestions safely
         if self.autocomplete.is_visible() {
             // Pass the input area but render above it
-            self.autocomplete.render(f, input_area);
+            self.autocomplete.render(f, chunks[3]);
         }
 
         // Render modals (on top of everything)
@@ -783,6 +1091,10 @@ impl TuiManager {
         self.settings_modal.render(f, f.area());
         self.help_modal.render(f, f.area());
         self.model_selection_overlay.render(f, f.area());
+        self.session_browser.render(f, f.area());
+        self.diff_viewer.render(f, f.area());
+        self.command_approval.render(f, f.area());
+        self.auth_wizard.render(f, f.area());
     }
 
     fn draw_welcome_box(&self, f: &mut Frame, area: Rect) {
@@ -831,44 +1143,72 @@ impl TuiManager {
     
 
     fn draw_chat_area(&self, f: &mut Frame, area: Rect) {
-        let messages: Vec<ListItem> = self
+        let mut messages: Vec<ListItem> = self
             .messages
             .iter()
-            .map(|msg| {
-                // Format messages like Claude Code with proper prefixes and colors
-                let (prefix, content, style) = match msg.role {
-                    MessageRole::User => (
-                        "> ",
-                        msg.content.as_str(),
-                        Style::default().fg(Color::Rgb(163, 136, 186)) // Beige-like purple for user messages
-                    ),
-                    MessageRole::Assistant => (
-                        "",
-                        msg.content.as_str(), 
-                        Style::default().fg(Color::White) // Standard color for main responses
-                    ),
-                    MessageRole::System => (
-                        "ℹ ", // Generic info symbol for system messages
-                        msg.content.as_str(),
-                        Style::default().fg(Color::Rgb(163, 136, 186)) // Beige-like purple for system
-                    ),
-                    MessageRole::Tool => (
-                        "🔧 ", // Tool/wrench emoji for tool use  
-                        msg.content.as_str(),
-                        Style::default().fg(Color::Rgb(163, 136, 186)) // Beige-like purple for tools
-                    ),
-                };
-
-                ListItem::new(Line::from(vec![
-                    Span::styled(prefix, style),
-                    Span::styled(content, style),
-                ]))
+            .flat_map(|msg| {
+                match msg.role {
+                    MessageRole::User => {
+                        // Simple user message with prefix
+                        let style = Style::default().fg(Color::Rgb(163, 136, 186));
+                        vec![ListItem::new(Line::from(vec![
+                            Span::styled("> ", style),
+                            Span::styled(&msg.content, style),
+                        ]))]
+                    },
+                    MessageRole::Assistant => {
+                        // Use syntax highlighting for assistant messages
+                        let highlighted_lines = self.syntax_highlighter.highlight_message(&msg.content);
+                        highlighted_lines.into_iter().map(ListItem::new).collect()
+                    },
+                    MessageRole::System => {
+                        // Simple system message with prefix
+                        let style = Style::default().fg(Color::Rgb(163, 136, 186));
+                        vec![ListItem::new(Line::from(vec![
+                            Span::styled("ℹ ", style),
+                            Span::styled(&msg.content, style),
+                        ]))]
+                    },
+                    MessageRole::Tool => {
+                        // Simple tool message with prefix
+                        let style = Style::default().fg(Color::Rgb(163, 136, 186));
+                        vec![ListItem::new(Line::from(vec![
+                            Span::styled("🔧 ", style),
+                            Span::styled(&msg.content, style),
+                        ]))]
+                    },
+                }
             })
             .collect();
 
-        // Clean list without borders - like Claude Code's clean chat
+        // Add queued messages with ">" prefix to show they're waiting
+        for queued_msg in &self.message_queue {
+            let style = Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC);
+            messages.push(ListItem::new(Line::from(vec![
+                Span::styled("> ", style),
+                Span::styled(&queued_msg.content, style),
+            ])));
+        }
+
+        // Check if we're scrolled and need to show indicator
+        let is_scrolled = self.scroll_offset > 0;
+        let block = if is_scrolled {
+            Block::default()
+                .borders(Borders::BOTTOM)
+                .border_style(Style::default().fg(Color::DarkGray))
+                .title(Line::from(vec![
+                    Span::raw(" "),
+                    Span::styled("⟱ More below ", Style::default().fg(Color::Yellow)),
+                    Span::styled("(Ctrl+L to bottom)", Style::default().fg(Color::DarkGray)),
+                    Span::raw(" "),
+                ]).alignment(Alignment::Center))
+        } else {
+            Block::default()
+        };
+
+        // List with optional scroll indicator
         let messages_list = List::new(messages)
-            .block(Block::default())
+            .block(block)
             .style(Style::default());
 
         // Implement scrolling
@@ -892,13 +1232,12 @@ impl TuiManager {
         
         // Draw error box if we have a recent error
         if self.should_show_error() {
-            if let Some((_, error)) = &self.recent_error {
-                // Position error box at bottom of chat area
+            if let Some((_, error)) = &self.recent_app_error {
+                // Position error box at top of chat area
                 let error_height = 3;
-                let error_y = area.y + area.height.saturating_sub(error_height + 1);
                 let error_area = Rect {
                     x: area.x + 2,
-                    y: error_y,
+                    y: area.y + 1, // Near top with small margin
                     width: area.width.saturating_sub(4),
                     height: error_height,
                 };
@@ -1024,14 +1363,16 @@ impl TuiManager {
             .split(area);
 
         // Left side: dynamic status based on conversation state and modes
-        let shortcuts = if self.autocomplete.is_visible() {
+        let mut shortcuts = if self.autocomplete.is_visible() {
             "↑↓ navigate • Enter accept • Esc cancel".to_string()
         } else if self.messages.is_empty() {
             // Show help discovery when chat is empty
             "? for shortcuts".to_string()
         } else {
             // Show current mode during conversation (like Claude Code)
-            if self.plan_mode {
+            if self.turbo_mode {
+                "🚀 turbo mode on (shift+tab to cycle)".to_string()
+            } else if self.plan_mode {
                 "⏸ plan mode on (shift+tab to cycle)".to_string()
             } else if self.auto_accept_edits {
                 "⏵⏵ auto-accept edits on (shift+tab to cycle)".to_string()
@@ -1040,6 +1381,8 @@ impl TuiManager {
                 "shift+tab to cycle modes".to_string()
             }
         };
+        
+        // Don't modify shortcuts here - we'll show error in the right section
         
         // Add left padding to shortcuts like Claude Code
         let padded_shortcuts_area = Rect {
@@ -1093,6 +1436,11 @@ impl TuiManager {
         // Build right side with model info and context percentage
         let mut parts: Vec<String> = Vec::new();
         
+        // Add error indicator first if there's a recent error
+        if self.has_recent_error() {
+            parts.push("⚠️".to_string()); // Warning triangle
+        }
+        
         // Model info (always show if space allows)
         let available_width = chunks[1].width as usize;
         if available_width >= 20 {
@@ -1134,10 +1482,9 @@ impl TuiManager {
         // Simple status like Claude Code's bottom status (often empty unless there's an alert)
         let mut status_parts = vec![];
         
-        // Loading indicator if active
-        if self.is_loading {
-            let loading_symbol = self.get_loading_symbol();
-            status_parts.push(format!("{} Processing...", loading_symbol));
+        // Streaming indicator if active
+        if let Some(streaming_display) = self.get_streaming_display() {
+            status_parts.push(streaming_display);
         }
         
         // Budget warning if applicable
@@ -1172,9 +1519,19 @@ impl TuiManager {
                 }
                 KeyCode::Enter => {
                     if let Some((provider, model)) = self.model_selection_overlay.get_selected() {
-                        self.provider_name = provider;
-                        self.model = model;
+                        let old_provider = self.provider_name.clone();
+                        let old_model = self.model.clone();
+                        self.provider_name = provider.clone();
+                        self.model = model.clone();
                         self.model_selection_overlay.hide();
+                        
+                        // Show confirmation message
+                        if old_provider != provider || old_model != model {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("Model changed to {} ({})", model, provider),
+                            ));
+                        }
                     }
                     return Ok(true);
                 }
@@ -1206,6 +1563,46 @@ impl TuiManager {
             }
         }
 
+        // Auth wizard
+        if self.auth_wizard.is_visible() {
+            match key.code {
+                KeyCode::Esc => {
+                    self.auth_wizard.handle_escape();
+                    return Ok(true);
+                }
+                KeyCode::Enter => {
+                    // Mark that Enter was pressed - handle async operations outside modal handler
+                    // This is a workaround since handle_modal_events can't be async
+                    return Ok(false); // Let the main event loop handle the async auth operations
+                }
+                KeyCode::Up => {
+                    self.auth_wizard.move_selection_up();
+                    return Ok(true);
+                }
+                KeyCode::Down => {
+                    self.auth_wizard.move_selection_down();
+                    return Ok(true);
+                }
+                KeyCode::Left => {
+                    self.auth_wizard.move_cursor_left();
+                    return Ok(true);
+                }
+                KeyCode::Right => {
+                    self.auth_wizard.move_cursor_right();
+                    return Ok(true);
+                }
+                KeyCode::Backspace => {
+                    self.auth_wizard.handle_backspace();
+                    return Ok(true);
+                }
+                KeyCode::Char(c) => {
+                    self.auth_wizard.handle_char(c);
+                    return Ok(true);
+                }
+                _ => return Ok(true), // Consume all other events
+            }
+        }
+
         // Help modal
         if self.help_modal.is_visible() {
             match key.code {
@@ -1219,6 +1616,158 @@ impl TuiManager {
                 }
                 KeyCode::Down => {
                     self.help_modal.scroll_down();
+                    return Ok(true);
+                }
+                _ => return Ok(true), // Consume all other events
+            }
+        }
+
+        // Session browser
+        if self.session_browser.is_visible() {
+            match key.code {
+                KeyCode::Esc => {
+                    self.session_browser.hide();
+                    return Ok(true);
+                }
+                KeyCode::Enter => {
+                    if let Some(session) = self.session_browser.get_selected() {
+                        // Load the selected session
+                        // Note: Would need to handle session loading asynchronously
+                        // For now, just switch the session browser state
+                        self.session_browser.hide();
+                    }
+                    return Ok(true);
+                }
+                KeyCode::Up => {
+                    self.session_browser.move_up();
+                    return Ok(true);
+                }
+                KeyCode::Down => {
+                    self.session_browser.move_down();
+                    return Ok(true);
+                }
+                KeyCode::Char('/') => {
+                    // Start filtering - for now just hide browser, would need input handling
+                    return Ok(true);
+                }
+                KeyCode::Char(c) => {
+                    // Add to filter
+                    let mut current_filter = self.session_browser.get_filter().to_string();
+                    current_filter.push(c);
+                    self.session_browser.set_filter(current_filter);
+                    return Ok(true);
+                }
+                KeyCode::Backspace => {
+                    // Remove from filter
+                    let mut current_filter = self.session_browser.get_filter().to_string();
+                    current_filter.pop();
+                    self.session_browser.set_filter(current_filter);
+                    return Ok(true);
+                }
+                _ => return Ok(true), // Consume all other events
+            }
+        }
+
+        // Command approval modal
+        if self.command_approval.is_visible() {
+            match key.code {
+                KeyCode::Esc => {
+                    self.command_approval.hide();
+                    return Ok(true);
+                }
+                KeyCode::Enter => {
+                    let choice = self.command_approval.get_selected();
+                    let command = self.command_approval.get_command().to_string();
+                    
+                    match choice {
+                        ApprovalChoice::Yes => {
+                            // Just approve this command
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("✓ Approved command: {}", command),
+                            ));
+                            // TODO: Actually execute the command
+                        }
+                        ApprovalChoice::YesAndSimilar => {
+                            // Approve this command and similar ones
+                            let pattern = crate::permissions::PermissionsManager::get_command_pattern(&command);
+                            if let Err(e) = self.permissions_manager.approve_pattern(pattern.clone()) {
+                                self.add_message(Message::new(
+                                    MessageRole::System,
+                                    format!("Failed to save permission: {}", e),
+                                ));
+                            } else {
+                                self.add_message(Message::new(
+                                    MessageRole::System,
+                                    format!("✓ Approved command pattern: {}*", pattern),
+                                ));
+                            }
+                            // TODO: Actually execute the command
+                        }
+                        ApprovalChoice::No => {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("✗ Denied command: {}", command),
+                            ));
+                        }
+                    }
+                    
+                    self.command_approval.hide();
+                    return Ok(true);
+                }
+                KeyCode::Left => {
+                    self.command_approval.select_prev();
+                    return Ok(true);
+                }
+                KeyCode::Right => {
+                    self.command_approval.select_next();
+                    return Ok(true);
+                }
+                KeyCode::Tab => {
+                    self.command_approval.select_next();
+                    return Ok(true);
+                }
+                KeyCode::BackTab => {
+                    self.command_approval.select_prev();
+                    return Ok(true);
+                }
+                _ => return Ok(true), // Consume all other events
+            }
+        }
+
+        // Diff viewer
+        if self.diff_viewer.is_visible() {
+            match key.code {
+                KeyCode::Esc => {
+                    self.diff_viewer.hide();
+                    return Ok(true);
+                }
+                KeyCode::Enter => {
+                    // Accept the diff - this would apply the changes
+                    if let Some(diff) = self.diff_viewer.get_current_diff() {
+                        // TODO: Implement actual file writing
+                        self.add_message(Message::new(
+                            MessageRole::System,
+                            format!("Would apply changes to: {}", diff.filename),
+                        ));
+                    }
+                    self.diff_viewer.hide();
+                    return Ok(true);
+                }
+                KeyCode::Up => {
+                    self.diff_viewer.scroll_up();
+                    return Ok(true);
+                }
+                KeyCode::Down => {
+                    self.diff_viewer.scroll_down();
+                    return Ok(true);
+                }
+                KeyCode::Left => {
+                    self.diff_viewer.prev_file();
+                    return Ok(true);
+                }
+                KeyCode::Right => {
+                    self.diff_viewer.next_file();
                     return Ok(true);
                 }
                 _ => return Ok(true), // Consume all other events
@@ -1274,7 +1823,7 @@ impl TuiManager {
                     } else if c == 's' || c == 'S' {
                         // Save configuration
                         self.config = self.settings_modal.get_config().clone();
-                        self.messages.push(Message::new(
+                        self.add_message(Message::new(
                             MessageRole::System,
                             "Configuration saved".to_string(),
                         ));
@@ -1354,7 +1903,7 @@ impl TuiManager {
                     let total_cost = self.session_cost + cost;
                     
                     if total_cost > limit {
-                        self.messages.push(Message::new(
+                        self.add_message(Message::new(
                             MessageRole::System,
                             format!("🚫 Budget limit exceeded! Cost would be ${:.4}, limit is ${:.2}", 
                                 total_cost, limit),
@@ -1363,7 +1912,7 @@ impl TuiManager {
                     }
                     
                     if total_cost > limit * 0.9 && !self.budget_warning_shown {
-                        self.messages.push(Message::new(
+                        self.add_message(Message::new(
                             MessageRole::System,
                             format!("⚠️  Warning: Approaching budget limit (${:.4}/${:.2})", 
                                 total_cost, limit),
@@ -1378,13 +1927,21 @@ impl TuiManager {
     }
 
     async fn send_message(&mut self, message: String, providers: &ProviderManager) -> Result<()> {
-        // Start loading animation
-        self.start_loading();
+        // Start hustling animation (uploading message)
+        // Estimate tokens based on message length (rough approximation)
+        let input_tokens = (message.len() / 4) as u32;
+        self.start_hustling(input_tokens);
         
         // Ensure agent controller is initialized
         self.ensure_agent_initialized(providers).await?;
         
         // Try to use agent controller for enhanced functionality
+        // Switch to schlepping mode before agent processing
+        let should_use_agent = self.agent_controller.is_some();
+        if should_use_agent {
+            self.start_schlepping();
+        }
+        
         if let Some(ref mut agent) = self.agent_controller {
             // Get provider for agent
             let provider = providers
@@ -1393,37 +1950,133 @@ impl TuiManager {
             
             info!("Using agent controller for enhanced AI assistance");
             
-            // Process message through agent
-            match agent.process_message(&message, provider).await {
-                Ok(response) => {
+            // Set agent processing state
+            self.agent_processing = true;
+            
+            // Process message through agent with streaming
+            match agent.process_message_streaming(&message, provider, &self.model).await {
+                Ok(mut agent_stream) => {
                     // Add user message to local display
                     let user_msg = Message::new(MessageRole::User, message.clone());
-                    self.messages.push(user_msg);
+                    self.add_message(user_msg);
                     
-                    // Add agent response to local display
-                    let assistant_msg = Message::new(MessageRole::Assistant, response.clone());
-                    self.messages.push(assistant_msg);
+                    // Start streaming animation
+                    self.start_streaming();
+                    
+                    // Process agent updates
+                    let mut assistant_content = String::new();
+                    let assistant_msg_id = uuid::Uuid::new_v4().to_string();
+                    let mut total_tokens = 0u32;
+                    
+                    // Add empty assistant message that we'll update
+                    let assistant_msg = Message::new(MessageRole::Assistant, String::new());
+                    self.add_message(assistant_msg);
+                    let assistant_index = self.messages.len() - 1;
+                    
+                    // Process streaming updates
+                    while let Some(update_result) = agent_stream.recv().await {
+                        match update_result {
+                            Ok(update) => {
+                                match update {
+                                    crate::agent::streaming::AgentUpdate::ToolStatus(status) => {
+                                        // Add tool status message
+                                        let tool_msg = Message::new(MessageRole::Tool, status);
+                                        self.add_message(tool_msg);
+                                    }
+                                    crate::agent::streaming::AgentUpdate::TextChunk { content, delta: _, tokens_used } => {
+                                        // Update streaming content
+                                        assistant_content.push_str(&content);
+                                        if let Some(tokens) = tokens_used {
+                                            total_tokens = tokens;
+                                            self.update_streaming_tokens(tokens);
+                                        }
+                                        
+                                        // Update the assistant message in place
+                                        if let Some(msg) = self.messages.get_mut(assistant_index) {
+                                            msg.content = assistant_content.clone();
+                                        }
+                                    }
+                                    crate::agent::streaming::AgentUpdate::Complete { total_tokens: final_tokens, tool_status_messages: _ } => {
+                                        total_tokens = final_tokens;
+                                        break;
+                                    }
+                                    crate::agent::streaming::AgentUpdate::Error(error) => {
+                                        let error_msg = Message::new(MessageRole::System, format!("❌ Agent error: {}", error));
+                                        self.add_message(error_msg);
+                                        break;
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                let error_msg = Message::new(MessageRole::System, format!("❌ Stream error: {}", e));
+                                self.add_message(error_msg);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Stop streaming animation
+                    self.stop_streaming();
+                    
+                    // Update session stats
+                    self.session_tokens += input_tokens + total_tokens;
+                    
+                    // Calculate cost for the response (input + output tokens)
+                    if let Some(cost) = provider.calculate_cost(input_tokens, total_tokens) {
+                        self.session_cost += cost;
+                    }
                     
                     // Update session if available
                     if let Some(ref session) = self.current_session {
-                        // Convert providers::Message to sessions::Message for storage
-                        let session_message = crate::sessions::Message {
+                        // Save user message
+                        let user_session_msg = crate::sessions::Message {
                             id: uuid::Uuid::new_v4().to_string(),
-                            role: crate::sessions::MessageRole::Assistant,
-                            content: response,
+                            role: crate::sessions::MessageRole::User,
+                            content: message,
                             timestamp: chrono::Utc::now(),
                             tokens_used: None,
                             cost: None,
                         };
-                        self.session_manager.add_message(&session.id.to_string(), &session_message).await?;
+                        
+                        self.session_manager.add_message(&session.id, &user_session_msg).await?;
+                        
+                        // Save assistant message
+                        let assistant_session_msg = crate::sessions::Message {
+                            id: assistant_msg_id,
+                            role: crate::sessions::MessageRole::Assistant,
+                            content: assistant_content,
+                            timestamp: chrono::Utc::now(),
+                            tokens_used: Some(total_tokens),
+                            cost: provider.calculate_cost(input_tokens, total_tokens),
+                        };
+                        
+                        self.session_manager.add_message(&session.id, &assistant_session_msg).await?;
+                        
+                        // Update session stats in database
+                        self.session_manager.save_session(&Session {
+                            id: session.id.clone(),
+                            title: session.title.clone(),
+                            created_at: session.created_at,
+                            updated_at: chrono::Utc::now(),
+                            provider: self.provider_name.clone(),
+                            model: self.model.clone(),
+                            total_cost: self.session_cost,
+                            total_tokens: self.session_tokens,
+                            message_count: self.messages.len() as u32,
+                            tags: session.tags.clone(),
+                            is_archived: false,
+                            description: session.description.clone(),
+                        }).await?;
                     }
                     
-                    // Stop loading animation
-                    self.stop_loading();
+                    // Agent processing complete - reset state
+                    self.agent_processing = false;
+                    
                     Ok(())
                 }
                 Err(e) => {
                     info!("Agent processing failed, falling back to direct provider: {}", e);
+                    self.agent_processing = false;
                     self.send_message_fallback(message, providers).await
                 }
             }
@@ -1433,11 +2086,24 @@ impl TuiManager {
         }
     }
 
+    /// Queue a message to be processed later when agent is free
+    fn queue_message(&mut self, message: String) {
+        debug!("Queuing message while agent is processing: {}", message);
+        self.message_queue.push(QueuedMessage {
+            content: message,
+            timestamp: Instant::now(),
+        });
+    }
+
+
     /// Fallback message sending using direct provider (current implementation)
     async fn send_message_fallback(&mut self, message: String, providers: &ProviderManager) -> Result<()> {
+        // Estimate input tokens
+        let input_tokens = (message.len() / 4) as u32;
+        
         // Add user message to local messages
         let user_msg = Message::new(MessageRole::User, message.clone());
-        self.messages.push(user_msg);
+        self.add_message(user_msg);
 
         // Get provider
         let provider = providers
@@ -1447,29 +2113,86 @@ impl TuiManager {
         // Get intelligence context for the user's message
         let context = self.intelligence_tools.get_development_context(&message).await;
         
-        // Create enhanced system prompt with context
-        let system_prompt = self.create_enhanced_system_prompt(&context).await?;
+        // Create enhanced system prompt with context and mode-specific instructions
+        let system_prompt = self.create_enhanced_system_prompt_with_mode(&context).await?;
         
         // Create chat request with enhanced context
         let mut enhanced_messages = vec![Message::system(system_prompt)];
         enhanced_messages.extend(self.messages.clone());
         
-        let request = ChatRequest::new(enhanced_messages, self.model.clone());
+        let mut request = ChatRequest::new(enhanced_messages, self.model.clone());
+        request.stream = true; // Enable streaming
 
-        // Send request
-        match provider.chat(&request).await {
-            Ok(response) => {
-                // Create assistant message
-                let assistant_msg = Message::new(MessageRole::Assistant, response.content);
+        // Send streaming request with retry logic
+        let mut retry_count = 0;
+        const MAX_RETRIES: u32 = 2;
+        
+        loop {
+            match provider.stream(&request).await {
+            Ok(mut stream) => {
+                // Create initial assistant message
+                let mut assistant_content = String::new();
+                let assistant_msg_id = uuid::Uuid::new_v4().to_string();
                 
-                // Add assistant response to local messages
-                self.messages.push(assistant_msg.clone());
-
+                // Add empty assistant message that we'll update
+                self.add_message(Message::new(MessageRole::Assistant, String::new()));
+                let assistant_idx = self.messages.len() - 1;
+                
+                // Switch to streaming state
+                self.start_streaming();
+                
+                // Process streaming chunks
+                let mut total_tokens = 0u32;
+                while let Some(chunk_result) = stream.recv().await {
+                    match chunk_result {
+                        Ok(chunk) => {
+                            // Append content
+                            assistant_content.push_str(&chunk.content);
+                            
+                            // Update the message in place
+                            self.messages[assistant_idx] = Message::new(
+                                MessageRole::Assistant, 
+                                assistant_content.clone()
+                            );
+                            
+                            // Track tokens and update streaming display
+                            if let Some(tokens) = chunk.tokens_used {
+                                total_tokens = tokens;
+                                self.update_streaming_tokens(total_tokens);
+                            }
+                            
+                            // Check if stream is complete
+                            if chunk.finish_reason.is_some() {
+                                break;
+                            }
+                            
+                            // Trigger UI refresh
+                            if let Some(tx) = &self.update_tx {
+                                let _ = tx.send("update".to_string()).await;
+                            }
+                        }
+                        Err(e) => {
+                            // Handle streaming error
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("Streaming error: {}", e),
+                            ));
+                            self.stop_streaming();
+                            return Err(e);
+                        }
+                    }
+                }
+                
                 // Update session stats
-                self.session_tokens += response.tokens_used;
-                if let Some(cost) = response.cost {
+                self.session_tokens += input_tokens + total_tokens;
+                
+                // Calculate cost for the response (input + output tokens)
+                if let Some(cost) = provider.calculate_cost(input_tokens, total_tokens) {
                     self.session_cost += cost;
                 }
+                
+                // Stop streaming animation
+                self.stop_streaming();
                 
                 // Persist messages to session storage
                 if let Some(session) = &self.current_session {
@@ -1487,12 +2210,12 @@ impl TuiManager {
                     
                     // Save assistant message
                     let assistant_session_msg = crate::sessions::Message {
-                        id: uuid::Uuid::new_v4().to_string(),
+                        id: assistant_msg_id,
                         role: crate::sessions::MessageRole::Assistant,
-                        content: assistant_msg.content,
+                        content: assistant_content,
                         timestamp: chrono::Utc::now(),
-                        tokens_used: Some(response.tokens_used),
-                        cost: response.cost,
+                        tokens_used: Some(total_tokens),
+                        cost: provider.calculate_cost(input_tokens, total_tokens),
                     };
                     
                     self.session_manager.add_message(&session.id, &assistant_session_msg).await?;
@@ -1513,16 +2236,53 @@ impl TuiManager {
                         description: session.description.clone(),
                     }).await?;
                 }
+                
+                // Success - break out of retry loop
+                break;
             }
             Err(e) => {
-                // Stop loading animation on error
-                self.stop_loading();
-                return Err(e);
+                // Stop streaming animation on error
+                self.stop_streaming();
+                
+                // Determine error type and provide helpful message
+                let error_msg = match e.to_string().to_lowercase() {
+                    msg if msg.contains("timeout") => {
+                        format!("Request timed out. Try again or use /model to switch providers.")
+                    }
+                    msg if msg.contains("unauthorized") || msg.contains("401") => {
+                        format!("Authentication failed. Check your API key with /config.")
+                    }
+                    msg if msg.contains("rate limit") || msg.contains("429") => {
+                        format!("Rate limit exceeded. Please wait a moment before trying again.")
+                    }
+                    msg if msg.contains("network") || msg.contains("connection") => {
+                        format!("Network error: {}. Check your connection.", e)
+                    }
+                    _ => format!("Error: {}", e)
+                };
+                
+                // Check if we should retry
+                if Self::is_retryable_error(&e) && retry_count < MAX_RETRIES {
+                    retry_count += 1;
+                    self.add_message(Message::new(
+                        MessageRole::System,
+                        format!("Retrying... (attempt {}/{})", retry_count + 1, MAX_RETRIES + 1),
+                    ));
+                    // Brief delay before retry
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                    continue; // Try again
+                } else {
+                    // Non-retryable error or max retries exceeded
+                    self.add_message(Message::new(
+                        MessageRole::System,
+                        error_msg,
+                    ));
+                    break; // Exit retry loop
+                }
             }
+            } // Close the match arm
         }
 
-        // Stop loading animation on success
-        self.stop_loading();
         Ok(())
     }
     
@@ -1554,7 +2314,18 @@ impl TuiManager {
             controller.register_tool(Box::new(crate::agent::tools::file_ops::ListFilesTool::new()));
             controller.register_tool(Box::new(crate::agent::tools::code_analysis::SearchCodeTool::new()));
             controller.register_tool(Box::new(crate::agent::tools::code_analysis::FindDefinitionTool::new()));
-            controller.register_tool(Box::new(crate::agent::tools::system_ops::RunCommandTool::new()));
+            
+            // Create RunCommandTool with permissions
+            if let Some(perm_tx) = &self.permission_tx {
+                let permissions_arc = std::sync::Arc::new(tokio::sync::Mutex::new(self.permissions_manager.clone()));
+                let run_command_tool = crate::agent::tools::system_ops::RunCommandTool::with_permissions(
+                    permissions_arc,
+                    Some(perm_tx.clone())
+                );
+                controller.register_tool(Box::new(run_command_tool));
+            } else {
+                controller.register_tool(Box::new(crate::agent::tools::system_ops::RunCommandTool::new()));
+            }
             
             self.agent_controller = Some(controller);
             info!("Agent controller initialized successfully");
@@ -1562,6 +2333,56 @@ impl TuiManager {
         Ok(())
     }
     
+    async fn create_enhanced_system_prompt_with_mode(&self, context: &crate::intelligence::ContextualInsight) -> Result<String> {
+        let mut prompt = self.create_enhanced_system_prompt(context).await?;
+        
+        // Add mode-specific instructions
+        match (self.auto_accept_edits, self.plan_mode, self.turbo_mode) {
+            // Turbo mode - autonomous execution like Google Jules
+            (_, _, true) => {
+                prompt.push_str("\n\n## TURBO MODE - AUTONOMOUS EXECUTION\n");
+                prompt.push_str("You are in Turbo Mode - operate like Google's Jules with full autonomy.\n");
+                prompt.push_str("- AUTOMATICALLY read files you need to understand the codebase\n");
+                prompt.push_str("- AUTOMATICALLY write files when making changes\n"); 
+                prompt.push_str("- Create and execute comprehensive plans to complete tasks\n");
+                prompt.push_str("- Make multiple file changes in sequence without asking\n");
+                prompt.push_str("- Show your reasoning and progress as you work\n");
+                prompt.push_str("- Only ask for clarification on ambiguous requirements\n");
+                prompt.push_str("- Use available tools liberally to accomplish the task\n");
+            }
+            // Plan mode - create execution plans first
+            (_, true, _) => {
+                prompt.push_str("\n\n## PLAN MODE\n");
+                prompt.push_str("You are in Plan Mode. For complex tasks:\n");
+                prompt.push_str("1. First create a detailed execution plan\n");
+                prompt.push_str("2. Break down the task into specific steps\n");
+                prompt.push_str("3. Identify files that need to be read or modified\n");
+                prompt.push_str("4. Ask for approval before executing the plan\n");
+                prompt.push_str("5. Execute step-by-step after approval\n");
+            }
+            // Auto-accept mode - apply changes without confirmation
+            (true, _, _) => {
+                prompt.push_str("\n\n## AUTO-ACCEPT MODE\n");
+                prompt.push_str("Auto-accept is enabled. You can:\n");
+                prompt.push_str("- Read files automatically when needed\n");
+                prompt.push_str("- Write files directly without asking for confirmation\n");
+                prompt.push_str("- Make multiple file changes in sequence\n");
+                prompt.push_str("- Show diffs for transparency but apply changes immediately\n");
+            }
+            // Default mode - ask for permissions
+            _ => {
+                prompt.push_str("\n\n## DEFAULT MODE\n");
+                prompt.push_str("You are in default mode. Always:\n");
+                prompt.push_str("- Ask before reading files\n");
+                prompt.push_str("- Ask before writing or modifying files\n");
+                prompt.push_str("- Show planned changes and wait for approval\n");
+                prompt.push_str("- Respect user's explicit consent for file operations\n");
+            }
+        }
+        
+        Ok(prompt)
+    }
+
     async fn create_enhanced_system_prompt(&self, context: &crate::intelligence::ContextualInsight) -> Result<String> {
         // Load AI configuration
         let ai_config = self.intelligence_tools.load_ai_configuration().await;
@@ -1619,6 +2440,135 @@ impl TuiManager {
         Ok(prompt)
     }
     
+    /// Handle /read command to display file contents
+    async fn handle_read_command(&mut self, filename: &str) -> Result<()> {
+        let filename = filename.trim();
+        info!("Reading file: '{}'", filename);
+        
+        // Handle relative paths from current directory
+        let path = if filename.starts_with('/') {
+            std::path::PathBuf::from(filename)
+        } else {
+            std::env::current_dir()?.join(filename)
+        };
+        
+        // Check if file exists and is readable
+        if !path.exists() {
+            return Err(anyhow::anyhow!("File not found: {}", filename));
+        }
+        
+        if !path.is_file() {
+            return Err(anyhow::anyhow!("Path is not a file: {}", filename));
+        }
+        
+        // Read file contents
+        let contents = match std::fs::read_to_string(&path) {
+            Ok(contents) => contents,
+            Err(e) => {
+                return Err(anyhow::anyhow!("Failed to read file '{}': {}", filename, e));
+            }
+        };
+        
+        // Get file extension for potential syntax highlighting hint
+        let extension = path.extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("txt");
+        
+        // Format file contents for display
+        let line_count = contents.lines().count();
+        let size_kb = contents.len() as f64 / 1024.0;
+        
+        // Create header message
+        let header = format!(
+            "📄 **{}** ({} lines, {:.1} KB, .{})", 
+            filename, line_count, size_kb, extension
+        );
+        
+        self.add_message(Message::new(MessageRole::System, header));
+        
+        // Display file contents with line numbers for readability
+        if contents.is_empty() {
+            self.add_message(Message::new(
+                MessageRole::System, 
+                "File is empty.".to_string()
+            ));
+        } else {
+            // Split into chunks if file is very large (>100 lines)
+            let lines: Vec<&str> = contents.lines().collect();
+            
+            if lines.len() > 100 {
+                // Show first 50 lines, then summary, then last 50 lines
+                let first_chunk: String = lines.iter().take(50)
+                    .enumerate()
+                    .map(|(i, line)| format!("{:4} | {}", i + 1, line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                
+                self.add_message(Message::new(MessageRole::Assistant, first_chunk));
+                
+                let middle_lines = lines.len() - 100;
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    format!("... ({} lines omitted) ...", middle_lines)
+                ));
+                
+                let last_chunk: String = lines.iter().skip(lines.len() - 50)
+                    .enumerate()
+                    .map(|(i, line)| format!("{:4} | {}", lines.len() - 50 + i + 1, line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                
+                self.add_message(Message::new(MessageRole::Assistant, last_chunk));
+            } else {
+                // Show complete file with line numbers
+                let formatted_contents: String = lines.iter()
+                    .enumerate()
+                    .map(|(i, line)| format!("{:4} | {}", i + 1, line))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                
+                self.add_message(Message::new(MessageRole::Assistant, formatted_contents));
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Show example diff for testing the diff viewer
+    fn show_example_diff(&mut self) {
+        let old_content = r#"function greet(name) {
+    console.log("Hello " + name);
+    return "Hi there!";
+}
+
+function farewell() {
+    console.log("Goodbye!");
+}"#.to_string();
+
+        let new_content = r#"function greet(name, greeting = "Hello") {
+    console.log(greeting + " " + name + "!");
+    return `${greeting} there, ${name}!`;
+}
+
+function welcome(name) {
+    return greet(name, "Welcome");
+}
+
+function farewell(name) {
+    console.log(`Goodbye, ${name}!`);
+    return "See you later!";
+}"#.to_string();
+
+        let diff = generate_diff("example.js".to_string(), old_content, new_content);
+        
+        self.add_message(Message::new(
+            MessageRole::System,
+            "Showing example diff - use ↑/↓ to scroll, Enter to accept, Esc to cancel".to_string(),
+        ));
+        
+        self.diff_viewer.show_diff(diff);
+    }
+    
     /// Handle /search command for semantic code search with optional filters
     async fn handle_search_command(&mut self, query: &str) -> Result<()> {
         info!("Performing semantic search for: '{}'", query);
@@ -1658,7 +2608,7 @@ impl TuiManager {
                     if original_count > 0 {
                         message.push_str(&format!("\n💡 {} results were filtered out - try adjusting filters", original_count));
                     }
-                    self.messages.push(Message::new(
+                    self.add_message(Message::new(
                         MessageRole::System,
                         message,
                     ));
@@ -1695,14 +2645,14 @@ impl TuiManager {
                         result_text.push_str(&format!("   Preview: {}\n\n", preview));
                     }
                     
-                    self.messages.push(Message::new(
+                    self.add_message(Message::new(
                         MessageRole::System,
                         result_text,
                     ));
                 }
             }
             Err(e) => {
-                self.messages.push(Message::new(
+                self.add_message(Message::new(
                     MessageRole::System,
                     format!("Search failed: {}", e),
                 ));
@@ -1961,7 +2911,7 @@ impl TuiManager {
     }
 
     /// Draw the auth setup screen
-    fn draw_auth_setup_screen(&self, f: &mut Frame) {
+    fn draw_auth_setup_screen(&mut self, f: &mut Frame) {
         // Simplified welcome like Claude Code
         let area = f.area();
         
@@ -2072,6 +3022,8 @@ impl TuiManager {
         self.settings_modal.render(f, f.area());
         self.help_modal.render(f, f.area());
         self.model_selection_overlay.render(f, f.area());
+        self.session_browser.render(f, f.area());
+        self.diff_viewer.render(f, f.area());
     }
 
     /// Handle AI message sending with proper borrowing
@@ -2080,69 +3032,231 @@ impl TuiManager {
         if let Some(providers) = self.providers.clone() {
             // Check budget limits
             if self.check_budget_limits(&providers).await? {
-                // Send message to AI
-                self.send_message(message, &providers).await?;
+                // Check if agent is processing - if so, queue the message
+                if self.agent_processing {
+                    self.queue_message(message);
+                    info!("Message queued - agent is currently processing");
+                } else {
+                    // Send message to AI normally
+                    self.send_message(message, &providers).await?;
+                }
             }
         }
         Ok(())
     }
 
-    /// Start loading animation
-    pub fn start_loading(&mut self) {
-        self.is_loading = true;
-        self.loading_start_time = Some(Instant::now());
+    /// Start hustling (uploading/sending)
+    pub fn start_hustling(&mut self, tokens: u32) {
+        self.streaming_state = StreamingState::Hustling {
+            start_time: Instant::now(),
+            tokens_sent: tokens,
+        };
     }
-
-    /// Stop loading animation
-    pub fn stop_loading(&mut self) {
-        self.is_loading = false;
-        self.loading_start_time = None;
+    
+    /// Start schlepping (using tools)
+    pub fn start_schlepping(&mut self) {
+        self.streaming_state = StreamingState::Schlepping {
+            start_time: Instant::now(),
+            tokens_used: 0,
+        };
     }
-
-    /// Get current loading symbol based on elapsed time
-    pub fn get_loading_symbol(&self) -> &str {
-        if !self.is_loading || self.loading_start_time.is_none() {
-            return "";
+    
+    /// Start streaming (receiving response)
+    pub fn start_streaming(&mut self) {
+        self.streaming_state = StreamingState::Streaming {
+            start_time: Instant::now(),
+            tokens_received: 0,
+        };
+    }
+    
+    /// Update token count during streaming
+    pub fn update_streaming_tokens(&mut self, tokens: u32) {
+        match &mut self.streaming_state {
+            StreamingState::Hustling { tokens_sent, .. } => *tokens_sent = tokens,
+            StreamingState::Schlepping { tokens_used, .. } => *tokens_used = tokens,
+            StreamingState::Streaming { tokens_received, .. } => *tokens_received = tokens,
+            _ => {}
         }
-
-        let elapsed = self.loading_start_time.unwrap().elapsed();
-        let cycle_duration = Duration::from_millis(500); // Switch every 500ms
-        let symbol_index = (elapsed.as_millis() / cycle_duration.as_millis()) % self.loading_symbols.len() as u128;
-        
-        self.loading_symbols[symbol_index as usize]
+    }
+    
+    /// Stop streaming
+    pub fn stop_streaming(&mut self) {
+        self.streaming_state = StreamingState::Idle;
+    }
+    
+    /// Get current streaming display
+    pub fn get_streaming_display(&self) -> Option<String> {
+        match &self.streaming_state {
+            StreamingState::Idle => None,
+            StreamingState::Hustling { start_time, tokens_sent } => {
+                let elapsed = start_time.elapsed().as_secs();
+                let spinner = self.get_spinner_symbol(start_time);
+                // Pick a random message based on time
+                let msg_index = (elapsed as usize / 3) % HUSTLING_MESSAGES.len();
+                let message = HUSTLING_MESSAGES[msg_index];
+                Some(format!(
+                    "{} {}… ({}s · ↑ {}k tokens · esc to interrupt)",
+                    spinner, message, elapsed, (*tokens_sent as f32 / 1000.0).max(0.1)
+                ))
+            }
+            StreamingState::Schlepping { start_time, tokens_used } => {
+                let elapsed = start_time.elapsed().as_secs();
+                let spinner = self.get_spinner_symbol(start_time);
+                // Pick a random message based on time
+                let msg_index = (elapsed as usize / 3) % SCHLEPPING_MESSAGES.len();
+                let message = SCHLEPPING_MESSAGES[msg_index];
+                Some(format!(
+                    "{} {}… ({}s · ⚒ {}k tokens · esc to interrupt)",
+                    spinner, message, elapsed, (*tokens_used as f32 / 1000.0).max(0.1)
+                ))
+            }
+            StreamingState::Streaming { start_time, tokens_received } => {
+                let elapsed = start_time.elapsed().as_secs();
+                let spinner = self.get_spinner_symbol(start_time);
+                // Pick a random message based on time
+                let msg_index = (elapsed as usize / 3) % STREAMING_MESSAGES.len();
+                let message = STREAMING_MESSAGES[msg_index];
+                Some(format!(
+                    "{} {}… ({}s · ↓ {}k tokens · esc to interrupt)",
+                    spinner, message, elapsed, (*tokens_received as f32 / 1000.0).max(0.1)
+                ))
+            }
+        }
+    }
+    
+    /// Get current spinner symbol based on elapsed time
+    fn get_spinner_symbol(&self, start_time: &Instant) -> &str {
+        let elapsed = start_time.elapsed();
+        let cycle_duration = Duration::from_millis(100); // Faster rotation for smooth animation
+        let symbol_index = (elapsed.as_millis() / cycle_duration.as_millis()) as usize % self.streaming_spinners.len();
+        self.streaming_spinners[symbol_index]
     }
 
     /// Cycle through UI modes (like Claude Code's shift+tab)
     fn cycle_modes(&mut self) {
-        if !self.plan_mode && !self.auto_accept_edits {
-            // Default -> Auto-accept
-            self.auto_accept_edits = true;
-            self.messages.push(Message::new(
-                MessageRole::System,
-                "⏵⏵ Auto-accept edits enabled. File changes will be applied automatically.".to_string(),
-            ));
-        } else if self.auto_accept_edits && !self.plan_mode {
-            // Auto-accept -> Plan mode
-            self.auto_accept_edits = false;
-            self.plan_mode = true;
-            self.messages.push(Message::new(
-                MessageRole::System,
-                "⏸ Plan mode enabled. Will create plans before making changes.".to_string(),
-            ));
-        } else {
-            // Plan mode -> Default
-            self.plan_mode = false;
-            self.auto_accept_edits = false;
-            self.messages.push(Message::new(
-                MessageRole::System,
-                "Default mode. Will prompt for approval before making changes.".to_string(),
-            ));
+        match (self.auto_accept_edits, self.plan_mode, self.turbo_mode) {
+            // Default -> Plan mode
+            (false, false, false) => {
+                self.plan_mode = true;
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    "⏸ Plan mode enabled. Will create execution plans before making changes.".to_string(),
+                ));
+            }
+            // Plan mode -> Auto-accept
+            (false, true, false) => {
+                self.plan_mode = false;
+                self.auto_accept_edits = true;
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    "⏵⏵ Auto-accept edits enabled. File changes will be applied automatically.".to_string(),
+                ));
+            }
+            // Auto-accept -> Turbo mode
+            (true, false, false) => {
+                self.auto_accept_edits = false;
+                self.turbo_mode = true;
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    "🚀 Turbo mode enabled. Will autonomously execute complex tasks with full permissions.".to_string(),
+                ));
+            }
+            // Turbo mode -> Default
+            _ => {
+                self.auto_accept_edits = false;
+                self.plan_mode = false;
+                self.turbo_mode = false;
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    "Default mode. Will prompt for approval before making changes.".to_string(),
+                ));
+            }
+        }
+    }
+
+    // Helper method to add a message and reset scroll to bottom
+    fn add_message(&mut self, message: Message) {
+        self.messages.push(message);
+        self.scroll_offset = 0; // Reset to bottom
+    }
+    
+    // Helper to check if error is retryable
+    fn is_retryable_error(error: &anyhow::Error) -> bool {
+        let msg = error.to_string().to_lowercase();
+        msg.contains("timeout") || 
+        msg.contains("network") || 
+        msg.contains("connection") ||
+        msg.contains("503") || // Service unavailable
+        msg.contains("502") || // Bad gateway
+        msg.contains("500")    // Internal server error
+    }
+    
+    // Load sessions for the session browser
+    async fn load_sessions(&mut self) {
+        let filter = crate::sessions::SessionFilter::default();
+        match self.session_manager.search_sessions(&filter, Some(50)).await {
+            Ok(sessions) => {
+                self.session_browser.set_sessions(sessions);
+                self.session_browser.set_loading(false);
+            }
+            Err(e) => {
+                self.session_browser.set_error(format!("Failed to load sessions: {}", e));
+            }
+        }
+    }
+    
+    // Load a specific session and replace current conversation
+    async fn load_session(&mut self, session_id: String) -> Result<()> {
+        // Load session data
+        match self.session_manager.load_session(&session_id).await? {
+            Some(session) => {
+                // Load session messages
+                let session_messages = self.session_manager.load_session_messages(&session_id).await?;
+                
+                // Clear current messages
+                self.messages.clear();
+                self.scroll_offset = 0;
+                
+                // Convert session messages to provider messages
+                for session_msg in session_messages {
+                    let provider_role = match session_msg.role {
+                        crate::sessions::MessageRole::User => MessageRole::User,
+                        crate::sessions::MessageRole::Assistant => MessageRole::Assistant,
+                        crate::sessions::MessageRole::System => MessageRole::System,
+                        crate::sessions::MessageRole::Tool => MessageRole::Tool,
+                    };
+                    
+                    let mut provider_msg = Message::new(provider_role, session_msg.content);
+                    provider_msg.tokens_used = session_msg.tokens_used;
+                    provider_msg.cost = session_msg.cost;
+                    
+                    self.messages.push(provider_msg);
+                }
+                
+                // Update current session and model info
+                self.current_session = Some(session.clone());
+                self.provider_name = session.provider;
+                self.model = session.model;
+                self.session_cost = session.total_cost;
+                self.session_tokens = session.total_tokens;
+                
+                // Show confirmation
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    format!("Loaded session: {} ({} messages)", session.title, session.message_count),
+                ));
+                
+                Ok(())
+            }
+            None => {
+                Err(anyhow::anyhow!("Session not found"))
+            }
         }
     }
 
     /// Handle /init command to create or update AGENT.md
     async fn handle_init_command(&mut self) -> Result<()> {
-        self.messages.push(Message::new(
+        self.add_message(Message::new(
             MessageRole::System,
             "🎯 Analyzing your codebase to create AGENT.md configuration...".to_string(),
         ));
@@ -2155,11 +3269,11 @@ impl TuiManager {
         };
 
         if agent_path.exists() {
-            self.messages.push(Message::new(
+            self.add_message(Message::new(
                 MessageRole::System,
                 format!("✅ AGENT.md already exists at: {}", agent_path.display()),
             ));
-            self.messages.push(Message::new(
+            self.add_message(Message::new(
                 MessageRole::System,
                 "Use your editor to customize it, or delete it to regenerate.".to_string(),
             ));
@@ -2183,15 +3297,165 @@ impl TuiManager {
         // Write AGENT.md
         std::fs::write(&agent_path, agent_content)?;
 
-        self.messages.push(Message::new(
+        self.add_message(Message::new(
             MessageRole::System,
             format!("✅ Created AGENT.md at: {}", agent_path.display()),
         ));
-        self.messages.push(Message::new(
+        self.add_message(Message::new(
             MessageRole::System,
             "This file will be automatically loaded in future sessions for consistent AI context.".to_string(),
         ));
 
+        Ok(())
+    }
+
+    /// Handle /compact command to summarize and compress conversation history
+    async fn handle_compact_command(&mut self, custom_instructions: &str) -> Result<()> {
+        if self.messages.is_empty() {
+            self.add_message(Message::new(
+                MessageRole::System,
+                "No conversation to compact.".to_string(),
+            ));
+            return Ok(());
+        }
+
+        // Check if we have an LLM provider available
+        let providers = match &self.providers {
+            Some(providers) => providers.clone(),
+            None => {
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    "No AI provider available for conversation compaction.".to_string(),
+                ));
+                return Ok(());
+            }
+        };
+
+        let provider = providers
+            .get_provider_or_host(&self.provider_name)
+            .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", self.provider_name))?;
+
+        info!("Starting conversation compaction with {} messages", self.messages.len());
+
+        // Show compaction progress
+        self.add_message(Message::new(
+            MessageRole::System,
+            "🗜️ Compacting conversation history...".to_string(),
+        ));
+
+        // Build conversation history for summarization (exclude system messages)
+        let conversation_text = self.messages
+            .iter()
+            .filter(|msg| !matches!(msg.role, MessageRole::System))
+            .map(|msg| {
+                let role_prefix = match msg.role {
+                    MessageRole::User => "User",
+                    MessageRole::Assistant => "Assistant", 
+                    MessageRole::Tool => "Tool",
+                    MessageRole::System => "System", // Won't be included due to filter
+                };
+                format!("{}: {}", role_prefix, msg.content)
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n");
+
+        // Create summarization prompt
+        let mut prompt = format!(
+            "Please create a concise summary of this conversation that captures:\n\
+            1. The main topics discussed\n\
+            2. Key decisions or conclusions reached\n\
+            3. Important context that should be preserved\n\
+            4. Current project state or progress\n\n\
+            Keep the summary detailed enough to maintain continuity but concise enough to save context.\n\n"
+        );
+
+        // Add custom instructions if provided
+        if !custom_instructions.is_empty() {
+            prompt.push_str(&format!(
+                "Special instructions for this compaction: {}\n\n",
+                custom_instructions
+            ));
+        }
+
+        prompt.push_str("Conversation to summarize:\n\n");
+        prompt.push_str(&conversation_text);
+
+        // Create chat request for summarization
+        let messages = vec![Message::user(prompt)];
+        let mut request = ChatRequest::new(messages, self.model.clone());
+        request.temperature = Some(0.3); // Lower temperature for consistent summaries
+        request.max_tokens = Some(1000); // Reasonable limit for summaries
+
+        // Get summary from LLM
+        match provider.chat(&request).await {
+            Ok(response) => {
+                // Calculate token savings
+                let original_tokens = self.session_tokens;
+                let summary_tokens = response.tokens_used;
+                let tokens_saved = original_tokens.saturating_sub(summary_tokens);
+
+                // Create summary message
+                let summary_content = format!(
+                    "📋 **Conversation Summary** (saved {} tokens)\n\n{}",
+                    tokens_saved,
+                    response.content
+                );
+
+                // Add custom instructions as context if provided
+                let final_summary = if !custom_instructions.is_empty() {
+                    format!(
+                        "{}\n\n---\n**Additional Context**: {}",
+                        summary_content,
+                        custom_instructions
+                    )
+                } else {
+                    summary_content
+                };
+
+                // Clear conversation except for the last few messages and replace with summary
+                let recent_messages_to_keep = 3; // Keep last 3 messages for immediate context
+                let messages_to_keep = if self.messages.len() > recent_messages_to_keep {
+                    self.messages.split_off(self.messages.len() - recent_messages_to_keep)
+                } else {
+                    std::mem::take(&mut self.messages)
+                };
+
+                // Start fresh with summary
+                self.messages.clear();
+                self.messages.push(Message::new(MessageRole::System, final_summary));
+                
+                // Add back recent messages
+                self.messages.extend(messages_to_keep);
+
+                // Update session stats
+                self.session_tokens = summary_tokens + (recent_messages_to_keep as u32 * 50); // Rough estimate
+
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    format!(
+                        "✅ Conversation compacted successfully. Saved approximately {} tokens.",
+                        tokens_saved
+                    ),
+                ));
+
+                info!("Conversation compacted: {} → {} tokens saved", original_tokens, tokens_saved);
+            }
+            Err(e) => {
+                return Err(anyhow::anyhow!("Failed to generate conversation summary: {}", e));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Handle /auth command to show authentication setup wizard
+    async fn handle_auth_command(&mut self) -> Result<()> {
+        // Create auth manager
+        let mut auth_manager = AuthManager::new()?;
+        
+        // Show the auth wizard
+        self.auth_wizard.show(&self.config, &auth_manager).await;
+        
         Ok(())
     }
 

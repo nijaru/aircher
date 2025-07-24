@@ -1,11 +1,13 @@
 pub mod agent;
 pub mod app;
+pub mod auth;
 pub mod cli;
 pub mod commands;
 pub mod config;
 pub mod context;
 pub mod cost;
 pub mod intelligence;
+pub mod permissions;
 pub mod project;
 pub mod providers;
 pub mod semantic_search;

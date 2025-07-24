@@ -366,6 +366,54 @@ impl CliApp {
                     )
             )
             .subcommand(
+                Command::new("auth")
+                    .about("Authentication management")
+                    .subcommand(
+                        Command::new("login")
+                            .about("Add or update API key for a provider")
+                            .arg(Arg::new("provider")
+                                .help("Provider name (anthropic, openai, gemini, etc.)")
+                                .required(true)
+                                .index(1))
+                            .arg(Arg::new("key")
+                                .help("API key (if not provided, will prompt)")
+                                .long("key")
+                                .short('k')
+                                .value_name("API_KEY"))
+                    )
+                    .subcommand(
+                        Command::new("logout")
+                            .about("Remove API key for a provider")
+                            .arg(Arg::new("provider")
+                                .help("Provider name")
+                                .required(true)
+                                .index(1))
+                    )
+                    .subcommand(
+                        Command::new("status")
+                            .about("Show authentication status")
+                            .arg(Arg::new("provider")
+                                .help("Specific provider to check (optional)")
+                                .index(1))
+                    )
+                    .subcommand(
+                        Command::new("test")
+                            .about("Test API key validity for a provider")
+                            .arg(Arg::new("provider")
+                                .help("Provider name")
+                                .required(true)
+                                .index(1))
+                    )
+                    .subcommand(
+                        Command::new("list")
+                            .about("List all configured providers")
+                    )
+                    .subcommand(
+                        Command::new("clear")
+                            .about("Clear all stored API keys (use with caution)")
+                    )
+            )
+            .subcommand(
                 Command::new("embedding")
                     .about("Embedding model management (default: list with current marked)")
                     .subcommand(
@@ -711,6 +759,10 @@ impl CliApp {
         
         if let Some(model_matches) = matches.subcommand_matches("model") {
             return self.handle_model_commands(model_matches).await;
+        }
+        
+        if let Some(auth_matches) = matches.subcommand_matches("auth") {
+            return self.handle_auth_commands(auth_matches).await;
         }
         
         if let Some(embedding_matches) = matches.subcommand_matches("embedding") {
@@ -1169,6 +1221,65 @@ impl CliApp {
         };
         let providers = self.providers.as_ref().unwrap();
         handle_model_command(model_args, &mut self.config, providers).await
+    }
+    
+    async fn handle_auth_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {
+        use crate::auth::{AuthManager, cli::AuthCommand};
+        
+        let mut auth_manager = AuthManager::new()?;
+        
+        // Collect command args for parsing
+        let mut args = vec!["auth".to_string()];
+        
+        match matches.subcommand() {
+            Some(("login", sub_matches)) => {
+                args.push("login".to_string());
+                args.push(sub_matches.get_one::<String>("provider").unwrap().clone());
+                if let Some(key) = sub_matches.get_one::<String>("key") {
+                    args.push("--key".to_string());
+                    args.push(key.clone());
+                }
+            }
+            Some(("logout", sub_matches)) => {
+                args.push("logout".to_string());
+                args.push(sub_matches.get_one::<String>("provider").unwrap().clone());
+            }
+            Some(("status", sub_matches)) => {
+                args.push("status".to_string());
+                if let Some(provider) = sub_matches.get_one::<String>("provider") {
+                    args.push(provider.clone());
+                }
+            }
+            Some(("test", sub_matches)) => {
+                args.push("test".to_string());
+                args.push(sub_matches.get_one::<String>("provider").unwrap().clone());
+            }
+            Some(("list", _)) => {
+                args.push("list".to_string());
+            }
+            Some(("clear", _)) => {
+                args.push("clear".to_string());
+            }
+            _ => {
+                eprintln!("❌ Unknown auth subcommand");
+                std::process::exit(1);
+            }
+        }
+        
+        let auth_command = AuthCommand::parse_from_args(&args)?;
+        
+        // Get provider manager if needed for testing
+        let provider_manager = if matches!(auth_command, AuthCommand::Test { .. }) {
+            self.get_providers().await.ok()
+        } else {
+            None
+        };
+        
+        auth_command.execute(
+            &self.config, 
+            &mut auth_manager, 
+            provider_manager.as_deref()
+        ).await
     }
     
     async fn handle_embedding_commands(&mut self, matches: &clap::ArgMatches) -> Result<()> {

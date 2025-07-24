@@ -1,0 +1,553 @@
+use ratatui::{
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span, Text},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+    Frame,
+};
+use std::io;
+use tracing::debug;
+
+use crate::auth::{AuthManager, AuthStatus};
+use crate::config::ConfigManager;
+use crate::providers::ProviderManager;
+
+pub struct AuthWizard {
+    visible: bool,
+    current_step: WizardStep,
+    current_provider: Option<String>,
+    api_key_input: String,
+    cursor_position: usize,
+    available_providers: Vec<ProviderInfo>,
+    selected_provider_index: usize,
+    error_message: Option<String>,
+    success_message: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct ProviderInfo {
+    name: String,
+    display_name: String,
+    description: String,
+    needs_auth: bool,
+    auth_status: AuthStatus,
+    env_var: String,
+}
+
+#[derive(Clone, PartialEq)]
+enum WizardStep {
+    ProviderSelection,
+    ApiKeyEntry,
+    Testing,
+    Complete,
+}
+
+impl AuthWizard {
+    pub fn new() -> Self {
+        Self {
+            visible: false,
+            current_step: WizardStep::ProviderSelection,
+            current_provider: None,
+            api_key_input: String::new(),
+            cursor_position: 0,
+            available_providers: Vec::new(),
+            selected_provider_index: 0,
+            error_message: None,
+            success_message: None,
+        }
+    }
+
+    pub async fn show(&mut self, config: &ConfigManager, auth_manager: &AuthManager) {
+        self.visible = true;
+        self.current_step = WizardStep::ProviderSelection;
+        self.error_message = None;
+        self.success_message = None;
+        self.load_providers(config, auth_manager).await;
+    }
+
+    pub fn hide(&mut self) {
+        self.visible = false;
+        self.reset_state();
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    pub fn handle_char(&mut self, c: char) {
+        match self.current_step {
+            WizardStep::ApiKeyEntry => {
+                self.api_key_input.insert(self.cursor_position, c);
+                self.cursor_position += 1;
+                self.error_message = None;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn handle_backspace(&mut self) {
+        match self.current_step {
+            WizardStep::ApiKeyEntry => {
+                if self.cursor_position > 0 {
+                    self.cursor_position -= 1;
+                    self.api_key_input.remove(self.cursor_position);
+                    self.error_message = None;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn move_cursor_left(&mut self) {
+        if self.current_step == WizardStep::ApiKeyEntry && self.cursor_position > 0 {
+            self.cursor_position -= 1;
+        }
+    }
+
+    pub fn move_cursor_right(&mut self) {
+        if self.current_step == WizardStep::ApiKeyEntry && self.cursor_position < self.api_key_input.len() {
+            self.cursor_position += 1;
+        }
+    }
+
+    pub fn move_selection_up(&mut self) {
+        if self.current_step == WizardStep::ProviderSelection && self.selected_provider_index > 0 {
+            self.selected_provider_index -= 1;
+        }
+    }
+
+    pub fn move_selection_down(&mut self) {
+        if self.current_step == WizardStep::ProviderSelection 
+            && self.selected_provider_index < self.available_providers.len().saturating_sub(1) {
+            self.selected_provider_index += 1;
+        }
+    }
+
+    pub async fn handle_enter(&mut self, auth_manager: &mut AuthManager, config: &ConfigManager, providers: Option<&ProviderManager>) -> io::Result<()> {
+        match self.current_step {
+            WizardStep::ProviderSelection => {
+                if let Some(provider) = self.available_providers.get(self.selected_provider_index) {
+                    if !provider.needs_auth {
+                        self.success_message = Some(format!("{} doesn't require authentication", provider.display_name));
+                        self.current_step = WizardStep::Complete;
+                    } else if provider.auth_status == AuthStatus::Authenticated {
+                        self.success_message = Some(format!("{} is already authenticated", provider.display_name));
+                        self.current_step = WizardStep::Complete;
+                    } else {
+                        self.current_provider = Some(provider.name.clone());
+                        self.current_step = WizardStep::ApiKeyEntry;
+                        self.api_key_input.clear();
+                        self.cursor_position = 0;
+                    }
+                }
+            }
+            WizardStep::ApiKeyEntry => {
+                if self.api_key_input.trim().is_empty() {
+                    self.error_message = Some("API key cannot be empty".to_string());
+                    return Ok(());
+                }
+
+                if let Some(provider_name) = &self.current_provider {
+                    self.current_step = WizardStep::Testing;
+                    self.error_message = None;
+
+                    // Store the API key
+                    match auth_manager.store_api_key(provider_name, &self.api_key_input).await {
+                        Ok(()) => {
+                            // Test the API key
+                            match auth_manager.test_provider_auth(provider_name, config, providers).await {
+                                Ok(auth_info) => {
+                                    match auth_info.status {
+                                        AuthStatus::Authenticated => {
+                                            self.success_message = Some(format!("✓ {} authentication successful!", 
+                                                self.get_provider_display_name(provider_name)));
+                                            self.current_step = WizardStep::Complete;
+                                        }
+                                        _ => {
+                                            self.error_message = Some(format!("Authentication failed: {}", 
+                                                auth_info.error_message.unwrap_or_else(|| "Unknown error".to_string())));
+                                            self.current_step = WizardStep::ApiKeyEntry;
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    self.error_message = Some(format!("Failed to test authentication: {}", e));
+                                    self.current_step = WizardStep::ApiKeyEntry;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            self.error_message = Some(format!("Failed to store API key: {}", e));
+                            self.current_step = WizardStep::ApiKeyEntry;
+                        }
+                    }
+                }
+            }
+            WizardStep::Complete => {
+                self.hide();
+            }
+            _ => {}
+        }
+        
+        Ok(())
+    }
+
+    pub fn handle_escape(&mut self) {
+        match self.current_step {
+            WizardStep::ProviderSelection => {
+                self.hide();
+            }
+            WizardStep::ApiKeyEntry => {
+                self.current_step = WizardStep::ProviderSelection;
+                self.api_key_input.clear();
+                self.cursor_position = 0;
+                self.error_message = None;
+            }
+            WizardStep::Complete => {
+                self.hide();
+            }
+            _ => {}
+        }
+    }
+
+    async fn load_providers(&mut self, config: &ConfigManager, auth_manager: &AuthManager) {
+        let mut providers = Vec::new();
+        let auth_statuses = auth_manager.get_all_provider_statuses(config).await;
+
+        for (name, provider_config) in &config.providers {
+            let auth_info = auth_statuses.get(name);
+            let display_name = self.get_provider_display_name(name);
+            let description = self.get_provider_description(name);
+            
+            providers.push(ProviderInfo {
+                name: name.clone(),
+                display_name,
+                description,
+                needs_auth: !provider_config.api_key_env.is_empty(),
+                auth_status: auth_info.map(|i| i.status.clone()).unwrap_or(AuthStatus::NotConfigured),
+                env_var: provider_config.api_key_env.clone(),
+            });
+        }
+
+        // Sort providers: unauthenticated first, then by name
+        providers.sort_by(|a, b| {
+            match (&a.auth_status, &b.auth_status) {
+                (AuthStatus::Authenticated, AuthStatus::Authenticated) => a.name.cmp(&b.name),
+                (AuthStatus::Authenticated, _) => std::cmp::Ordering::Greater,
+                (_, AuthStatus::Authenticated) => std::cmp::Ordering::Less,
+                _ => a.name.cmp(&b.name),
+            }
+        });
+
+        self.available_providers = providers;
+        self.selected_provider_index = 0;
+    }
+
+    fn get_provider_display_name(&self, provider: &str) -> String {
+        match provider {
+            "claude" => "Anthropic Claude".to_string(),
+            "openai" => "OpenAI".to_string(),
+            "gemini" => "Google Gemini".to_string(),
+            "ollama" => "Ollama (Local)".to_string(),
+            "openrouter" => "OpenRouter".to_string(),
+            _ => provider.to_string(),
+        }
+    }
+
+    fn get_provider_description(&self, provider: &str) -> String {
+        match provider {
+            "claude" => "Best for complex reasoning and coding tasks".to_string(),
+            "openai" => "GPT models with broad capabilities".to_string(),
+            "gemini" => "Google's multimodal AI models".to_string(),
+            "ollama" => "Run models locally on your machine".to_string(),
+            "openrouter" => "Access multiple providers through one API".to_string(),
+            _ => String::new(),
+        }
+    }
+
+    fn get_auth_status_icon(&self, status: &AuthStatus) -> &'static str {
+        match status {
+            AuthStatus::Authenticated => "✓",
+            AuthStatus::NotConfigured => "○",
+            AuthStatus::Invalid => "✗",
+            AuthStatus::Expired => "⚠",
+            AuthStatus::RateLimited => "⚠",
+            AuthStatus::NetworkError => "⚠",
+        }
+    }
+
+    fn get_auth_status_color(&self, status: &AuthStatus) -> Color {
+        match status {
+            AuthStatus::Authenticated => Color::Green,
+            AuthStatus::NotConfigured => Color::Yellow,
+            AuthStatus::Invalid => Color::Red,
+            AuthStatus::Expired => Color::Yellow,
+            AuthStatus::RateLimited => Color::Yellow,
+            AuthStatus::NetworkError => Color::Red,
+        }
+    }
+
+    fn reset_state(&mut self) {
+        self.current_step = WizardStep::ProviderSelection;
+        self.current_provider = None;
+        self.api_key_input.clear();
+        self.cursor_position = 0;
+        self.selected_provider_index = 0;
+        self.error_message = None;
+        self.success_message = None;
+    }
+
+    pub fn render(&self, f: &mut Frame, area: Rect) {
+        if !self.visible {
+            return;
+        }
+
+        // Create centered overlay
+        let popup_area = self.centered_rect(80, 70, area);
+        
+        // Clear the background
+        f.render_widget(Clear, popup_area);
+
+        match self.current_step {
+            WizardStep::ProviderSelection => self.render_provider_selection(f, popup_area),
+            WizardStep::ApiKeyEntry => self.render_api_key_entry(f, popup_area),
+            WizardStep::Testing => self.render_testing(f, popup_area),
+            WizardStep::Complete => self.render_complete(f, popup_area),
+        }
+    }
+
+    fn render_provider_selection(&self, f: &mut Frame, area: Rect) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Min(5),    // Provider list
+                Constraint::Length(3), // Instructions
+            ])
+            .split(area);
+
+        // Title
+        let title = Paragraph::new("Authentication Setup")
+            .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(title, chunks[0]);
+
+        // Provider list
+        let items: Vec<ListItem> = self.available_providers
+            .iter()
+            .enumerate()
+            .map(|(i, provider)| {
+                let icon = self.get_auth_status_icon(&provider.auth_status);
+                let color = self.get_auth_status_color(&provider.auth_status);
+                
+                let status_text = if provider.needs_auth {
+                    match provider.auth_status {
+                        AuthStatus::Authenticated => "authenticated",
+                        _ => "needs setup",
+                    }
+                } else {
+                    "local (no auth needed)"
+                };
+
+                let line = Line::from(vec![
+                    Span::styled(format!("{} ", icon), Style::default().fg(color)),
+                    Span::styled(&provider.display_name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                    Span::raw(" - "),
+                    Span::styled(&provider.description, Style::default().fg(Color::Gray)),
+                    Span::raw(" ("),
+                    Span::styled(status_text, Style::default().fg(color)),
+                    Span::raw(")"),
+                ]);
+
+                let mut item = ListItem::new(line);
+                if i == self.selected_provider_index {
+                    item = item.style(Style::default().bg(Color::DarkGray));
+                }
+                item
+            })
+            .collect();
+
+        let list = List::new(items)
+            .block(Block::default().borders(Borders::ALL).title("Select a Provider"));
+        f.render_widget(list, chunks[1]);
+
+        // Instructions
+        let instructions = Paragraph::new("↑↓ Navigate • Enter: Select • Esc: Cancel")
+            .style(Style::default().fg(Color::Gray))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(instructions, chunks[2]);
+    }
+
+    fn render_api_key_entry(&self, f: &mut Frame, area: Rect) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Length(4), // Provider info
+                Constraint::Length(3), // Input field
+                Constraint::Min(3),    // Error message or instructions
+                Constraint::Length(3), // Instructions
+            ])
+            .split(area);
+
+        // Title
+        let provider_name = self.current_provider.as_ref()
+            .map(|p| self.get_provider_display_name(p))
+            .unwrap_or_else(|| "Provider".to_string());
+        let title = Paragraph::new(format!("Setup {}", provider_name))
+            .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(title, chunks[0]);
+
+        // Provider info
+        if let Some(provider) = self.available_providers.iter().find(|p| Some(&p.name) == self.current_provider.as_ref()) {
+            let env_info = if !provider.env_var.is_empty() {
+                format!("You can also set the {} environment variable instead.", provider.env_var)
+            } else {
+                String::new()
+            };
+            
+            let info_text = format!("{}\n{}", provider.description, env_info);
+            let info = Paragraph::new(info_text)
+                .style(Style::default().fg(Color::Gray))
+                .wrap(Wrap { trim: true })
+                .block(Block::default().borders(Borders::ALL));
+            f.render_widget(info, chunks[1]);
+        }
+
+        // Input field
+        let masked_input = "*".repeat(self.api_key_input.len());
+        let input = Paragraph::new(masked_input.as_str())
+            .style(Style::default().fg(Color::White))
+            .block(Block::default().borders(Borders::ALL).title("API Key"));
+        f.render_widget(input, chunks[2]);
+
+        // Error message or help
+        if let Some(error) = &self.error_message {
+            let error_widget = Paragraph::new(error.as_str())
+                .style(Style::default().fg(Color::Red))
+                .wrap(Wrap { trim: true })
+                .block(Block::default().borders(Borders::ALL).title("Error"));
+            f.render_widget(error_widget, chunks[3]);
+        } else {
+            let help = Paragraph::new("Enter your API key. It will be stored securely in ~/.config/aircher/auth.json")
+                .style(Style::default().fg(Color::Gray))
+                .wrap(Wrap { trim: true })
+                .block(Block::default().borders(Borders::ALL).title("Help"));
+            f.render_widget(help, chunks[3]);
+        }
+
+        // Instructions
+        let instructions = Paragraph::new("Enter: Save and test • Esc: Back • Type to enter key")
+            .style(Style::default().fg(Color::Gray))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(instructions, chunks[4]);
+    }
+
+    fn render_testing(&self, f: &mut Frame, area: Rect) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Min(5),    // Testing message
+                Constraint::Length(3), // Instructions
+            ])
+            .split(area);
+
+        // Title
+        let title = Paragraph::new("Testing Authentication")
+            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(title, chunks[0]);
+
+        // Testing message
+        let message = Paragraph::new("Testing your API key...\n\nThis may take a few seconds.")
+            .style(Style::default().fg(Color::White))
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: true })
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(message, chunks[1]);
+
+        // Instructions
+        let instructions = Paragraph::new("Please wait...")
+            .style(Style::default().fg(Color::Gray))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(instructions, chunks[2]);
+    }
+
+    fn render_complete(&self, f: &mut Frame, area: Rect) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Min(5),    // Message
+                Constraint::Length(3), // Instructions
+            ])
+            .split(area);
+
+        // Title
+        let (title_text, title_color) = if self.success_message.is_some() {
+            ("Setup Complete", Color::Green)
+        } else {
+            ("Setup Failed", Color::Red)
+        };
+        
+        let title = Paragraph::new(title_text)
+            .style(Style::default().fg(title_color).add_modifier(Modifier::BOLD))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(title, chunks[0]);
+
+        // Message
+        let default_status = "Unknown status".to_string();
+        let message_text = self.success_message.as_ref()
+            .or(self.error_message.as_ref())
+            .unwrap_or(&default_status);
+        
+        let message_color = if self.success_message.is_some() {
+            Color::Green
+        } else {
+            Color::Red
+        };
+
+        let message = Paragraph::new(message_text.as_str())
+            .style(Style::default().fg(message_color))
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: true })
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(message, chunks[1]);
+
+        // Instructions
+        let instructions = Paragraph::new("Enter: Close • Esc: Close")
+            .style(Style::default().fg(Color::Gray))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(instructions, chunks[2]);
+    }
+
+    fn centered_rect(&self, percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+        let popup_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ])
+            .split(r);
+
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ])
+            .split(popup_layout[1])[1]
+    }
+}

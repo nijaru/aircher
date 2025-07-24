@@ -37,6 +37,11 @@ pub const SLASH_COMMANDS: &[SlashCommand] = &[
         aliases: &["/settings"],
     },
     SlashCommand {
+        command: "/auth",
+        description: "Setup API keys with guided wizard",
+        aliases: &["/login"],
+    },
+    SlashCommand {
         command: "/sessions",
         description: "Browse previous sessions",
         aliases: &[],
@@ -45,6 +50,11 @@ pub const SLASH_COMMANDS: &[SlashCommand] = &[
         command: "/compact",
         description: "Summarize conversation to save context",
         aliases: &[],
+    },
+    SlashCommand {
+        command: "/turbo",
+        description: "Enable autonomous turbo mode (like Google Jules)",
+        aliases: &["/t"],
     },
     SlashCommand {
         command: "/quit",
@@ -119,6 +129,12 @@ pub fn format_help() -> Vec<String> {
     lines.push("  • Tab to autocomplete commands".to_string());
     lines.push("  • Shift+Tab to cycle modes (auto-accept, plan mode)".to_string());
     lines.push("  • F1 for help, F2 for settings".to_string());
+    lines.push("  • Up/Down arrows to navigate message history".to_string());
+    lines.push(String::new());
+    lines.push("Scrolling:".to_string());
+    lines.push("  • PageUp/PageDown to scroll chat (with overlap)".to_string());
+    lines.push("  • Mouse wheel to scroll".to_string());
+    lines.push("  • Ctrl+L or End key to jump to bottom".to_string());
     
     lines.push(String::new());
     lines.push("Modes:".to_string());
