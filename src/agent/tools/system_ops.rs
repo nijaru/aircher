@@ -1,16 +1,21 @@
 use super::{AgentTool, ToolError, ToolOutput};
+use super::permission_channel::{PermissionRequest, PermissionResponse, PermissionRequestSender};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::Arc;
 use tokio::process::Command;
+use tokio::sync::oneshot;
+use crate::permissions::PermissionsManager;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RunCommandTool {
     workspace_root: Option<PathBuf>,
-    allowed_commands: Vec<String>,
+    permissions_manager: Arc<tokio::sync::Mutex<PermissionsManager>>,
+    permission_channel: Option<PermissionRequestSender>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,37 +35,77 @@ fn default_timeout() -> u64 {
 
 impl RunCommandTool {
     pub fn new() -> Self {
+        // Create a default permissions manager for standalone use
+        let permissions = PermissionsManager::new().expect("Failed to create permissions manager");
         Self {
             workspace_root: std::env::current_dir().ok(),
-            // Default safe commands
-            allowed_commands: vec![
-                "ls".to_string(),
-                "cat".to_string(),
-                "grep".to_string(),
-                "find".to_string(),
-                "git".to_string(),
-                "cargo".to_string(),
-                "npm".to_string(),
-                "python".to_string(),
-                "make".to_string(),
-                "echo".to_string(),
-                "pwd".to_string(),
-                "which".to_string(),
-                "head".to_string(),
-                "tail".to_string(),
-                "wc".to_string(),
-                "tree".to_string(),
-            ],
+            permissions_manager: Arc::new(tokio::sync::Mutex::new(permissions)),
+            permission_channel: None,
         }
     }
     
-    pub fn with_allowed_commands(mut self, commands: Vec<String>) -> Self {
-        self.allowed_commands = commands;
-        self
+    pub fn with_permissions(permissions_manager: Arc<tokio::sync::Mutex<PermissionsManager>>, permission_channel: Option<PermissionRequestSender>) -> Self {
+        Self {
+            workspace_root: std::env::current_dir().ok(),
+            permissions_manager,
+            permission_channel,
+        }
     }
     
-    fn is_command_allowed(&self, command: &str) -> bool {
-        self.allowed_commands.iter().any(|allowed| command == allowed)
+    async fn check_command_permission(&self, command: &str, args: &[String]) -> Result<bool, ToolError> {
+        let permissions = self.permissions_manager.lock().await;
+        
+        // Build full command string
+        let full_command = if args.is_empty() {
+            command.to_string()
+        } else {
+            format!("{} {}", command, args.join(" "))
+        };
+        
+        // Check if already approved
+        if permissions.is_command_approved(&full_command) {
+            return Ok(true);
+        }
+        
+        // If we have a permission channel, request permission
+        if let Some(channel) = &self.permission_channel {
+            let (response_tx, response_rx) = oneshot::channel();
+            
+            let request = PermissionRequest {
+                command: command.to_string(),
+                args: args.to_vec(),
+                description: format!("Execute command: {}", full_command),
+            };
+            
+            // Send permission request
+            if channel.send((request, response_tx)).await.is_err() {
+                return Err(ToolError::ExecutionFailed("Failed to send permission request".to_string()));
+            }
+            
+            // Wait for response
+            match response_rx.await {
+                Ok(PermissionResponse::Approved) => {
+                    // Add to approved commands for this session
+                    drop(permissions);
+                    let mut permissions = self.permissions_manager.lock().await;
+                    permissions.approve_command(full_command).map_err(|e| ToolError::ExecutionFailed(e.to_string()))?;
+                    Ok(true)
+                }
+                Ok(PermissionResponse::ApprovedSimilar) => {
+                    // Add pattern for similar commands
+                    drop(permissions);
+                    let mut permissions = self.permissions_manager.lock().await;
+                    let pattern = PermissionsManager::get_command_pattern(&full_command);
+                    permissions.approve_pattern(pattern).map_err(|e| ToolError::ExecutionFailed(e.to_string()))?;
+                    Ok(true)
+                }
+                Ok(PermissionResponse::Denied) => Ok(false),
+                Err(_) => Err(ToolError::ExecutionFailed("Permission request cancelled".to_string())),
+            }
+        } else {
+            // No permission channel, deny by default
+            Ok(false)
+        }
     }
 }
 
@@ -107,9 +152,11 @@ impl AgentTool for RunCommandTool {
         let params: RunCommandParams = serde_json::from_value(params)
             .map_err(|e| ToolError::InvalidParameters(e.to_string()))?;
         
-        if !self.is_command_allowed(&params.command) {
+        // Check command permission
+        let allowed = self.check_command_permission(&params.command, &params.args).await?;
+        if !allowed {
             return Err(ToolError::PermissionDenied(
-                format!("Command '{}' is not in the allowed list", params.command)
+                format!("Command '{}' was not approved", params.command)
             ));
         }
         

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use tracing::{debug, info};
 
 use crate::cost::CostConfig;
-use crate::utils::xdg_dirs::XdgDirs;
+use crate::utils::aircher_dirs::AircherDirs;
 
 pub mod toml_config;
 pub use toml_config::ArcherConfig;
@@ -292,7 +292,7 @@ impl Default for GlobalConfig {
             default_host: "anthropic".to_string(),
             max_context_tokens: 100_000,
             budget_limit: None,
-            data_directory: XdgDirs::aircher_data_dir()
+            data_directory: AircherDirs::data_dir()
                 .unwrap_or_else(|_| PathBuf::from(".")),
         }
     }
@@ -690,7 +690,7 @@ impl Default for ConfigManager {
             },
         );
 
-        let data_dir = XdgDirs::aircher_data_dir()
+        let data_dir = AircherDirs::data_dir()
             .unwrap_or_else(|_| PathBuf::from("."));
 
         Self {

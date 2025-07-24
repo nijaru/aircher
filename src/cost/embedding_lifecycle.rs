@@ -8,7 +8,7 @@ use tracing::{debug, info};
 use chrono::{DateTime, Utc};
 
 use super::EmbeddingModel;
-use crate::utils::xdg_dirs::{XdgDirs, AircherFileType};
+use crate::utils::aircher_dirs::AircherDirs;
 
 /// Manages the lifecycle of embedding models including versions, updates, and cleanup
 pub struct EmbeddingLifecycleManager {
@@ -74,7 +74,7 @@ impl EmbeddingLifecycleManager {
     }
     
     fn get_storage_dir() -> Result<PathBuf> {
-        XdgDirs::aircher_data_dir()
+        AircherDirs::data_dir()
     }
     
     fn load_or_create_registry(storage_dir: &PathBuf) -> Result<ModelRegistry> {

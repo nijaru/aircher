@@ -1,1 +1,1 @@
-pub mod xdg_dirs;
+pub mod aircher_dirs;

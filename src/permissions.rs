@@ -3,9 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::fs;
-use dirs;
 
-use crate::utils::xdg_dirs::{XdgDirs, AircherFileType};
+use crate::utils::aircher_dirs::AircherDirs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PermissionsConfig {
@@ -82,7 +81,7 @@ impl PermissionsManager {
         })
     }
     
-    /// Get the config directory for permissions - local project or XDG global
+    /// Get the config directory for permissions - local project or global
     fn get_config_dir() -> Result<PathBuf> {
         // First try local .aircher directory (project-specific)
         let current_dir = std::env::current_dir()?;
@@ -92,8 +91,8 @@ impl PermissionsManager {
             return Ok(local_aircher);
         }
         
-        // Fall back to XDG config directory
-        XdgDirs::aircher_config_dir()
+        // Fall back to global config directory
+        AircherDirs::config_dir()
     }
     
     /// Check if a command is approved

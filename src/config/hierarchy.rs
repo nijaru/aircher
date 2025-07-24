@@ -7,7 +7,7 @@ use tracing::{debug, info, warn};
 
 use super::{ConfigManager, GlobalConfig, ProviderConfig, ModelConfig, HostConfig, UiConfig, DatabaseConfig, IntelligenceConfig, MultiProviderConfig};
 use crate::cost::CostConfig;
-use crate::utils::xdg_dirs::XdgDirs;
+use crate::utils::aircher_dirs::AircherDirs;
 
 /// Configuration hierarchy manager that implements the layered config approach:
 /// Hardcoded defaults -> Global config -> Local config -> Environment variables
@@ -205,7 +205,7 @@ impl ConfigHierarchy {
             },
         );
 
-        let data_dir = XdgDirs::aircher_data_dir()
+        let data_dir = AircherDirs::data_dir()
             .unwrap_or_else(|_| PathBuf::from("."));
 
         ConfigManager {
@@ -246,8 +246,7 @@ impl ConfigHierarchy {
 
     /// Get the global configuration file path
     fn get_global_config_path() -> Result<PathBuf> {
-        Ok(XdgDirs::aircher_config_dir()?
-            .join("config.toml"))
+        AircherDirs::main_config_path()
     }
 
     /// Find local configuration file by walking up the directory tree

@@ -1,7 +1,7 @@
 # Model Usage Fallback Feature
 
 ## Overview
-Implement a "default" model option that automatically switches between high-tier and lower-tier models based on usage limits, similar to Claude Code's Pro/Max subscription feature.
+Implement a "default" model option that automatically switches between high-tier and lower-tier models based on usage limits, similar to Claude Code's Pro/Max subscription feature. Enhanced with task-aware model selection for optimal cost/performance balance.
 
 ## Current Behavior (Claude Code)
 - **Default Model**: Uses Opus 4 for up to 50% of usage limit
@@ -10,15 +10,22 @@ Implement a "default" model option that automatically switches between high-tier
 
 ## Proposed Enhancement for Aircher
 
-### Basic Implementation
+### Task-Aware Three-Tier Model Selection
 ```rust
 pub enum ModelSelection {
     Specific(String),
     Default {
-        primary: String,      // e.g., "claude-opus-4"
-        fallback: String,     // e.g., "claude-sonnet-4"
-        threshold: f32,       // e.g., 0.5 (50%)
+        planning: String,     // e.g., "claude-opus-4" for complex reasoning
+        coding: String,       // e.g., "claude-sonnet-4" for implementation
+        summary: String,      // e.g., "claude-haiku-3" for simple tasks
+        threshold: f32,       // e.g., 0.5 (50%) for usage-based fallback
     }
+}
+
+pub enum TaskType {
+    Planning,    // Architecture, design, complex problem solving
+    Coding,      // Implementation, debugging, refactoring
+    Summary,     // Documentation, simple explanations, formatting
 }
 ```
 
@@ -37,15 +44,31 @@ auto_reset = true       # Aircher enhancement
 [providers.anthropic]
 models = [
     { name = "default", type = "smart_fallback" },
-    { name = "claude-opus-4", aliases = ["opus"] },
-    { name = "claude-sonnet-4", aliases = ["sonnet"] }
+    { name = "claude-opus-4", aliases = ["opus", "o4"] },
+    { name = "claude-sonnet-4", aliases = ["sonnet", "s4"] },
+    { name = "claude-haiku-3", aliases = ["haiku", "h3"] }
 ]
 
 [models.smart_fallback]
-primary = "claude-opus-4"
-fallback = "claude-sonnet-4" 
-threshold = 0.5  # Switch at 50% usage
-track_window = true  # Track subscription windows
+# Task-specific model assignments
+planning = "claude-opus-4"      # Best reasoning for architecture/design
+coding = "claude-sonnet-4"      # Balanced for implementation
+summary = "claude-haiku-3"      # Efficient for simple tasks
+
+# Usage-based fallback (when approaching limits)
+threshold = 0.5                 # Switch at 50% usage
+fallback_chain = [              # Graceful degradation
+    "claude-opus-4",
+    "claude-sonnet-4", 
+    "claude-haiku-3"
+]
+track_window = true             # Track subscription windows
+
+# Optional: Task detection patterns
+[models.task_detection]
+planning = ["design", "architecture", "plan", "strategy"]
+coding = ["implement", "fix", "debug", "refactor", "code"]
+summary = ["summarize", "explain", "document", "format"]
 ```
 
 ### Status Bar Display

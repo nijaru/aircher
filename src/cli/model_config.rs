@@ -136,7 +136,7 @@ async fn save_selector_config(selector: &SimpleModelSelector) -> Result<()> {
     // For now, just log that we would save
     info!("Would save model selector configuration");
     
-    // This could save to ~/.config/aircher/model_config.toml or similar
+    // This could save to ~/.aircher/config/model_config.toml or similar
     // let config_path = get_config_dir()?.join("model_config.toml");
     // let toml_content = toml::to_string_pretty(selector)?;
     // fs::write(config_path, toml_content)?;

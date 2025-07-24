@@ -12,6 +12,8 @@ use super::{
     PricingModel, StreamChunk, UsageInfo,
 };
 use crate::config::ProviderConfig;
+use crate::auth::AuthManager;
+use std::sync::Arc;
 
 pub struct OllamaProvider {
     client: Client,
@@ -110,7 +112,7 @@ struct OllamaError {
 // type OllamaResponseStream = mpsc::Receiver<Result<StreamChunk>>;
 
 impl OllamaProvider {
-    pub async fn new(config: ProviderConfig) -> Result<Self> {
+    pub async fn new(config: ProviderConfig, _auth_manager: Arc<AuthManager>) -> Result<Self> {
         let client = Client::builder()
             .timeout(Duration::from_secs(5)) // Shorter timeout for discovery
             .build()
