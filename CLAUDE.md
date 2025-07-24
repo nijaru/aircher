@@ -1,0 +1,143 @@
+# Aircher Agent Instructions
+
+This document contains important context and decisions for AI agents working on the Aircher codebase.
+
+## Architectural Decisions
+
+### Shell-First Approach for Language Tools
+
+**Decision**: Use shell commands for language tooling instead of native integrations.
+
+**Rationale**:
+- **Simplicity**: No complex integrations to maintain
+- **Transparency**: Users can see and reproduce exactly what the agent does
+- **Flexibility**: Works with any tool immediately without integration work
+- **Reliability**: Shell commands are stable interfaces
+
+**Implementation Guidelines**:
+
+1. **Prefer structured output when available**:
+   ```bash
+   # Good - use JSON output for parsing
+   cargo test --format json
+   pytest --json-report
+   npm test --json
+   
+   # Parse with jq when needed
+   cargo metadata --format-version 1 | jq '.packages'
+   ```
+
+2. **Use language servers over stdio**:
+   ```bash
+   # Instead of integrating LSP client libraries
+   echo '{"method":"textDocument/definition"...}' | rust-analyzer
+   ```
+
+3. **Smart command detection**:
+   ```bash
+   # Check for features before using them
+   if cargo test --help | grep -q "format json"; then
+       cargo test --format json
+   else
+       cargo test  # fallback to text parsing
+   fi
+   ```
+
+4. **Common patterns to remember**:
+   - `rustc --error-format json` - structured compiler errors
+   - `cargo clippy --message-format json` - linting with JSON
+   - `rg --json` - ripgrep with structured output
+   - `git log --format=json` - when available
+   - Language servers (rust-analyzer, pyright, etc.) work over stdio
+
+**What NOT to do**:
+- Don't build native integrations for each tool
+- Don't add language-specific dependencies
+- Don't hide what commands are being run
+
+## Tool Philosophy
+
+The agent should be a power user of existing CLI tools rather than reimplementing functionality. This makes the agent's actions:
+- Understandable to users
+- Reproducible outside the agent
+- Maintainable without language-specific knowledge
+- Immediately compatible with new tools
+
+## Code Standards
+
+- Add newlines at end of files
+- Follow existing code patterns
+- Check for existing dependencies before adding new ones
+- Prefer editing existing files over creating new ones
+
+## Recent UI Improvements
+
+### Notification System (Implemented)
+A layered notification system provides appropriate feedback for different types of information:
+
+1. **Operations Line** (above input) - Active work with progress:
+   - `🔄 Loading Ollama models... [████░░░░] 67%`
+   - `🔍 Searching for "auth" in src/...`
+   - Only appears when operations are active
+
+2. **Toast Notifications** (top-right) - Temporary alerts (3s fade):
+   - `✓ Authentication successful`
+   - `⚠️ Rate limit warning`
+   - Auto-expire after 3 seconds
+
+3. **Status Bar** (bottom) - Persistent context:
+   - Model/provider info
+   - Context usage percentage
+   - Cost tracking
+
+4. **Inline System Messages** - Important history:
+   - Model changes
+   - Authentication status updates
+
+### Key UX Decisions
+
+1. **Fast Startup**: Rust-based TUI starts instantly, differentiating from Electron-based alternatives
+2. **Smart Defaults**: `/model` command starts with provider selection if not authenticated
+3. **Stable Input Position**: Operations line appears above input so typing area never moves
+4. **Clean Interface**: Notifications only appear when relevant
+
+### Keyboard Shortcuts
+
+- **Tab** in input: Insert 4 spaces for code
+- **Tab/←/→** in /model: Switch between provider and model selection
+- **Ctrl+C**: Clear input if text exists, quit if empty (single press)
+- **Double Escape** (within 400ms): Show conversation history modal
+- **PgUp/PgDown**: Scroll chat history (planned)
+
+### Dynamic Model Fetching (Implemented)
+
+Real-time model discovery from provider APIs for always-current model lists:
+
+1. **Zero-latency selection** - Models prefetch as users navigate providers:
+   - Hover/arrow through providers → models load in background
+   - Fast internet users see models before hitting Enter
+   - Smart caching prevents redundant API calls
+
+2. **Progressive enhancement approach**:
+   - Start with configured models for immediate response
+   - Enhance with real API data when available
+   - Fallback to config if API calls fail
+
+3. **Provider-specific implementations**:
+   - **OpenAI**: `/v1/models` API with intelligent filtering and sorting
+   - **Anthropic**: Config-based (no public models API yet)
+   - **Gemini**: Config-based with planned API integration
+   - **Ollama**: Dynamic local model discovery via existing `/api/tags`
+   - **OpenRouter**: Gateway models API for full catalog
+
+4. **UX optimizations**:
+   - Loading states with clear "Loading models..." feedback
+   - No duplicate fetches per provider per session
+   - Models prioritized by recency/capability
+
+### Planned Features
+
+- Progress bars for operations that support percentage tracking
+- Mouse scroll support for chat history
+- Intelligent prompting for auth when no providers configured
+- Session branching and message indexing for conversation management
