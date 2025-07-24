@@ -101,7 +101,7 @@ impl AuthCommand {
         &self,
         config: &ConfigManager,
         auth_manager: &AuthManager,
-        provider_manager: Option<&ProviderManager>,
+        _provider_manager: Option<&ProviderManager>,
     ) -> Result<()> {
         match self {
             AuthCommand::Login { provider, api_key } => {
@@ -114,7 +114,7 @@ impl AuthCommand {
                 self.handle_status(provider.as_deref(), config, auth_manager).await
             }
             AuthCommand::Test { provider } => {
-                self.handle_test(provider, config, auth_manager, provider_manager).await
+                self.handle_test(provider, config, auth_manager).await
             }
             AuthCommand::List => {
                 self.handle_list(config, auth_manager).await
@@ -216,11 +216,10 @@ impl AuthCommand {
         provider: &str,
         config: &ConfigManager,
         auth_manager: &AuthManager,
-        provider_manager: Option<&ProviderManager>,
     ) -> Result<()> {
         println!("Testing authentication for '{}'...", provider);
         
-        let result = auth_manager.test_provider_auth(provider, config, provider_manager).await?;
+        let result = auth_manager.test_provider_auth(provider, config).await?;
         
         match result.status {
             AuthStatus::Authenticated => {

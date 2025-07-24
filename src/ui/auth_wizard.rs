@@ -127,7 +127,7 @@ impl AuthWizard {
         }
     }
 
-    pub async fn handle_enter(&mut self, auth_manager: &AuthManager, config: &ConfigManager, providers: Option<&ProviderManager>) -> io::Result<()> {
+    pub async fn handle_enter(&mut self, auth_manager: &AuthManager, config: &ConfigManager, _providers: Option<&ProviderManager>) -> io::Result<()> {
         match self.current_step {
             WizardStep::ProviderSelection => {
                 if let Some(provider) = self.available_providers.get(self.selected_provider_index) {
@@ -159,7 +159,7 @@ impl AuthWizard {
                     match auth_manager.store_api_key(provider_name, &self.api_key_input).await {
                         Ok(()) => {
                             // Test the API key
-                            match auth_manager.test_provider_auth(provider_name, config, providers).await {
+                            match auth_manager.test_provider_auth(provider_name, config).await {
                                 Ok(auth_info) => {
                                     match auth_info.status {
                                         AuthStatus::Authenticated => {
