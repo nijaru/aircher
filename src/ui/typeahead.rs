@@ -252,7 +252,7 @@ impl TypeaheadOverlay {
             }
             
             let style = if i == self.selected_index {
-                Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
+                Style::default().fg(Color::White).bg(Color::Blue).add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
