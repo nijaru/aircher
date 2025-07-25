@@ -109,7 +109,7 @@ A layered notification system provides appropriate feedback for different types 
 - **Double Escape** (within 400ms): Show conversation history modal
 - **PgUp/PgDown**: Scroll chat history (planned)
 
-### Dynamic Model Fetching (Implemented)
+### Dynamic Model Fetching (Fully Implemented)
 
 Real-time model discovery from provider APIs for always-current model lists:
 
@@ -134,6 +134,11 @@ Real-time model discovery from provider APIs for always-current model lists:
    - Loading states with clear "Loading models..." feedback
    - No duplicate fetches per provider per session
    - Models prioritized by recency/capability
+
+5. **Technical implementation**:
+   - Async background tasks fetch models without blocking UI
+   - Channel-based communication between async tasks and TUI event loop
+   - Automatic model updates processed each render cycle
 
 ### Enhanced Model Selection UX (Implemented)
 
