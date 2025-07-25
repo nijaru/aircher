@@ -53,7 +53,7 @@ pub const SLASH_COMMANDS: &[SlashCommand] = &[
     },
     SlashCommand {
         command: "/turbo",
-        description: "Enable autonomous turbo mode (like Google Jules)",
+        description: "Toggle autonomous turbo mode",
         aliases: &["/t"],
     },
     SlashCommand {

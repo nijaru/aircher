@@ -33,7 +33,7 @@ impl Default for SyntaxColors {
             function: Color::Rgb(59, 130, 246),   // Blue - functions
             type_name: Color::Rgb(168, 85, 247),  // Bright purple - types
             operator: Color::Rgb(244, 63, 94),    // Pink - operators
-            normal: Color::Rgb(163, 136, 186),    // Default text color
+            normal: Color::Rgb(240, 240, 235),    // Off-white/beige like Claude Code
             bracket: Color::Rgb(156, 163, 175),   // Gray - brackets
         }
     }
@@ -347,7 +347,8 @@ mod tests {
             "```"
         ].join("\n"));
         
-        assert_eq!(lines.len(), 5); // ``` + 3 code lines + ```
+        // Expected: ``` + fn main() { + let x = 42; + println!("Hello"); + } + ``` = 6 lines
+        assert_eq!(lines.len(), 6);
     }
     
     #[test]

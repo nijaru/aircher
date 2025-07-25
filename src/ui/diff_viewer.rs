@@ -128,7 +128,7 @@ impl DiffViewer {
         let current_diff = &self.diffs[self.current_diff_index];
 
         // Create layout
-        let chunks = Layout::default()
+        let _chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![
                 Constraint::Length(3), // Header

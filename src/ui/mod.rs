@@ -75,6 +75,7 @@ pub mod slash_commands;
 pub mod typeahead;
 pub mod model_selection;
 pub mod syntax_highlight;
+pub mod spinners;
 
 use auth_wizard::AuthWizard;
 use selection::SelectionModal;
@@ -87,39 +88,40 @@ use model_selection::ModelSelectionOverlay;
 use diff_viewer::{DiffViewer, generate_diff};
 use slash_commands::{parse_slash_command, format_help};
 use syntax_highlight::SyntaxHighlighter;
+use spinners::{BRAILLE_SPINNER, THINKING_SPINNER, STAR_PULSE, GROWING_PILLAR};
 
 /// Fun streaming messages for different states
 const HUSTLING_MESSAGES: &[&str] = &[
-    "Launching arrows",
-    "Aiming at target",
-    "Drawing the bow", 
-    "Notching arrow",
+    "Drawing bow",
+    "Nocking arrow",
     "Taking aim",
-    "Pulling bowstring",
-    "Charging up",
+    "Sighting target",
+    "Focusing shot",
     "Preparing volley",
+    "Loading quiver",
+    "Positioning stance",
 ];
 
 const SCHLEPPING_MESSAGES: &[&str] = &[
-    "Fletching arrows",
-    "Sharpening tools",
-    "Crafting arrows",
-    "Working the forge",
-    "Hammering away",
-    "Building tools",
-    "Tinkering around",
-    "Assembling gear",
+    "Calculating trajectory",
+    "Analyzing wind patterns",
+    "Processing target data",
+    "Computing ballistics",
+    "Evaluating conditions",
+    "Strategizing approach",
+    "Calibrating sights",
+    "Adjusting for distance",
 ];
 
 const STREAMING_MESSAGES: &[&str] = &[
-    "Arrows in flight",
-    "Hitting targets",
-    "Bullseye incoming",
-    "Arrows landing",
-    "Finding the mark",
-    "Direct hit",
-    "On target",
-    "Precision shot",
+    "Receiving data",
+    "Collecting responses",
+    "Gathering results",
+    "Retrieving content",
+    "Capturing output",
+    "Assembling reply",
+    "Downloading stream",
+    "Acquiring tokens",
 ];
 
 pub struct TuiManager {
@@ -168,13 +170,13 @@ pub struct TuiManager {
     should_quit: bool,
     // Streaming state
     streaming_state: StreamingState,
-    streaming_spinners: Vec<&'static str>,
     // Ctrl+C handling
     last_ctrl_c_time: Option<Instant>,
     // UI modes (affect next message sent)
     auto_accept_edits: bool,
     plan_mode: bool,
     turbo_mode: bool,
+    turbo_mode_start: Option<Instant>,
     // Message history
     message_history: Vec<String>,
     history_index: Option<usize>,
@@ -282,9 +284,6 @@ impl TuiManager {
         
         info!("TUI Manager initialized with auth_required: {}", auth_required);
         
-        // Initialize permissions manager
-        let permissions_manager = crate::permissions::PermissionsManager::new()?;
-        
         Ok(Self {
             config: config.clone(),
             provider_name,
@@ -319,6 +318,8 @@ impl TuiManager {
                 if let Some(ref providers) = providers {
                     // Update provider availability while keeping auth manager
                     overlay.update_provider_availability(providers.as_ref());
+                    // IMPORTANT: Update dynamic models from providers (especially for Ollama)
+                    overlay.update_dynamic_models(providers.as_ref());
                 }
                 overlay
             },
@@ -343,14 +344,13 @@ impl TuiManager {
             should_quit: false,
             // Initialize streaming state
             streaming_state: StreamingState::Idle,
-            // Using various circle/dot symbols that grow and shrink
-            streaming_spinners: vec!["·", "•", "●", "•", "·", "•", "●", "○"], // Growing/shrinking dots
             // Initialize Ctrl+C handling
             last_ctrl_c_time: None,
             // Initialize UI modes (session-based, reset on restart)
             auto_accept_edits: false,
             plan_mode: false,
             turbo_mode: false,
+            turbo_mode_start: None,
             message_history: Vec::new(),
             history_index: None,
             recent_app_error: None,
@@ -460,6 +460,8 @@ impl TuiManager {
             model_selection_overlay: {
                 let mut overlay = ModelSelectionOverlay::with_auth_manager(config, auth_manager.clone());
                 overlay.update_provider_availability(providers);
+                // IMPORTANT: Update dynamic models from providers (especially for Ollama)
+                overlay.update_dynamic_models(providers);
                 overlay
             },
             session_browser: SessionBrowser::new(),
@@ -483,14 +485,13 @@ impl TuiManager {
             should_quit: false,
             // Initialize streaming state
             streaming_state: StreamingState::Idle,
-            // Using various circle/dot symbols that grow and shrink
-            streaming_spinners: vec!["·", "•", "●", "•", "·", "•", "●", "○"], // Growing/shrinking dots
             // Initialize Ctrl+C handling
             last_ctrl_c_time: None,
             // Initialize UI modes (session-based, reset on restart)
             auto_accept_edits: false,
             plan_mode: false,
             turbo_mode: false,
+            turbo_mode_start: None,
             message_history: Vec::new(),
             history_index: None,
             recent_app_error: None,
@@ -668,6 +669,10 @@ impl TuiManager {
                                     self.selection_modal.toggle();
                                 }
                             }
+                            KeyCode::BackTab => {
+                                // BackTab (Shift+Tab) cycles modes
+                                self.cycle_modes();
+                            }
                             KeyCode::Enter => {
                                 // Check if Alt+Enter or Shift+Enter was pressed for newline
                                 if key.modifiers.contains(KeyModifiers::ALT) || key.modifiers.contains(KeyModifiers::SHIFT) {
@@ -677,8 +682,20 @@ impl TuiManager {
                                 } else if self.autocomplete.is_visible() {
                                     // Accept autocomplete suggestion
                                     if let Some(completion) = self.autocomplete.accept_suggestion() {
-                                        self.input = completion.clone();
-                                        self.cursor_position = self.input.len();
+                                        // Handle @ file completions differently
+                                        if self.input.contains('@') {
+                                            // Find the @ position to replace from
+                                            if let Some(at_pos) = self.input.rfind('@') {
+                                                // Replace everything after @ with the completion
+                                                self.input.truncate(at_pos + 1);
+                                                self.input.push_str(&completion);
+                                                self.cursor_position = self.input.len();
+                                            }
+                                        } else {
+                                            // Normal slash command completion
+                                            self.input = completion.clone();
+                                            self.cursor_position = self.input.len();
+                                        }
                                         
                                         // If it's a complete slash command, execute it immediately
                                         if let Some((command, args)) = parse_slash_command(&completion) {
@@ -849,14 +866,28 @@ impl TuiManager {
                                                 }
                                             }
                                             "/turbo" => {
-                                                // Enable turbo mode directly
-                                                self.auto_accept_edits = false;
-                                                self.plan_mode = false;
-                                                self.turbo_mode = true;
-                                                self.add_message(Message::new(
-                                                    MessageRole::System,
-                                                    "🚀 Turbo mode activated! I'll autonomously execute complex tasks with full file permissions.".to_string(),
-                                                ));
+                                                // Toggle turbo mode
+                                                if self.turbo_mode {
+                                                    // Turn off turbo mode, return to default
+                                                    self.turbo_mode = false;
+                                                    self.turbo_mode_start = None;
+                                                    self.auto_accept_edits = false;
+                                                    self.plan_mode = false;
+                                                    self.add_message(Message::new(
+                                                        MessageRole::System,
+                                                        "Default mode restored. Will prompt for approval before making changes.".to_string(),
+                                                    ));
+                                                } else {
+                                                    // Enable turbo mode
+                                                    self.auto_accept_edits = false;
+                                                    self.plan_mode = false;
+                                                    self.turbo_mode = true;
+                                                    self.turbo_mode_start = Some(Instant::now());
+                                                    self.add_message(Message::new(
+                                                        MessageRole::System,
+                                                        "🚀 Turbo mode activated! I'll autonomously execute complex tasks with full file permissions.".to_string(),
+                                                    ));
+                                                }
                                             }
                                             "/quit" => {
                                                 self.should_quit = true;
@@ -906,6 +937,10 @@ impl TuiManager {
                                     self.autocomplete.show();
                                 }
                             }
+                            KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Ctrl+L to jump to bottom (like terminal clear)
+                                self.scroll_offset = 0;
+                            }
                             KeyCode::Char(c) => {
                                 // Insert character at cursor position
                                 self.input.insert(self.cursor_position, c);
@@ -918,7 +953,18 @@ impl TuiManager {
                                 self.history_index = None;
                                 
                                 // Generate autocomplete suggestions
-                                let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
+                                use std::fs::OpenOptions;
+                                use std::io::Write;
+                                let mut file = OpenOptions::new().create(true).append(true).open("/tmp/autocomplete_debug.log").unwrap();
+                                writeln!(file, "DEBUG: Typed '{}', input now: '{}'", c, self.input).unwrap();
+                                
+                                let _result = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
+                                writeln!(file, "DEBUG: Autocomplete visible: {}, suggestions: {}", 
+                                         self.autocomplete.is_visible(), self.autocomplete.suggestions.len()).unwrap();
+                                if !self.autocomplete.suggestions.is_empty() {
+                                    writeln!(file, "DEBUG: Suggestions: {:?}", 
+                                             self.autocomplete.suggestions.iter().map(|s| &s.completion).collect::<Vec<_>>()).unwrap();
+                                }
                             }
                             KeyCode::Backspace => {
                                 if self.cursor_position > 0 {
@@ -979,13 +1025,15 @@ impl TuiManager {
                             KeyCode::Left => {
                                 if self.cursor_position > 0 {
                                     self.cursor_position -= 1;
-                                    self.autocomplete.hide();
+                                    // Re-generate suggestions at new cursor position
+                                    let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
                                 }
                             }
                             KeyCode::Right => {
                                 if self.cursor_position < self.input.len() {
                                     self.cursor_position += 1;
-                                    self.autocomplete.hide();
+                                    // Re-generate suggestions at new cursor position
+                                    let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
                                 }
                             }
                             KeyCode::Esc => {
@@ -1014,10 +1062,6 @@ impl TuiManager {
                             }
                             KeyCode::End => {
                                 // Jump to bottom
-                                self.scroll_offset = 0;
-                            }
-                            KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                                // Ctrl+L to jump to bottom (like terminal clear)
                                 self.scroll_offset = 0;
                             }
                             _ => {}
@@ -1179,25 +1223,6 @@ impl TuiManager {
         // Status line is always at index 4
         self.draw_status_bar(f, chunks[4]);
 
-        // Render autocomplete suggestions safely
-        if self.autocomplete.is_visible() {
-            // Calculate the actual text input area for proper positioning
-            let input_height = self.calculate_input_height(f.area().height);
-            let input_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(input_height),
-                    Constraint::Length(1), // Bottom info line
-                ])
-                .split(chunks[3]);
-            
-            // Get the inner area of the input box (excluding borders)
-            let input_block = Block::default().borders(Borders::ALL);
-            let text_input_area = input_block.inner(input_chunks[0]);
-            
-            self.autocomplete.render(f, text_input_area);
-        }
-
         // Render modals (on top of everything)
         self.selection_modal.render(f, f.area());
         self.settings_modal.render(f, f.area());
@@ -1207,6 +1232,24 @@ impl TuiManager {
         self.diff_viewer.render(f, f.area());
         self.command_approval.render(f, f.area());
         self.auth_wizard.render(f, f.area());
+
+        // Render autocomplete suggestions (on top of modals)
+        if self.autocomplete.is_visible() {
+            // Calculate where the input box is for proper positioning
+            let screen_height = f.area().height;
+            let input_area_height = self.calculate_input_height(screen_height) + 1;
+            let input_y_position = screen_height - input_area_height - 1; // -1 for status bar
+            
+            // Create a rect representing the input area position
+            let input_area = Rect {
+                x: 1,
+                y: input_y_position,
+                width: f.area().width - 2,
+                height: input_area_height,
+            };
+            
+            self.autocomplete.render(f, input_area);
+        }
     }
 
     fn draw_welcome_box(&self, f: &mut Frame, area: Rect) {
@@ -1255,43 +1298,54 @@ impl TuiManager {
     
 
     fn draw_chat_area(&self, f: &mut Frame, area: Rect) {
-        let mut messages: Vec<ListItem> = self
-            .messages
-            .iter()
-            .flat_map(|msg| {
-                match msg.role {
-                    MessageRole::User => {
-                        // Simple user message with prefix
-                        let style = Style::default().fg(Color::Rgb(163, 136, 186));
-                        vec![ListItem::new(Line::from(vec![
-                            Span::styled("> ", style),
-                            Span::styled(&msg.content, style),
-                        ]))]
-                    },
-                    MessageRole::Assistant => {
-                        // Use syntax highlighting for assistant messages
-                        let highlighted_lines = self.syntax_highlighter.highlight_message(&msg.content);
-                        highlighted_lines.into_iter().map(ListItem::new).collect()
-                    },
-                    MessageRole::System => {
-                        // Simple system message with prefix
-                        let style = Style::default().fg(Color::Rgb(163, 136, 186));
-                        vec![ListItem::new(Line::from(vec![
-                            Span::styled("ℹ ", style),
-                            Span::styled(&msg.content, style),
-                        ]))]
-                    },
-                    MessageRole::Tool => {
-                        // Simple tool message with prefix
-                        let style = Style::default().fg(Color::Rgb(163, 136, 186));
-                        vec![ListItem::new(Line::from(vec![
-                            Span::styled("🔧 ", style),
-                            Span::styled(&msg.content, style),
-                        ]))]
-                    },
-                }
-            })
-            .collect();
+        let mut messages: Vec<ListItem> = Vec::new();
+        
+        for (i, msg) in self.messages.iter().enumerate() {
+            // Add subtle spacing before each message (except the first)
+            if i > 0 {
+                messages.push(ListItem::new(Line::from("")));
+            }
+            
+            // Add message content with role-specific styling and indentation
+            let mut message_lines = match msg.role {
+                MessageRole::User => {
+                    // User messages: Comment-colored like Claude Code
+                    let comment_color = Style::default().fg(Color::Rgb(107, 114, 128)); // Comment gray like Claude Code
+                    vec![ListItem::new(Line::from(vec![
+                        Span::styled("  > ", comment_color), // Slight indentation
+                        Span::styled(&msg.content, comment_color),
+                    ]))]
+                },
+                MessageRole::Assistant => {
+                    // Assistant messages: Regular font colors with syntax highlighting (like Claude Code)
+                    let highlighted_lines = self.syntax_highlighter.highlight_message(&msg.content);
+                    highlighted_lines.into_iter().map(|line| {
+                        // Add subtle left indentation to create visual separation
+                        let mut spans = vec![Span::styled("  ", Style::default())]; // 2-space indent
+                        spans.extend(line.spans);
+                        ListItem::new(Line::from(spans))
+                    }).collect()
+                },
+                MessageRole::System => {
+                    // System messages: Comment-colored like thinking/system messages in Claude Code
+                    let comment_color = Style::default().fg(Color::Rgb(107, 114, 128)); // Same as user messages
+                    vec![ListItem::new(Line::from(vec![
+                        Span::styled("    ℹ ", comment_color), // More indentation for system messages
+                        Span::styled(&msg.content, comment_color.add_modifier(Modifier::ITALIC)),
+                    ]))]
+                },
+                MessageRole::Tool => {
+                    // Tool messages: Regular font colors like LLM messages, not comment colored
+                    let tool_color = Style::default().fg(Color::Rgb(240, 240, 235)); // Off-white like assistant messages
+                    vec![ListItem::new(Line::from(vec![
+                        Span::styled("    🔧 ", tool_color), // More indentation for tool messages
+                        Span::styled(&msg.content, tool_color),
+                    ]))]
+                },
+            };
+            
+            messages.append(&mut message_lines);
+        }
 
         // Add queued messages with ">" prefix to show they're waiting
         for queued_msg in &self.message_queue {
@@ -1478,26 +1532,51 @@ impl TuiManager {
             .split(area);
 
         // Left side: dynamic status based on conversation state and modes
-        let shortcuts = if self.autocomplete.is_visible() {
-            "↑↓ navigate • Enter accept • Esc cancel".to_string()
+        let shortcuts_line = if self.autocomplete.is_visible() {
+            Line::from(Span::styled(
+                "↑↓ navigate • Enter accept • Esc cancel",
+                Style::default().fg(Color::Rgb(107, 114, 128)) // Comment gray
+            ))
         } else if self.messages.is_empty() {
             // Show help discovery when chat is empty
-            "? for shortcuts".to_string()
+            Line::from(Span::styled(
+                "? for shortcuts",
+                Style::default().fg(Color::Rgb(107, 114, 128)) // Comment gray
+            ))
         } else {
-            // Show current mode during conversation (like Claude Code)
+            // Show current mode during conversation with colors
             if self.turbo_mode {
-                "🚀 turbo mode on (shift+tab to cycle)".to_string()
+                let elapsed_ms = if let Some(start) = self.turbo_mode_start {
+                    start.elapsed().as_millis()
+                } else {
+                    0
+                };
+                let spinner_frame = GROWING_PILLAR.get_frame(elapsed_ms);
+                Line::from(vec![
+                    Span::styled(format!("{} ", spinner_frame), Style::default().fg(Color::Red)), // Animated pillar
+                    Span::styled("🚀 turbo mode on", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                    Span::styled(" (shift+tab to cycle)", Style::default().fg(Color::Rgb(107, 114, 128)))
+                ])
             } else if self.plan_mode {
-                "⏸ plan mode on (shift+tab to cycle)".to_string()
+                Line::from(vec![
+                    Span::styled("⏸ ", Style::default().fg(Color::Cyan)), // Turquoise for plan
+                    Span::styled("plan mode on", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                    Span::styled(" (shift+tab to cycle)", Style::default().fg(Color::Rgb(107, 114, 128)))
+                ])
             } else if self.auto_accept_edits {
-                "⏵⏵ auto-accept edits on (shift+tab to cycle)".to_string()
+                Line::from(vec![
+                    Span::styled("⏵⏵ ", Style::default().fg(Color::Magenta)), // Purple for auto-accept
+                    Span::styled("auto-accept edits on", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+                    Span::styled(" (shift+tab to cycle)", Style::default().fg(Color::Rgb(107, 114, 128)))
+                ])
             } else {
-                // Default mode - could show nothing or current state
-                "shift+tab to cycle modes".to_string()
+                // Default mode
+                Line::from(Span::styled(
+                    "shift+tab to cycle modes",
+                    Style::default().fg(Color::Rgb(107, 114, 128)) // Comment gray
+                ))
             }
         };
-        
-        // Don't modify shortcuts here - we'll show error in the right section
         
         // Add left padding to shortcuts like Claude Code
         let padded_shortcuts_area = Rect {
@@ -1507,8 +1586,7 @@ impl TuiManager {
             height: chunks[0].height,
         };
         
-        let shortcuts_text = Paragraph::new(shortcuts)
-            .style(Style::default().fg(Color::Rgb(107, 114, 128))) // Comment gray
+        let shortcuts_text = Paragraph::new(shortcuts_line)
             .alignment(Alignment::Left);
         f.render_widget(shortcuts_text, padded_shortcuts_area);
 
@@ -1637,6 +1715,15 @@ impl TuiManager {
                     return Ok(true);
                 }
                 KeyCode::Enter => {
+                    // First check if the current provider is authenticated
+                    if !self.model_selection_overlay.is_current_provider_authenticated() {
+                        // Provider is not authenticated, show auth wizard
+                        self.model_selection_overlay.hide();
+                        // Mark that auth setup should be shown - handle async operations outside modal handler
+                        self.show_auth_setup = true;
+                        return Ok(false); // Let the main event loop handle the async auth operations
+                    }
+                    
                     if let Some((provider, model)) = self.model_selection_overlay.get_selected() {
                         let old_provider = self.provider_name.clone();
                         let old_model = self.model.clone();
@@ -1749,7 +1836,7 @@ impl TuiManager {
                     return Ok(true);
                 }
                 KeyCode::Enter => {
-                    if let Some(session) = self.session_browser.get_selected() {
+                    if let Some(_session) = self.session_browser.get_selected() {
                         // Load the selected session
                         // Note: Would need to handle session loading asynchronously
                         // For now, just switch the session browser state
@@ -3069,8 +3156,11 @@ function farewell(name) {
 
     /// Handle auth setup events
     async fn handle_auth_setup_events(&mut self, key: ratatui::crossterm::event::KeyEvent) -> Result<bool> {
-        // Skip auth setup screen immediately
-        self.show_auth_setup = false;
+        // If show_auth_setup is true but auth wizard is not visible, show it
+        if !self.auth_wizard.is_visible() {
+            self.auth_wizard.show(&self.config, &self.auth_manager).await;
+            self.show_auth_setup = false;
+        }
         
         // Allow Ctrl+C to quit (single press since no input to clear in auth screen)
         if matches!(key.code, KeyCode::Char('c')) && key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -3183,25 +3273,6 @@ function farewell(name) {
         // Status bar
         self.draw_status_bar(f, chunks[3]);
 
-        // Render autocomplete suggestions
-        if self.autocomplete.is_visible() {
-            // Calculate the actual text input area for proper positioning
-            let input_height = self.calculate_input_height(f.area().height);
-            let input_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(input_height),
-                    Constraint::Length(1), // Bottom info line
-                ])
-                .split(chunks[2]);
-            
-            // Get the inner area of the input box (excluding borders)
-            let input_block = Block::default().borders(Borders::ALL);
-            let text_input_area = input_block.inner(input_chunks[0]);
-            
-            self.autocomplete.render(f, text_input_area);
-        }
-
         // Render modals
         self.selection_modal.render(f, f.area());
         self.settings_modal.render(f, f.area());
@@ -3209,6 +3280,9 @@ function farewell(name) {
         self.model_selection_overlay.render(f, f.area());
         self.session_browser.render(f, f.area());
         self.diff_viewer.render(f, f.area());
+
+        // Note: Autocomplete rendering is handled in the main draw method above
+        // to ensure proper z-order (on top of modals)
     }
 
     /// Handle AI message sending with proper borrowing
@@ -3274,47 +3348,39 @@ function farewell(name) {
         match &self.streaming_state {
             StreamingState::Idle => None,
             StreamingState::Hustling { start_time, tokens_sent } => {
-                let elapsed = start_time.elapsed().as_secs();
-                let spinner = self.get_spinner_symbol(start_time);
-                // Pick a random message based on time
-                let msg_index = (elapsed as usize / 3) % HUSTLING_MESSAGES.len();
+                let elapsed = start_time.elapsed();
+                let spinner = BRAILLE_SPINNER.get_frame(elapsed.as_millis());
+                // Pick a message based on time
+                let msg_index = (elapsed.as_secs() as usize / 3) % HUSTLING_MESSAGES.len();
                 let message = HUSTLING_MESSAGES[msg_index];
                 Some(format!(
                     "{} {}… ({}s · ↑ {}k tokens · esc to interrupt)",
-                    spinner, message, elapsed, (*tokens_sent as f32 / 1000.0).max(0.1)
+                    spinner, message, elapsed.as_secs(), (*tokens_sent as f32 / 1000.0).max(0.1)
                 ))
             }
             StreamingState::Schlepping { start_time, tokens_used } => {
-                let elapsed = start_time.elapsed().as_secs();
-                let spinner = self.get_spinner_symbol(start_time);
-                // Pick a random message based on time
-                let msg_index = (elapsed as usize / 3) % SCHLEPPING_MESSAGES.len();
+                let elapsed = start_time.elapsed();
+                let spinner = THINKING_SPINNER.get_frame(elapsed.as_millis());
+                // Pick a message based on time
+                let msg_index = (elapsed.as_secs() as usize / 3) % SCHLEPPING_MESSAGES.len();
                 let message = SCHLEPPING_MESSAGES[msg_index];
                 Some(format!(
                     "{} {}… ({}s · ⚒ {}k tokens · esc to interrupt)",
-                    spinner, message, elapsed, (*tokens_used as f32 / 1000.0).max(0.1)
+                    spinner, message, elapsed.as_secs(), (*tokens_used as f32 / 1000.0).max(0.1)
                 ))
             }
             StreamingState::Streaming { start_time, tokens_received } => {
-                let elapsed = start_time.elapsed().as_secs();
-                let spinner = self.get_spinner_symbol(start_time);
-                // Pick a random message based on time
-                let msg_index = (elapsed as usize / 3) % STREAMING_MESSAGES.len();
+                let elapsed = start_time.elapsed();
+                let spinner = STAR_PULSE.get_frame(elapsed.as_millis());
+                // Pick a message based on time
+                let msg_index = (elapsed.as_secs() as usize / 3) % STREAMING_MESSAGES.len();
                 let message = STREAMING_MESSAGES[msg_index];
                 Some(format!(
                     "{} {}… ({}s · ↓ {}k tokens · esc to interrupt)",
-                    spinner, message, elapsed, (*tokens_received as f32 / 1000.0).max(0.1)
+                    spinner, message, elapsed.as_secs(), (*tokens_received as f32 / 1000.0).max(0.1)
                 ))
             }
         }
-    }
-    
-    /// Get current spinner symbol based on elapsed time
-    fn get_spinner_symbol(&self, start_time: &Instant) -> &str {
-        let elapsed = start_time.elapsed();
-        let cycle_duration = Duration::from_millis(100); // Faster rotation for smooth animation
-        let symbol_index = (elapsed.as_millis() / cycle_duration.as_millis()) as usize % self.streaming_spinners.len();
-        self.streaming_spinners[symbol_index]
     }
 
     /// Refresh providers after successful authentication
@@ -3334,6 +3400,8 @@ function farewell(name) {
             // Create model selection overlay with auth manager and update with auth status
             self.model_selection_overlay = ModelSelectionOverlay::with_auth_manager(&self.config, self.auth_manager.clone());
             self.model_selection_overlay.update_items_with_auth(&self.config).await;
+            // IMPORTANT: Update dynamic models from providers (especially for Ollama)
+            self.model_selection_overlay.update_dynamic_models(providers.as_ref());
         }
         
         // Add success message
@@ -3369,6 +3437,7 @@ function farewell(name) {
             (true, false, false) => {
                 self.auto_accept_edits = false;
                 self.turbo_mode = true;
+                self.turbo_mode_start = Some(Instant::now());
                 self.add_message(Message::new(
                     MessageRole::System,
                     "🚀 Turbo mode enabled. Will autonomously execute complex tasks with full permissions.".to_string(),
@@ -3379,6 +3448,7 @@ function farewell(name) {
                 self.auto_accept_edits = false;
                 self.plan_mode = false;
                 self.turbo_mode = false;
+                self.turbo_mode_start = None;
                 self.add_message(Message::new(
                     MessageRole::System,
                     "Default mode. Will prompt for approval before making changes.".to_string(),

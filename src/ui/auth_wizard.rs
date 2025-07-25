@@ -233,12 +233,12 @@ impl AuthWizard {
             });
         }
 
-        // Sort providers: unauthenticated first, then by name
+        // Sort providers: authenticated first, then unauthenticated, alphabetical within each group
         providers.sort_by(|a, b| {
             match (&a.auth_status, &b.auth_status) {
                 (AuthStatus::Authenticated, AuthStatus::Authenticated) => a.name.cmp(&b.name),
-                (AuthStatus::Authenticated, _) => std::cmp::Ordering::Greater,
-                (_, AuthStatus::Authenticated) => std::cmp::Ordering::Less,
+                (AuthStatus::Authenticated, _) => std::cmp::Ordering::Less,
+                (_, AuthStatus::Authenticated) => std::cmp::Ordering::Greater,
                 _ => a.name.cmp(&b.name),
             }
         });
@@ -252,7 +252,7 @@ impl AuthWizard {
             "claude" => "Anthropic Claude".to_string(),
             "openai" => "OpenAI".to_string(),
             "gemini" => "Google Gemini".to_string(),
-            "ollama" => "Ollama (Local)".to_string(),
+            "ollama" => "Ollama".to_string(),
             "openrouter" => "OpenRouter".to_string(),
             _ => provider.to_string(),
         }
@@ -272,11 +272,26 @@ impl AuthWizard {
     fn get_auth_status_icon(&self, status: &AuthStatus) -> &'static str {
         match status {
             AuthStatus::Authenticated => "✓",
-            AuthStatus::NotConfigured => "○",
+            AuthStatus::NotConfigured => "✗",
             AuthStatus::Invalid => "✗",
             AuthStatus::Expired => "⚠",
             AuthStatus::RateLimited => "⚠",
             AuthStatus::NetworkError => "⚠",
+        }
+    }
+    
+    fn get_auth_status_icon_for_provider(&self, provider: &ProviderInfo) -> &'static str {
+        // Special handling for local providers (like Ollama)
+        if provider.name == "ollama" {
+            match provider.auth_status {
+                AuthStatus::Authenticated => "⚡", // Local provider available
+                AuthStatus::NetworkError => "✗", // Local provider not found
+                _ => self.get_auth_status_icon(&provider.auth_status),
+            }
+        } else if !provider.needs_auth && matches!(provider.auth_status, AuthStatus::Authenticated) {
+            "⚡" // Other local providers
+        } else {
+            self.get_auth_status_icon(&provider.auth_status)
         }
     }
 
@@ -342,7 +357,7 @@ impl AuthWizard {
             .iter()
             .enumerate()
             .map(|(i, provider)| {
-                let icon = self.get_auth_status_icon(&provider.auth_status);
+                let icon = self.get_auth_status_icon_for_provider(provider);
                 let color = self.get_auth_status_color(&provider.auth_status);
                 
                 let status_text = if provider.needs_auth {

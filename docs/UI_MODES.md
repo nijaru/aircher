@@ -13,27 +13,39 @@ Aircher implements a sophisticated mode system similar to Claude Code, providing
 - **Safety**: Highest - every change requires explicit approval
 
 ### ⏵⏵ Auto-Accept Edits Mode  
-- **Status**: `⏵⏵ auto-accept edits on (shift+tab to cycle)`
-- **Behavior**: Applies file changes automatically without prompting
-- **Use case**: Rapid development, trusted AI changes, batch operations
-- **Safety**: Medium - changes applied immediately but logged
+- **Status**: `⏵⏵ auto-accept edits on (shift+tab to cycle)` in purple color
+- **Behavior**: Applies individual file changes automatically without prompting each edit
+- **Scope**: Single-response automation - still requires user input for next steps
+- **Use case**: Rapid development, trusted AI changes, removing edit approval friction
+- **Safety**: Medium - changes applied immediately but logged, user controls flow
+
+### 🚀 Turbo Mode
+- **Status**: `▇ 🚀 turbo mode on (shift+tab to cycle)` in red color with animated spinner
+- **Behavior**: Autonomous task completion with minimal human intervention
+- **Scope**: Multi-step automation - continues working until task completion
+- **Use case**: Complex refactoring, automated debugging, end-to-end feature implementation
+- **Safety**: Lower - AI drives the entire workflow with minimal checkpoints
+- **Toggle**: `/turbo` command toggles turbo mode on/off
 
 ### ⏸ Plan Mode
-- **Status**: `⏸ plan mode on (shift+tab to cycle)`
+- **Status**: `⏸ plan mode on (shift+tab to cycle)` in cyan color
 - **Behavior**: Creates detailed execution plans before making any changes
 - **Use case**: Complex refactoring, architecture changes, learning
 - **Safety**: Highest - see full plan before any execution
 
-## Mode Cycling
+## Mode Control
 
 ### Shift+Tab Sequence
 ```
-Default → Auto-Accept → Plan Mode → Default (cycles)
+Default → Plan Mode → Auto-Accept → Turbo Mode → Default (cycles)
 ```
+
+All modes are accessible through the single shift+tab cycling interface for consistency.
 
 ### Activation Messages
 - **Auto-accept enabled**: "⏵⏵ Auto-accept edits enabled. File changes will be applied automatically."
 - **Plan mode enabled**: "⏸ Plan mode enabled. Will create plans before making changes."  
+- **Turbo mode enabled**: "🚀 Turbo mode enabled. AI will work autonomously until task completion."
 - **Default mode**: "Default mode. Will prompt for approval before making changes."
 
 ## Status Bar Evolution
@@ -59,6 +71,15 @@ shift+tab to cycle modes                 claude-sonnet-4 (anthropic) 85%
 ⏸ plan mode on (shift+tab to cycle)                   claude-sonnet-4 (anthropic) 85%
 ```
 
+### During Conversation - Turbo Mode (Any Edit Mode)
+```
+🚀 turbo mode on • ⏵⏵ auto-accept edits (/turbo to toggle)      claude-sonnet-4 (anthropic) 85%
+```
+
+```
+🚀 turbo mode on • ⏸ plan mode (/turbo to toggle)               claude-sonnet-4 (anthropic) 85%
+```
+
 ## Mode Behaviors
 
 ### Default Mode
@@ -81,7 +102,8 @@ AI: "Fixed authentication bug in auth.rs (line 45)"
 ### Plan Mode
 ```bash
 User: "Refactor the authentication system"
-AI: "Creating execution plan..."
+AI: "✻ Thinking…
+     I'm in plan mode, so I need to assess...and create a plan...without executing any changes."
 AI: "## Authentication Refactor Plan
      1. Extract AuthService interface
      2. Implement JWT validation  
@@ -92,6 +114,60 @@ AI: "## Authentication Refactor Plan
 User: "y"
 AI: "Executing plan step 1..."
 ```
+
+### Turbo Mode (Autonomous Operation)
+```bash
+User: "Fix all the TypeScript errors in the project"
+AI: "🚀 Turbo mode: Starting autonomous error fixing..."
+AI: "Found 15 TypeScript errors across 8 files. Beginning fixes..."
+AI: "✓ Fixed import errors in auth.ts"
+AI: "✓ Added type annotations in user.ts"  
+AI: "✓ Resolved interface conflicts in api.ts"
+AI: "◦ Running type check... ✓ 12 errors remaining"
+AI: "✓ Fixed generic type constraints in utils.ts"
+AI: "◦ Running type check... ✓ 3 errors remaining"
+AI: "✓ Updated deprecated types in components.ts"
+AI: "◦ Running final type check... ✓ All errors resolved!"
+AI: "🚀 Task completed: Fixed all 15 TypeScript errors across 8 files"
+```
+
+## Technical Implementation
+
+### Plan Mode System Message Injection
+Plan mode works by injecting system messages that modify Claude's behavior:
+
+1. **Mode Detection**: The TUI detects when plan mode is active
+2. **System Message**: Adds context like "You are in plan mode" to the conversation
+3. **Behavior Override**: Claude recognizes this and switches from "execute" to "plan" mode
+4. **Thinking Transparency**: The thinking process shows the mode awareness: `"I'm in plan mode, so I need to assess...and create a plan...without executing any changes"`
+5. **Structured Output**: Claude generates proper project plans with phases, time estimates, and approval modals
+
+### Key Technical Insights
+- **Seamless mode switching**: Claude immediately recognizes context changes mid-conversation
+- **Behavioral adaptation**: Changes from execution to planning without losing context
+- **Structured planning**: Generates comprehensive plans with realistic time estimates
+- **User control**: Plan approval system gives users control over AI execution
+- **Transparent reasoning**: Thinking section shows the mode transition process
+
+### Plan Mode Output Format
+```
+✻ Thinking… [Shows mode awareness and planning process]
+
+⏺ [Analysis of current state and improvement opportunities]
+
+╭─────────────────────────────────────────────────────────╮
+│ Ready to code?                                          │
+│ Here is Claude's plan:                                  │
+│ ╭─────────────────────────────────────────────────────╮ │
+│ │ [Structured plan with phases and time estimates]   │ │
+│ ╰─────────────────────────────────────────────────────╯ │
+│ ❯ 1. Yes, and auto-accept edits                        │
+│   2. Yes, and manually approve edits                   │
+│   3. No, keep planning                                  │
+╰─────────────────────────────────────────────────────────╯
+```
+
+This approach enables controllable AI interactions that feel natural while providing transparency and user control.
 
 ## Integration with Agent System
 
@@ -169,6 +245,45 @@ AI: "Executing plan step 1..."
 - **IDE integration**: Sync modes with editor state
 - **Team workflows**: Shared mode configurations
 - **CI/CD integration**: Mode-based automation triggers
+
+## Authentication Flow
+
+### Overview
+Aircher provides a seamless authentication flow directly within the TUI, prioritizing authenticated providers and enabling quick setup for new providers.
+
+### Provider Selection
+When using `/model` command:
+- **Authenticated providers appear first** with ✓ icon
+- **Local providers** (like Ollama) show ⚡ icon when available
+- **Unauthenticated providers** show ✗ icon and appear after authenticated ones
+- **Selecting an unauthenticated provider** automatically triggers the auth wizard
+
+### Authentication Status Icons
+- **✓** - Authenticated (API key configured and valid)
+- **✗** - Not authenticated or service unavailable
+- **⚡** - Local provider (no authentication needed)
+
+### Ollama Integration
+- Automatically checks if Ollama service is running
+- Shows as unavailable (✗) if service not found
+- Moves to unauthenticated list when not accessible
+- No "(Local)" suffix for cleaner display
+
+### Message Formatting
+
+#### Claude Code Style
+Aircher matches Claude Code's message formatting for improved readability:
+
+- **User messages**: Comment-colored (gray) with "> " prefix
+- **System messages**: Comment-colored (gray) for status updates
+- **Assistant messages**: Off-white/beige color for better contrast
+- **Thinking messages**: Comment-colored with "✻" indicator
+- **Tool use**: Highlighted with special formatting
+
+#### Message Spacing
+- Empty lines between messages for visual separation
+- Role-specific indentation (2 spaces for content)
+- Consistent styling across all message types
 
 ## Message History Navigation
 

@@ -105,15 +105,53 @@ impl AuthManager {
 
         // Check if API key is needed
         if provider_config.api_key_env.is_empty() {
-            // Local providers like Ollama don't need API keys
-            return ProviderAuthInfo {
-                provider: provider.to_string(),
-                status: AuthStatus::Authenticated,
-                masked_key: None,
-                last_validated: Some(chrono::Utc::now()),
-                error_message: None,
-                usage_info: None,
-            };
+            // Empty api_key_env could be local (Ollama) or OAuth (anthropic-pro)
+            if provider == "ollama" {
+                // Local providers like Ollama need to be checked for availability
+                match self.check_ollama_availability().await {
+                    Ok(true) => {
+                        return ProviderAuthInfo {
+                            provider: provider.to_string(),
+                            status: AuthStatus::Authenticated,
+                            masked_key: None,
+                            last_validated: Some(chrono::Utc::now()),
+                            error_message: None,
+                            usage_info: None,
+                        };
+                    }
+                    Ok(false) => {
+                        return ProviderAuthInfo {
+                            provider: provider.to_string(),
+                            status: AuthStatus::NetworkError,
+                            masked_key: None,
+                            last_validated: None,
+                            error_message: Some("Ollama service not found or not running".to_string()),
+                            usage_info: None,
+                        };
+                    }
+                    Err(e) => {
+                        return ProviderAuthInfo {
+                            provider: provider.to_string(),
+                            status: AuthStatus::NetworkError,
+                            masked_key: None,
+                            last_validated: None,
+                            error_message: Some(format!("Failed to check Ollama: {}", e)),
+                            usage_info: None,
+                        };
+                    }
+                }
+            } else {
+                // OAuth providers like anthropic-pro need separate authentication
+                // For now, return NotConfigured - future OAuth implementation will handle this
+                return ProviderAuthInfo {
+                    provider: provider.to_string(),
+                    status: AuthStatus::NotConfigured,
+                    masked_key: None,
+                    last_validated: None,
+                    error_message: Some("OAuth authentication not implemented yet".to_string()),
+                    usage_info: None,
+                };
+            }
         }
 
         // Try to get API key from environment or storage
@@ -338,6 +376,26 @@ impl AuthManager {
             "No providers configured".to_string()
         } else {
             summary_lines.join("\n")
+        }
+    }
+
+    /// Check if Ollama is available by trying to connect to it
+    async fn check_ollama_availability(&self) -> Result<bool> {
+        // Simple HTTP request to Ollama's version endpoint
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()?;
+            
+        let url = "http://localhost:11434/api/version";
+        
+        match client.get(url).send().await {
+            Ok(response) => {
+                Ok(response.status().is_success())
+            }
+            Err(e) => {
+                debug!("Ollama health check failed: {}", e);
+                Ok(false)
+            }
         }
     }
 }

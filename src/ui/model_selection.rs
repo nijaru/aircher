@@ -37,6 +37,8 @@ pub struct ModelSelectionOverlay {
     models_fetched_for: Option<String>, // Track which provider we've fetched models for
     model_update_rx: Option<mpsc::UnboundedReceiver<ModelUpdate>>,
     model_update_tx: mpsc::UnboundedSender<ModelUpdate>,
+    // Track last selected model for each provider
+    last_selected_models: HashMap<String, String>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -84,6 +86,7 @@ impl ModelSelectionOverlay {
             models_fetched_for: None,
             model_update_rx: Some(model_update_rx),
             model_update_tx,
+            last_selected_models: HashMap::new(),
         };
 
         overlay.update_items(config);
@@ -114,14 +117,40 @@ impl ModelSelectionOverlay {
         // For now, use the old method when no auth manager is available
         // This will be updated to be async when we refactor the callers
         if self.auth_manager.is_none() {
-            let provider_items: Vec<TypeaheadItem> = config.providers.keys()
-                .map(|name| TypeaheadItem {
-                    label: format_provider_name_with_status_legacy(name, config),
+            let mut provider_legacy_items: Vec<_> = config.providers
+                .iter()
+                .map(|(name, provider_config)| {
+                    let (is_local, is_authenticated) = if provider_config.api_key_env.is_empty() {
+                        // Empty api_key_env could be local (Ollama) or OAuth (anthropic-pro)
+                        if name == "ollama" {
+                            (true, true) // Local provider - always available
+                        } else {
+                            (false, false) // OAuth provider - not authenticated by default
+                        }
+                    } else {
+                        (false, std::env::var(&provider_config.api_key_env).is_ok()) // Remote provider - check auth
+                    };
+                    (name.clone(), is_local, is_authenticated, provider_config)
+                })
+                .collect();
+                
+            // Sort providers: authenticated (including local) first, then unauthenticated, alphabetical within each group
+            provider_legacy_items.sort_by(|(name_a, _, auth_a, _), (name_b, _, auth_b, _)| {
+                match (auth_a, auth_b) {
+                    (true, true) => name_a.cmp(name_b),
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    (false, false) => name_a.cmp(name_b),
+                }
+            });
+            
+            let provider_items: Vec<TypeaheadItem> = provider_legacy_items
+                .into_iter()
+                .map(|(name, _is_local, is_authenticated, _provider_config)| TypeaheadItem {
+                    label: format_provider_name_with_status_legacy(&name, config),
                     value: name.clone(),
-                    description: Some(format_provider_description_with_auth_legacy(name, config)),
-                    available: config.providers.get(name)
-                        .map(|p| p.api_key_env.is_empty() || std::env::var(&p.api_key_env).is_ok())
-                        .unwrap_or(false),
+                    description: Some(format_provider_description_with_auth_legacy(&name, config)),
+                    available: is_authenticated,
                 })
                 .collect();
 
@@ -140,14 +169,40 @@ impl ModelSelectionOverlay {
     }
 
     fn update_items_legacy(&mut self, config: &ConfigManager) {
-        let provider_items: Vec<TypeaheadItem> = config.providers.keys()
-            .map(|name| TypeaheadItem {
-                label: format_provider_name_with_status_legacy(name, config),
+        let mut provider_legacy_items: Vec<_> = config.providers
+            .iter()
+            .map(|(name, provider_config)| {
+                let (is_local, is_authenticated) = if provider_config.api_key_env.is_empty() {
+                    // Empty api_key_env could be local (Ollama) or OAuth (anthropic-pro)
+                    if name == "ollama" {
+                        (true, true) // Local provider - always available
+                    } else {
+                        (false, false) // OAuth provider - not authenticated by default
+                    }
+                } else {
+                    (false, std::env::var(&provider_config.api_key_env).is_ok()) // Remote provider - check auth
+                };
+                (name.clone(), is_local, is_authenticated, provider_config)
+            })
+            .collect();
+            
+        // Sort providers: authenticated (including local) first, then unauthenticated, alphabetical within each group
+        provider_legacy_items.sort_by(|(name_a, _, auth_a, _), (name_b, _, auth_b, _)| {
+            match (auth_a, auth_b) {
+                (true, true) => name_a.cmp(name_b),
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                (false, false) => name_a.cmp(name_b),
+            }
+        });
+        
+        let provider_items: Vec<TypeaheadItem> = provider_legacy_items
+            .into_iter()
+            .map(|(name, _is_local, is_authenticated, _provider_config)| TypeaheadItem {
+                label: format_provider_name_with_status_legacy(&name, config),
                 value: name.clone(),
-                description: Some(format_provider_description_with_auth_legacy(name, config)),
-                available: config.providers.get(name)
-                    .map(|p| p.api_key_env.is_empty() || std::env::var(&p.api_key_env).is_ok())
-                    .unwrap_or(false),
+                description: Some(format_provider_description_with_auth_legacy(&name, config)),
+                available: is_authenticated,
             })
             .collect();
 
@@ -163,25 +218,41 @@ impl ModelSelectionOverlay {
         if let Some(auth_manager) = &self.auth_manager {
             let auth_statuses = auth_manager.get_all_provider_statuses(config).await;
             
-            let provider_items: Vec<TypeaheadItem> = config.providers.keys()
-                .map(|name| {
+            let mut provider_items: Vec<_> = config.providers
+                .iter()
+                .map(|(name, provider_config)| {
                     let auth_status = auth_statuses.get(name)
                         .map(|info| &info.status)
                         .unwrap_or(&AuthStatus::NotConfigured);
                     
+                    (name.clone(), auth_status.clone(), provider_config)
+                })
+                .collect();
+                
+            // Sort providers: authenticated first, then unauthenticated, alphabetical within each group
+            provider_items.sort_by(|(name_a, auth_a, _), (name_b, auth_b, _)| {
+                match (auth_a, auth_b) {
+                    (AuthStatus::Authenticated, AuthStatus::Authenticated) => name_a.cmp(name_b),
+                    (AuthStatus::Authenticated, _) => std::cmp::Ordering::Less,
+                    (_, AuthStatus::Authenticated) => std::cmp::Ordering::Greater,
+                    _ => name_a.cmp(name_b),
+                }
+            });
+            
+            let provider_typeahead_items: Vec<TypeaheadItem> = provider_items
+                .into_iter()
+                .map(|(name, auth_status, provider_config)| {
                     TypeaheadItem {
-                        label: format_provider_name_with_auth_status(name, auth_status),
+                        label: format_provider_name_with_auth_status(&name, &auth_status),
                         value: name.clone(),
-                        description: Some(format_provider_description_with_auth_status(name, auth_status, config)),
+                        description: Some(format_provider_description_with_auth_status(&name, &auth_status, config)),
                         available: matches!(auth_status, AuthStatus::Authenticated) || 
-                                 config.providers.get(name)
-                                     .map(|p| p.api_key_env.is_empty())
-                                     .unwrap_or(false),
+                                 provider_config.api_key_env.is_empty(),
                     }
                 })
                 .collect();
 
-            self.provider_typeahead.set_items(provider_items);
+            self.provider_typeahead.set_items(provider_typeahead_items);
             self.provider_typeahead.set_current_value(Some(self.current_provider.clone()));
             self.update_provider_description();
 
@@ -341,12 +412,6 @@ impl ModelSelectionOverlay {
         }
     }
     
-    fn is_current_provider_authenticated(&self) -> bool {
-        self.provider_typeahead.items.iter()
-            .find(|item| item.value == self.current_provider)
-            .map(|item| item.available)
-            .unwrap_or(false)
-    }
 
     fn fetch_models_for_provider(&mut self, provider_name: &str) {
         // Don't fetch if already fetching or no provider manager
@@ -581,6 +646,8 @@ impl ModelSelectionOverlay {
                     if item.value == "_no_auth" {
                         None
                     } else {
+                        // Track the last selected model for this provider
+                        self.last_selected_models.insert(self.current_provider.clone(), item.value.clone());
                         Some((self.current_provider.clone(), item.value.clone()))
                     }
                 } else {
@@ -594,11 +661,35 @@ impl ModelSelectionOverlay {
                     self.current_provider = provider_name.clone();
                     self.fetch_models_for_provider(&provider_name);
                     self.switch_mode();
+                    
+                    // After switching to model mode, restore last selected model for this provider
+                    self.restore_last_selected_model();
+                    
                     None // Don't return selection yet, let user pick model
                 } else {
                     None
                 }
             }
+        }
+    }
+    
+    /// Check if the currently selected provider is authenticated
+    pub fn is_current_provider_authenticated(&self) -> bool {
+        self.provider_typeahead.items.iter()
+            .find(|item| item.value == self.current_provider)
+            .map(|item| item.available)
+            .unwrap_or(false)
+    }
+    
+    /// Get the current provider name (for auth setup)
+    pub fn get_current_provider(&self) -> &str {
+        &self.current_provider
+    }
+
+    fn restore_last_selected_model(&mut self) {
+        if let Some(last_model) = self.last_selected_models.get(&self.current_provider).cloned() {
+            // Set the current value to the last selected model for this provider
+            self.model_typeahead.set_current_value(Some(last_model));
         }
     }
 
@@ -616,7 +707,7 @@ fn format_provider_name(provider: &str) -> String {
         "anthropic-pro" => "Anthropic Claude Pro/Max".to_string(),
         "google-gemini" => "Google Gemini API".to_string(),
         "google-vertex" => "Google Vertex AI".to_string(),
-        "ollama" => "Ollama (Local)".to_string(),
+        "ollama" => "Ollama".to_string(),
         "openai" => "OpenAI".to_string(),
         "openrouter" => "OpenRouter".to_string(),
         _ => provider.to_string(),
@@ -641,8 +732,21 @@ fn format_provider_description_with_auth_legacy(provider: &str, config: &ConfigM
 
 fn format_provider_name_with_auth_status(provider: &str, auth_status: &AuthStatus) -> String {
     let base_name = format_provider_name(provider);
-    let status_icon = get_auth_status_icon(auth_status);
+    let status_icon = get_auth_status_icon_for_provider(provider, auth_status);
     format!("{} {}", status_icon, base_name)
+}
+
+fn get_auth_status_icon_for_provider(provider: &str, auth_status: &AuthStatus) -> &'static str {
+    // Special handling for local providers
+    if provider == "ollama" {
+        match auth_status {
+            AuthStatus::Authenticated => "⚡", // Local provider available
+            AuthStatus::NetworkError => "✗", // Local provider not found
+            _ => get_auth_status_icon(auth_status),
+        }
+    } else {
+        get_auth_status_icon(auth_status)
+    }
 }
 
 fn format_provider_description_with_auth_status(provider: &str, auth_status: &AuthStatus, config: &ConfigManager) -> String {
@@ -658,11 +762,16 @@ fn format_provider_description_with_auth_status(provider: &str, auth_status: &Au
 fn get_provider_auth_status_icon_legacy(provider: &str, config: &ConfigManager) -> &'static str {
     if let Some(provider_config) = config.get_provider(provider) {
         if provider_config.api_key_env.is_empty() {
-            "⚡" // Local provider (no auth needed)
+            // Empty api_key_env could be local (Ollama) or OAuth (anthropic-pro)
+            if provider == "ollama" {
+                "⚡" // Local provider (no auth needed)
+            } else {
+                "✗" // OAuth provider - not authenticated by default
+            }
         } else if std::env::var(&provider_config.api_key_env).is_ok() {
             "✓" // Authenticated
         } else {
-            "❌" // Needs setup
+            "✗" // Needs setup
         }
     } else {
         "○" // Not configured
@@ -672,7 +781,12 @@ fn get_provider_auth_status_icon_legacy(provider: &str, config: &ConfigManager) 
 fn get_provider_auth_description_legacy(provider: &str, config: &ConfigManager) -> String {
     if let Some(provider_config) = config.get_provider(provider) {
         if provider_config.api_key_env.is_empty() {
-            "local (no auth needed)".to_string()
+            // Empty api_key_env could be local (Ollama) or OAuth (anthropic-pro)
+            if provider == "ollama" {
+                "local (no auth needed)".to_string()
+            } else {
+                "needs setup".to_string() // OAuth provider - not authenticated by default
+            }
         } else if std::env::var(&provider_config.api_key_env).is_ok() {
             "authenticated".to_string()
         } else {
@@ -686,8 +800,8 @@ fn get_provider_auth_description_legacy(provider: &str, config: &ConfigManager) 
 fn get_auth_status_icon(auth_status: &AuthStatus) -> &'static str {
     match auth_status {
         AuthStatus::Authenticated => "✓",
-        AuthStatus::NotConfigured => "○",
-        AuthStatus::Invalid => "❌",
+        AuthStatus::NotConfigured => "✗",
+        AuthStatus::Invalid => "✗",
         AuthStatus::Expired => "⚠",
         AuthStatus::RateLimited => "⚠",
         AuthStatus::NetworkError => "⚠",
@@ -701,7 +815,7 @@ fn get_auth_status_description(auth_status: &AuthStatus) -> &'static str {
         AuthStatus::Invalid => "invalid key",
         AuthStatus::Expired => "expired key",
         AuthStatus::RateLimited => "rate limited",
-        AuthStatus::NetworkError => "network error",
+        AuthStatus::NetworkError => "not found",
     }
 }
 
