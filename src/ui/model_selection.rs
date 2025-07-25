@@ -259,11 +259,27 @@ impl ModelSelectionOverlay {
         
         // Add regular models
         model_items.extend(models.into_iter()
-            .map(|model| TypeaheadItem {
-                label: model.name.clone(),
-                value: model.name.clone(),
-                description: format_model_description(&model),
-                available: true, // Models are available if provider is configured
+            .enumerate()
+            .map(|(idx, model)| {
+                // Format label with visual indicators
+                let mut label = model.name.clone();
+                
+                // Mark the first model as default with a star
+                if idx == 0 {
+                    label = format!("⭐ {}", label);
+                }
+                
+                // Add visual size indicator for very large models
+                if model.context_window >= 1_000_000 {
+                    label = format!("{} 🧠", label); // Brain for large context
+                }
+                
+                TypeaheadItem {
+                    label,
+                    value: model.name.clone(),
+                    description: format_model_description(&model),
+                    available: true, // Models are available if provider is configured
+                }
             }));
 
         self.model_typeahead.set_items(model_items);
@@ -592,13 +608,40 @@ fn format_provider_description(provider: &str) -> String {
 fn format_model_description(model: &ModelConfig) -> Option<String> {
     let mut parts = Vec::new();
     
+    // Context window with better formatting
     if model.context_window > 0 {
-        parts.push(format!("{}k context", model.context_window / 1000));
+        let context_str = if model.context_window >= 1_000_000 {
+            format!("{}M", model.context_window / 1_000_000)
+        } else {
+            format!("{}k", model.context_window / 1000)
+        };
+        parts.push(format!("{} ctx", context_str));
     }
     
-    // Add pricing info if available (non-zero)
+    // Pricing with smart formatting
     if model.input_cost_per_1m > 0.0 || model.output_cost_per_1m > 0.0 {
-        parts.push(format!("${:.4}/${:.4} per 1M", model.input_cost_per_1m, model.output_cost_per_1m));
+        if model.input_cost_per_1m == model.output_cost_per_1m {
+            // Same price for input/output
+            parts.push(format!("${:.2}/1M", model.input_cost_per_1m));
+        } else {
+            // Different prices - show compact format
+            parts.push(format!("${:.2}⇄${:.2}", model.input_cost_per_1m, model.output_cost_per_1m));
+        }
+    } else {
+        parts.push("Free".to_string());
+    }
+    
+    // Capability indicators
+    let mut capabilities = Vec::new();
+    if model.supports_tools {
+        capabilities.push("🔧"); // Tools/Functions
+    }
+    if model.supports_streaming {
+        capabilities.push("⚡"); // Streaming
+    }
+    
+    if !capabilities.is_empty() {
+        parts.push(capabilities.join(""));
     }
     
     if !parts.is_empty() {
