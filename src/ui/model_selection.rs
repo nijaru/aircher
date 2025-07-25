@@ -253,14 +253,26 @@ impl ModelSelectionOverlay {
                         .map(|info| &info.status)
                         .unwrap_or(&AuthStatus::NotConfigured);
                     
+                    debug!("Provider '{}' auth status: {:?}", name, auth_status);
+                    
                     (name.clone(), auth_status.clone(), provider_config)
                 })
                 .collect();
                 
-            // Sort providers: authenticated first, then unauthenticated, alphabetical within each group
+            // Sort providers: authenticated first, then unauthenticated
+            // Within authenticated, prefer Ollama first, then alphabetical
             provider_items.sort_by(|(name_a, auth_a, _), (name_b, auth_b, _)| {
                 match (auth_a, auth_b) {
-                    (AuthStatus::Authenticated, AuthStatus::Authenticated) => name_a.cmp(name_b),
+                    (AuthStatus::Authenticated, AuthStatus::Authenticated) => {
+                        // Both authenticated - prefer Ollama first
+                        if name_a == "ollama" && name_b != "ollama" {
+                            std::cmp::Ordering::Less
+                        } else if name_a != "ollama" && name_b == "ollama" {
+                            std::cmp::Ordering::Greater
+                        } else {
+                            name_a.cmp(name_b)
+                        }
+                    },
                     (AuthStatus::Authenticated, _) => std::cmp::Ordering::Less,
                     (_, AuthStatus::Authenticated) => std::cmp::Ordering::Greater,
                     _ => name_a.cmp(name_b),

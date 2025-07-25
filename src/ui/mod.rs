@@ -2828,11 +2828,11 @@ function farewell(name) {
     
     /// Show model selection overlay with proper auth status checking
     async fn show_model_selection_with_auth_check(&mut self) {
-        // First show the overlay with temporary status
-        self.model_selection_overlay.show();
-        
-        // Then update with real auth status
+        // Update with real auth status first before showing
         self.model_selection_overlay.initialize_auth_status(&self.config).await;
+        
+        // Then show the overlay with correct status
+        self.model_selection_overlay.show();
     }
     
     /// Handle /search command for semantic code search with optional filters

@@ -223,9 +223,9 @@ impl TypeaheadOverlay {
         let items: Vec<ListItem> = self.filtered_items.iter().enumerate().map(|(i, item)| {
             let mut spans = vec![];
             
-            // Add checkmark for current value
-            if self.current_value.as_ref().map_or(false, |cv| cv == &item.value) {
-                spans.push(Span::styled("✓ ", Style::default().fg(Color::Green)));
+            // Add selection indicator for currently selected item (not current value)
+            if i == self.selected_index {
+                spans.push(Span::styled("▶ ", Style::default().fg(Color::Cyan)));
             } else {
                 spans.push(Span::raw("  "));
             }
