@@ -4,6 +4,7 @@ use ratatui::{
 };
 use std::collections::HashMap;
 use tokio::sync::mpsc;
+use tracing::debug;
 
 use crate::config::{ConfigManager, ModelConfig};
 use crate::providers::ProviderManager;
