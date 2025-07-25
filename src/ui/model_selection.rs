@@ -413,56 +413,62 @@ impl ModelSelectionOverlay {
 
     /// Process any pending model updates from the async channel
     pub fn process_model_updates(&mut self) {
+        // Collect updates first to avoid borrowing issues
+        let mut updates = Vec::new();
         if let Some(rx) = &mut self.model_update_rx {
-            // Process all pending updates
             while let Ok(update) = rx.try_recv() {
-                match update {
-                    ModelUpdate::ModelsReceived { provider, models } => {
-                        // Only process if this is for the current fetch
-                        if self.models_fetched_for.as_ref() == Some(&provider) {
-                            self.fetching_models = false;
-                            
-                            // Convert to ModelConfig format
-                            let model_configs: Vec<ModelConfig> = models.into_iter()
-                                .map(|name| {
-                                    // Try to find existing config, otherwise create default
-                                    self.provider_models.get(&provider)
-                                        .and_then(|configs| configs.iter().find(|c| c.name == name))
-                                        .cloned()
-                                        .unwrap_or_else(|| ModelConfig {
-                                            name: name.clone(),
-                                            context_window: 128000, // Default context
-                                            input_cost_per_1m: 0.0,
-                                            output_cost_per_1m: 0.0,
-                                            supports_streaming: true,
-                                            supports_tools: false,
-                                        })
-                                })
-                                .collect();
-                            
-                            // Update provider models with fetched data
-                            self.provider_models.insert(provider.clone(), model_configs);
-                            
-                            // Refresh model items if this is still the current provider
-                            if self.current_provider == provider {
-                                self.update_model_items();
-                            }
+                updates.push(update);
+            }
+        }
+        
+        // Process collected updates
+        for update in updates {
+            match update {
+                ModelUpdate::ModelsReceived { provider, models } => {
+                    // Only process if this is for the current fetch
+                    if self.models_fetched_for.as_ref() == Some(&provider) {
+                        self.fetching_models = false;
+                        
+                        // Convert to ModelConfig format
+                        let model_configs: Vec<ModelConfig> = models.into_iter()
+                            .map(|name| {
+                                // Try to find existing config, otherwise create default
+                                self.provider_models.get(&provider)
+                                    .and_then(|configs| configs.iter().find(|c| c.name == name))
+                                    .cloned()
+                                    .unwrap_or_else(|| ModelConfig {
+                                        name: name.clone(),
+                                        context_window: 128000, // Default context
+                                        input_cost_per_1m: 0.0,
+                                        output_cost_per_1m: 0.0,
+                                        supports_streaming: true,
+                                        supports_tools: false,
+                                    })
+                            })
+                            .collect();
+                        
+                        // Update provider models with fetched data
+                        self.provider_models.insert(provider.clone(), model_configs);
+                        
+                        // Refresh model items if this is still the current provider
+                        if self.current_provider == provider {
+                            self.update_model_items();
                         }
                     }
-                    ModelUpdate::ModelsFetchError { provider, error } => {
-                        if self.models_fetched_for.as_ref() == Some(&provider) {
-                            self.fetching_models = false;
-                            
-                            // Show error state
-                            let error_item = TypeaheadItem {
-                                label: "Failed to load models".to_string(),
-                                value: "_error".to_string(),
-                                description: Some(format!("Error: {}", error)),
-                                available: false,
-                            };
-                            self.model_typeahead.set_items(vec![error_item]);
-                            self.update_model_description();
-                        }
+                }
+                ModelUpdate::ModelsFetchError { provider, error } => {
+                    if self.models_fetched_for.as_ref() == Some(&provider) {
+                        self.fetching_models = false;
+                        
+                        // Show error state
+                        let error_item = TypeaheadItem {
+                            label: "Failed to load models".to_string(),
+                            value: "_error".to_string(),
+                            description: Some(format!("Error: {}", error)),
+                            available: false,
+                        };
+                        self.model_typeahead.set_items(vec![error_item]);
+                        self.update_model_description();
                     }
                 }
             }
