@@ -11,7 +11,7 @@ use ratatui::{
 
 /// Zed-style predictive autocomplete for TUI chat interface
 pub struct AutocompleteEngine {
-    suggestions: Vec<Suggestion>,
+    pub suggestions: Vec<Suggestion>,
     selected_index: usize,
     is_visible: bool,
     common_patterns: HashMap<String, Vec<String>>,
@@ -135,6 +135,28 @@ impl AutocompleteEngine {
             let current_word = self.get_current_word(input, safe_cursor_position);
             debug!("Current word extracted: '{}'", current_word);
             self.add_command_suggestions(&current_word);
+            
+            // Sort slash command suggestions by confidence too!
+            self.suggestions.sort_by(|a, b| {
+                // First compare by confidence (b.confidence vs a.confidence for descending order)
+                let conf_cmp = b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal);
+                if conf_cmp != std::cmp::Ordering::Equal {
+                    return conf_cmp;
+                }
+                
+                // If confidence is equal, prefer shorter commands (they're usually more common)
+                let len_cmp = a.completion.len().cmp(&b.completion.len());
+                if len_cmp != std::cmp::Ordering::Equal {
+                    return len_cmp;
+                }
+                
+                // If length is equal, sort alphabetically
+                a.completion.cmp(&b.completion)
+            });
+            
+            // Limit to top 8 suggestions
+            self.suggestions.truncate(8);
+            
             self.is_visible = !self.suggestions.is_empty();
             debug!("Generated {} slash command suggestions, visible: {}", self.suggestions.len(), self.is_visible);
             debug!("Suggestions: {:?}", self.suggestions.iter().map(|s| &s.completion).collect::<Vec<_>>());
@@ -156,10 +178,29 @@ impl AutocompleteEngine {
         self.add_recent_command_suggestions(&current_word);
         self.add_contextual_suggestions(input);
         
-        // Sort suggestions by confidence (handle NaN values safely)
+        // Sort suggestions by confidence first (highest to lowest), then by length, then alphabetically
         self.suggestions.sort_by(|a, b| {
-            b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal)
+            // First compare by confidence (b.confidence vs a.confidence for descending order)
+            let conf_cmp = b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal);
+            if conf_cmp != std::cmp::Ordering::Equal {
+                return conf_cmp;
+            }
+            
+            // If confidence is equal, prefer shorter commands (they're usually more common)
+            let len_cmp = a.completion.len().cmp(&b.completion.len());
+            if len_cmp != std::cmp::Ordering::Equal {
+                return len_cmp;
+            }
+            
+            // If length is equal, sort alphabetically
+            a.completion.cmp(&b.completion)
         });
+        
+        // Debug log the sorted suggestions
+        debug!("After sorting, suggestions:");
+        for (i, sug) in self.suggestions.iter().enumerate() {
+            debug!("  {}: {} (confidence: {:.2})", i, sug.completion, sug.confidence);
+        }
         
         // Limit to top 8 suggestions for UI
         self.suggestions.truncate(8);
@@ -212,27 +253,35 @@ impl AutocompleteEngine {
                 // Check multiple matching strategies
                 let exact_match = cmd.command.starts_with(current_word);
                 let case_insensitive_match = cmd.command.to_lowercase().starts_with(&search_term);
-                let alias_match = cmd.aliases.iter().any(|alias| 
-                    alias.starts_with(current_word) || alias.to_lowercase().starts_with(&search_term)
-                );
+                let alias_match = cmd.aliases.iter().any(|alias| {
+                    let exact_alias = alias == &current_word;
+                    let starts_alias = alias.starts_with(current_word);
+                    let case_alias = alias.to_lowercase().starts_with(&search_term);
+                    exact_alias || starts_alias || case_alias
+                });
+                
+                // For fuzzy matching, don't match if we already have exact/case-insensitive/alias matches
+                let should_check_fuzzy = !exact_match && !case_insensitive_match && !alias_match;
                 
                 // Fuzzy matching: check if all chars in search term appear in order in command
-                let fuzzy_match = if search_term.len() > 1 {
-                    let mut search_chars = search_term.chars().skip(1); // Skip the '/'
-                    let mut current_char = search_chars.next();
-                    let cmd_lower = cmd.command.to_lowercase();
-                    
-                    for cmd_char in cmd_lower.chars().skip(1) { // Skip the '/'
-                        if let Some(sc) = current_char {
-                            if cmd_char == sc {
-                                current_char = search_chars.next();
-                                if current_char.is_none() {
+                let fuzzy_match = if should_check_fuzzy && search_term.len() > 1 {
+                    let search_chars_vec: Vec<char> = search_term.chars().skip(1).collect(); // Skip the '/'
+                    if search_chars_vec.is_empty() {
+                        false
+                    } else {
+                        let cmd_chars: Vec<char> = cmd.command.to_lowercase().chars().skip(1).collect(); // Skip the '/'
+                        let mut search_idx = 0;
+                        
+                        for cmd_char in cmd_chars {
+                            if search_idx < search_chars_vec.len() && cmd_char == search_chars_vec[search_idx] {
+                                search_idx += 1;
+                                if search_idx == search_chars_vec.len() {
                                     break; // Found all characters
                                 }
                             }
                         }
+                        search_idx == search_chars_vec.len() // All characters were found
                     }
-                    current_char.is_none() // All characters were found
                 } else {
                     false
                 };
@@ -243,13 +292,32 @@ impl AutocompleteEngine {
                     cmd.command, current_word, exact_match, case_insensitive_match, alias_match, fuzzy_match, matches);
                 
                 if matches {
-                    // Calculate confidence based on match type
+                    // Calculate confidence based on match type and position
                     let confidence = if exact_match {
                         1.0
-                    } else if case_insensitive_match || alias_match {
-                        0.95
+                    } else if case_insensitive_match {
+                        // Prioritize commands that start with the search term
+                        if cmd.command.to_lowercase().starts_with(&search_term) {
+                            0.95
+                        } else {
+                            0.7 // Lower confidence for non-prefix matches
+                        }
+                    } else if alias_match {
+                        // Exact alias match should have very high confidence
+                        if cmd.aliases.iter().any(|alias| alias == &current_word) {
+                            1.0  // Exact alias match
+                        } else {
+                            0.9  // Prefix alias match
+                        }
                     } else {
-                        0.8 // Fuzzy match
+                        // Fuzzy match - give lower confidence
+                        // But boost if it's a prefix match
+                        if cmd.command.to_lowercase().starts_with(&search_term) {
+                            0.85
+                        } else {
+                            // Even lower for fuzzy matches that aren't prefix matches
+                            0.5
+                        }
                     };
                     
                     self.suggestions.push(Suggestion {
@@ -663,5 +731,60 @@ mod tests {
         
         engine.hide();
         assert!(!engine.is_visible);
+    }
+    
+    #[test]
+    fn test_fuzzy_matching_prioritization() {
+        let mut engine = AutocompleteEngine::new();
+        
+        // Test /m - should show /model first
+        engine.generate_suggestions("/m", 2).unwrap();
+        assert!(!engine.suggestions.is_empty());
+        println!("/m suggestions: {:?}", engine.suggestions.iter().map(|s| &s.completion).collect::<Vec<_>>());
+        
+        // Test /mo - should show /model
+        engine.generate_suggestions("/mo", 3).unwrap();
+        assert!(!engine.suggestions.is_empty());
+        assert!(engine.suggestions.iter().any(|s| s.completion == "/model"));
+        println!("/mo suggestions: {:?}", engine.suggestions.iter().map(|s| &s.completion).collect::<Vec<_>>());
+        
+        // Test /c - should show /clear and /config before /search
+        engine.generate_suggestions("/c", 2).unwrap();
+        assert!(!engine.suggestions.is_empty());
+        
+        // Debug: show order before collecting
+        println!("Raw suggestions order:");
+        for (i, sug) in engine.suggestions.iter().enumerate() {
+            println!("  {}: {} (conf: {:.2})", i, sug.completion, sug.confidence);
+        }
+        
+        let c_suggestions: Vec<_> = engine.suggestions.iter()
+            .map(|s| format!("{} (conf: {:.2})", s.completion, s.confidence))
+            .collect();
+        println!("/c suggestions with confidence: {:?}", c_suggestions);
+        
+        let c_completions: Vec<_> = engine.suggestions.iter().map(|s| s.completion.clone()).collect();
+        
+        // /clear and /config should come before /search
+        let clear_pos = c_completions.iter().position(|s| s == "/clear");
+        let config_pos = c_completions.iter().position(|s| s == "/config");
+        let search_pos = c_completions.iter().position(|s| s == "/search");
+        
+        if let (Some(search), Some(clear)) = (search_pos, clear_pos) {
+            assert!(clear < search, "/clear should come before /search");
+        }
+        if let (Some(search), Some(config)) = (search_pos, config_pos) {
+            assert!(config < search, "/config should come before /search");
+        }
+        
+        // Test /cl - should show /clear
+        engine.generate_suggestions("/cl", 3).unwrap();
+        assert!(engine.suggestions.iter().any(|s| s.completion == "/clear"));
+        println!("/cl suggestions: {:?}", engine.suggestions.iter().map(|s| &s.completion).collect::<Vec<_>>());
+        
+        // Test /co - should show /config
+        engine.generate_suggestions("/co", 3).unwrap();
+        assert!(engine.suggestions.iter().any(|s| s.completion == "/config"));
+        println!("/co suggestions: {:?}", engine.suggestions.iter().map(|s| &s.completion).collect::<Vec<_>>());
     }
 }
