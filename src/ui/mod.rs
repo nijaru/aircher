@@ -703,7 +703,7 @@ impl TuiManager {
                                                 "/model" => {
                                                     self.input.clear();
                                                     self.cursor_position = 0;
-                                                    self.model_selection_overlay.show();
+                                                    self.show_model_selection_with_auth_check().await;
                                                 }
                                                 "/search" => {
                                                     self.input.clear();
@@ -790,7 +790,7 @@ impl TuiManager {
                                     else if let Some((command, args)) = parse_slash_command(&message) {
                                         match command {
                                             "/model" => {
-                                                self.model_selection_overlay.show();
+                                                self.show_model_selection_with_auth_check().await;
                                             }
                                             "/search" => {
                                                 if !args.is_empty() {
@@ -2824,6 +2824,15 @@ function farewell(name) {
         ));
         
         self.diff_viewer.show_diff(diff);
+    }
+    
+    /// Show model selection overlay with proper auth status checking
+    async fn show_model_selection_with_auth_check(&mut self) {
+        // First show the overlay with temporary status
+        self.model_selection_overlay.show();
+        
+        // Then update with real auth status
+        self.model_selection_overlay.initialize_auth_status(&self.config).await;
     }
     
     /// Handle /search command for semantic code search with optional filters

@@ -238,10 +238,7 @@ impl TypeaheadOverlay {
             };
             spans.push(Span::styled(&item.label, label_style));
             
-            // Add availability indicator
-            if !item.available {
-                spans.push(Span::styled(" (no API key)", Style::default().fg(Color::Yellow)));
-            }
+            // Note: Availability status is already shown in the label with icons
             
             // Add description if present
             if let Some(desc) = &item.description {

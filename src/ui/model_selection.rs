@@ -114,8 +114,15 @@ impl ModelSelectionOverlay {
     }
 
     fn update_items(&mut self, config: &ConfigManager) {
-        // For now, use the old method when no auth manager is available
-        // This will be updated to be async when we refactor the callers
+        // Use async auth checking if auth manager is available
+        if self.auth_manager.is_some() {
+            // We can't make this async directly, but we can schedule the async update
+            // For initial display, show providers with temporary status
+            self.update_items_with_temp_status(config);
+            return;
+        }
+        
+        // Fall back to legacy method when no auth manager is available
         if self.auth_manager.is_none() {
             let mut provider_legacy_items: Vec<_> = config.providers
                 .iter()
@@ -163,9 +170,30 @@ impl ModelSelectionOverlay {
             return;
         }
 
-        // Schedule async update - for now we'll use the legacy method as fallback
-        // TODO: Make this properly async
-        self.update_items_legacy(config);
+    }
+    
+    fn update_items_with_temp_status(&mut self, config: &ConfigManager) {
+        // Show all providers with "checking..." status initially
+        let mut provider_items: Vec<_> = config.providers
+            .keys()
+            .map(|name| {
+                TypeaheadItem {
+                    label: format!("◦ {} (checking...)", format_provider_name(name)),
+                    value: name.clone(),
+                    description: Some("Verifying authentication status...".to_string()),
+                    available: false, // Temporarily unavailable until checked
+                }
+            })
+            .collect();
+            
+        // Sort alphabetically for initial display
+        provider_items.sort_by(|a, b| a.value.cmp(&b.value));
+        
+        self.provider_typeahead.set_items(provider_items);
+        self.provider_typeahead.set_current_value(Some(self.current_provider.clone()));
+        self.update_provider_description();
+        
+        // Note: The actual auth status will be updated when the parent calls initialize_auth_status()
     }
 
     fn update_items_legacy(&mut self, config: &ConfigManager) {
@@ -241,13 +269,12 @@ impl ModelSelectionOverlay {
             
             let provider_typeahead_items: Vec<TypeaheadItem> = provider_items
                 .into_iter()
-                .map(|(name, auth_status, provider_config)| {
+                .map(|(name, auth_status, _provider_config)| {
                     TypeaheadItem {
                         label: format_provider_name_with_auth_status(&name, &auth_status),
                         value: name.clone(),
                         description: Some(format_provider_description_with_auth_status(&name, &auth_status, config)),
-                        available: matches!(auth_status, AuthStatus::Authenticated) || 
-                                 provider_config.api_key_env.is_empty(),
+                        available: matches!(auth_status, AuthStatus::Authenticated),
                     }
                 })
                 .collect();
