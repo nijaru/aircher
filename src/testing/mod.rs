@@ -79,6 +79,10 @@ impl LLMProvider for MockProvider {
     async fn get_usage_info(&self) -> Result<Option<crate::providers::UsageInfo>> { Ok(None) }
     fn usage_warning_threshold(&self) -> Option<f64> { None }
     async fn health_check(&self) -> Result<bool> { Ok(true) }
+    async fn list_available_models(&self) -> Result<Vec<String>> { 
+        Ok(vec!["mock-model-1".to_string(), "mock-model-2".to_string()])
+    }
+    fn as_any(&self) -> &dyn std::any::Any { self }
 }
 
 /// Mock Intelligence Tools for testing

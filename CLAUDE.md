@@ -127,13 +127,31 @@ Real-time model discovery from provider APIs for always-current model lists:
    - **OpenAI**: `/v1/models` API with intelligent filtering and sorting
    - **Anthropic**: Config-based (no public models API yet)
    - **Gemini**: Config-based with planned API integration
-   - **Ollama**: Dynamic local model discovery via existing `/api/tags`
+   - **Ollama**: Dynamic local model discovery via `/api/tags` (fixed parsing)
    - **OpenRouter**: Gateway models API for full catalog
 
 4. **UX optimizations**:
    - Loading states with clear "Loading models..." feedback
    - No duplicate fetches per provider per session
    - Models prioritized by recency/capability
+
+### Enhanced Model Selection UX (Implemented)
+
+Rich metadata display for informed model selection:
+
+1. **Smart formatting**:
+   - Context window: `200k ctx`, `2M ctx` (auto-scales units)
+   - Pricing: `$3.00⇄$15.00` (input⇄output), `Free` for local models
+   - Capabilities: 🔧 (tools/functions), ⚡ (streaming support)
+
+2. **Visual indicators**:
+   - ⭐ Default/recommended model (first in list)
+   - 🧠 Large context models (1M+ tokens)
+
+3. **Fuzzy autocomplete**:
+   - Typo tolerance: `/mdl` → `/model`
+   - Case insensitive: `/M` → `/model`
+   - Alias support: `/m` → `/model`
 
 ### Planned Features
 

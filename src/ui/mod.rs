@@ -198,6 +198,24 @@ struct QueuedMessage {
 }
 
 impl TuiManager {
+    /// Calculate dynamic input height based on content and available space
+    fn calculate_input_height(&self, available_height: u16) -> u16 {
+        let lines: Vec<&str> = self.input.split('\n').collect();
+        let content_lines = lines.len() as u16;
+        
+        // Calculate reasonable limits based on screen size
+        let min_lines = 1u16;
+        let max_lines = {
+            // Reserve space for: title(1) + chat(min 3) + status(1) + info_line(1) = 6 minimum
+            let reserved_space = 6u16;
+            let available_for_input = available_height.saturating_sub(reserved_space);
+            // Use up to 40% of screen height, but at least 3 lines, max 20 lines
+            (available_for_input * 2 / 5).max(3).min(20)
+        };
+        
+        let actual_lines = content_lines.max(min_lines).min(max_lines);
+        actual_lines + 2 // +2 for borders
+    }
     /// Create TUI manager with authentication state handling
     pub async fn new_with_auth_state(
         config: &ConfigManager,
@@ -656,8 +674,59 @@ impl TuiManager {
                                 } else if self.autocomplete.is_visible() {
                                     // Accept autocomplete suggestion
                                     if let Some(completion) = self.autocomplete.accept_suggestion() {
-                                        self.input = completion;
+                                        self.input = completion.clone();
                                         self.cursor_position = self.input.len();
+                                        
+                                        // If it's a complete slash command, execute it immediately
+                                        if let Some((command, args)) = parse_slash_command(&completion) {
+                                            match command {
+                                                "/model" => {
+                                                    self.input.clear();
+                                                    self.cursor_position = 0;
+                                                    self.model_selection_overlay.show();
+                                                }
+                                                "/search" => {
+                                                    self.input.clear();
+                                                    self.cursor_position = 0;
+                                                    self.handle_search_command(args).await?;
+                                                }
+                                                "/help" => {
+                                                    self.input.clear();
+                                                    self.cursor_position = 0;
+                                                    self.help_modal.toggle();
+                                                }
+                                                "/clear" => {
+                                                    self.input.clear();
+                                                    self.cursor_position = 0;
+                                                    self.messages.clear();
+                                                    self.add_message(Message::new(
+                                                        MessageRole::System,
+                                                        "Conversation cleared".to_string(),
+                                                    ));
+                                                }
+                                                "/quit" | "/exit" | "/q" => {
+                                                    self.should_quit = true;
+                                                }
+                                                "/auth" | "/login" => {
+                                                    self.input.clear();
+                                                    self.cursor_position = 0;
+                                                    self.auth_wizard.show(&self.config, &self.auth_manager).await;
+                                                }
+                                                "/sessions" => {
+                                                    self.input.clear();
+                                                    self.cursor_position = 0;
+                                                    self.session_browser.show();
+                                                }
+                                                "/config" | "/settings" => {
+                                                    self.input.clear();
+                                                    self.cursor_position = 0;
+                                                    self.settings_modal.toggle();
+                                                }
+                                                _ => {
+                                                    // For unknown commands, leave the input as-is so user can modify
+                                                }
+                                            }
+                                        }
                                     }
                                 } else if self.auth_wizard.is_visible() {
                                     // Handle auth wizard Enter key
@@ -1080,13 +1149,15 @@ impl TuiManager {
         // Let terminal handle background colors
 
         // Minimal margins like Claude Code
+        let screen_height = f.area().height;
+        let input_area_height = self.calculate_input_height(screen_height) + 1; // +1 for info line
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(if self.messages.is_empty() { 5 } else { 0 }), // Welcome box
                 Constraint::Length(if self.messages.is_empty() { 1 } else { 0 }), // Tip line
                 Constraint::Min(1),    // Chat area
-                Constraint::Length(4), // Input box area
+                Constraint::Length(input_area_height), // Dynamic input box area
                 Constraint::Length(1), // Status line
             ])
             .split(f.area());
@@ -1107,8 +1178,21 @@ impl TuiManager {
 
         // Render autocomplete suggestions safely
         if self.autocomplete.is_visible() {
-            // Pass the input area but render above it
-            self.autocomplete.render(f, chunks[3]);
+            // Calculate the actual text input area for proper positioning
+            let input_height = self.calculate_input_height(f.area().height);
+            let input_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(input_height),
+                    Constraint::Length(1), // Bottom info line
+                ])
+                .split(chunks[3]);
+            
+            // Get the inner area of the input box (excluding borders)
+            let input_block = Block::default().borders(Borders::ALL);
+            let text_input_area = input_block.inner(input_chunks[0]);
+            
+            self.autocomplete.render(f, text_input_area);
         }
 
         // Render modals (on top of everything)
@@ -1289,11 +1373,14 @@ impl TuiManager {
     }
 
     fn draw_input_box(&self, f: &mut Frame, area: Rect) {
+        // Use consistent dynamic height calculation
+        let input_height = self.calculate_input_height(f.area().height);
+        
         // Split area for input and bottom info line
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3), // Input box (fixed 3 lines max)
+                Constraint::Length(input_height), // Dynamic height based on content
                 Constraint::Length(1), // Bottom info line
             ])
             .split(area);
@@ -1535,6 +1622,10 @@ impl TuiManager {
         if self.model_selection_overlay.is_visible() {
             match key.code {
                 KeyCode::Esc => {
+                    self.model_selection_overlay.hide();
+                    return Ok(true);
+                }
+                KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     self.model_selection_overlay.hide();
                     return Ok(true);
                 }
@@ -2992,12 +3083,13 @@ function farewell(name) {
         let area = f.area();
         
         // Show regular UI with welcome message
+        let input_height = self.calculate_input_height(area.height) + 1; // +1 for info line
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(1), // Title bar
                 Constraint::Min(0),    // Chat area
-                Constraint::Length(3), // Input box
+                Constraint::Length(input_height), // Dynamic input box height
                 Constraint::Length(1), // Status bar
             ])
             .split(area);
@@ -3090,7 +3182,21 @@ function farewell(name) {
 
         // Render autocomplete suggestions
         if self.autocomplete.is_visible() {
-            self.autocomplete.render(f, chunks[2]);
+            // Calculate the actual text input area for proper positioning
+            let input_height = self.calculate_input_height(f.area().height);
+            let input_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(input_height),
+                    Constraint::Length(1), // Bottom info line
+                ])
+                .split(chunks[2]);
+            
+            // Get the inner area of the input box (excluding borders)
+            let input_block = Block::default().borders(Borders::ALL);
+            let text_input_area = input_block.inner(input_chunks[0]);
+            
+            self.autocomplete.render(f, text_input_area);
         }
 
         // Render modals
