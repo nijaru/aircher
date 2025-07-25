@@ -126,17 +126,22 @@ impl AutocompleteEngine {
         let safe_cursor_position = cursor_position.min(input.len());
         
         // Debug logging
-        debug!("Generating suggestions for input: '{}', cursor: {} (safe: {})", input, cursor_position, safe_cursor_position);
+        debug!("=== Generating suggestions ===");
+        debug!("Input: '{}', cursor: {} (safe: {})", input, cursor_position, safe_cursor_position);
         
         // Special case: show slash commands immediately when typing /
         if input == "/" || input.starts_with('/') {
-            debug!("Showing slash commands for '{}'", input);
-            self.add_command_suggestions(input);
+            debug!("Input starts with slash, processing slash commands");
+            let current_word = self.get_current_word(input, safe_cursor_position);
+            debug!("Current word extracted: '{}'", current_word);
+            self.add_command_suggestions(&current_word);
             self.is_visible = !self.suggestions.is_empty();
-            debug!("Generated {} slash command suggestions", self.suggestions.len());
+            debug!("Generated {} slash command suggestions, visible: {}", self.suggestions.len(), self.is_visible);
+            debug!("Suggestions: {:?}", self.suggestions.iter().map(|s| &s.completion).collect::<Vec<_>>());
             return Ok(());
         }
         
+        // For non-slash commands, require at least 2 characters
         if input.len() < 2 {
             self.is_visible = false;
             return Ok(());
@@ -175,6 +180,16 @@ impl AutocompleteEngine {
         let before_cursor = &input[..safe_cursor_position];
         
         // Find the start of the current word
+        // Special handling for slash commands - we want to include the /
+        if before_cursor.starts_with('/') {
+            // For slash commands, find the start from the beginning or last whitespace
+            let word_start = before_cursor.rfind(|c: char| c.is_whitespace())
+                .map(|pos| pos + 1)
+                .unwrap_or(0);
+            return before_cursor[word_start..].to_string();
+        }
+        
+        // For regular words, use the original logic
         let word_start = before_cursor.rfind(|c: char| c.is_whitespace() || c == '/')
             .map(|pos| pos + 1)
             .unwrap_or(0);
@@ -188,23 +203,69 @@ impl AutocompleteEngine {
             use crate::ui::slash_commands::SLASH_COMMANDS;
             
             debug!("Adding command suggestions for: '{}'", current_word);
+            debug!("Total SLASH_COMMANDS available: {}", SLASH_COMMANDS.len());
+            
+            // Convert to lowercase for case-insensitive matching
+            let search_term = current_word.to_lowercase();
             
             for cmd in SLASH_COMMANDS {
-                // Check if main command or any alias matches
-                let matches = cmd.command.starts_with(current_word) || 
-                             cmd.aliases.iter().any(|alias| alias.starts_with(current_word));
+                // Check multiple matching strategies
+                let exact_match = cmd.command.starts_with(current_word);
+                let case_insensitive_match = cmd.command.to_lowercase().starts_with(&search_term);
+                let alias_match = cmd.aliases.iter().any(|alias| 
+                    alias.starts_with(current_word) || alias.to_lowercase().starts_with(&search_term)
+                );
+                
+                // Fuzzy matching: check if all chars in search term appear in order in command
+                let fuzzy_match = if search_term.len() > 1 {
+                    let mut search_chars = search_term.chars().skip(1); // Skip the '/'
+                    let mut current_char = search_chars.next();
+                    let cmd_lower = cmd.command.to_lowercase();
+                    
+                    for cmd_char in cmd_lower.chars().skip(1) { // Skip the '/'
+                        if let Some(sc) = current_char {
+                            if cmd_char == sc {
+                                current_char = search_chars.next();
+                                if current_char.is_none() {
+                                    break; // Found all characters
+                                }
+                            }
+                        }
+                    }
+                    current_char.is_none() // All characters were found
+                } else {
+                    false
+                };
+                
+                let matches = exact_match || case_insensitive_match || alias_match || fuzzy_match;
+                
+                debug!("Checking '{}' against '{}': exact={}, case_insensitive={}, alias={}, fuzzy={}, matches={}", 
+                    cmd.command, current_word, exact_match, case_insensitive_match, alias_match, fuzzy_match, matches);
                 
                 if matches {
-                    // Only add the primary command, not aliases
+                    // Calculate confidence based on match type
+                    let confidence = if exact_match {
+                        1.0
+                    } else if case_insensitive_match || alias_match {
+                        0.95
+                    } else {
+                        0.8 // Fuzzy match
+                    };
+                    
                     self.suggestions.push(Suggestion {
                         text: current_word.to_string(),
                         completion: cmd.command.to_string(),
                         description: cmd.description.to_string(),
                         suggestion_type: SuggestionType::Command,
-                        confidence: 0.95,
+                        confidence,
                     });
+                    debug!("Added suggestion: {} with confidence {} (total suggestions: {})", 
+                        cmd.command, confidence, self.suggestions.len());
                 }
             }
+            debug!("Finished adding command suggestions. Total: {}", self.suggestions.len());
+        } else {
+            debug!("Current word '{}' doesn't start with /, skipping command suggestions", current_word);
         }
     }
     
@@ -395,26 +456,34 @@ impl AutocompleteEngine {
             return;
         }
         
-        // For slash commands, render in a more compact style below the input
+        // For slash commands, render in a more compact style (prefer above input)
         let first_suggestion = &self.suggestions[0];
         if first_suggestion.suggestion_type == SuggestionType::Command {
-            // Calculate popup area (above the input box to avoid overflow)
+            // Calculate popup area (prefer above input, fallback to below)
             let max_visible_items = 8;
-            let popup_height = (self.suggestions.len() as u16).min(max_visible_items) + 1;
             
-            // Ensure we don't go out of bounds - position above input if necessary
-            let popup_y = if area.y >= popup_height {
-                area.y.saturating_sub(popup_height)
+            // Use fixed height for consistent positioning, regardless of filtered items
+            let fixed_popup_height = max_visible_items + 1; // +1 for borders
+            let actual_popup_height = (self.suggestions.len() as u16).min(max_visible_items) + 1;
+            
+            // Position above the input box using FIXED height, but fallback to below if not enough space
+            let available_space_above = area.y;
+            let (popup_y, available_space) = if available_space_above >= fixed_popup_height {
+                // Enough space above - position above input using fixed height for consistency
+                (area.y.saturating_sub(fixed_popup_height), available_space_above)
             } else {
-                // If no space above, show at top of screen
-                0
+                // Not enough space above - position below input
+                let popup_y_below = area.y + area.height;
+                let screen_height = f.area().height;
+                let available_space_below = screen_height.saturating_sub(popup_y_below);
+                (popup_y_below, available_space_below)
             };
             
             let popup_area = Rect {
                 x: area.x,
                 y: popup_y,
                 width: area.width.min(80), // Increased width for full descriptions
-                height: popup_height.min(area.y), // Don't exceed available space
+                height: actual_popup_height.min(available_space), // Use actual height for rendering
             };
             
             // Don't render if no space available
