@@ -606,6 +606,9 @@ impl TuiManager {
                 break;
             }
             
+            // Process model updates from async tasks
+            self.model_selection_overlay.process_model_updates();
+            
             // Draw the UI
             terminal.draw(|f| self.draw(f))?;
 

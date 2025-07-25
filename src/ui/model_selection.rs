@@ -3,12 +3,25 @@ use ratatui::{
     Frame,
 };
 use std::collections::HashMap;
+use tokio::sync::mpsc;
 
 use crate::config::{ConfigManager, ModelConfig};
 use crate::providers::ProviderManager;
 use crate::auth::{AuthManager, AuthStatus};
 use super::typeahead::{TypeaheadOverlay, TypeaheadItem};
 use std::sync::Arc;
+
+#[derive(Debug)]
+enum ModelUpdate {
+    ModelsReceived {
+        provider: String,
+        models: Vec<String>,
+    },
+    ModelsFetchError {
+        provider: String,
+        error: String,
+    },
+}
 
 pub struct ModelSelectionOverlay {
     mode: SelectionMode,
@@ -22,6 +35,8 @@ pub struct ModelSelectionOverlay {
     provider_manager: Option<Arc<ProviderManager>>,
     fetching_models: bool,
     models_fetched_for: Option<String>, // Track which provider we've fetched models for
+    model_update_rx: Option<mpsc::UnboundedReceiver<ModelUpdate>>,
+    model_update_tx: mpsc::UnboundedSender<ModelUpdate>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -52,6 +67,9 @@ impl ModelSelectionOverlay {
             provider_models.insert(name.clone(), provider_config.models.clone());
         }
 
+        // Create channel for model updates
+        let (model_update_tx, model_update_rx) = mpsc::unbounded_channel();
+
         let mut overlay = Self {
             mode: SelectionMode::Model,
             model_typeahead,
@@ -64,6 +82,8 @@ impl ModelSelectionOverlay {
             provider_manager: None,
             fetching_models: false,
             models_fetched_for: None,
+            model_update_rx: Some(model_update_rx),
+            model_update_tx,
         };
 
         overlay.update_items(config);
@@ -357,9 +377,96 @@ impl ModelSelectionOverlay {
         self.model_typeahead.set_items(vec![loading_item]);
         self.update_model_description();
 
-        // Note: In a real implementation, we'd spawn a background task here
-        // For now, we'll add a placeholder that can be filled in when we have async context
-        // TODO: Implement actual async model fetching
+        // Spawn async task to fetch models
+        if let Some(provider_manager) = self.provider_manager.clone() {
+            let provider_name = provider_name.to_string();
+            let tx = self.model_update_tx.clone();
+            
+            tokio::spawn(async move {
+                match provider_manager.get_provider_or_host(&provider_name) {
+                    Some(provider) => {
+                        match provider.list_available_models().await {
+                            Ok(models) => {
+                                let _ = tx.send(ModelUpdate::ModelsReceived {
+                                    provider: provider_name,
+                                    models,
+                                });
+                            }
+                            Err(e) => {
+                                let _ = tx.send(ModelUpdate::ModelsFetchError {
+                                    provider: provider_name,
+                                    error: e.to_string(),
+                                });
+                            }
+                        }
+                    }
+                    None => {
+                        let _ = tx.send(ModelUpdate::ModelsFetchError {
+                            provider: provider_name,
+                            error: "Provider not found".to_string(),
+                        });
+                    }
+                }
+            });
+        }
+    }
+
+    /// Process any pending model updates from the async channel
+    pub fn process_model_updates(&mut self) {
+        if let Some(rx) = &mut self.model_update_rx {
+            // Process all pending updates
+            while let Ok(update) = rx.try_recv() {
+                match update {
+                    ModelUpdate::ModelsReceived { provider, models } => {
+                        // Only process if this is for the current fetch
+                        if self.models_fetched_for.as_ref() == Some(&provider) {
+                            self.fetching_models = false;
+                            
+                            // Convert to ModelConfig format
+                            let model_configs: Vec<ModelConfig> = models.into_iter()
+                                .map(|name| {
+                                    // Try to find existing config, otherwise create default
+                                    self.provider_models.get(&provider)
+                                        .and_then(|configs| configs.iter().find(|c| c.name == name))
+                                        .cloned()
+                                        .unwrap_or_else(|| ModelConfig {
+                                            name: name.clone(),
+                                            context_window: 128000, // Default context
+                                            input_cost_per_1m: 0.0,
+                                            output_cost_per_1m: 0.0,
+                                            supports_streaming: true,
+                                            supports_tools: false,
+                                        })
+                                })
+                                .collect();
+                            
+                            // Update provider models with fetched data
+                            self.provider_models.insert(provider.clone(), model_configs);
+                            
+                            // Refresh model items if this is still the current provider
+                            if self.current_provider == provider {
+                                self.update_model_items();
+                            }
+                        }
+                    }
+                    ModelUpdate::ModelsFetchError { provider, error } => {
+                        if self.models_fetched_for.as_ref() == Some(&provider) {
+                            self.fetching_models = false;
+                            
+                            // Show error state
+                            let error_item = TypeaheadItem {
+                                label: "Failed to load models".to_string(),
+                                value: "_error".to_string(),
+                                description: Some(format!("Error: {}", error)),
+                                available: false,
+                            };
+                            self.model_typeahead.set_items(vec![error_item]);
+                            self.update_model_description();
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pub fn hide(&mut self) {
