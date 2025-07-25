@@ -88,9 +88,16 @@ struct OllamaStreamResponse {
 #[derive(Debug, Deserialize)]
 struct OllamaModelInfo {
     name: String,
-    _modified_at: String,
-    _size: u64,
-    _digest: String,
+    #[serde(skip_deserializing)]
+    _model: Option<String>,
+    #[serde(rename = "modified_at")]
+    _modified_at: Option<String>,
+    #[serde(rename = "size")]
+    _size: Option<u64>,
+    #[serde(rename = "digest")]
+    _digest: Option<String>,
+    #[serde(skip_deserializing)]
+    _details: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
