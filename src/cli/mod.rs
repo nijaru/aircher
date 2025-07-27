@@ -1,7 +1,6 @@
 use anyhow::Result;
 use clap::{Arg, Command};
 use std::env;
-use std::rc::Rc;
 use tracing::{error, info};
 
 use crate::commands::search::{SearchArgs, handle_search_command};
@@ -20,7 +19,7 @@ use std::sync::Arc;
 pub struct CliApp {
     config: ConfigManager,
     auth_manager: Arc<AuthManager>,
-    providers: Option<Rc<ProviderManager>>,
+    providers: Option<Arc<ProviderManager>>,
 }
 
 impl CliApp {
@@ -35,10 +34,10 @@ impl CliApp {
         })
     }
 
-    async fn get_providers(&mut self) -> Result<Rc<ProviderManager>> {
+    async fn get_providers(&mut self) -> Result<Arc<ProviderManager>> {
         if self.providers.is_none() {
             let provider_manager = ProviderManager::new(&self.config, self.auth_manager.clone()).await?;
-            self.providers = Some(Rc::new(provider_manager));
+            self.providers = Some(Arc::new(provider_manager));
         }
         Ok(self.providers.as_ref().unwrap().clone())
     }
@@ -1222,7 +1221,7 @@ impl CliApp {
         // Create providers first to avoid borrowing issues
         let _providers = if self.providers.is_none() {
             let provider_manager = ProviderManager::new(&self.config, self.auth_manager.clone()).await?;
-            self.providers = Some(Rc::new(provider_manager));
+            self.providers = Some(Arc::new(provider_manager));
         };
         let providers = self.providers.as_ref().unwrap();
         handle_model_command(model_args, &mut self.config, providers).await

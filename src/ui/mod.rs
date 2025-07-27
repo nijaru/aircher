@@ -167,6 +167,7 @@ pub struct TuiManager {
     budget_warning_shown: bool,
     cost_warnings: Vec<String>,
     should_quit: bool,
+    pending_auth_provider: Option<String>,
     // Streaming state
     streaming_state: StreamingState,
     // Ctrl+C handling
@@ -343,6 +344,7 @@ impl TuiManager {
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
             should_quit: false,
+            pending_auth_provider: None,
             // Initialize streaming state
             streaming_state: StreamingState::Idle,
             // Initialize Ctrl+C handling
@@ -485,6 +487,7 @@ impl TuiManager {
             budget_warning_shown: false,
             cost_warnings: Vec::new(),
             should_quit: false,
+            pending_auth_provider: None,
             // Initialize streaming state
             streaming_state: StreamingState::Idle,
             // Initialize Ctrl+C handling
@@ -621,6 +624,12 @@ impl TuiManager {
                     Event::Key(key) if key.kind == KeyEventKind::Press => {
                         // Check if any modal is handling the event
                         if self.handle_modal_events(key)? {
+                            continue;
+                        }
+
+                        // Handle pending auth provider if set
+                        if let Some(provider) = self.pending_auth_provider.take() {
+                            self.auth_wizard.show_with_provider(&self.config, &self.auth_manager, Some(provider)).await;
                             continue;
                         }
 
@@ -767,7 +776,20 @@ impl TuiManager {
                                     
                                     // Check if auth wizard completed successfully and refresh providers
                                     if self.auth_wizard.is_completed_successfully() {
+                                        let authenticated_provider = self.auth_wizard.get_authenticated_provider();
                                         self.refresh_providers_after_auth().await?;
+                                        
+                                        // Auto-close auth wizard and select the authenticated provider
+                                        self.auth_wizard.hide();
+                                        
+                                        // If a specific provider was authenticated, switch to it
+                                        if let Some(provider_name) = authenticated_provider {
+                                            self.provider_name = provider_name.clone();
+                                            self.add_message(Message::new(
+                                                MessageRole::System,
+                                                format!("Switched to provider: {}", provider_name),
+                                            ));
+                                        }
                                     }
                                 } else if !self.input.is_empty() {
                                     let message = self.input.clone();
@@ -1734,9 +1756,10 @@ impl TuiManager {
                         
                         // Now check if the newly selected provider is authenticated
                         if !self.model_selection_overlay.is_current_provider_authenticated() {
-                            // Provider is not authenticated, show auth wizard
+                            // Provider is not authenticated, need to show auth wizard for this specific provider
+                            // Can't await here, so we'll store the provider and handle in the main loop
+                            self.pending_auth_provider = Some(self.model_selection_overlay.get_current_provider().to_string());
                             self.model_selection_overlay.hide();
-                            self.show_auth_setup = true;
                             return Ok(false);
                         }
                         // Otherwise, we're now in model selection mode
@@ -1794,6 +1817,10 @@ impl TuiManager {
             match key.code {
                 KeyCode::Esc => {
                     self.auth_wizard.handle_escape();
+                    return Ok(true);
+                }
+                KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.auth_wizard.hide();
                     return Ok(true);
                 }
                 KeyCode::Enter => {

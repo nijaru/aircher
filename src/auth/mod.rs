@@ -386,7 +386,18 @@ impl AuthManager {
             .timeout(std::time::Duration::from_secs(5))
             .build()?;
             
-        let url = "http://localhost:11434/api/version";
+        // Check OLLAMA_HOST environment variable first, then fallback to localhost
+        let base_url = if let Ok(ollama_host) = std::env::var("OLLAMA_HOST") {
+            if ollama_host.starts_with("http") {
+                ollama_host
+            } else {
+                format!("http://{}:11434", ollama_host)
+            }
+        } else {
+            "http://localhost:11434".to_string()
+        };
+        
+        let url = format!("{}/api/version", base_url);
         
         match client.get(url).send().await {
             Ok(response) => {

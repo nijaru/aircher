@@ -163,50 +163,8 @@ impl AutocompleteEngine {
             return Ok(());
         }
         
-        // For non-slash commands, require at least 2 characters
-        if input.len() < 2 {
-            self.is_visible = false;
-            return Ok(());
-        }
-        
-        let current_word = self.get_current_word(input, safe_cursor_position);
-        let prefix = &input[..safe_cursor_position];
-        
-        // Generate different types of suggestions
-        self.add_command_suggestions(&current_word);
-        self.add_pattern_suggestions(prefix, &current_word);
-        self.add_recent_command_suggestions(&current_word);
-        self.add_contextual_suggestions(input);
-        
-        // Sort suggestions by confidence first (highest to lowest), then by length, then alphabetically
-        self.suggestions.sort_by(|a, b| {
-            // First compare by confidence (b.confidence vs a.confidence for descending order)
-            let conf_cmp = b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal);
-            if conf_cmp != std::cmp::Ordering::Equal {
-                return conf_cmp;
-            }
-            
-            // If confidence is equal, prefer shorter commands (they're usually more common)
-            let len_cmp = a.completion.len().cmp(&b.completion.len());
-            if len_cmp != std::cmp::Ordering::Equal {
-                return len_cmp;
-            }
-            
-            // If length is equal, sort alphabetically
-            a.completion.cmp(&b.completion)
-        });
-        
-        // Debug log the sorted suggestions
-        debug!("After sorting, suggestions:");
-        for (i, sug) in self.suggestions.iter().enumerate() {
-            debug!("  {}: {} (confidence: {:.2})", i, sug.completion, sug.confidence);
-        }
-        
-        // Limit to top 8 suggestions for UI
-        self.suggestions.truncate(8);
-        
-        self.is_visible = !self.suggestions.is_empty();
-        
+        // Only show autocomplete for slash commands, not regular text
+        self.is_visible = false;
         Ok(())
     }
     
@@ -531,8 +489,8 @@ impl AutocompleteEngine {
             let max_visible_items = 8;
             
             // Use fixed height for consistent positioning, regardless of filtered items
-            let fixed_popup_height = max_visible_items + 1; // +1 for borders
-            let actual_popup_height = (self.suggestions.len() as u16).min(max_visible_items) + 1;
+            let fixed_popup_height = max_visible_items + 2; // +2 for borders (top and bottom)
+            let actual_popup_height = (self.suggestions.len() as u16).min(max_visible_items) + 2; // +2 for borders
             
             // Position above the input box using FIXED height, but fallback to below if not enough space
             let available_space_above = area.y;
@@ -567,23 +525,43 @@ impl AutocompleteEngine {
             };
             let visible_end = (visible_start + max_visible_items as usize).min(self.suggestions.len());
             
+            // Debug logging for rendering issue
+            use std::fs::OpenOptions;
+            use std::io::Write;
+            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/autocomplete_debug.log") {
+                writeln!(file, "\nRENDER: visible_start={}, visible_end={}, suggestions.len={}", 
+                    visible_start, visible_end, self.suggestions.len()).unwrap();
+                writeln!(file, "RENDER: area={{x={}, y={}, width={}, height={}}}", 
+                    popup_area.x, popup_area.y, popup_area.width, popup_area.height).unwrap();
+                writeln!(file, "RENDER: Selected index: {}", self.selected_index).unwrap();
+            }
+            
             // Create suggestion items in a compact format
             let items: Vec<ListItem> = self.suggestions[visible_start..visible_end]
                 .iter()
                 .enumerate()
                 .map(|(i, suggestion)| {
                     let actual_index = visible_start + i;
-                    let style = if actual_index == self.selected_index {
+                    let is_selected = actual_index == self.selected_index;
+                    let style = if is_selected {
                         Style::default().fg(Color::Cyan).bg(Color::DarkGray)
                     } else {
-                        Style::default().fg(Color::Gray)
+                        Style::default().fg(Color::White)  // Changed from Gray to White for better visibility
                     };
                     
-                    // Format: command with description
-                    let text = format!("{:15} {}", suggestion.completion, suggestion.description);
+                    // Format: command with description - use less padding
+                    let text = format!("{:<10} {}", suggestion.completion, suggestion.description);
                     
+                    // Debug log the actual item content
+                    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/autocomplete_debug.log") {
+                        writeln!(file, "RENDER: Item #{}: text='{}', completion='{}', desc='{}', selected={}", 
+                            i, text, suggestion.completion, suggestion.description, actual_index == self.selected_index).unwrap();
+                    }
+                    
+                    // Create line with proper selection indicator
+                    let prefix = if is_selected { "▶ " } else { "  " };
                     ListItem::new(Line::from(vec![
-                        Span::styled(" ", style),
+                        Span::styled(prefix, style),
                         Span::styled(text, style),
                     ]))
                 })
@@ -596,11 +574,18 @@ impl AutocompleteEngine {
                 " Commands ".to_string()
             };
             
+            // More debug logging
+            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/autocomplete_debug.log") {
+                writeln!(file, "RENDER: Created {} items, is_empty={}", items.len(), items.is_empty()).unwrap();
+                writeln!(file, "RENDER: Block title: '{}'", title).unwrap();
+            }
+            
             let suggestions_list = List::new(items)
                 .block(Block::default()
                     .borders(Borders::ALL)
                     .title(title)
-                    .border_style(Style::default().fg(Color::DarkGray)));
+                    .border_style(Style::default().fg(Color::Yellow))  // More visible border
+                    .style(Style::default().bg(Color::Black)));  // Dark background for contrast
             
             // Clear the background and render
             f.render_widget(ratatui::widgets::Clear, popup_area);

@@ -356,10 +356,14 @@ impl ModelSelectionOverlay {
                         description: Some(format_provider_description_with_auth_status(&name, &auth_status, config)),
                         available: {
                             let is_auth = matches!(auth_status, AuthStatus::Authenticated);
-                            debug!("Provider {} auth status: {:?}, available: {}", name, auth_status, is_auth);
-                            // Special case: if update_provider_availability was called and marked this as available,
-                            // preserve that status (important for Ollama which is always available locally)
-                            is_auth
+                            // Special case: Ollama is always available even if not running (will auto-start or show empty models)
+                            let is_available = if name == "ollama" {
+                                true // Always available - will handle connection issues gracefully
+                            } else {
+                                is_auth
+                            };
+                            debug!("Provider {} auth status: {:?}, available: {}", name, auth_status, is_available);
+                            is_available
                         },
                     }
                 })

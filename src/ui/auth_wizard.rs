@@ -57,11 +57,39 @@ impl AuthWizard {
     }
 
     pub async fn show(&mut self, config: &ConfigManager, auth_manager: &AuthManager) {
+        self.show_with_provider(config, auth_manager, None).await;
+    }
+
+    pub async fn show_with_provider(&mut self, config: &ConfigManager, auth_manager: &AuthManager, specific_provider: Option<String>) {
         self.visible = true;
         self.current_step = WizardStep::ProviderSelection;
         self.error_message = None;
         self.success_message = None;
         self.load_providers(config, auth_manager).await;
+        
+        // If a specific provider is requested, skip to auth for that provider
+        if let Some(provider_name) = specific_provider {
+            if let Some((index, provider)) = self.available_providers.iter().enumerate()
+                .find(|(_, p)| p.name == provider_name) {
+                
+                self.selected_provider_index = index;
+                
+                // If provider doesn't need auth, mark as complete
+                if !provider.needs_auth {
+                    self.success_message = Some(format!("{} doesn't require authentication", provider.display_name));
+                    self.current_step = WizardStep::Complete;
+                } else if provider.auth_status == AuthStatus::Authenticated {
+                    self.success_message = Some(format!("{} is already authenticated", provider.display_name));
+                    self.current_step = WizardStep::Complete;
+                } else {
+                    // Jump directly to API key entry for this provider
+                    self.current_provider = Some(provider.name.clone());
+                    self.current_step = WizardStep::ApiKeyEntry;
+                    self.api_key_input.clear();
+                    self.cursor_position = 0;
+                }
+            }
+        }
     }
 
     pub fn hide(&mut self) {
@@ -72,6 +100,15 @@ impl AuthWizard {
     /// Check if the wizard just completed successfully
     pub fn is_completed_successfully(&self) -> bool {
         matches!(self.current_step, WizardStep::Complete) && self.success_message.is_some()
+    }
+
+    /// Get the provider that was just authenticated (if any)
+    pub fn get_authenticated_provider(&self) -> Option<String> {
+        if self.is_completed_successfully() {
+            self.current_provider.clone()
+        } else {
+            None
+        }
     }
 
     pub fn is_visible(&self) -> bool {
