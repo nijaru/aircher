@@ -4,7 +4,7 @@ use ratatui::{
 };
 use std::collections::HashMap;
 use tokio::sync::mpsc;
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::config::{ConfigManager, ModelConfig};
 use crate::providers::ProviderManager;
@@ -22,6 +22,60 @@ enum ModelUpdate {
         provider: String,
         error: String,
     },
+}
+
+fn get_ollama_context_window(model_name: &str) -> u32 {
+    // Extract context window from model name patterns
+    let name_lower = model_name.to_lowercase();
+    
+    // Check for explicit context indicators
+    if name_lower.contains("128k") {
+        return 128000;
+    } else if name_lower.contains("32k") {
+        return 32768;
+    } else if name_lower.contains("16k") {
+        return 16384;
+    } else if name_lower.contains("8k") {
+        return 8192;
+    } else if name_lower.contains("4k") {
+        return 4096;
+    } else if name_lower.contains("2k") {
+        return 2048;
+    }
+    
+    // Model-specific defaults based on common Ollama models
+    if name_lower.contains("llama3.3") || name_lower.contains("llama-3.3") {
+        128000
+    } else if name_lower.contains("llama3.2") || name_lower.contains("llama-3.2") {
+        128000
+    } else if name_lower.contains("llama3.1") || name_lower.contains("llama-3.1") {
+        128000
+    } else if name_lower.contains("llama3") || name_lower.contains("llama-3") {
+        8192
+    } else if name_lower.contains("qwen2.5") {
+        128000
+    } else if name_lower.contains("qwen") {
+        32768
+    } else if name_lower.contains("deepseek-r1") {
+        64000
+    } else if name_lower.contains("deepseek") {
+        16384
+    } else if name_lower.contains("mixtral") {
+        32768
+    } else if name_lower.contains("mistral") {
+        8192
+    } else if name_lower.contains("gemma2") {
+        8192
+    } else if name_lower.contains("phi") {
+        128000
+    } else if name_lower.contains("yi") {
+        200000
+    } else if name_lower.contains("command-r") {
+        128000
+    } else {
+        // Conservative default
+        4096
+    }
 }
 
 pub struct ModelSelectionOverlay {
@@ -67,7 +121,11 @@ impl ModelSelectionOverlay {
         // Build provider models map
         let mut provider_models = HashMap::new();
         for (name, provider_config) in &config.providers {
-            provider_models.insert(name.clone(), provider_config.models.clone());
+            // Skip loading config models for providers with dynamic model fetching
+            let is_dynamic = matches!(name.as_str(), "ollama" | "openai" | "openrouter");
+            if !is_dynamic {
+                provider_models.insert(name.clone(), provider_config.models.clone());
+            }
         }
 
         // Create channel for model updates
@@ -89,6 +147,9 @@ impl ModelSelectionOverlay {
             model_update_tx,
             last_selected_models: HashMap::new(),
         };
+        
+        // Hide input for provider selection
+        overlay.provider_typeahead.hide_input = true;
 
         overlay.update_items(config);
         overlay
@@ -111,7 +172,18 @@ impl ModelSelectionOverlay {
     }
 
     pub fn set_provider_manager(&mut self, provider_manager: Arc<ProviderManager>) {
+        debug!("✅ set_provider_manager called - provider_manager is now available");
         self.provider_manager = Some(provider_manager);
+        
+        // If we're currently showing a loading state due to missing provider manager, refresh models
+        if self.model_typeahead.items.len() == 1 {
+            if let Some(item) = self.model_typeahead.items.first() {
+                if item.value == "_loading" {
+                    debug!("⚡ Provider manager set, refreshing models to replace loading state");
+                    self.update_model_items();
+                }
+            }
+        }
     }
 
     fn update_items(&mut self, config: &ConfigManager) {
@@ -244,8 +316,10 @@ impl ModelSelectionOverlay {
     }
 
     pub async fn update_items_with_auth(&mut self, config: &ConfigManager) {
+        debug!("update_items_with_auth called");
         if let Some(auth_manager) = &self.auth_manager {
             let auth_statuses = auth_manager.get_all_provider_statuses(config).await;
+            debug!("Got auth statuses for {} providers", auth_statuses.len());
             
             let mut provider_items: Vec<_> = config.providers
                 .iter()
@@ -260,22 +334,15 @@ impl ModelSelectionOverlay {
                 })
                 .collect();
                 
-            // Sort providers: authenticated first, then unauthenticated
-            // Within authenticated, prefer Ollama first, then alphabetical
+            // Sort providers: authenticated first (alphabetical), then unauthenticated (alphabetical)
             provider_items.sort_by(|(name_a, auth_a, _), (name_b, auth_b, _)| {
                 match (auth_a, auth_b) {
-                    (AuthStatus::Authenticated, AuthStatus::Authenticated) => {
-                        // Both authenticated - prefer Ollama first
-                        if name_a == "ollama" && name_b != "ollama" {
-                            std::cmp::Ordering::Less
-                        } else if name_a != "ollama" && name_b == "ollama" {
-                            std::cmp::Ordering::Greater
-                        } else {
-                            name_a.cmp(name_b)
-                        }
-                    },
+                    // Both authenticated - sort alphabetically
+                    (AuthStatus::Authenticated, AuthStatus::Authenticated) => name_a.cmp(name_b),
+                    // Authenticated comes before unauthenticated
                     (AuthStatus::Authenticated, _) => std::cmp::Ordering::Less,
                     (_, AuthStatus::Authenticated) => std::cmp::Ordering::Greater,
+                    // Both unauthenticated - sort alphabetically
                     _ => name_a.cmp(name_b),
                 }
             });
@@ -287,7 +354,13 @@ impl ModelSelectionOverlay {
                         label: format_provider_name_with_auth_status(&name, &auth_status),
                         value: name.clone(),
                         description: Some(format_provider_description_with_auth_status(&name, &auth_status, config)),
-                        available: matches!(auth_status, AuthStatus::Authenticated),
+                        available: {
+                            let is_auth = matches!(auth_status, AuthStatus::Authenticated);
+                            debug!("Provider {} auth status: {:?}, available: {}", name, auth_status, is_auth);
+                            // Special case: if update_provider_availability was called and marked this as available,
+                            // preserve that status (important for Ollama which is always available locally)
+                            is_auth
+                        },
                     }
                 })
                 .collect();
@@ -306,14 +379,27 @@ impl ModelSelectionOverlay {
     pub fn update_provider_availability(&mut self, providers: &ProviderManager) {
         // Update availability based on actual provider manager
         let provider_list = providers.list_all();
+        debug!("update_provider_availability: Available providers: {:?}", provider_list);
         
+        let mut any_changed = false;
         if let Some(items) = self.provider_typeahead.items.clone().into_iter()
             .map(|mut item| {
+                let was_available = item.available;
                 item.available = provider_list.contains(&item.value);
+                if was_available != item.available {
+                    debug!("Provider {} availability changed from {} to {}", item.value, was_available, item.available);
+                    any_changed = true;
+                }
                 Some(item)
             })
             .collect::<Option<Vec<_>>>() {
             self.provider_typeahead.set_items(items);
+            
+            // If availability changed and we're in model selection mode, refresh the model items
+            if any_changed && self.mode == SelectionMode::Model {
+                debug!("Provider availability changed, refreshing model items");
+                self.update_model_items();
+            }
         }
     }
 
@@ -321,6 +407,7 @@ impl ModelSelectionOverlay {
     pub fn update_dynamic_models(&mut self, providers: &ProviderManager) {
         // For Ollama, get dynamic model list instead of using config
         let ollama_models = providers.get_provider_models("ollama");
+        debug!("update_dynamic_models: Got {} Ollama models from provider manager", ollama_models.len());
         if !ollama_models.is_empty() {
             // Convert to ModelConfig format for consistency
             let dynamic_models: Vec<crate::config::ModelConfig> = ollama_models.into_iter()
@@ -352,30 +439,129 @@ impl ModelSelectionOverlay {
     }
 
     fn update_model_items(&mut self) {
+        debug!("=== UPDATE_MODEL_ITEMS CALLED for provider: {} ===", self.current_provider);
+        debug!("Provider manager available: {}", self.provider_manager.is_some());
+        
         // Check if provider is authenticated first
         let is_authenticated = self.provider_typeahead.items.iter()
             .find(|item| item.value == self.current_provider)
             .map(|item| item.available)
             .unwrap_or(false);
 
+        debug!("update_model_items: provider={}, is_authenticated={}, provider_items_count={}", 
+               self.current_provider, is_authenticated, self.provider_typeahead.items.len());
+        
+        // Debug: Print all provider items to see their availability status
+        for (idx, item) in self.provider_typeahead.items.iter().enumerate() {
+            debug!("Provider item {}: value='{}', available={}, label='{}'", 
+                   idx, item.value, item.available, item.label);
+        }
+        
+
         if !is_authenticated {
-            // Show message that auth is required
+            debug!("AUTHENTICATION FAILED - creating error message for {}", self.current_provider);
+            // Show provider-specific error messages
+            let (label, description) = match self.current_provider.as_str() {
+                "ollama" => {
+                    // Check if OLLAMA_HOST is set to provide specific guidance
+                    let ollama_host = std::env::var("OLLAMA_HOST").unwrap_or_else(|_| "localhost".to_string());
+                    let host_display = if ollama_host == "localhost" { 
+                        "localhost:11434".to_string() 
+                    } else { 
+                        format!("{}:11434", ollama_host)
+                    };
+                    
+                    (
+                        "❌ Ollama not available".to_string(),
+                        Some(format!(
+                            "Cannot connect to Ollama at {}. {}",
+                            host_display,
+                            if ollama_host == "localhost" {
+                                "Start Ollama with 'ollama serve' or set OLLAMA_HOST env var"
+                            } else {
+                                "Check if Ollama is running and accessible"
+                            }
+                        ))
+                    )
+                },
+                "openai" | "openrouter" => (
+                    "❌ API key required".to_string(),
+                    Some("Run /auth to configure API key".to_string())
+                ),
+                "anthropic-api" => (
+                    "❌ API key required".to_string(),
+                    Some("Set ANTHROPIC_API_KEY environment variable or run /auth".to_string())
+                ),
+                "anthropic-pro" => (
+                    "❌ Authentication required".to_string(),
+                    Some("Run /auth to authenticate with Claude Pro".to_string())
+                ),
+                _ => (
+                    "❌ Authentication required".to_string(),
+                    Some("Run /auth to set up authentication".to_string())
+                )
+            };
+            
             let no_auth_item = TypeaheadItem {
-                label: "Authentication required".to_string(),
+                label,
                 value: "_no_auth".to_string(),
-                description: Some("Run /auth to set up API keys".to_string()),
+                description,
                 available: false,
             };
+            debug!("Setting error message item: label='{}', description='{:?}'", 
+                   no_auth_item.label, no_auth_item.description);
             self.model_typeahead.set_items(vec![no_auth_item]);
             self.model_typeahead.set_current_value(None);
             self.update_model_description();
+            debug!("ERROR MESSAGE SET - returning from update_model_items");
             return;
+        }
+
+        // For providers that support dynamic model fetching (like Ollama), 
+        // don't show config models - wait for real ones
+        // BUT only if the provider is authenticated - unauthenticated providers should show error messages
+        let is_dynamic_provider = matches!(self.current_provider.as_str(), "ollama" | "openai" | "openrouter");
+        
+        debug!("update_model_items: provider={}, is_dynamic={}, is_authenticated={}, models_fetched_for={:?}, fetching={}", 
+            self.current_provider, is_dynamic_provider, is_authenticated, self.models_fetched_for, self.fetching_models);
+        
+        // If this is a dynamic provider AND authenticated and we haven't fetched models yet, show loading
+        if is_dynamic_provider && is_authenticated && !self.models_fetched_for.as_ref().map_or(false, |p| p == &self.current_provider) {
+            // Check if provider_manager is available
+            if self.provider_manager.is_none() {
+                debug!("⏳ Provider manager not yet available, showing loading state for {}", self.current_provider);
+                let loading_item = TypeaheadItem {
+                    label: "🔄 Loading models...".to_string(),
+                    value: "_loading".to_string(),
+                    description: Some("Initializing provider connection".to_string()),
+                    available: false,
+                };
+                self.model_typeahead.set_items(vec![loading_item]);
+                self.model_typeahead.set_current_value(None);
+                self.update_model_description();
+                // Don't return - we want to continue and show config models if available
+                debug!("⏳ Provider manager not available, will retry when provider manager is set");
+                return;
+            }
+            
+            // Trigger fetch if not already fetching
+            if !self.fetching_models {
+                debug!("AUTHENTICATED DYNAMIC PROVIDER: Triggering fetch for {}", self.current_provider);
+                self.fetch_models_for_provider(&self.current_provider.clone());
+            } else {
+                debug!("Already fetching models for {}", self.current_provider);
+            }
+            // Make sure description is updated even when loading
+            self.update_model_description();
+            debug!("RETURNING EARLY for dynamic provider fetch");
+            return; // The loading state is set by fetch_models_for_provider
         }
 
         let models = self.provider_models.get(&self.current_provider)
             .cloned()
             .unwrap_or_default();
 
+        debug!("update_model_items: Found {} models for provider {}", models.len(), self.current_provider);
         let mut model_items: Vec<TypeaheadItem> = Vec::new();
         
         // Add "Default" option for Anthropic providers (similar to Claude Code)
@@ -413,9 +599,61 @@ impl ModelSelectionOverlay {
                 }
             }));
 
+        // If no models available, show provider-specific message
+        if model_items.is_empty() {
+            debug!("No models available for {}, showing empty state", self.current_provider);
+            
+            let (label, description) = match self.current_provider.as_str() {
+                "ollama" => {
+                    // For Ollama, this means the provider was marked as available but model fetching failed
+                    // This usually indicates a connection issue that happened after initial auth check
+                    let ollama_host = std::env::var("OLLAMA_HOST").unwrap_or_else(|_| "localhost".to_string());
+                    let host_display = if ollama_host == "localhost" { 
+                        "localhost:11434".to_string() 
+                    } else { 
+                        format!("{}:11434", ollama_host)
+                    };
+                    
+                    (
+                        "❌ Ollama connection failed".to_string(),
+                        Some(format!(
+                            "Could not fetch models from Ollama at {}. {}",
+                            host_display,
+                            if ollama_host == "localhost" {
+                                "Check if Ollama is running with 'ollama serve'"
+                            } else {
+                                "Verify Ollama is running and network is accessible"
+                            }
+                        ))
+                    )
+                },
+                "openai" | "openrouter" => (
+                    "❌ No models found".to_string(),
+                    Some("API key may be invalid or no models accessible".to_string())
+                ),
+                _ => (
+                    "No models available".to_string(),
+                    Some("Check provider configuration or try refreshing".to_string())
+                )
+            };
+            
+            model_items.push(TypeaheadItem {
+                label,
+                value: "_empty".to_string(),
+                description,
+                available: false,
+            });
+        }
+        
+        debug!("Final model_items count: {}, items: {:?}", model_items.len(), 
+               model_items.iter().map(|item| &item.label).collect::<Vec<_>>());
+        
         self.model_typeahead.set_items(model_items);
         self.model_typeahead.set_current_value(Some(self.current_model.clone()));
         self.update_model_description();
+        
+        debug!("After set_items, typeahead filtered_items count: {}", 
+               self.model_typeahead.filtered_items.len());
     }
 
     fn update_provider_description(&mut self) {
@@ -426,9 +664,20 @@ impl ModelSelectionOverlay {
     }
 
     fn update_model_description(&mut self) {
+        // Only show current model if it's a valid selection for this provider
+        let has_valid_model = self.provider_models.get(&self.current_provider)
+            .map(|models| models.iter().any(|m| m.name == self.current_model))
+            .unwrap_or(false);
+        
+        let model_text = if has_valid_model {
+            format!("Current model: {}", &self.current_model)
+        } else {
+            "Select a model".to_string()
+        };
+        
         self.model_typeahead.description = format!(
-            "Current model: {}\n\n[ Tab ] or [←/→] Switch to provider selection",
-            &self.current_model
+            "{}\n\n[ Tab ] or [←/→] Switch to provider selection",
+            model_text
         );
     }
 
@@ -441,9 +690,11 @@ impl ModelSelectionOverlay {
             self.mode = SelectionMode::Provider;
         }
         
-        // Trigger model fetching for current provider if authenticated
-        if self.is_current_provider_authenticated() {
-            self.fetch_models_for_provider(&self.current_provider.clone());
+        // For model selection mode, ensure models are loaded/loading
+        if self.mode == SelectionMode::Model {
+            debug!("show() - about to call update_model_items, provider_manager available: {}", self.provider_manager.is_some());
+            // Update model items which will trigger fetching if needed
+            self.update_model_items();
         }
         
         match self.mode {
@@ -452,10 +703,20 @@ impl ModelSelectionOverlay {
         }
     }
     
+    /// Ensure provider manager is set - call this before any model operations
+    pub fn ensure_provider_manager(&mut self, provider_manager: Arc<ProviderManager>) {
+        if self.provider_manager.is_none() {
+            debug!("🔧 ensure_provider_manager: Setting provider_manager that was missing");
+            self.provider_manager = Some(provider_manager);
+        }
+    }
+    
 
     fn fetch_models_for_provider(&mut self, provider_name: &str) {
+        debug!("=== FETCH_MODELS_FOR_PROVIDER called for: {} ===", provider_name);
         // Don't fetch if already fetching or no provider manager
         if self.fetching_models || self.provider_manager.is_none() {
+            debug!("Cannot fetch: fetching={}, has_manager={}", self.fetching_models, self.provider_manager.is_some());
             return;
         }
 
@@ -466,6 +727,7 @@ impl ModelSelectionOverlay {
             .unwrap_or(false);
 
         if !is_authenticated {
+            debug!("Provider {} is not authenticated, skipping model fetch", provider_name);
             return;
         }
 
@@ -474,12 +736,15 @@ impl ModelSelectionOverlay {
         
         // Update model typeahead to show loading state
         let loading_item = TypeaheadItem {
-            label: "Loading models...".to_string(),
+            label: "⏳ Loading models...".to_string(),
             value: "_loading".to_string(),
             description: Some("Fetching available models from provider".to_string()),
             available: false,
         };
+        debug!("Setting loading state for provider: {}", provider_name);
         self.model_typeahead.set_items(vec![loading_item]);
+        self.model_typeahead.set_current_value(None); // Clear current value to ensure loading shows
+        self.model_typeahead.filter_items(); // Ensure the list updates
         self.update_model_description();
 
         // Spawn async task to fetch models
@@ -487,15 +752,22 @@ impl ModelSelectionOverlay {
             let provider_name = provider_name.to_string();
             let tx = self.model_update_tx.clone();
             
+            debug!("Spawning async task to fetch models for {}", provider_name);
             tokio::spawn(async move {
+                debug!("=== ASYNC TASK STARTED for {} ===", provider_name);
                 match provider_manager.get_provider_or_host(&provider_name) {
                     Some(provider) => {
+                        debug!("Got provider for {}, calling list_available_models", provider_name);
                         match provider.list_available_models().await {
                             Ok(models) => {
-                                let _ = tx.send(ModelUpdate::ModelsReceived {
+                                debug!("*** SUCCESSFULLY FETCHED {} models for {}: {:?} ***", 
+                                       models.len(), provider_name, models);
+                                if let Err(e) = tx.send(ModelUpdate::ModelsReceived {
                                     provider: provider_name,
                                     models,
-                                });
+                                }) {
+                                    error!("Failed to send model update: {}", e);
+                                }
                             }
                             Err(e) => {
                                 let _ = tx.send(ModelUpdate::ModelsFetchError {
@@ -513,6 +785,8 @@ impl ModelSelectionOverlay {
                     }
                 }
             });
+        } else {
+            debug!("No provider_manager available for fetching models");
         }
     }
 
@@ -526,13 +800,29 @@ impl ModelSelectionOverlay {
             }
         }
         
+        if !updates.is_empty() {
+            debug!("process_model_updates: Processing {} updates", updates.len());
+        }
+        
         // Process collected updates
         for update in updates {
             match update {
                 ModelUpdate::ModelsReceived { provider, models } => {
+                    debug!("Received {} models for provider {}", models.len(), provider);
                     // Only process if this is for the current fetch
                     if self.models_fetched_for.as_ref() == Some(&provider) {
                         self.fetching_models = false;
+                        
+                        // Check if provider is still authenticated before processing update
+                        let is_provider_authenticated = self.provider_typeahead.items.iter()
+                            .find(|item| item.value == provider)
+                            .map(|item| item.available)
+                            .unwrap_or(false);
+                            
+                        if !is_provider_authenticated {
+                            debug!("Ignoring models received for unauthenticated provider: {}", provider);
+                            return;
+                        }
                         
                         // Convert to ModelConfig format
                         let model_configs: Vec<ModelConfig> = models.into_iter()
@@ -541,29 +831,53 @@ impl ModelSelectionOverlay {
                                 self.provider_models.get(&provider)
                                     .and_then(|configs| configs.iter().find(|c| c.name == name))
                                     .cloned()
-                                    .unwrap_or_else(|| ModelConfig {
-                                        name: name.clone(),
-                                        context_window: 128000, // Default context
-                                        input_cost_per_1m: 0.0,
-                                        output_cost_per_1m: 0.0,
-                                        supports_streaming: true,
-                                        supports_tools: false,
+                                    .unwrap_or_else(|| {
+                                        // Determine context window based on model name for Ollama
+                                        let context_window = if provider == "ollama" {
+                                            get_ollama_context_window(&name)
+                                        } else {
+                                            128000 // Default for other providers
+                                        };
+                                        
+                                        ModelConfig {
+                                            name: name.clone(),
+                                            context_window,
+                                            input_cost_per_1m: 0.0,
+                                            output_cost_per_1m: 0.0,
+                                            supports_streaming: true,
+                                            supports_tools: false,
+                                        }
                                     })
                             })
                             .collect();
                         
                         // Update provider models with fetched data
+                        debug!("Inserting {} models for provider {}", model_configs.len(), provider);
                         self.provider_models.insert(provider.clone(), model_configs);
                         
                         // Refresh model items if this is still the current provider
                         if self.current_provider == provider {
+                            debug!("Current provider matches, updating model items");
                             self.update_model_items();
+                        } else {
+                            debug!("Current provider {} doesn't match {}, not updating", self.current_provider, provider);
                         }
                     }
                 }
                 ModelUpdate::ModelsFetchError { provider, error } => {
                     if self.models_fetched_for.as_ref() == Some(&provider) {
                         self.fetching_models = false;
+                        
+                        // Check if provider is still authenticated before showing fetch error
+                        let is_provider_authenticated = self.provider_typeahead.items.iter()
+                            .find(|item| item.value == provider)
+                            .map(|item| item.available)
+                            .unwrap_or(false);
+                            
+                        if !is_provider_authenticated {
+                            debug!("Ignoring fetch error for unauthenticated provider: {}", provider);
+                            return;
+                        }
                         
                         // Show error state
                         let error_item = TypeaheadItem {
@@ -715,15 +1029,53 @@ impl ModelSelectionOverlay {
     
     /// Check if the currently selected provider is authenticated
     pub fn is_current_provider_authenticated(&self) -> bool {
-        self.provider_typeahead.items.iter()
+        let result = self.provider_typeahead.items.iter()
             .find(|item| item.value == self.current_provider)
-            .map(|item| item.available)
-            .unwrap_or(false)
+            .map(|item| {
+                debug!("Provider '{}' available: {}, label: '{}'", 
+                    item.value, item.available, item.label);
+                item.available
+            })
+            .unwrap_or(false);
+        debug!("is_current_provider_authenticated for '{}': {}", self.current_provider, result);
+        result
     }
     
     /// Get the current provider name (for auth setup)
     pub fn get_current_provider(&self) -> &str {
         &self.current_provider
+    }
+    
+    /// Check if we're in provider selection mode
+    pub fn is_in_provider_mode(&self) -> bool {
+        matches!(self.mode, SelectionMode::Provider)
+    }
+    
+    /// Handle provider selection - update current provider and switch to model mode
+    pub fn handle_provider_selection(&mut self) {
+        debug!("=== HANDLE_PROVIDER_SELECTION CALLED ===");
+        if let Some(item) = self.provider_typeahead.get_selected() {
+            let provider_value = item.value.clone();
+            debug!("handle_provider_selection: Selected provider {}, available: {}", provider_value, item.available);
+            debug!("handle_provider_selection: Has provider_manager: {}", self.provider_manager.is_some());
+            self.current_provider = provider_value.clone();
+            self.mode = SelectionMode::Model;
+            self.provider_typeahead.hide();
+            
+            // Update model items for new provider (this will show loading state for dynamic providers)
+            debug!("handle_provider_selection: About to call update_model_items");
+            self.update_model_items();
+            
+            // Show the model selection after updating items
+            debug!("handle_provider_selection: About to show model_typeahead, current items: {}", self.model_typeahead.items.len());
+            self.model_typeahead.show();
+            debug!("handle_provider_selection: Model typeahead shown, final items count: {}, filtered count: {}", 
+                   self.model_typeahead.items.len(), self.model_typeahead.filtered_items.len());
+            debug!("handle_provider_selection: Model items: {:?}", 
+                   self.model_typeahead.items.iter().map(|i| &i.label).collect::<Vec<_>>());
+        } else {
+            debug!("handle_provider_selection: No item selected");
+        }
     }
 
     fn restore_last_selected_model(&mut self) {

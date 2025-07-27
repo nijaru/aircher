@@ -13,7 +13,6 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io::stdout;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -161,7 +160,7 @@ pub struct TuiManager {
     permissions_manager: crate::permissions::PermissionsManager,
     // Authentication state
     auth_manager: Arc<AuthManager>,
-    providers: Option<Rc<ProviderManager>>,
+    providers: Option<Arc<ProviderManager>>,
     auth_required: bool,
     show_auth_setup: bool,
     // State
@@ -222,7 +221,7 @@ impl TuiManager {
     pub async fn new_with_auth_state(
         config: &ConfigManager,
         auth_manager: Arc<AuthManager>,
-        providers: Option<Rc<ProviderManager>>,
+        providers: Option<Arc<ProviderManager>>,
         provider_name: String,
         model: String
     ) -> Result<Self> {
@@ -316,6 +315,8 @@ impl TuiManager {
             model_selection_overlay: {
                 let mut overlay = ModelSelectionOverlay::with_auth_manager(config, auth_manager.clone());
                 if let Some(ref providers) = providers {
+                    // Set the provider manager for dynamic model fetching
+                    overlay.set_provider_manager(providers.clone());
                     // Update provider availability while keeping auth manager
                     overlay.update_provider_availability(providers.as_ref());
                     // IMPORTANT: Update dynamic models from providers (especially for Ollama)
@@ -459,6 +460,7 @@ impl TuiManager {
             help_modal: HelpModal::new(),
             model_selection_overlay: {
                 let mut overlay = ModelSelectionOverlay::with_auth_manager(config, auth_manager.clone());
+                // We'll set the provider manager after creating self.providers Arc
                 overlay.update_provider_availability(providers);
                 // IMPORTANT: Update dynamic models from providers (especially for Ollama)
                 overlay.update_dynamic_models(providers);
@@ -476,7 +478,7 @@ impl TuiManager {
             permissions_manager,
             // Authentication state (providers available in this constructor)
             auth_manager: auth_manager.clone(),
-            providers: Some(Rc::new(ProviderManager::new(config, auth_manager).await?)),
+            providers: Some(Arc::new(ProviderManager::new(config, auth_manager).await?)),
             auth_required: false,
             show_auth_setup: false,
             // Initialize state
@@ -699,6 +701,16 @@ impl TuiManager {
                                         
                                         // If it's a complete slash command, execute it immediately
                                         if let Some((command, args)) = parse_slash_command(&completion) {
+                                            // Add to history before clearing
+                                            if self.message_history.is_empty() || 
+                                               self.message_history.last() != Some(&completion) {
+                                                self.message_history.push(completion.clone());
+                                                if self.message_history.len() > 1000 {
+                                                    self.message_history.remove(0);
+                                                }
+                                            }
+                                            self.history_index = None;
+                                            
                                             match command {
                                                 "/model" => {
                                                     self.input.clear();
@@ -1715,31 +1727,39 @@ impl TuiManager {
                     return Ok(true);
                 }
                 KeyCode::Enter => {
-                    // First check if the current provider is authenticated
-                    if !self.model_selection_overlay.is_current_provider_authenticated() {
-                        // Provider is not authenticated, show auth wizard
-                        self.model_selection_overlay.hide();
-                        // Mark that auth setup should be shown - handle async operations outside modal handler
-                        self.show_auth_setup = true;
-                        return Ok(false); // Let the main event loop handle the async auth operations
-                    }
-                    
-                    if let Some((provider, model)) = self.model_selection_overlay.get_selected() {
-                        let old_provider = self.provider_name.clone();
-                        let old_model = self.model.clone();
-                        self.provider_name = provider.clone();
-                        self.model = model.clone();
-                        self.model_selection_overlay.hide();
+                    // Handle Enter based on current mode
+                    if self.model_selection_overlay.is_in_provider_mode() {
+                        // In provider mode: select the provider and switch to model selection
+                        self.model_selection_overlay.handle_provider_selection();
                         
-                        // Show confirmation message
-                        if old_provider != provider || old_model != model {
-                            self.add_message(Message::new(
-                                MessageRole::System,
-                                format!("Model changed to {} ({})", model, provider),
-                            ));
+                        // Now check if the newly selected provider is authenticated
+                        if !self.model_selection_overlay.is_current_provider_authenticated() {
+                            // Provider is not authenticated, show auth wizard
+                            self.model_selection_overlay.hide();
+                            self.show_auth_setup = true;
+                            return Ok(false);
                         }
+                        // Otherwise, we're now in model selection mode
+                        return Ok(true);
+                    } else {
+                        // In model mode: select the model and close
+                        if let Some((provider, model)) = self.model_selection_overlay.get_selected() {
+                            let old_provider = self.provider_name.clone();
+                            let old_model = self.model.clone();
+                            self.provider_name = provider.clone();
+                            self.model = model.clone();
+                            self.model_selection_overlay.hide();
+                            
+                            // Show confirmation message
+                            if old_provider != provider || old_model != model {
+                                self.add_message(Message::new(
+                                    MessageRole::System,
+                                    format!("Model changed to {} ({})", model, provider),
+                                ));
+                            }
+                        }
+                        return Ok(true);
                     }
-                    return Ok(true);
                 }
                 KeyCode::Up => {
                     self.model_selection_overlay.move_selection_up();
@@ -2828,11 +2848,39 @@ function farewell(name) {
     
     /// Show model selection overlay with proper auth status checking
     async fn show_model_selection_with_auth_check(&mut self) {
-        // Update with real auth status first before showing
+        debug!("=== SHOW_MODEL_SELECTION_WITH_AUTH_CHECK ===");
+        debug!("self.providers is_some: {}", self.providers.is_some());
+        
+        // Set provider manager FIRST if available for dynamic model fetching
+        if let Some(ref providers) = self.providers {
+            debug!("✅ Setting provider manager on model selection overlay");
+            self.model_selection_overlay.set_provider_manager(providers.clone());
+        } else {
+            debug!("❌ CRITICAL: self.providers is None! Cannot set provider manager");
+        }
+        
+        // Update with real auth status
         self.model_selection_overlay.initialize_auth_status(&self.config).await;
         
-        // Then show the overlay with correct status
+        // IMPORTANT: Update provider availability AFTER auth status to ensure Ollama is marked correctly
+        // This must come after initialize_auth_status to override any incorrect auth status
+        if let Some(ref providers) = self.providers {
+            self.model_selection_overlay.update_provider_availability(providers.as_ref());
+        }
+        
+        // Finally show the overlay with correct status
+        debug!("About to call show() on model selection overlay");
+        
+        // Double-check that provider manager is set before showing
+        if let Some(ref providers) = self.providers {
+            debug!("✅ Final check: Re-setting provider manager before show()");
+            self.model_selection_overlay.set_provider_manager(providers.clone());
+        } else {
+            debug!("❌ CRITICAL: self.providers is None when about to show model selection!");
+        }
+        
         self.model_selection_overlay.show();
+        debug!("=== SHOW_MODEL_SELECTION_WITH_AUTH_CHECK COMPLETE ===");
     }
     
     /// Handle /search command for semantic code search with optional filters
@@ -3396,7 +3444,7 @@ function farewell(name) {
     pub async fn refresh_providers_after_auth(&mut self) -> Result<()> {
         // Create new ProviderManager with updated authentication
         let provider_manager = ProviderManager::new(&self.config, self.auth_manager.clone()).await?;
-        self.providers = Some(Rc::new(provider_manager));
+        self.providers = Some(Arc::new(provider_manager));
         
         // Update auth state
         self.auth_required = false;

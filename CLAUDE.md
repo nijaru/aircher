@@ -158,6 +158,34 @@ Rich metadata display for informed model selection:
    - Case insensitive: `/M` → `/model`
    - Alias support: `/m` → `/model`
 
+### Provider Manager and Model Selection Fixes (Latest)
+
+Critical fixes for model selection reliability and user experience:
+
+1. **Provider Manager Initialization**:
+   - Fixed race condition where model selection opened before provider manager was available
+   - Added graceful loading states (`🔄 Loading models...`) instead of error messages
+   - Implemented automatic retry when provider manager becomes available
+   - Enhanced debug logging for troubleshooting initialization issues
+
+2. **Model Selection UX Improvements**:
+   - Loading states replace harsh error messages during initialization
+   - Models automatically refresh when provider manager is set
+   - Multiple initialization paths now properly handle provider manager setup
+   - Removed "Provider manager not initialized" errors in favor of smooth loading experience
+
+3. **Robust Error Handling**:
+   - `update_model_items()` gracefully handles missing provider manager
+   - Smart detection of loading states for automatic refresh
+   - Enhanced debug output for tracing initialization flow
+   - Provider manager setup happens in multiple strategic locations
+
+4. **Technical Implementation**:
+   - `set_provider_manager()` now triggers model refresh if needed
+   - `show_model_selection_with_auth_check()` includes double-check mechanism
+   - Loading state detection prevents users from seeing internal errors
+   - Provider manager availability checked before dynamic model fetching
+
 ### Planned Features
 
 - Progress bars for operations that support percentage tracking
