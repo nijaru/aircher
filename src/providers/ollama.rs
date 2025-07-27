@@ -151,6 +151,24 @@ impl OllamaProvider {
 
         Ok(provider)
     }
+    
+    /// Create a stub provider for UI availability when Ollama is not running
+    pub fn new_stub(config: crate::config::ProviderConfig) -> Result<Self> {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .context("Failed to create HTTP client")?;
+            
+        // Use default localhost URL since discovery failed
+        let base_url = "http://localhost:11434".to_string();
+        
+        Ok(Self {
+            client,
+            _config: config,
+            base_url,
+            available_models: Vec::new(), // Empty models - will be populated if/when Ollama becomes available
+        })
+    }
 
     async fn discover_ollama_url(client: &Client, fallback_urls: &[String]) -> Option<String> {
         let mut candidate_urls = Vec::new();
@@ -304,12 +322,26 @@ impl OllamaProvider {
             .await
             .context("Failed to parse models response")?;
 
-        let models = models_response
+        let all_models: Vec<String> = models_response
             .models
             .into_iter()
             .map(|model| model.name)
-            .filter(|name| !is_embedding_model(name))
             .collect();
+            
+        debug!("Ollama raw models from API: {:?}", all_models);
+        
+        let models: Vec<String> = all_models
+            .into_iter()
+            .filter(|name| {
+                let is_embed = is_embedding_model(name);
+                if is_embed {
+                    debug!("Filtering out embedding model: {}", name);
+                }
+                !is_embed
+            })
+            .collect();
+            
+        debug!("Ollama filtered models: {:?}", models);
 
         Ok(models)
     }
