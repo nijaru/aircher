@@ -57,7 +57,23 @@
       "Bash(echo:*)",
       "Bash(echo \"XDG_DATA_HOME: $XDG_DATA_HOME:-$HOME/.local/share\")",
       "Bash(diff:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(curl:*)",
+      "Bash(kill:*)",
+      "Bash(/tmp/test_model_loading.sh:*)",
+      "Bash(RUST_LOG=aircher=debug cargo build)",
+      "Bash(/tmp/test_ollama_direct.sh:*)",
+      "Bash(/tmp/test_direct_debug.sh:*)",
+      "Bash(env)",
+      "Bash(ollama:*)",
+      "Bash(/tmp/test_with_host.sh:*)",
+      "Bash(/tmp/quick_test.sh:*)",
+      "Bash(/tmp/debug_model_loading.sh:*)",
+      "Bash(/tmp/test_ollama_auth.sh:*)",
+      "Bash(/tmp/test_aircher_auth.sh:*)",
+      "Bash(/tmp/test_error_messages.sh:*)",
+      "Bash(RUST_LOG=\"aircher::ui::model_selection=debug,aircher::ui=debug\" cargo run)",
+      "Bash(RUST_LOG=\"aircher::ui=debug\" cargo run)"
     ],
     "deny": []
   }

@@ -333,11 +333,11 @@ impl OllamaProvider {
         let models: Vec<String> = all_models
             .into_iter()
             .filter(|name| {
-                let is_embed = is_embedding_model(name);
-                if is_embed {
-                    debug!("Filtering out embedding model: {}", name);
+                let is_specialized = is_specialized_model(name);
+                if is_specialized {
+                    debug!("Filtering out specialized model: {}", name);
                 }
-                !is_embed
+                !is_specialized
             })
             .collect();
             
@@ -655,23 +655,41 @@ impl LLMProvider for OllamaProvider {
     }
 }
 
-/// Check if a model name indicates it's an embedding model
-fn is_embedding_model(model_name: &str) -> bool {
+/// Check if a model name indicates it's a specialized model (embedding, vision, etc.)
+fn is_specialized_model(model_name: &str) -> bool {
     let name_lower = model_name.to_lowercase();
     
-    // Common embedding model patterns
-    name_lower.contains("embed") ||
-    name_lower.contains("embedding") ||
-    name_lower.contains("sentence") ||
-    name_lower.contains("bge-") ||
-    name_lower.contains("e5-") ||
-    name_lower.contains("instructor") ||
-    name_lower.contains("all-minilm") ||
-    name_lower.contains("all-mpnet") ||
-    name_lower.contains("msmarco") ||
-    name_lower.contains("paraphrase") ||
-    name_lower.contains("retrieval") ||
-    name_lower.contains("vector") ||
-    name_lower.starts_with("nomic-embed") ||
-    name_lower.starts_with("mxbai-embed")
+    // Embedding model patterns
+    let is_embedding = name_lower.contains("embed") ||
+        name_lower.contains("embedding") ||
+        name_lower.contains("sentence") ||
+        name_lower.contains("bge-") ||
+        name_lower.contains("e5-") ||
+        name_lower.contains("instructor") ||
+        name_lower.contains("all-minilm") ||
+        name_lower.contains("all-mpnet") ||
+        name_lower.contains("msmarco") ||
+        name_lower.contains("paraphrase") ||
+        name_lower.contains("retrieval") ||
+        name_lower.contains("vector") ||
+        name_lower.starts_with("nomic-embed") ||
+        name_lower.starts_with("mxbai-embed");
+    
+    // Vision model patterns
+    let is_vision = name_lower.contains("vision") ||
+        name_lower.contains("visual") ||
+        name_lower.contains("llava") ||
+        name_lower.contains("bakllava") ||
+        name_lower.contains("moondream") ||
+        name_lower.contains("cogvlm") ||
+        name_lower.contains("minicpm-v") ||
+        name_lower.contains("internvl") ||
+        name_lower.contains("bunny") ||
+        name_lower.contains("ava-") ||
+        name_lower.contains("-vision") ||
+        name_lower.ends_with("-v") ||
+        name_lower.contains("clip") ||
+        name_lower.contains("blip");
+    
+    is_embedding || is_vision
 }
