@@ -321,8 +321,14 @@ impl AuthWizard {
             return;
         }
 
-        // Create centered overlay
-        let popup_area = self.centered_rect(80, 70, area);
+        // Create centered overlay (same size as model selection modal)
+        let width = 60.min(area.width - 4);
+        let height = 20.min(area.height - 4);
+        
+        let x = (area.width - width) / 2;
+        let y = (area.height - height) / 2;
+        
+        let popup_area = Rect::new(x, y, width, height);
         
         // Clear the background
         f.render_widget(Clear, popup_area);
@@ -550,23 +556,4 @@ impl AuthWizard {
         f.render_widget(instructions, chunks[2]);
     }
 
-    fn centered_rect(&self, percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-        let popup_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ])
-            .split(r);
-
-        Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ])
-            .split(popup_layout[1])[1]
-    }
 }

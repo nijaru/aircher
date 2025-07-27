@@ -2856,11 +2856,8 @@ function farewell(name) {
             debug!("✅ Setting provider manager on model selection overlay");
             self.model_selection_overlay.set_provider_manager(providers.clone());
         } else {
-            debug!("❌ CRITICAL: self.providers is None! No authenticated providers available");
-            // Instead of showing the model selection with loading states, trigger auth setup
-            debug!("Triggering auth setup since no providers are available");
-            self.show_auth_setup = true;
-            return;
+            debug!("❌ WARNING: self.providers is None! Will show providers without manager");
+            // Continue to show the modal - auth will be triggered when user selects a provider
         }
         
         // Update with real auth status
