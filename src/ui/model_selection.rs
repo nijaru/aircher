@@ -996,8 +996,8 @@ impl ModelSelectionOverlay {
         match self.mode {
             SelectionMode::Model => {
                 if let Some(item) = self.model_typeahead.get_selected() {
-                    // Don't return selection if it's the no-auth placeholder
-                    if item.value == "_no_auth" {
+                    // Don't return selection if it's a placeholder/error item
+                    if item.value == "_no_auth" || item.value == "_loading" || item.value == "_no_models" || !item.available {
                         None
                     } else {
                         // Track the last selected model for this provider

@@ -2856,7 +2856,11 @@ function farewell(name) {
             debug!("✅ Setting provider manager on model selection overlay");
             self.model_selection_overlay.set_provider_manager(providers.clone());
         } else {
-            debug!("❌ CRITICAL: self.providers is None! Cannot set provider manager");
+            debug!("❌ CRITICAL: self.providers is None! No authenticated providers available");
+            // Instead of showing the model selection with loading states, trigger auth setup
+            debug!("Triggering auth setup since no providers are available");
+            self.show_auth_setup = true;
+            return;
         }
         
         // Update with real auth status
