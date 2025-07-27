@@ -574,25 +574,16 @@ impl ModelSelectionOverlay {
             });
         }
         
-        // Add regular models
+        // Add regular models with proper icon columns
         model_items.extend(models.into_iter()
             .enumerate()
             .map(|(idx, model)| {
-                // Format label with visual indicators
-                let mut label = model.name.clone();
-                
-                // Mark the first model as default with a star
-                if idx == 0 {
-                    label = format!("⭐ {}", label);
-                }
-                
-                // Add visual size indicator for very large models
-                if model.context_window >= 1_000_000 {
-                    label = format!("{} 🧠", label); // Brain for large context
-                }
+                // Create aligned icon columns for capabilities
+                let icons = format_model_icons(&model, idx == 0);
+                let formatted_label = format!("{} {}", icons, model.name);
                 
                 TypeaheadItem {
-                    label,
+                    label: formatted_label,
                     value: model.name.clone(),
                     description: format_model_description(&model),
                     available: true, // Models are available if provider is configured
@@ -1222,6 +1213,52 @@ fn format_provider_description(provider: &str) -> String {
         "openrouter" => "Multi-provider gateway with unified API".to_string(),
         _ => String::new(),
     }
+}
+
+/// Format icon columns for model capabilities with fixed width for alignment
+fn format_model_icons(model: &ModelConfig, is_default: bool) -> String {
+    let mut icons = Vec::new();
+    
+    // Column 1: Default/recommended indicator
+    if is_default {
+        icons.push("⭐"); // Star for default/first model
+    } else {
+        icons.push(" "); // Space to maintain alignment
+    }
+    
+    // Column 2: Context size indicator
+    if model.context_window >= 1_000_000 {
+        icons.push("🧠"); // Large context (1M+ tokens)
+    } else if model.context_window >= 128_000 {
+        icons.push("📚"); // Large context (128K+)
+    } else if model.context_window >= 32_000 {
+        icons.push("📄"); // Medium context (32K+)
+    } else {
+        icons.push(" "); // Space for alignment
+    }
+    
+    // Column 3: Model type/capability indicators
+    let model_name_lower = model.name.to_lowercase();
+    if model_name_lower.contains("claude") {
+        icons.push("🔧"); // Claude models typically support tools
+    } else if model_name_lower.contains("gpt-4") || model_name_lower.contains("gpt-3.5") {
+        icons.push("🔧"); // GPT models support tools
+    } else if model_name_lower.contains("ollama") || model_name_lower.contains("llama") {
+        icons.push("💾"); // Local/Ollama models
+    } else {
+        icons.push(" "); // Space for alignment
+    }
+    
+    // Column 4: Speed/performance indicator
+    if model_name_lower.contains("turbo") || model_name_lower.contains("fast") {
+        icons.push("⚡"); // Fast models
+    } else if model_name_lower.contains("o1") || model_name_lower.contains("opus") {
+        icons.push("🎯"); // High-quality reasoning models
+    } else {
+        icons.push(" "); // Space for alignment
+    }
+    
+    icons.join("")
 }
 
 fn format_model_description(model: &ModelConfig) -> Option<String> {

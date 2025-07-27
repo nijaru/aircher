@@ -321,9 +321,9 @@ impl AuthWizard {
             return;
         }
 
-        // Create centered overlay (same size as model selection modal)
-        let width = 60.min(area.width - 4);
-        let height = 20.min(area.height - 4);
+        // Create centered overlay (same responsive size as model selection modal)
+        let width = (area.width * 70 / 100).max(50).min(80);
+        let height = (area.height * 60 / 100).max(15).min(30);
         
         let x = (area.width - width) / 2;
         let y = (area.height - height) / 2;

@@ -48,41 +48,41 @@ struct OllamaOptions {
 #[derive(Debug, Deserialize)]
 struct OllamaResponse {
     model: String,
-    _created_at: String,
+    created_at: String,
     message: OllamaMessage,
-    _done: bool,
+    done: bool,
     #[serde(default)]
-    _total_duration: Option<u64>,
+    total_duration: Option<u64>,
     #[serde(default)]
-    _load_duration: Option<u64>,
+    load_duration: Option<u64>,
     #[serde(default)]
     prompt_eval_count: Option<u32>,
     #[serde(default)]
-    _prompt_eval_duration: Option<u64>,
+    prompt_eval_duration: Option<u64>,
     #[serde(default)]
     eval_count: Option<u32>,
     #[serde(default)]
-    _eval_duration: Option<u64>,
+    eval_duration: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OllamaStreamResponse {
-    _model: String,
-    _created_at: String,
+    model: String,
+    created_at: String,
     message: OllamaMessage,
     done: bool,
     #[serde(default)]
-    _total_duration: Option<u64>,
+    total_duration: Option<u64>,
     #[serde(default)]
-    _load_duration: Option<u64>,
+    load_duration: Option<u64>,
     #[serde(default)]
     prompt_eval_count: Option<u32>,
     #[serde(default)]
-    _prompt_eval_duration: Option<u64>,
+    prompt_eval_duration: Option<u64>,
     #[serde(default)]
     eval_count: Option<u32>,
     #[serde(default)]
-    _eval_duration: Option<u64>,
+    eval_duration: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -126,9 +126,14 @@ impl OllamaProvider {
             .context("Failed to create HTTP client")?;
 
         let base_url = if config.base_url.is_empty() {
+            debug!("Ollama config.base_url is empty, discovering URL...");
             Self::discover_ollama_url(&client, &config.fallback_urls).await
-                .unwrap_or_else(|| "http://localhost:11434".to_string())
+                .unwrap_or_else(|| {
+                    debug!("Ollama discovery failed, falling back to localhost");
+                    "http://localhost:11434".to_string()
+                })
         } else {
+            debug!("Using configured Ollama base_url: {}", config.base_url);
             config.base_url.clone()
         };
 
@@ -151,11 +156,15 @@ impl OllamaProvider {
         let mut candidate_urls = Vec::new();
         
         // 1. First try configured fallback URLs
+        debug!("Ollama discovery: {} configured fallback URLs", fallback_urls.len());
         candidate_urls.extend(fallback_urls.iter().cloned());
         
         // 2. Then try auto-discovered URLs
-        candidate_urls.extend(Self::get_candidate_urls().await);
+        let discovered_urls = Self::get_candidate_urls().await;
+        debug!("Ollama discovery: {} auto-discovered URLs", discovered_urls.len());
+        candidate_urls.extend(discovered_urls);
         
+        debug!("Ollama discovery: Total {} candidate URLs to try", candidate_urls.len());
         for url in candidate_urls {
             debug!("Trying Ollama at: {}", url);
             
@@ -176,19 +185,30 @@ impl OllamaProvider {
     async fn get_candidate_urls() -> Vec<String> {
         let mut urls = Vec::new();
         
-        // 1. Always try localhost first
+        // 1. Check OLLAMA_HOST environment variable first (highest priority)
+        if let Ok(ollama_host) = std::env::var("OLLAMA_HOST") {
+            let host_url = if ollama_host.starts_with("http") {
+                ollama_host
+            } else {
+                format!("http://{}:11434", ollama_host)
+            };
+            debug!("Found OLLAMA_HOST env var: {}", host_url);
+            urls.push(host_url);
+        }
+        
+        // 2. Always try localhost
         urls.push("http://localhost:11434".to_string());
         urls.push("http://127.0.0.1:11434".to_string());
         
-        // 2. Try common Tailscale patterns
+        // 3. Try common Tailscale patterns
         if let Some(tailscale_urls) = Self::get_tailscale_candidates().await {
             urls.extend(tailscale_urls);
         }
         
-        // 3. Try Docker default
+        // 4. Try Docker default
         urls.push("http://host.docker.internal:11434".to_string());
         
-        // 4. Try common local IPs
+        // 5. Try common local IPs
         urls.push("http://192.168.1.100:11434".to_string());
         urls.push("http://192.168.0.100:11434".to_string());
         urls.push("http://10.0.0.100:11434".to_string());
@@ -288,6 +308,7 @@ impl OllamaProvider {
             .models
             .into_iter()
             .map(|model| model.name)
+            .filter(|name| !is_embedding_model(name))
             .collect();
 
         Ok(models)
@@ -600,4 +621,25 @@ impl LLMProvider for OllamaProvider {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+}
+
+/// Check if a model name indicates it's an embedding model
+fn is_embedding_model(model_name: &str) -> bool {
+    let name_lower = model_name.to_lowercase();
+    
+    // Common embedding model patterns
+    name_lower.contains("embed") ||
+    name_lower.contains("embedding") ||
+    name_lower.contains("sentence") ||
+    name_lower.contains("bge-") ||
+    name_lower.contains("e5-") ||
+    name_lower.contains("instructor") ||
+    name_lower.contains("all-minilm") ||
+    name_lower.contains("all-mpnet") ||
+    name_lower.contains("msmarco") ||
+    name_lower.contains("paraphrase") ||
+    name_lower.contains("retrieval") ||
+    name_lower.contains("vector") ||
+    name_lower.starts_with("nomic-embed") ||
+    name_lower.starts_with("mxbai-embed")
 }

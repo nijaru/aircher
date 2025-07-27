@@ -16,6 +16,7 @@ pub struct TypeaheadOverlay {
     pub cursor_position: usize,
     pub selected_index: usize,
     pub current_value: Option<String>,
+    pub hide_input: bool,  // Hide input for simple selection
 }
 
 #[derive(Clone, Debug)]
@@ -38,12 +39,17 @@ impl TypeaheadOverlay {
             cursor_position: 0,
             selected_index: 0,
             current_value: None,
+            hide_input: false,
         }
     }
 
     pub fn show(&mut self) {
+        use tracing::debug;
+        debug!("TypeaheadOverlay::show() called, items: {}, filtered: {}", 
+               self.items.len(), self.filtered_items.len());
         self.visible = true;
         self.filter_items();
+        debug!("After show() filter_items, filtered: {}", self.filtered_items.len());
     }
 
     pub fn hide(&mut self) {
@@ -54,8 +60,12 @@ impl TypeaheadOverlay {
     }
 
     pub fn set_items(&mut self, items: Vec<TypeaheadItem>) {
+        use tracing::debug;
+        debug!("TypeaheadOverlay::set_items called with {} items: {:?}", 
+               items.len(), items.iter().map(|item| &item.label).collect::<Vec<_>>());
         self.items = items;
         self.filter_items();
+        debug!("After filter_items, filtered_items count: {}", self.filtered_items.len());
     }
 
     pub fn set_current_value(&mut self, value: Option<String>) {
@@ -111,46 +121,42 @@ impl TypeaheadOverlay {
         self.filtered_items.get(self.selected_index)
     }
 
-    fn filter_items(&mut self) {
+    pub fn filter_items(&mut self) {
         let query = self.input.to_lowercase();
         
-        // First, separate current item and other items
-        let (current_items, other_items): (Vec<_>, Vec<_>) = self.items.iter()
-            .cloned()
-            .partition(|item| {
-                self.current_value.as_ref().map_or(false, |cv| cv == &item.value)
-            });
-        
-        // Filter other items
-        let mut filtered: Vec<_> = other_items.into_iter()
-            .filter(|item| {
-                item.label.to_lowercase().contains(&query) ||
-                item.value.to_lowercase().contains(&query) ||
-                item.description.as_ref().map_or(false, |d| d.to_lowercase().contains(&query))
-            })
-            .collect();
-        
-        // Sort by relevance (items starting with query first)
-        filtered.sort_by(|a, b| {
-            let a_starts = a.label.to_lowercase().starts_with(&query);
-            let b_starts = b.label.to_lowercase().starts_with(&query);
-            match (a_starts, b_starts) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
-                _ => a.label.cmp(&b.label),
-            }
-        });
-        
-        // Put current item at top if it matches
-        self.filtered_items = current_items.into_iter()
-            .filter(|item| {
-                query.is_empty() || 
-                item.label.to_lowercase().contains(&query) ||
-                item.value.to_lowercase().contains(&query)
+        if query.is_empty() {
+            // When there's no query, show all items in their original order
+            self.filtered_items = self.items.clone();
+        } else {
+            // First, separate current item and other items
+            let (current_items, other_items): (Vec<_>, Vec<_>) = self.items.iter()
+                .cloned()
+                .partition(|item| {
+                    self.current_value.as_ref().map_or(false, |cv| cv == &item.value)
+                });
+            
+            // Filter other items while preserving the original order
+            let filtered: Vec<_> = other_items.into_iter()
+                .filter(|item| {
+                    item.label.to_lowercase().contains(&query) ||
+                    item.value.to_lowercase().contains(&query) ||
+                    item.description.as_ref().map_or(false, |d| d.to_lowercase().contains(&query))
+                })
+                .collect();
+            
+            // Note: We don't re-sort here to preserve the careful ordering from ModelSelectionOverlay
+            // The items are already sorted by authentication status and provider priority
+            
+            // Put current item at top if it matches
+            self.filtered_items = current_items.into_iter()
+                .filter(|item| {
+                    item.label.to_lowercase().contains(&query) ||
+                    item.value.to_lowercase().contains(&query)
             })
             .chain(filtered)
             .take(10) // Limit to 10 items
             .collect();
+        }
         
         // Reset selection if needed
         if self.selected_index >= self.filtered_items.len() {
@@ -163,9 +169,9 @@ impl TypeaheadOverlay {
             return;
         }
 
-        // Calculate overlay size
-        let width = 60.min(area.width - 4);
-        let height = 20.min(area.height - 4);
+        // Calculate overlay size - responsive but with min/max constraints
+        let width = (area.width * 70 / 100).max(50).min(80);
+        let height = (area.height * 60 / 100).max(15).min(30);
         
         let x = (area.width - width) / 2;
         let y = (area.height - height) / 2;
@@ -184,16 +190,27 @@ impl TypeaheadOverlay {
         let inner = block.inner(overlay_area);
         f.render_widget(block, overlay_area);
 
-        // Layout
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3), // Description
-                Constraint::Length(3), // Input
-                Constraint::Min(5),    // List
-                Constraint::Length(1), // Help
-            ])
-            .split(inner);
+        // Layout - adjust based on whether we show input
+        let chunks = if self.hide_input {
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(3), // Description
+                    Constraint::Min(5),    // List (more space without input)
+                    Constraint::Length(1), // Help
+                ])
+                .split(inner)
+        } else {
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(3), // Description
+                    Constraint::Length(3), // Input
+                    Constraint::Min(5),    // List
+                    Constraint::Length(1), // Help
+                ])
+                .split(inner)
+        };
 
         // Description
         let desc_paragraph = Paragraph::new(self.description.as_str())
@@ -201,38 +218,63 @@ impl TypeaheadOverlay {
             .alignment(Alignment::Left);
         f.render_widget(desc_paragraph, chunks[0]);
 
-        // Input field
-        let input_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Blue));
-        
-        let input_area = input_block.inner(chunks[1]);
-        f.render_widget(input_block, chunks[1]);
-        
-        let input_text = Paragraph::new(self.input.as_str())
-            .style(Style::default().fg(Color::White));
-        f.render_widget(input_text, input_area);
+        // Input field (only if not hidden)
+        let list_chunk_idx = if !self.hide_input {
+            let input_block = Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Blue));
+            
+            let input_area = input_block.inner(chunks[1]);
+            f.render_widget(input_block, chunks[1]);
+            
+            let input_text = Paragraph::new(self.input.as_str())
+                .style(Style::default().fg(Color::White));
+            f.render_widget(input_text, input_area);
 
-        // Show cursor
-        f.set_cursor_position((
-            input_area.x + self.cursor_position as u16,
-            input_area.y
-        ));
+            // Show cursor
+            f.set_cursor_position((
+                input_area.x + self.cursor_position as u16,
+                input_area.y
+            ));
+            
+            2 // List is at index 2 when input is shown
+        } else {
+            1 // List is at index 1 when input is hidden
+        };
 
         // Filtered items list
+        use tracing::debug;
+        debug!("RENDER: Creating ListItems from {} filtered_items: {:?}", 
+               self.filtered_items.len(), 
+               self.filtered_items.iter().map(|i| &i.label).collect::<Vec<_>>());
         let items: Vec<ListItem> = self.filtered_items.iter().enumerate().map(|(i, item)| {
             let mut spans = vec![];
             
-            // Add selection indicator for currently selected item (not current value)
-            if i == self.selected_index {
-                spans.push(Span::styled("▶ ", Style::default().fg(Color::Cyan)));
+            // Check if this is the current value (active/selected)
+            let is_current = self.current_value.as_ref().map_or(false, |cv| cv == &item.value);
+            
+            // Add indicators: current (✓) takes priority over navigation (▶)
+            if is_current {
+                // Use different color for checkmark when highlighted to ensure visibility
+                let checkmark_color = if i == self.selected_index {
+                    Color::Yellow // Yellow stands out on cyan background
+                } else {
+                    Color::Green  // Green on normal background
+                };
+                spans.push(Span::styled("✓ ", Style::default().fg(checkmark_color).add_modifier(Modifier::BOLD)));
+            } else if i == self.selected_index {
+                spans.push(Span::styled("▶ ", Style::default().fg(Color::Yellow))); // Make arrow more visible too
             } else {
                 spans.push(Span::raw("  "));
             }
             
             // Add label
             let label_style = if item.available {
-                Style::default()
+                if is_current {
+                    Style::default().add_modifier(Modifier::BOLD) // Bold for current selection
+                } else {
+                    Style::default()
+                }
             } else {
                 Style::default().fg(Color::DarkGray)
             };
@@ -249,7 +291,8 @@ impl TypeaheadOverlay {
             }
             
             let style = if i == self.selected_index {
-                Style::default().fg(Color::White).bg(Color::Blue).add_modifier(Modifier::BOLD)
+                // Use black text on cyan background for better contrast
+                Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
@@ -259,17 +302,20 @@ impl TypeaheadOverlay {
 
         let list = List::new(items)
             .block(Block::default().borders(Borders::NONE));
-        f.render_widget(list, chunks[2]);
+        f.render_widget(list, chunks[list_chunk_idx]);
 
         // Help text
-        let help = if self.filtered_items.is_empty() {
+        let help_chunk_idx = if self.hide_input { 2 } else { 3 };
+        let help = if self.filtered_items.is_empty() && !self.input.is_empty() {
+            // Only show "No matches" if user is actively filtering
             "No matches found. Press Esc to cancel."
         } else {
-            "↑/↓ Navigate • Enter Select • Esc Cancel"
+            // Always show navigation help when not filtering or when items exist
+            "↑/↓ Navigate • Enter Select • Tab Switch • Esc Cancel"
         };
         let help_text = Paragraph::new(help)
             .style(Style::default().fg(Color::DarkGray))
             .alignment(Alignment::Center);
-        f.render_widget(help_text, chunks[3]);
+        f.render_widget(help_text, chunks[help_chunk_idx]);
     }
 }
