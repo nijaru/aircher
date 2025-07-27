@@ -214,14 +214,23 @@ impl ProviderManager {
             }
         }
 
-        // Initialize Ollama provider
+        // Initialize Ollama provider - always include it even if not currently running
         if let Some(ollama_config) = config.get_provider("ollama") {
             match ollama::OllamaProvider::new(ollama_config.clone(), auth_manager.clone()).await {
                 Ok(ollama_provider) => {
                     providers.insert("ollama".to_string(), Box::new(ollama_provider));
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to initialize Ollama provider: {}", e);
+                    tracing::warn!("Failed to initialize Ollama provider: {} - creating stub for UI availability", e);
+                    // Create a stub provider so Ollama appears in UI even when not running
+                    match ollama::OllamaProvider::new_stub(ollama_config.clone()) {
+                        Ok(stub_provider) => {
+                            providers.insert("ollama".to_string(), Box::new(stub_provider));
+                        }
+                        Err(stub_e) => {
+                            tracing::error!("Failed to create Ollama stub provider: {}", stub_e);
+                        }
+                    }
                 }
             }
         }
