@@ -2051,6 +2051,10 @@ impl TuiManager {
                     }
                     return Ok(true);
                 }
+                KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.settings_modal.hide();
+                    return Ok(true);
+                }
                 KeyCode::Enter => {
                     if self.settings_modal.is_editing() {
                         self.settings_modal.finish_editing();
