@@ -1,6 +1,7 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
@@ -126,8 +127,8 @@ impl SettingsModal {
             return;
         }
 
-        // Calculate modal area (centered, large)
-        let modal_area = centered_rect(90, 80, area);
+        // Calculate modal area (centered, smaller since we only have UI settings now)
+        let modal_area = centered_rect(60, 50, area);
 
         // Clear the area
         f.render_widget(Clear, modal_area);
@@ -186,12 +187,6 @@ impl SettingsModal {
             .iter()
             .enumerate()
             .map(|(i, (name, value))| {
-                let style = if i == self.selected_setting {
-                    Style::default().bg(Color::Blue).fg(Color::White)
-                } else {
-                    Style::default()
-                };
-
                 let is_editing = self.editing_field.as_ref()
                     .map(|field| match i {
                         0 => field == "theme",
@@ -206,7 +201,16 @@ impl SettingsModal {
                     value
                 };
 
-                ListItem::new(format!("  {}: {}", name, display_value)).style(style)
+                let line = Line::from(vec![
+                    Span::styled(format!("  {}: ", name), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                    Span::styled(display_value, Style::default().fg(Color::Gray)),
+                ]);
+
+                let mut item = ListItem::new(line);
+                if i == self.selected_setting {
+                    item = item.style(Style::default().bg(Color::DarkGray));
+                }
+                item
             })
             .collect();
 

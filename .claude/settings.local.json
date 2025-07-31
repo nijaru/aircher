@@ -73,7 +73,8 @@
       "Bash(/tmp/test_aircher_auth.sh:*)",
       "Bash(/tmp/test_error_messages.sh:*)",
       "Bash(RUST_LOG=\"aircher::ui::model_selection=debug,aircher::ui=debug\" cargo run)",
-      "Bash(RUST_LOG=\"aircher::ui=debug\" cargo run)"
+      "Bash(RUST_LOG=\"aircher::ui=debug\" cargo run)",
+      "Bash(RUST_LOG=aircher=debug cargo run)"
     ],
     "deny": []
   }

@@ -87,30 +87,10 @@ use model_selection::ModelSelectionOverlay;
 use diff_viewer::{DiffViewer, generate_diff};
 use slash_commands::{parse_slash_command, format_help};
 use syntax_highlight::SyntaxHighlighter;
-use spinners::{BRAILLE_SPINNER, THINKING_SPINNER, STAR_PULSE, GROWING_PILLAR};
+use spinners::{BRAILLE_SPINNER, THINKING_SPINNER, STAR_PULSE, TURBO_CIRCULAR, TURBO_NEURAL, TURBO_COSMIC};
 
-/// Fun streaming messages for different states
-const HUSTLING_MESSAGES: &[&str] = &[
-    "Drawing bow",
-    "Nocking arrow",
-    "Taking aim",
-    "Sighting target",
-    "Focusing shot",
-    "Preparing volley",
-    "Loading quiver",
-    "Positioning stance",
-];
-
-const SCHLEPPING_MESSAGES: &[&str] = &[
-    "Calculating trajectory",
-    "Analyzing wind patterns",
-    "Processing target data",
-    "Computing ballistics",
-    "Evaluating conditions",
-    "Strategizing approach",
-    "Calibrating sights",
-    "Adjusting for distance",
-];
+// Import AI consciousness themed messages from spinners module
+use spinners::{THINKING_MESSAGES, AWAKENING_MESSAGES};
 
 const STREAMING_MESSAGES: &[&str] = &[
     "Receiving data",
@@ -127,6 +107,7 @@ pub struct TuiManager {
     config: ConfigManager,
     provider_name: String,
     model: String,
+    provider_explicitly_selected: bool, // Track if user manually selected this provider
     messages: Vec<Message>,
     input: String,
     cursor_position: usize,
@@ -288,6 +269,7 @@ impl TuiManager {
             config: config.clone(),
             provider_name,
             model,
+            provider_explicitly_selected: false, // Initially using defaults
             messages: Vec::new(),
             input: String::new(),
             cursor_position: 0,
@@ -440,6 +422,7 @@ impl TuiManager {
             config: config.clone(),
             provider_name: config.global.default_provider.clone(),
             model: config.global.default_model.clone(),
+            provider_explicitly_selected: false, // Initially using defaults
             messages,
             input: String::new(),
             cursor_position: 0,
@@ -645,11 +628,20 @@ impl TuiManager {
                             KeyCode::Char('c')
                                 if key.modifiers.contains(KeyModifiers::CONTROL) =>
                             {
+                                // Check if a message is currently being processed
+                                let message_in_progress = self.agent_processing || self.streaming_state != StreamingState::Idle;
+                                
                                 // 2-stage Ctrl+C like Claude Code: first clears input, second quits
+                                // But require confirmation when message is in progress
                                 let now = Instant::now();
                                 if let Some(last_time) = self.last_ctrl_c_time {
                                     // If less than 2 seconds since last Ctrl+C, quit
                                     if now.duration_since(last_time) < Duration::from_secs(2) {
+                                        if message_in_progress {
+                                            // Stop the current operation before quitting
+                                            self.stop_streaming();
+                                            self.agent_processing = false;
+                                        }
                                         break;
                                     }
                                 }
@@ -661,8 +653,15 @@ impl TuiManager {
                                     self.cursor_position = 0;
                                     self.autocomplete.hide();
                                     self.last_ctrl_c_time = Some(now);
+                                } else if message_in_progress {
+                                    // Message in progress - require confirmation
+                                    self.add_message(Message::new(
+                                        MessageRole::System,
+                                        "Message in progress. Press Ctrl+C again within 2 seconds to quit.".to_string(),
+                                    ));
+                                    self.last_ctrl_c_time = Some(now);
                                 } else {
-                                    // No text to clear, quit immediately
+                                    // No text to clear and no message in progress, quit immediately
                                     break;
                                 }
                             }
@@ -693,6 +692,8 @@ impl TuiManager {
                                 } else if self.autocomplete.is_visible() {
                                     // Accept autocomplete suggestion
                                     if let Some(completion) = self.autocomplete.accept_suggestion() {
+                                        // Clear autocomplete first to prevent double processing
+                                        self.autocomplete.hide();
                                         // Handle @ file completions differently
                                         if self.input.contains('@') {
                                             // Find the @ position to replace from
@@ -763,6 +764,12 @@ impl TuiManager {
                                                     self.cursor_position = 0;
                                                     self.settings_modal.toggle();
                                                 }
+                                                "/provider" => {
+                                                    self.input.clear();
+                                                    self.cursor_position = 0;
+                                                    // Show just the provider selection (not models)
+                                                    self.show_provider_selection().await;
+                                                }
                                                 _ => {
                                                     // For unknown commands, leave the input as-is so user can modify
                                                 }
@@ -785,6 +792,7 @@ impl TuiManager {
                                         // If a specific provider was authenticated, switch to it
                                         if let Some(provider_name) = authenticated_provider {
                                             self.provider_name = provider_name.clone();
+                                            self.provider_explicitly_selected = true; // User explicitly authenticated this provider
                                             self.add_message(Message::new(
                                                 MessageRole::System,
                                                 format!("Switched to provider: {}", provider_name),
@@ -923,6 +931,9 @@ impl TuiManager {
                                                     ));
                                                 }
                                             }
+                                            "/provider" => {
+                                                self.show_provider_selection().await;
+                                            }
                                             "/quit" => {
                                                 self.should_quit = true;
                                             }
@@ -941,7 +952,14 @@ impl TuiManager {
                                         ));
                                     } else {
                                         // Handle regular message based on auth state
-                                        if self.providers.is_some() {
+                                        // Check if we have a valid provider and model before sending
+                                        if self.provider_name.is_empty() || self.model.is_empty() {
+                                            self.add_message(Message::user(message.clone()));
+                                            self.add_message(Message::new(
+                                                MessageRole::System,
+                                                "No model selected. Use /model to select a provider and model.".to_string(),
+                                            ));
+                                        } else if self.providers.is_some() {
                                             // Add user message first
                                             self.add_message(Message::user(message.clone()));
                                             
@@ -974,6 +992,10 @@ impl TuiManager {
                             KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                                 // Ctrl+L to jump to bottom (like terminal clear)
                                 self.scroll_offset = 0;
+                            }
+                            KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Ctrl+W to delete last word (like terminal)
+                                self.delete_last_word();
                             }
                             KeyCode::Char(c) => {
                                 // Insert character at cursor position
@@ -1219,6 +1241,64 @@ impl TuiManager {
         info!("TUI interface closed");
         Ok(())
     }
+    
+    /// Save user's provider selection to config for next startup
+    fn save_provider_selection(&mut self, provider: &str, model: &str) {
+        debug!("Saving user provider selection: {} / {}", provider, model);
+        self.config.global.default_provider = provider.to_string();
+        self.config.global.default_model = model.to_string();
+        
+        // Save config to disk (async operation - we'll do it in background)
+        let config = self.config.clone();
+        tokio::spawn(async move {
+            if let Err(e) = config.save().await {
+                debug!("Failed to save config after provider selection: {}", e);
+            } else {
+                debug!("Successfully saved provider selection to config");
+            }
+        });
+    }
+    
+    /// Show provider selection only (not models)
+    async fn show_provider_selection(&mut self) {
+        debug!("=== SHOW_PROVIDER_SELECTION ===");
+        
+        // Update auth status and provider availability
+        if let Some(ref providers) = self.providers {
+            self.model_selection_overlay.initialize_auth_status(&self.config).await;
+            self.model_selection_overlay.update_provider_availability(providers.as_ref());
+            self.model_selection_overlay.set_provider_manager(providers.clone());
+        }
+        
+        // Show the overlay in provider-only mode
+        self.model_selection_overlay.show_providers_only();
+        debug!("=== SHOW_PROVIDER_SELECTION COMPLETE ===");
+    }
+    
+    /// Delete the last word from input (Ctrl+W behavior)
+    fn delete_last_word(&mut self) {
+        if self.cursor_position == 0 {
+            return;
+        }
+        
+        let mut chars: Vec<char> = self.input.chars().collect();
+        let mut pos = self.cursor_position;
+        
+        // Skip trailing whitespace
+        while pos > 0 && chars[pos - 1].is_whitespace() {
+            pos -= 1;
+        }
+        
+        // Delete the word (non-whitespace characters)
+        while pos > 0 && !chars[pos - 1].is_whitespace() {
+            pos -= 1;
+        }
+        
+        // Remove characters from pos to cursor_position
+        chars.drain(pos..self.cursor_position);
+        self.input = chars.into_iter().collect();
+        self.cursor_position = pos;
+    }
 
     fn draw(&mut self, f: &mut Frame) {
         // Show auth setup screen if needed
@@ -1343,51 +1423,103 @@ impl TuiManager {
             // Add message content with role-specific styling and indentation
             let mut message_lines = match msg.role {
                 MessageRole::User => {
-                    // User messages: Comment-colored like Claude Code
-                    let comment_color = Style::default().fg(Color::Rgb(107, 114, 128)); // Comment gray like Claude Code
-                    vec![ListItem::new(Line::from(vec![
-                        Span::styled("  > ", comment_color), // Slight indentation
-                        Span::styled(&msg.content, comment_color),
-                    ]))]
+                    // User messages: Left-aligned with > prefix and green bar on right
+                    let comment_color = Style::default().fg(Color::Rgb(107, 114, 128)); // Comment gray
+                    
+                    // First line gets the > prefix, subsequent lines just have spaces
+                    let lines: Vec<&str> = msg.content.lines().collect();
+                    if lines.is_empty() {
+                        // Handle empty message
+                        vec![ListItem::new(Line::from(vec![
+                            Span::styled("> ", comment_color),
+                            Span::styled("", comment_color),
+                            Span::styled(" ▐", Style::default().fg(Color::Green)), // Green bar on right
+                        ]))]
+                    } else {
+                        lines.into_iter().enumerate().map(|(idx, line)| {
+                            if idx == 0 {
+                                ListItem::new(Line::from(vec![
+                                    Span::styled("> ", comment_color),
+                                    Span::styled(line, comment_color),
+                                    Span::styled(" ▐", Style::default().fg(Color::Green)), // Green bar on right
+                                ]))
+                            } else {
+                                ListItem::new(Line::from(vec![
+                                    Span::styled("  ", Style::default()), // Two spaces for continuation
+                                    Span::styled(line, comment_color),
+                                    Span::styled(" ▐", Style::default().fg(Color::Green)), // Green bar on right
+                                ]))
+                            }
+                        }).collect()
+                    }
                 },
                 MessageRole::Assistant => {
-                    // Assistant messages: Regular font colors with syntax highlighting (like Claude Code)
+                    // Assistant messages: Blue bar on left, syntax highlighted text
                     let highlighted_lines = self.syntax_highlighter.highlight_message(&msg.content);
                     highlighted_lines.into_iter().map(|line| {
-                        // Add subtle left indentation to create visual separation
-                        let mut spans = vec![Span::styled("  ", Style::default())]; // 2-space indent
+                        // Add blue bar and content
+                        let mut spans = vec![Span::styled("▐ ", Style::default().fg(Color::Blue))]; // Blue bar
                         spans.extend(line.spans);
                         ListItem::new(Line::from(spans))
                     }).collect()
                 },
                 MessageRole::System => {
-                    // System messages: Comment-colored like thinking/system messages in Claude Code
-                    let comment_color = Style::default().fg(Color::Rgb(107, 114, 128)); // Same as user messages
-                    vec![ListItem::new(Line::from(vec![
-                        Span::styled("    ℹ ", comment_color), // More indentation for system messages
-                        Span::styled(&msg.content, comment_color.add_modifier(Modifier::ITALIC)),
-                    ]))]
+                    // System messages: Yellow bar on left, italic comment-colored text
+                    let comment_color = Style::default().fg(Color::Rgb(107, 114, 128));
+                    msg.content.lines().map(|line| {
+                        ListItem::new(Line::from(vec![
+                            Span::styled("▐ ", Style::default().fg(Color::Yellow)), // Yellow bar on left
+                            Span::styled(line, comment_color.add_modifier(Modifier::ITALIC)),
+                        ]))
+                    }).collect()
                 },
                 MessageRole::Tool => {
-                    // Tool messages: Regular font colors like LLM messages, not comment colored
-                    let tool_color = Style::default().fg(Color::Rgb(240, 240, 235)); // Off-white like assistant messages
-                    vec![ListItem::new(Line::from(vec![
-                        Span::styled("    🔧 ", tool_color), // More indentation for tool messages
-                        Span::styled(&msg.content, tool_color),
-                    ]))]
+                    // Tool messages: Cyan bar on left, off-white text
+                    let tool_color = Style::default().fg(Color::Rgb(240, 240, 235)); // Off-white
+                    msg.content.lines().map(|line| {
+                        ListItem::new(Line::from(vec![
+                            Span::styled("▐ ", Style::default().fg(Color::Cyan)), // Cyan bar on left
+                            Span::styled(line, tool_color),
+                        ]))
+                    }).collect()
                 },
             };
             
             messages.append(&mut message_lines);
         }
 
-        // Add queued messages with ">" prefix to show they're waiting
+        // Add queued messages with gray styling to show they're waiting
         for queued_msg in &self.message_queue {
             let style = Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC);
-            messages.push(ListItem::new(Line::from(vec![
-                Span::styled("> ", style),
-                Span::styled(&queued_msg.content, style),
-            ])));
+            // Add spacing between messages
+            if !messages.is_empty() {
+                messages.push(ListItem::new(Line::from("")));
+            }
+            // Render each line of the queued message with gray bar on right (like user messages)
+            let lines: Vec<&str> = queued_msg.content.lines().collect();
+            if lines.is_empty() {
+                messages.push(ListItem::new(Line::from(vec![
+                    Span::styled("> ", style),
+                    Span::styled("", style),
+                    Span::styled(" ▐", Style::default().fg(Color::DarkGray)), // Gray bar for queued
+                ])));
+            } else {
+                for (idx, line) in lines.into_iter().enumerate() {
+                    if idx == 0 {
+                        messages.push(ListItem::new(Line::from(vec![
+                            Span::styled("> ", style),
+                            Span::styled(line, style),
+                            Span::styled(" ▐", Style::default().fg(Color::DarkGray)), // Gray bar for queued
+                        ])));
+                    } else {
+                        messages.push(ListItem::new(Line::from(vec![
+                            Span::styled("  ", Style::default()),
+                            Span::styled(line, style),
+                            Span::styled(" ▐", Style::default().fg(Color::DarkGray)), // Gray bar for queued
+                        ])));
+                    }
+                }
+            }
         }
 
         // Check if we're scrolled and need to show indicator
@@ -1585,7 +1717,7 @@ impl TuiManager {
                 } else {
                     0
                 };
-                let spinner_frame = GROWING_PILLAR.get_frame(elapsed_ms);
+                let spinner_frame = TURBO_CIRCULAR.get_frame(elapsed_ms);
                 Line::from(vec![
                     Span::styled(format!("{} ", spinner_frame), Style::default().fg(Color::Red)), // Animated pillar
                     Span::styled("🚀 turbo mode on", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
@@ -1671,7 +1803,11 @@ impl TuiManager {
         // Model info (always show if space allows)
         let available_width = chunks[1].width as usize;
         if available_width >= 20 {
-            if available_width >= 40 {
+            // Check if provider/model are set
+            if self.provider_name.is_empty() || self.model.is_empty() {
+                // No provider/model selected
+                parts.push("No model selected".to_string());
+            } else if available_width >= 40 {
                 // Full format
                 parts.push(format!("{} ({})", clean_model_name, display_provider));
             } else {
@@ -1680,18 +1816,17 @@ impl TuiManager {
             }
         }
         
-        // Context percentage (always show)
-        parts.push(format!("{}%", remaining_percent));
-        
-        // Cost if significant and space allows
-        if self.session_cost > 0.001 && available_width >= 60 {
-            parts.push(format!("${:.3}", self.session_cost));
+        // Context percentage (only show if model is selected)
+        if !self.provider_name.is_empty() && !self.model.is_empty() {
+            parts.push(format!("{}%", remaining_percent));
         }
         
         let right_text = parts.join(" • ");
         
-        // Choose color based on context remaining - graduated warning system
-        let text_color = if remaining_percent < 5 {
+        // Choose color based on status
+        let text_color = if self.provider_name.is_empty() || self.model.is_empty() {
+            Color::Red  // Red when no model selected
+        } else if remaining_percent < 5 {
             Color::Red  // Critical red when very low
         } else if remaining_percent < 20 {
             Color::Rgb(255, 165, 0)  // Orange warning when low
@@ -1769,8 +1904,14 @@ impl TuiManager {
                         if let Some((provider, model)) = self.model_selection_overlay.get_selected() {
                             let old_provider = self.provider_name.clone();
                             let old_model = self.model.clone();
+                            debug!("Provider selection: changing from '{}' to '{}', model from '{}' to '{}'", old_provider, provider, old_model, model);
                             self.provider_name = provider.clone();
                             self.model = model.clone();
+                            self.provider_explicitly_selected = true; // User explicitly selected this provider
+                            
+                            // Save user's choice to config for next startup
+                            self.save_provider_selection(&provider, &model);
+                            
                             self.model_selection_overlay.hide();
                             
                             // Show confirmation message
@@ -2120,6 +2261,7 @@ impl TuiManager {
                 KeyCode::Enter => {
                     if let Some(provider) = self.selection_modal.get_selected_provider() {
                         self.provider_name = provider.to_string();
+                        self.provider_explicitly_selected = true; // User explicitly selected provider
                     }
                     if let Some(model) = self.selection_modal.get_selected_model() {
                         self.model = model.to_string();
@@ -2131,6 +2273,7 @@ impl TuiManager {
                     // Tab to confirm selection
                     if let Some(provider) = self.selection_modal.get_selected_provider() {
                         self.provider_name = provider.to_string();
+                        self.provider_explicitly_selected = true; // User explicitly selected provider
                     }
                     if let Some(model) = self.selection_modal.get_selected_model() {
                         self.model = model.to_string();
@@ -2214,6 +2357,7 @@ impl TuiManager {
         
         if let Some(ref mut agent) = self.agent_controller {
             // Get provider for agent
+            debug!("send_message: attempting to use provider '{}' with model '{}'", self.provider_name, self.model);
             let provider = providers
                 .get_provider_or_host(&self.provider_name)
                 .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", self.provider_name))?;
@@ -2376,6 +2520,7 @@ impl TuiManager {
         self.add_message(user_msg);
 
         // Get provider
+        debug!("send_message_fallback: attempting to use provider '{}' with model '{}'", self.provider_name, self.model);
         let provider = providers
             .get_provider_or_host(&self.provider_name)
             .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", self.provider_name))?;
@@ -2542,8 +2687,9 @@ impl TuiManager {
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     continue; // Try again
                 } else {
-                    // Try provider fallback if configured
-                    if let Some(fallback_provider) = self.get_fallback_provider(&e) {
+                    // Try provider fallback if configured (but not for explicitly selected providers)
+                    if !self.provider_explicitly_selected {
+                        if let Some(fallback_provider) = self.get_fallback_provider(&e) {
                         self.add_message(Message::new(
                             MessageRole::System,
                             format!("Falling back to {} due to error: {}", fallback_provider, error_msg),
@@ -2553,6 +2699,7 @@ impl TuiManager {
                         let original_provider = self.provider_name.clone();
                         let fallback_provider_name = fallback_provider.clone();
                         self.provider_name = fallback_provider;
+                        self.provider_explicitly_selected = false; // Now using fallback, not user selection
                         
                         // Get fallback provider and retry
                         if let Some(fallback_provider_instance) = providers.get_provider_or_host(&self.provider_name) {
@@ -2571,6 +2718,7 @@ impl TuiManager {
                                 Err(fallback_error) => {
                                     // Fallback also failed, restore original provider
                                     self.provider_name = original_provider;
+                                    self.provider_explicitly_selected = true; // Restore explicit selection status
                                     self.add_message(Message::new(
                                         MessageRole::System,
                                         format!("Fallback to {} also failed: {}", fallback_provider_name, fallback_error),
@@ -2578,12 +2726,19 @@ impl TuiManager {
                                 }
                             }
                         }
+                        } // Close the fallback provider check
                     }
                     
                     // Non-retryable error or max retries exceeded or fallback failed
+                    let final_error_msg = if self.provider_explicitly_selected {
+                        format!("❌ {} provider failed: {}\n\nTip: Check if {} is running and accessible.", 
+                               self.provider_name, error_msg, self.provider_name)
+                    } else {
+                        error_msg
+                    };
                     self.add_message(Message::new(
                         MessageRole::System,
-                        error_msg,
+                        final_error_msg,
                     ));
                     break; // Exit retry loop
                 }
@@ -2898,6 +3053,9 @@ function farewell(name) {
         // This must come after initialize_auth_status to override any incorrect auth status
         if let Some(ref providers) = self.providers {
             self.model_selection_overlay.update_provider_availability(providers.as_ref());
+            // IMPORTANT: Also update dynamic models (especially for Ollama) when showing model selection
+            debug!("Updating dynamic models when showing model selection");
+            self.model_selection_overlay.update_dynamic_models(providers.as_ref());
         }
         
         // Finally show the overlay with correct status
@@ -3438,10 +3596,10 @@ function farewell(name) {
             StreamingState::Idle => None,
             StreamingState::Hustling { start_time, tokens_sent } => {
                 let elapsed = start_time.elapsed();
-                let spinner = BRAILLE_SPINNER.get_frame(elapsed.as_millis());
+                let spinner = TURBO_NEURAL.get_frame(elapsed.as_millis());
                 // Pick a message based on time
-                let msg_index = (elapsed.as_secs() as usize / 3) % HUSTLING_MESSAGES.len();
-                let message = HUSTLING_MESSAGES[msg_index];
+                let msg_index = (elapsed.as_secs() as usize / 3) % THINKING_MESSAGES.len();
+                let message = THINKING_MESSAGES[msg_index];
                 Some(format!(
                     "{} {}… ({}s · ↑ {}k tokens · esc to interrupt)",
                     spinner, message, elapsed.as_secs(), (*tokens_sent as f32 / 1000.0).max(0.1)
@@ -3449,10 +3607,10 @@ function farewell(name) {
             }
             StreamingState::Schlepping { start_time, tokens_used } => {
                 let elapsed = start_time.elapsed();
-                let spinner = THINKING_SPINNER.get_frame(elapsed.as_millis());
+                let spinner = TURBO_NEURAL.get_frame(elapsed.as_millis());
                 // Pick a message based on time
-                let msg_index = (elapsed.as_secs() as usize / 3) % SCHLEPPING_MESSAGES.len();
-                let message = SCHLEPPING_MESSAGES[msg_index];
+                let msg_index = (elapsed.as_secs() as usize / 3) % AWAKENING_MESSAGES.len();
+                let message = AWAKENING_MESSAGES[msg_index];
                 Some(format!(
                     "{} {}… ({}s · ⚒ {}k tokens · esc to interrupt)",
                     spinner, message, elapsed.as_secs(), (*tokens_used as f32 / 1000.0).max(0.1)
@@ -3460,7 +3618,7 @@ function farewell(name) {
             }
             StreamingState::Streaming { start_time, tokens_received } => {
                 let elapsed = start_time.elapsed();
-                let spinner = STAR_PULSE.get_frame(elapsed.as_millis());
+                let spinner = TURBO_NEURAL.get_frame(elapsed.as_millis());
                 // Pick a message based on time
                 let msg_index = (elapsed.as_secs() as usize / 3) % STREAMING_MESSAGES.len();
                 let message = STREAMING_MESSAGES[msg_index];
@@ -3633,6 +3791,7 @@ function farewell(name) {
                 self.current_session = Some(session.clone());
                 self.provider_name = session.provider;
                 self.model = session.model;
+                self.provider_explicitly_selected = false; // Session loading is not explicit user selection
                 self.session_cost = session.total_cost;
                 self.session_tokens = session.total_tokens;
                 

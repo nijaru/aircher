@@ -17,6 +17,11 @@ pub const SLASH_COMMANDS: &[SlashCommand] = &[
         aliases: &["/m"],
     },
     SlashCommand {
+        command: "/provider",
+        description: "Quick provider selection",
+        aliases: &["/p"],
+    },
+    SlashCommand {
         command: "/search",
         description: "Semantic code search (works without LLM!)",
         aliases: &["/s"],
@@ -125,7 +130,8 @@ pub fn format_help() -> Vec<String> {
     lines.push("Keyboard Shortcuts:".to_string());
     lines.push("  • Type / to see command suggestions".to_string());
     lines.push("  • Alt+Enter (or Shift+Enter) for newlines".to_string());
-    lines.push("  • Ctrl+C to clear input, Ctrl+C again to quit".to_string());
+    lines.push("  • Ctrl+C to clear input, Ctrl+C again to quit (requires confirmation during message processing)".to_string());
+    lines.push("  • Ctrl+W to delete last word".to_string());
     lines.push("  • Tab to autocomplete commands".to_string());
     lines.push("  • Shift+Tab to cycle modes (auto-accept, plan mode)".to_string());
     lines.push("  • F1 for help, F2 for settings".to_string());

@@ -94,6 +94,8 @@ pub struct ModelSelectionOverlay {
     model_update_tx: mpsc::UnboundedSender<ModelUpdate>,
     // Track last selected model for each provider
     last_selected_models: HashMap<String, String>,
+    // Flag to indicate provider-only selection mode (for /provider command)
+    provider_only_mode: bool,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -146,6 +148,7 @@ impl ModelSelectionOverlay {
             model_update_rx: Some(model_update_rx),
             model_update_tx,
             last_selected_models: HashMap::new(),
+            provider_only_mode: false,
         };
         
         // Hide input for provider selection
@@ -183,6 +186,13 @@ impl ModelSelectionOverlay {
                     self.update_model_items();
                 }
             }
+        }
+        
+        // Trigger model fetching for default provider if it's a dynamic provider
+        let is_dynamic = matches!(self.current_provider.as_str(), "ollama" | "openai" | "openrouter");
+        if is_dynamic && self.models_fetched_for.as_ref() != Some(&self.current_provider) {
+            debug!("🚀 Triggering model fetch for default provider: {}", self.current_provider);
+            self.fetch_models_for_provider(&self.current_provider.clone());
         }
     }
 
@@ -640,10 +650,22 @@ impl ModelSelectionOverlay {
             });
         }
         
-        debug!("Final model_items count: {}, items: {:?}", model_items.len(), 
-               model_items.iter().map(|item| &item.label).collect::<Vec<_>>());
+        // Sort models alphabetically by their actual model name (value), not the formatted label
+        // Keep special items (like "Default" or error messages) at the top
+        let (special_items, mut regular_models): (Vec<_>, Vec<_>) = model_items.into_iter()
+            .partition(|item| item.value.starts_with('_') || item.value == "default");
         
-        self.model_typeahead.set_items(model_items);
+        // Sort regular models alphabetically by name
+        regular_models.sort_by(|a, b| a.value.to_lowercase().cmp(&b.value.to_lowercase()));
+        
+        // Combine special items first, then sorted models
+        let mut sorted_items = special_items;
+        sorted_items.extend(regular_models);
+        
+        debug!("Final model_items count: {}, items: {:?}", sorted_items.len(), 
+               sorted_items.iter().map(|item| &item.label).collect::<Vec<_>>());
+        
+        self.model_typeahead.set_items(sorted_items);
         self.model_typeahead.set_current_value(Some(self.current_model.clone()));
         self.update_model_description();
         
@@ -677,12 +699,30 @@ impl ModelSelectionOverlay {
     }
 
     pub fn show(&mut self) {
-        // Smart default: check if current provider is authenticated
-        let should_start_with_provider = !self.is_current_provider_authenticated();
-        
-        if should_start_with_provider && self.mode == SelectionMode::Model {
-            // Switch to provider selection if current provider not authenticated
+        self.show_internal(false);
+    }
+    
+    /// Show providers only (for /provider command)
+    pub fn show_providers_only(&mut self) {
+        self.provider_only_mode = true;
+        self.show_internal(true);
+    }
+    
+    fn show_internal(&mut self, force_provider_mode: bool) {
+        if force_provider_mode {
+            // Force provider mode for /provider command
             self.mode = SelectionMode::Provider;
+        } else {
+            // Reset provider_only_mode for normal /model command
+            self.provider_only_mode = false;
+            
+            // Smart default: check if current provider is authenticated
+            let should_start_with_provider = !self.is_current_provider_authenticated();
+            
+            if should_start_with_provider && self.mode == SelectionMode::Model {
+                // Switch to provider selection if current provider not authenticated
+                self.mode = SelectionMode::Provider;
+            }
         }
         
         // For model selection mode, ensure models are loaded/loading
@@ -1005,16 +1045,40 @@ impl ModelSelectionOverlay {
             }
             SelectionMode::Provider => {
                 if let Some(item) = self.provider_typeahead.get_selected() {
-                    // When provider is selected, fetch models and switch to model selection
                     let provider_name = item.value.clone();
                     self.current_provider = provider_name.clone();
-                    self.fetch_models_for_provider(&provider_name);
-                    self.switch_mode();
                     
-                    // After switching to model mode, restore last selected model for this provider
-                    self.restore_last_selected_model();
-                    
-                    None // Don't return selection yet, let user pick model
+                    if self.provider_only_mode {
+                        // For /provider command with dynamic providers, transition to model selection
+                        let is_dynamic = matches!(provider_name.as_str(), "ollama" | "openai" | "openrouter");
+                        
+                        if is_dynamic {
+                            // For dynamic providers, fetch models and switch to model selection
+                            self.fetch_models_for_provider(&provider_name);
+                            self.switch_mode();
+                            self.provider_only_mode = false; // Exit provider-only mode
+                            
+                            // Don't return a selection yet - let user pick model
+                            None
+                        } else {
+                            // For static providers, use the first available model and return immediately
+                            let default_model = if let Some(models) = self.provider_models.get(&provider_name) {
+                                models.first().map(|m| m.name.clone()).unwrap_or_default()
+                            } else {
+                                String::new()
+                            };
+                            Some((provider_name, default_model))
+                        }
+                    } else {
+                        // Normal /model command behavior - switch to model selection
+                        self.fetch_models_for_provider(&provider_name);
+                        self.switch_mode();
+                        
+                        // After switching to model mode, restore last selected model for this provider
+                        self.restore_last_selected_model();
+                        
+                        None // Don't return selection yet, let user pick model
+                    }
                 } else {
                     None
                 }

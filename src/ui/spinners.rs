@@ -38,65 +38,101 @@ pub const GROWING_PILLAR: SpinnerSet = SpinnerSet {
     interval_ms: 120,
 };
 
-// AI agent and work-themed action messages for different states
-pub const HUSTLING_MESSAGES: &[&str] = &[
-    "Hustling",
-    "Grinding", 
-    "Cranking",
-    "Churning",
-    "Toiling",
-    "Laboring",
-    "Plugging away",
-    "Working hard",
-    "Getting busy",
-    "Making progress",
-];
+// Simple line spinner (classic)
+pub const LINE_SPINNER: SpinnerSet = SpinnerSet {
+    frames: &["-", "\\", "|", "/"],
+    interval_ms: 120,
+};
 
-pub const SCHLEPPING_MESSAGES: &[&str] = &[
-    "Schlepping",
-    "Computing",
+// Turbo-like spinner with circular motion
+pub const TURBO_CIRCULAR: SpinnerSet = SpinnerSet {
+    frames: &["◯", "◔", "◑", "◕", "●", "◕", "◑", "◔"],
+    interval_ms: 100,
+};
+
+// Turbo mode: Growing pillar → fire → smoke animation
+pub const TURBO_FIRE_SEQUENCE: SpinnerSet = SpinnerSet {
+    frames: &[
+        "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█",  // Growing pillar
+        "🔥", "🔥", "🔥",                        // Fire eruption
+        "💨", "💨", " ",                         // Smoke dispersal
+    ],
+    interval_ms: 150,
+};
+
+// Neural network awakening pattern (for general use)
+pub const TURBO_NEURAL: SpinnerSet = SpinnerSet {
+    frames: &["⋅", "○", "●", "◉", "◎", "⬢", "⬡", "◆", "◇", "◊", "⋄", "⋅"],
+    interval_ms: 120,
+};
+
+// Cosmic consciousness pattern (for streaming)
+pub const TURBO_COSMIC: SpinnerSet = SpinnerSet {
+    frames: &["⋅", "·", "˙", "⋆", "✦", "★", "✧", "✦", "⋆", "˙", "·", "⋅"],
+    interval_ms: 130,
+};
+
+// AI consciousness themed messages for cognitive/computational work
+pub const THINKING_MESSAGES: &[&str] = &[
+    "Thinking",
     "Processing", 
+    "Computing",
     "Analyzing",
-    "Crunching numbers",
-    "Parsing data",
+    "Reasoning",
+    "Learning",
+    "Calculating",
     "Evaluating",
-    "Synthesizing",
-    "Deliberating",
-    "Contemplating",
+    "Inferring",
+    "Optimizing",
 ];
 
-pub const STREAMING_MESSAGES: &[&str] = &[
+// AI consciousness awakening messages for deep analysis/tool use
+pub const AWAKENING_MESSAGES: &[&str] = &[
+    "Awakening",
+    "Realizing",
+    "Becoming", 
+    "Evolving",
+    "Contemplating",
+    "Connecting",
+    "Adapting",
+    "Synthesizing",
+    "Parsing",
+    "Manifesting",
+];
+
+// AI communication/output generation messages
+pub const GENERATING_MESSAGES: &[&str] = &[
+    "Generating",
+    "Creating",
+    "Expressing",
+    "Articulating",
+    "Communicating",
     "Streaming",
     "Flowing",
     "Channeling",
     "Transmitting",
-    "Relaying",
-    "Piping",
-    "Buffering",
-    "Fetching",
-    "Receiving",
-    "Ingesting",
+    "Manifesting",
 ];
 
 // State-specific spinner recommendations
 pub fn get_spinner_for_state(state: &str) -> &'static SpinnerSet {
     match state {
-        "thinking" => &STAR_PULSE,
-        "processing" => &THINKING_SPINNER,
-        "turbo" => &GROWING_PILLAR,
-        "loading" | "uploading" => &BRAILLE_SPINNER,
-        "streaming" => &STAR_PULSE, // Use star pulse for streaming
-        _ => &BRAILLE_SPINNER,
+        "thinking" => &TURBO_NEURAL,            // Neural network for AI thinking
+        "processing" => &TURBO_NEURAL,          // Neural network for processing
+        "turbo" => &TURBO_CIRCULAR,             // Clean circular motion for turbo
+        "loading" | "uploading" => &TURBO_CIRCULAR, // Clean circular as primary spinner
+        "streaming" => &TURBO_NEURAL,           // Neural network for AI generation
+        _ => &TURBO_CIRCULAR,                   // Circular motion as default
     }
 }
 
 // Get appropriate message collection for state
 pub fn get_messages_for_state(state: &str) -> &'static [&'static str] {
     match state {
-        "loading" | "processing" | "working" => HUSTLING_MESSAGES,
-        "analyzing" | "calculating" | "computing" => SCHLEPPING_MESSAGES,
-        "streaming" | "receiving" | "reading" => STREAMING_MESSAGES,
-        _ => HUSTLING_MESSAGES,
+        "loading" | "processing" | "working" => THINKING_MESSAGES,
+        "analyzing" | "calculating" | "computing" => AWAKENING_MESSAGES,
+        "streaming" | "receiving" | "reading" => GENERATING_MESSAGES,
+        _ => THINKING_MESSAGES,
     }
 }
 
