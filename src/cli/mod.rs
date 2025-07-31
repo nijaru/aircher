@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Arg, Command};
 use std::env;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::commands::search::{SearchArgs, handle_search_command};
 use crate::commands::embedding::{EmbeddingArgs, handle_embedding_command};
@@ -865,17 +865,20 @@ impl CliApp {
     async fn handle_tui(&mut self, matches: &clap::ArgMatches) -> Result<()> {
         let provider_name = matches.get_one::<String>("provider").unwrap();
         let model = matches.get_one::<String>("model").unwrap();
+        
+        // Try to get actual available providers first to override defaults
+        let (actual_provider, actual_model) = self.detect_available_provider_and_model(provider_name, model).await;
 
         info!(
-            "Starting TUI mode: provider={}, model={}",
-            provider_name, model
+            "Starting TUI mode: requested provider={}, model={}, actual provider={}, model={}",
+            provider_name, model, actual_provider, actual_model
         );
 
         // Clone config first
         let config = self.config.clone();
 
         // Check API key status (but don't fail immediately)
-        let has_api_key = self.check_api_key(provider_name).is_ok();
+        let has_api_key = self.check_api_key(&actual_provider).is_ok();
         
         // Try to get providers (may fail without API keys, but TUI can handle this)
         let providers = if has_api_key {
@@ -893,17 +896,105 @@ impl CliApp {
         };
 
         // Create TUI manager with optional providers
-        let mut tui_manager = TuiManager::new_with_auth_state(&config, self.auth_manager.clone(), providers, provider_name.clone(), model.clone()).await?;
+        let mut tui_manager = TuiManager::new_with_auth_state(&config, self.auth_manager.clone(), providers, actual_provider.clone(), actual_model.clone()).await?;
 
         // Run TUI (it will handle auth setup internally if needed)
         tui_manager.run().await
     }
 
+    /// Detect startup provider respecting user's previous selection
+    async fn detect_available_provider_and_model(&mut self, requested_provider: &str, requested_model: &str) -> (String, String) {
+        // If a specific non-default provider was requested, use it (respect CLI args)
+        if requested_provider != "claude" {
+            debug!("Using explicitly requested provider: {}", requested_provider);
+            return (requested_provider.to_string(), requested_model.to_string());
+        }
+        
+        // Check if user has a previously selected provider from config
+        let last_provider = &self.config.global.default_provider;
+        let last_model = &self.config.global.default_model;
+        
+        // If it's not the hardcoded default, this represents a user's explicit choice
+        if last_provider != "claude" {
+            debug!("Checking user's preferred provider: {}", last_provider);
+            if self.is_provider_available(last_provider).await {
+                debug!("User's preferred provider {} is available", last_provider);
+                return (last_provider.clone(), last_model.clone());
+            } else {
+                debug!("User's preferred provider {} is unavailable", last_provider);
+                // Their preference is unavailable - show "No model selected" so they can choose
+                return (String::new(), String::new());
+            }
+        }
+        
+        // New user with default config - try to find any working provider
+        debug!("New user - detecting first available provider");
+        self.detect_first_available_provider().await
+    }
+    
+    /// For new users, find the first working provider
+    async fn detect_first_available_provider(&mut self) -> (String, String) {
+        let providers_to_try = vec![
+            ("anthropic", ""),
+            ("ollama", ""), 
+            ("openrouter", ""), 
+            ("gemini", ""),
+        ];
+        
+        for (provider, model) in providers_to_try {
+            if self.is_provider_available(provider).await {
+                debug!("Found available provider for new user: {}", provider);
+                return (provider.to_string(), model.to_string());
+            }
+        }
+        
+        // No providers available
+        debug!("No providers available for new user");
+        (String::new(), String::new())
+    }
+    
+    /// Check if a specific provider is available
+    async fn is_provider_available(&self, provider: &str) -> bool {
+        match provider {
+            "ollama" => self.try_connect_ollama().await.is_ok(),
+            provider => self.check_api_key(provider).is_ok(),
+        }
+    }
+    
+    /// Try to connect to Ollama to see if it's available
+    async fn try_connect_ollama(&self) -> Result<()> {
+        use std::time::Duration;
+        
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(2)) // Quick timeout for startup check
+            .build()?;
+        
+        // Try common Ollama URLs
+        let urls = vec![
+            "http://localhost:11434/api/tags",
+            "http://127.0.0.1:11434/api/tags",
+        ];
+        
+        for url in urls {
+            debug!("Trying to connect to Ollama at: {}", url);
+            if let Ok(response) = client.get(url).send().await {
+                if response.status().is_success() {
+                    debug!("Successfully connected to Ollama at: {}", url);
+                    return Ok(());
+                }
+            }
+        }
+        
+        Err(anyhow::anyhow!("Ollama not available"))
+    }
+
     fn check_api_key(&self, provider_name: &str) -> Result<()> {
         let env_var = match provider_name {
-            "claude" => "ANTHROPIC_API_KEY",
-            "gemini" => "GOOGLE_API_KEY",
+            "claude" | "anthropic" => "ANTHROPIC_API_KEY",
+            "gemini" => "GOOGLE_API_KEY", 
             "openrouter" => "OPENROUTER_API_KEY",
+            "ollama" => return Ok(()), // Ollama doesn't need API key
+            "" => return Err(anyhow::anyhow!("No provider specified")), // Handle empty provider
             _ => return Err(anyhow::anyhow!("Unknown provider: {}", provider_name)),
         };
 
