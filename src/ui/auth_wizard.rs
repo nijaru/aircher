@@ -22,6 +22,8 @@ pub struct AuthWizard {
     error_message: Option<String>,
     success_message: Option<String>,
     oauth_url: Option<String>,
+    // Key management state
+    management_action: KeyManagementAction,
 }
 
 #[derive(Clone, Debug)]
@@ -37,10 +39,19 @@ struct ProviderInfo {
 #[derive(Clone, PartialEq)]
 enum WizardStep {
     ProviderSelection,
+    KeyManagement,
     ApiKeyEntry,
     OAuth,
     Testing,
     Complete,
+}
+
+#[derive(Clone, PartialEq)]
+enum KeyManagementAction {
+    ViewKeys,
+    EditKey,
+    DeleteKey,
+    AddKey,
 }
 
 impl AuthWizard {
@@ -56,6 +67,7 @@ impl AuthWizard {
             error_message: None,
             success_message: None,
             oauth_url: None,
+            management_action: KeyManagementAction::ViewKeys,
         }
     }
 
@@ -120,10 +132,31 @@ impl AuthWizard {
 
     pub fn handle_char(&mut self, c: char) {
         match self.current_step {
+            WizardStep::ProviderSelection => {
+                match c.to_ascii_lowercase() {
+                    'm' => {
+                        // Navigate to key management
+                        self.current_step = WizardStep::KeyManagement;
+                        self.selected_provider_index = 0;
+                        self.error_message = None;
+                        self.success_message = None;
+                    }
+                    _ => {}
+                }
+            }
             WizardStep::ApiKeyEntry => {
                 self.api_key_input.insert(self.cursor_position, c);
                 self.cursor_position += 1;
                 self.error_message = None;
+            }
+            WizardStep::KeyManagement => {
+                match c.to_ascii_lowercase() {
+                    'e' => self.management_action = KeyManagementAction::EditKey,
+                    'd' => self.management_action = KeyManagementAction::DeleteKey,
+                    'a' => self.management_action = KeyManagementAction::AddKey,
+                    'v' => self.management_action = KeyManagementAction::ViewKeys,
+                    _ => {}
+                }
             }
             _ => {}
         }
@@ -155,20 +188,121 @@ impl AuthWizard {
     }
 
     pub fn move_selection_up(&mut self) {
-        if self.current_step == WizardStep::ProviderSelection && self.selected_provider_index > 0 {
-            self.selected_provider_index -= 1;
+        match self.current_step {
+            WizardStep::ProviderSelection => {
+                if self.selected_provider_index > 0 {
+                    self.selected_provider_index -= 1;
+                }
+            }
+            WizardStep::KeyManagement => {
+                if self.selected_provider_index > 0 {
+                    self.selected_provider_index -= 1;
+                }
+            }
+            _ => {}
         }
     }
 
     pub fn move_selection_down(&mut self) {
-        if self.current_step == WizardStep::ProviderSelection 
-            && self.selected_provider_index < self.available_providers.len().saturating_sub(1) {
-            self.selected_provider_index += 1;
+        match self.current_step {
+            WizardStep::ProviderSelection => {
+                if self.selected_provider_index < self.available_providers.len().saturating_sub(1) {
+                    self.selected_provider_index += 1;
+                }
+            }
+            WizardStep::KeyManagement => {
+                if self.selected_provider_index < self.available_providers.len().saturating_sub(1) {
+                    self.selected_provider_index += 1;
+                }
+            }
+            _ => {}
         }
     }
 
     pub async fn handle_enter(&mut self, auth_manager: &AuthManager, config: &ConfigManager, _providers: Option<&ProviderManager>) -> io::Result<()> {
         match self.current_step {
+            WizardStep::KeyManagement => {
+                if let Some(provider) = self.available_providers.get(self.selected_provider_index) {
+                    match self.management_action {
+                        KeyManagementAction::ViewKeys => {
+                            // Show key info (just display current status)
+                            let status_text = match provider.auth_status {
+                                AuthStatus::Authenticated => "Key is configured and working",
+                                AuthStatus::NotConfigured => "No API key configured",
+                                AuthStatus::Invalid => "API key is invalid",
+                                AuthStatus::Expired => "API key has expired",
+                                AuthStatus::RateLimited => "API key is rate limited",
+                                AuthStatus::NetworkError => "Network error checking key",
+                            };
+                            self.success_message = Some(format!("{}: {}", provider.display_name, status_text));
+                        }
+                        KeyManagementAction::EditKey | KeyManagementAction::AddKey => {
+                            if provider.name == "anthropic-pro" || provider.name == "anthropic-max" {
+                                // OAuth provider - start OAuth flow
+                                self.current_provider = Some(provider.name.clone());
+                                self.current_step = WizardStep::OAuth;
+                                self.error_message = None;
+                                
+                                match auth_manager.start_oauth_flow(&provider.name).await {
+                                    Ok(url) => {
+                                        self.oauth_url = Some(url.clone());
+                                        use crate::auth::oauth::OAuthHandler;
+                                        if OAuthHandler::is_ssh_session() {
+                                            self.error_message = Some("SSH session detected - manual authentication required".to_string());
+                                        } else {
+                                            self.success_message = Some("Opening browser for authentication...".to_string());
+                                        }
+                                    }
+                                    Err(e) => {
+                                        self.error_message = Some(format!("Failed to start OAuth: {}", e));
+                                    }
+                                }
+                            } else if provider.needs_auth {
+                                // Regular API key provider
+                                self.current_provider = Some(provider.name.clone());
+                                self.current_step = WizardStep::ApiKeyEntry;
+                                self.api_key_input.clear();
+                                self.cursor_position = 0;
+                                self.error_message = None;
+                            } else {
+                                self.error_message = Some(format!("{} doesn't require API key management", provider.display_name));
+                            }
+                        }
+                        KeyManagementAction::DeleteKey => {
+                            self.current_provider = Some(provider.name.clone());
+                            
+                            // Handle OAuth providers differently
+                            if provider.name == "anthropic-pro" || provider.name == "anthropic-max" {
+                                // Delete OAuth token
+                                match auth_manager.remove_oauth_token(&provider.name).await {
+                                    Ok(()) => {
+                                        self.success_message = Some(format!("OAuth token deleted for {}", provider.display_name));
+                                        // Refresh provider list to update auth status
+                                        self.load_providers(config, auth_manager).await;
+                                    }
+                                    Err(e) => {
+                                        self.error_message = Some(format!("Failed to delete OAuth token: {}", e));
+                                    }
+                                }
+                            } else if provider.needs_auth {
+                                // Delete regular API key
+                                match auth_manager.remove_api_key(&provider.name).await {
+                                    Ok(()) => {
+                                        self.success_message = Some(format!("API key deleted for {}", provider.display_name));
+                                        // Refresh provider list to update auth status
+                                        self.load_providers(config, auth_manager).await;
+                                    }
+                                    Err(e) => {
+                                        self.error_message = Some(format!("Failed to delete API key: {}", e));
+                                    }
+                                }
+                            } else {
+                                self.error_message = Some(format!("{} doesn't have keys to delete", provider.display_name));
+                            }
+                        }
+                    }
+                }
+            }
             WizardStep::ProviderSelection => {
                 if let Some(provider) = self.available_providers.get(self.selected_provider_index) {
                     if !provider.needs_auth {
@@ -275,8 +409,19 @@ impl AuthWizard {
             WizardStep::ProviderSelection => {
                 self.hide();
             }
-            WizardStep::ApiKeyEntry => {
+            WizardStep::KeyManagement => {
                 self.current_step = WizardStep::ProviderSelection;
+                self.error_message = None;
+                self.success_message = None;
+                self.management_action = KeyManagementAction::ViewKeys;
+            }
+            WizardStep::ApiKeyEntry => {
+                // Check if we came from key management or provider selection
+                if self.management_action == KeyManagementAction::EditKey || self.management_action == KeyManagementAction::AddKey {
+                    self.current_step = WizardStep::KeyManagement;
+                } else {
+                    self.current_step = WizardStep::ProviderSelection;
+                }
                 self.api_key_input.clear();
                 self.cursor_position = 0;
                 self.error_message = None;
@@ -391,6 +536,7 @@ impl AuthWizard {
         self.error_message = None;
         self.success_message = None;
         self.oauth_url = None;
+        self.management_action = KeyManagementAction::ViewKeys;
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect) {
@@ -412,6 +558,7 @@ impl AuthWizard {
 
         match self.current_step {
             WizardStep::ProviderSelection => self.render_provider_selection(f, popup_area),
+            WizardStep::KeyManagement => self.render_key_management(f, popup_area),
             WizardStep::ApiKeyEntry => self.render_api_key_entry(f, popup_area),
             WizardStep::OAuth => self.render_oauth(f, popup_area),
             WizardStep::Testing => self.render_testing(f, popup_area),
@@ -476,11 +623,120 @@ impl AuthWizard {
         f.render_widget(list, chunks[1]);
 
         // Instructions
-        let instructions = Paragraph::new("↑↓ Navigate • Enter: Select • Esc: Cancel")
+        let instructions = Paragraph::new("↑↓ Navigate • Enter: Select • M: Manage Keys • Esc: Cancel")
             .style(Style::default().fg(Color::Gray))
             .alignment(Alignment::Center)
             .block(Block::default().borders(Borders::ALL));
         f.render_widget(instructions, chunks[2]);
+    }
+
+    fn render_key_management(&self, f: &mut Frame, area: Rect) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Min(5),    // Provider list
+                Constraint::Length(4), // Current action/status
+                Constraint::Length(3), // Instructions
+            ])
+            .split(area);
+
+        // Title
+        let title = Paragraph::new("API Key Management")
+            .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(title, chunks[0]);
+
+        // Provider list with more detailed key status
+        let items: Vec<ListItem> = self.available_providers
+            .iter()
+            .enumerate()
+            .map(|(i, provider)| {
+                let icon = self.get_auth_status_icon_for_provider(provider);
+                let color = self.get_auth_status_color(&provider.auth_status);
+                
+                let key_status = if provider.needs_auth {
+                    match provider.auth_status {
+                        AuthStatus::Authenticated => "✓ Key configured",
+                        AuthStatus::NotConfigured => "✗ No key",
+                        AuthStatus::Invalid => "✗ Invalid key",
+                        AuthStatus::Expired => "⚠ Key expired",
+                        AuthStatus::RateLimited => "⚠ Rate limited",
+                        AuthStatus::NetworkError => "⚠ Network error",
+                    }
+                } else {
+                    "No key needed"
+                };
+
+                let action_indicator = if i == self.selected_provider_index {
+                    match self.management_action {
+                        KeyManagementAction::ViewKeys => " [View]",
+                        KeyManagementAction::EditKey => " [Edit]",
+                        KeyManagementAction::DeleteKey => " [Delete]",
+                        KeyManagementAction::AddKey => " [Add]",
+                    }
+                } else {
+                    ""
+                };
+
+                let line = Line::from(vec![
+                    Span::styled(format!("{} ", icon), Style::default().fg(color)),
+                    Span::styled(&provider.display_name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                    Span::raw(" - "),
+                    Span::styled(key_status, Style::default().fg(color)),
+                    Span::styled(action_indicator, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                ]);
+
+                let mut item = ListItem::new(line);
+                if i == self.selected_provider_index {
+                    item = item.style(Style::default().bg(Color::DarkGray));
+                }
+                item
+            })
+            .collect();
+
+        let list = List::new(items)
+            .block(Block::default().borders(Borders::ALL).title("Select a Provider to Manage"));
+        f.render_widget(list, chunks[1]);
+
+        // Current action and status
+        let action_text = match self.management_action {
+            KeyManagementAction::ViewKeys => "Action: View key status",
+            KeyManagementAction::EditKey => "Action: Edit/Update API key",
+            KeyManagementAction::DeleteKey => "Action: Delete API key",
+            KeyManagementAction::AddKey => "Action: Add new API key",
+        };
+
+        let action_content = if let Some(error) = &self.error_message {
+            format!("{}\n\nError: {}", action_text, error)
+        } else if let Some(success) = &self.success_message {
+            format!("{}\n\nStatus: {}", action_text, success)
+        } else {
+            action_text.to_string()
+        };
+
+        let action_color = if self.error_message.is_some() {
+            Color::Red
+        } else if self.success_message.is_some() {
+            Color::Green
+        } else {
+            Color::White
+        };
+
+        let action_widget = Paragraph::new(action_content)
+            .style(Style::default().fg(action_color))
+            .wrap(Wrap { trim: true })
+            .block(Block::default().borders(Borders::ALL).title("Current Action"));
+        f.render_widget(action_widget, chunks[2]);
+
+        // Instructions
+        let instructions = Paragraph::new("↑↓ Navigate • V: View • E: Edit • A: Add • D: Delete • Enter: Execute • Esc: Back")
+            .style(Style::default().fg(Color::Gray))
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: true })
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(instructions, chunks[3]);
     }
 
     fn render_api_key_entry(&self, f: &mut Frame, area: Rect) {
