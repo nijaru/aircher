@@ -19,6 +19,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info};
 
 use crate::config::ConfigManager;
+use crate::context::{ContextMonitor, CompactionConfig};
 use crate::providers::{ChatRequest, Message, MessageRole, ProviderManager};
 use crate::project::ProjectManager;
 use crate::sessions::{SessionManager, Session};
@@ -172,6 +173,8 @@ pub struct TuiManager {
     // Message queuing during agent processing
     message_queue: Vec<QueuedMessage>,
     agent_processing: bool,
+    // Context monitoring
+    context_monitor: ContextMonitor,
 }
 
 #[derive(Debug, Clone)]
@@ -345,6 +348,16 @@ impl TuiManager {
             permission_tx: None,
             message_queue: Vec::new(),
             agent_processing: false,
+            context_monitor: {
+                // Get context window size from model config
+                let context_window = if let Some(model_config) = config.get_model(&config.global.default_provider, &config.global.default_model) {
+                    model_config.context_window
+                } else {
+                    200_000 // Default to 200k if not found
+                };
+                let compaction_config = CompactionConfig::default();
+                ContextMonitor::new(context_window, &compaction_config)
+            },
         })
     }
 
@@ -489,6 +502,16 @@ impl TuiManager {
             permission_tx: None,
             message_queue: Vec::new(),
             agent_processing: false,
+            context_monitor: {
+                // Get context window size from model config
+                let context_window = if let Some(model_config) = config.get_model(&config.global.default_provider, &config.global.default_model) {
+                    model_config.context_window
+                } else {
+                    200_000 // Default to 200k if not found
+                };
+                let compaction_config = CompactionConfig::default();
+                ContextMonitor::new(context_window, &compaction_config)
+            },
         })
     }
 
@@ -1774,26 +1797,12 @@ impl TuiManager {
             provider => provider,
         };
         
-        // Context usage percentage - always show when not 100%, show 100% too for clarity
-        let estimated_context_window = match self.model.as_str() {
-            m if m.contains("gpt-4") => 128000,
-            m if m.contains("gpt-3.5") => 16000,
-            m if m.contains("claude-3-5-sonnet") => 200000,
-            m if m.contains("claude-3-opus") => 200000,
-            m if m.contains("claude-3-haiku") => 200000,
-            _ => 100000, // Default fallback
-        };
-        
-        let usage_percent = if self.session_tokens > 0 {
-            (self.session_tokens as f32 / estimated_context_window as f32 * 100.0).min(100.0)
-        } else {
-            0.0
-        };
-        
-        let remaining_percent = if usage_percent >= 100.0 {
+        // Context usage from monitor
+        let usage_percent = self.context_monitor.usage_percentage_display();
+        let remaining_percent = if usage_percent >= 100 {
             0
         } else {
-            ((1.0 - usage_percent / 100.0) * 100.0) as u32
+            100 - usage_percent
         };
         
         // Build right side with model info and context percentage
@@ -1851,6 +1860,11 @@ impl TuiManager {
         // Streaming indicator if active
         if let Some(streaming_display) = self.get_streaming_display() {
             status_parts.push(streaming_display);
+        }
+        
+        // Context usage warning from monitor
+        if let Some(context_warning) = self.context_monitor.get_status_message() {
+            status_parts.push(context_warning);
         }
         
         // Budget warning if applicable
@@ -2438,6 +2452,7 @@ impl TuiManager {
                     
                     // Update session stats
                     self.session_tokens += input_tokens + total_tokens;
+                    self.context_monitor.update_usage(self.session_tokens);
                     
                     // Calculate cost for the response (input + output tokens)
                     if let Some(cost) = provider.calculate_cost(input_tokens, total_tokens) {
@@ -2604,6 +2619,7 @@ impl TuiManager {
                 
                 // Update session stats
                 self.session_tokens += input_tokens + total_tokens;
+                self.context_monitor.update_usage(self.session_tokens);
                 
                 // Calculate cost for the response (input + output tokens)
                 if let Some(cost) = provider.calculate_cost(input_tokens, total_tokens) {
@@ -3988,6 +4004,7 @@ function farewell(name) {
 
                 // Update session stats
                 self.session_tokens = summary_tokens + (recent_messages_to_keep as u32 * 50); // Rough estimate
+                self.context_monitor.reset_after_compaction(self.session_tokens);
 
                 self.add_message(Message::new(
                     MessageRole::System,
