@@ -5,6 +5,7 @@ use std::env;
 use std::path::PathBuf;
 use tracing::{debug, info};
 
+use crate::context::{CompactionConfig as ContextCompactionConfig, SummaryDepth};
 use crate::cost::CostConfig;
 use crate::utils::aircher_dirs::AircherDirs;
 
@@ -25,6 +26,8 @@ pub struct ConfigManager {
     pub cost: CostConfig,
     #[serde(default)]
     pub multi_provider: MultiProviderConfig,
+    #[serde(default)]
+    pub compaction: CompactionConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,6 +96,54 @@ pub struct IntelligenceConfig {
     pub enable_context_optimization: bool,
     pub file_scan_depth: u32,
     pub relevance_threshold: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompactionConfig {
+    /// Enable automatic compaction
+    pub auto_enabled: bool,
+    /// Warning threshold (0.0 - 1.0)
+    pub warning_threshold: f32,
+    /// Critical threshold (0.0 - 1.0)
+    pub critical_threshold: f32,
+    /// Minimum messages before allowing compaction
+    pub min_messages: u32,
+    /// Number of recent messages to keep
+    pub keep_recent_messages: usize,
+    /// Keep system messages
+    pub keep_system_messages: bool,
+    /// Keep tool result messages
+    pub keep_tool_results: bool,
+    /// Summarization depth
+    pub summary_depth: SummaryDepth,
+    /// Preserve code blocks in summaries
+    pub preserve_code_blocks: bool,
+    /// Preserve file paths in summaries
+    pub preserve_file_paths: bool,
+    /// Show warnings to user
+    pub show_warnings: bool,
+    /// Require user confirmation for non-critical compactions
+    pub require_confirmation: bool,
+}
+
+impl CompactionConfig {
+    /// Convert to the context module's CompactionConfig
+    pub fn to_context_config(&self) -> ContextCompactionConfig {
+        ContextCompactionConfig {
+            auto_enabled: self.auto_enabled,
+            warning_threshold: self.warning_threshold,
+            critical_threshold: self.critical_threshold,
+            min_messages: self.min_messages,
+            keep_recent_messages: self.keep_recent_messages,
+            keep_system_messages: self.keep_system_messages,
+            keep_tool_results: self.keep_tool_results,
+            summary_depth: self.summary_depth,
+            preserve_code_blocks: self.preserve_code_blocks,
+            preserve_file_paths: self.preserve_file_paths,
+            show_warnings: self.show_warnings,
+            require_confirmation: self.require_confirmation,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -318,6 +369,25 @@ impl Default for IntelligenceConfig {
             enable_context_optimization: true,
             file_scan_depth: 10,
             relevance_threshold: 0.3,
+        }
+    }
+}
+
+impl Default for CompactionConfig {
+    fn default() -> Self {
+        Self {
+            auto_enabled: true,
+            warning_threshold: 0.75,
+            critical_threshold: 0.90,
+            min_messages: 10,
+            keep_recent_messages: 5,
+            keep_system_messages: true,
+            keep_tool_results: true,
+            summary_depth: SummaryDepth::Standard,
+            preserve_code_blocks: true,
+            preserve_file_paths: true,
+            show_warnings: true,
+            require_confirmation: true,
         }
     }
 }
@@ -707,6 +777,7 @@ impl Default for ConfigManager {
             intelligence: IntelligenceConfig::default(),
             cost: CostConfig::default(),
             multi_provider: MultiProviderConfig::default(),
+            compaction: CompactionConfig::default(),
         }
     }
 }

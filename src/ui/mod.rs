@@ -19,7 +19,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info};
 
 use crate::config::ConfigManager;
-use crate::context::{ContextMonitor, CompactionConfig};
+use crate::context::{ContextMonitor, CompactionTrigger};
 use crate::providers::{ChatRequest, Message, MessageRole, ProviderManager};
 use crate::project::ProjectManager;
 use crate::sessions::{SessionManager, Session};
@@ -175,6 +175,8 @@ pub struct TuiManager {
     agent_processing: bool,
     // Context monitoring
     context_monitor: ContextMonitor,
+    // Auto-compaction state
+    pending_auto_compaction: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -355,9 +357,10 @@ impl TuiManager {
                 } else {
                     200_000 // Default to 200k if not found
                 };
-                let compaction_config = CompactionConfig::default();
+                let compaction_config = config.compaction.to_context_config();
                 ContextMonitor::new(context_window, &compaction_config)
             },
+            pending_auto_compaction: false,
         })
     }
 
@@ -509,9 +512,10 @@ impl TuiManager {
                 } else {
                     200_000 // Default to 200k if not found
                 };
-                let compaction_config = CompactionConfig::default();
+                let compaction_config = config.compaction.to_context_config();
                 ContextMonitor::new(context_window, &compaction_config)
             },
+            pending_auto_compaction: false,
         })
     }
 
@@ -620,6 +624,9 @@ impl TuiManager {
             
             // Process model updates from async tasks
             self.model_selection_overlay.process_model_updates();
+            
+            // Handle pending auto-compaction
+            self.handle_pending_auto_compaction().await;
             
             // Draw the UI
             terminal.draw(|f| self.draw(f))?;
@@ -3728,6 +3735,72 @@ function farewell(name) {
     fn add_message(&mut self, message: Message) {
         self.messages.push(message);
         self.scroll_offset = 0; // Reset to bottom
+        
+        // Check for auto-compaction after adding message
+        self.check_auto_compaction();
+    }
+
+    /// Check if auto-compaction should be triggered and handle accordingly
+    fn check_auto_compaction(&mut self) {
+        // Skip if not enough messages
+        if self.messages.len() < self.config.compaction.min_messages as usize {
+            return;
+        }
+
+        // Skip if auto-compaction is disabled
+        if !self.config.compaction.auto_enabled {
+            return;
+        }
+
+        // Check current trigger status
+        let trigger = self.context_monitor.should_compact();
+        
+        match trigger {
+            CompactionTrigger::Warning => {
+                if self.config.compaction.show_warnings {
+                    let usage_pct = self.context_monitor.usage_percentage_display();
+                    self.add_system_message(&format!(
+                        "⚠️ Context usage high ({}%) - Consider running /compact to save tokens", 
+                        usage_pct
+                    ));
+                }
+            }
+            CompactionTrigger::Critical => {
+                let usage_pct = self.context_monitor.usage_percentage_display();
+                if self.config.compaction.require_confirmation {
+                    // Show critical warning with recommendation
+                    self.add_system_message(&format!(
+                        "🚨 Context nearly full ({}%) - Auto-compaction strongly recommended. Run /compact or conversation may hit limits.",
+                        usage_pct
+                    ));
+                } else {
+                    // Auto-compact without confirmation
+                    self.add_system_message(&format!(
+                        "🚨 Context nearly full ({}%) - Triggering automatic compaction...",
+                        usage_pct
+                    ));
+                    // Schedule auto-compaction on next event loop
+                    self.pending_auto_compaction = true;
+                }
+            }
+            _ => {} // No action needed
+        }
+    }
+
+    /// Add a system message without triggering auto-compaction check (to prevent recursion)
+    fn add_system_message(&mut self, content: &str) {
+        self.messages.push(Message::new(MessageRole::System, content.to_string()));
+        self.scroll_offset = 0; // Reset to bottom
+    }
+
+    /// Handle pending auto-compaction (called from main event loop)
+    async fn handle_pending_auto_compaction(&mut self) {
+        if self.pending_auto_compaction {
+            self.pending_auto_compaction = false;
+            if let Err(e) = self.handle_compact_command("").await {
+                self.add_system_message(&format!("🚨 Auto-compaction failed: {}", e));
+            }
+        }
     }
     
     // Helper to check if error is retryable

@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::{debug, info, warn};
 
-use super::{ConfigManager, GlobalConfig, ProviderConfig, ModelConfig, HostConfig, UiConfig, DatabaseConfig, IntelligenceConfig, MultiProviderConfig};
+use super::{ConfigManager, GlobalConfig, ProviderConfig, ModelConfig, HostConfig, UiConfig, DatabaseConfig, IntelligenceConfig, MultiProviderConfig, CompactionConfig};
 use crate::cost::CostConfig;
 use crate::utils::aircher_dirs::AircherDirs;
 
@@ -409,6 +409,7 @@ impl ConfigHierarchy {
             },
             cost: CostConfig::default(),
             multi_provider: MultiProviderConfig::default(),
+            compaction: CompactionConfig::default(),
         }
     }
 
