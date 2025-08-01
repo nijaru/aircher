@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap, Padding},
     Frame,
 };
 use std::io;
@@ -21,6 +21,7 @@ pub struct AuthWizard {
     selected_provider_index: usize,
     error_message: Option<String>,
     success_message: Option<String>,
+    oauth_url: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -37,6 +38,7 @@ struct ProviderInfo {
 enum WizardStep {
     ProviderSelection,
     ApiKeyEntry,
+    OAuth,
     Testing,
     Complete,
 }
@@ -53,6 +55,7 @@ impl AuthWizard {
             selected_provider_index: 0,
             error_message: None,
             success_message: None,
+            oauth_url: None,
         }
     }
 
@@ -176,9 +179,38 @@ impl AuthWizard {
                         self.current_step = WizardStep::Complete;
                     } else {
                         self.current_provider = Some(provider.name.clone());
-                        self.current_step = WizardStep::ApiKeyEntry;
-                        self.api_key_input.clear();
-                        self.cursor_position = 0;
+                        
+                        // Check if this is an OAuth provider
+                        if provider.env_var.is_empty() && (provider.name == "anthropic-pro" || provider.name == "anthropic-max") {
+                            // Start OAuth flow
+                            self.current_step = WizardStep::OAuth;
+                            self.error_message = None;
+                            
+                            // Start OAuth flow
+                            match auth_manager.start_oauth_flow(&provider.name).await {
+                                Ok(url) => {
+                                    self.oauth_url = Some(url.clone());
+                                    
+                                    // Check if we're in SSH session
+                                    use crate::auth::oauth::OAuthHandler;
+                                    if OAuthHandler::is_ssh_session() {
+                                        // In SSH, show URL for manual copy
+                                        self.error_message = Some("SSH session detected - manual authentication required".to_string());
+                                    } else {
+                                        self.success_message = Some("Opening browser for authentication...".to_string());
+                                    }
+                                }
+                                Err(e) => {
+                                    self.error_message = Some(format!("Failed to start OAuth: {}", e));
+                                    self.current_step = WizardStep::ProviderSelection;
+                                }
+                            }
+                        } else {
+                            // Regular API key entry
+                            self.current_step = WizardStep::ApiKeyEntry;
+                            self.api_key_input.clear();
+                            self.cursor_position = 0;
+                        }
                     }
                 }
             }
@@ -223,6 +255,11 @@ impl AuthWizard {
                         }
                     }
                 }
+            }
+            WizardStep::OAuth => {
+                // OAuth is handled automatically in background
+                // User can close this window or wait for completion
+                self.hide();
             }
             WizardStep::Complete => {
                 self.hide();
@@ -286,7 +323,8 @@ impl AuthWizard {
 
     fn get_provider_display_name(&self, provider: &str) -> String {
         match provider {
-            "claude" => "Anthropic Claude".to_string(),
+            "claude" | "anthropic-api" => "Anthropic Claude".to_string(),
+            "anthropic-pro" | "anthropic-max" => "Anthropic Claude Pro/Max".to_string(),
             "openai" => "OpenAI".to_string(),
             "gemini" => "Google Gemini".to_string(),
             "ollama" => "Ollama".to_string(),
@@ -297,7 +335,8 @@ impl AuthWizard {
 
     fn get_provider_description(&self, provider: &str) -> String {
         match provider {
-            "claude" => "Best for complex reasoning and coding tasks".to_string(),
+            "claude" | "anthropic-api" => "Best for complex reasoning and coding tasks".to_string(),
+            "anthropic-pro" | "anthropic-max" => "Claude Pro/Max subscription (OAuth)".to_string(),
             "openai" => "GPT models with broad capabilities".to_string(),
             "gemini" => "Google's multimodal AI models".to_string(),
             "ollama" => "Run models locally on your machine".to_string(),
@@ -351,6 +390,7 @@ impl AuthWizard {
         self.selected_provider_index = 0;
         self.error_message = None;
         self.success_message = None;
+        self.oauth_url = None;
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect) {
@@ -373,6 +413,7 @@ impl AuthWizard {
         match self.current_step {
             WizardStep::ProviderSelection => self.render_provider_selection(f, popup_area),
             WizardStep::ApiKeyEntry => self.render_api_key_entry(f, popup_area),
+            WizardStep::OAuth => self.render_oauth(f, popup_area),
             WizardStep::Testing => self.render_testing(f, popup_area),
             WizardStep::Complete => self.render_complete(f, popup_area),
         }
@@ -537,6 +578,66 @@ impl AuthWizard {
 
         // Instructions
         let instructions = Paragraph::new("Please wait...")
+            .style(Style::default().fg(Color::Gray))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(instructions, chunks[2]);
+    }
+
+    fn render_oauth(&self, f: &mut Frame, area: Rect) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Min(5),    // Content
+                Constraint::Length(3), // Instructions
+            ])
+            .split(area);
+
+        // Title
+        let title = Paragraph::new("OAuth Authentication")
+            .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(title, chunks[0]);
+
+        // Content
+        let mut lines = Vec::new();
+        
+        if let Some(url) = &self.oauth_url {
+            use crate::auth::oauth::OAuthHandler;
+            if OAuthHandler::is_ssh_session() {
+                lines.push(Line::from(vec![
+                    Span::styled("SSH session detected - Manual authentication required", Style::default().fg(Color::Yellow))
+                ]));
+                lines.push(Line::from(""));
+                lines.push(Line::from("Please open this URL in your browser:"));
+                lines.push(Line::from(""));
+                lines.push(Line::from(vec![
+                    Span::styled(url, Style::default().fg(Color::Blue).add_modifier(Modifier::UNDERLINED))
+                ]));
+            } else {
+                lines.push(Line::from(vec![
+                    Span::styled("✓ ", Style::default().fg(Color::Green)),
+                    Span::from("Opening browser for authentication...")
+                ]));
+                lines.push(Line::from(""));
+                lines.push(Line::from("Please complete the authentication in your browser."));
+                lines.push(Line::from(""));
+                lines.push(Line::from("This window will close automatically when done."));
+            }
+        } else {
+            lines.push(Line::from(vec![
+                Span::styled("Starting OAuth authentication...", Style::default().fg(Color::Gray))
+            ]));
+        }
+        
+        let content = List::new(lines)
+            .block(Block::default().borders(Borders::ALL).padding(Padding::new(2, 2, 1, 1)));
+        f.render_widget(content, chunks[1]);
+
+        // Instructions
+        let instructions = Paragraph::new("Press Enter or Esc to close this window")
             .style(Style::default().fg(Color::Gray))
             .alignment(Alignment::Center)
             .block(Block::default().borders(Borders::ALL));
