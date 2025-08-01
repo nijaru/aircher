@@ -10,6 +10,7 @@ use crate::config::ConfigManager;
 pub mod storage;
 pub mod cli;
 pub mod testing;
+pub mod oauth;
 
 #[derive(Debug)]
 pub struct AuthManager {
@@ -142,15 +143,38 @@ impl AuthManager {
                 }
             } else {
                 // OAuth providers like anthropic-pro need separate authentication
-                // For now, return NotConfigured - future OAuth implementation will handle this
-                return ProviderAuthInfo {
-                    provider: provider.to_string(),
-                    status: AuthStatus::NotConfigured,
-                    masked_key: None,
-                    last_validated: None,
-                    error_message: Some("OAuth authentication not implemented yet".to_string()),
-                    usage_info: None,
-                };
+                if provider == "anthropic-pro" || provider == "anthropic-max" {
+                    // Check if we have stored OAuth token
+                    if let Ok(Some(token)) = self.get_oauth_token(provider).await {
+                        return ProviderAuthInfo {
+                            provider: provider.to_string(),
+                            status: AuthStatus::Authenticated,
+                            masked_key: Some(self.mask_api_key(&token)),
+                            last_validated: Some(chrono::Utc::now()),
+                            error_message: None,
+                            usage_info: None,
+                        };
+                    } else {
+                        return ProviderAuthInfo {
+                            provider: provider.to_string(),
+                            status: AuthStatus::NotConfigured,
+                            masked_key: None,
+                            last_validated: None,
+                            error_message: Some("OAuth authentication required".to_string()),
+                            usage_info: None,
+                        };
+                    }
+                } else {
+                    // Unknown OAuth provider
+                    return ProviderAuthInfo {
+                        provider: provider.to_string(),
+                        status: AuthStatus::NotConfigured,
+                        masked_key: None,
+                        last_validated: None,
+                        error_message: Some("OAuth authentication not supported for this provider".to_string()),
+                        usage_info: None,
+                    };
+                }
             }
         }
 
@@ -409,10 +433,83 @@ impl AuthManager {
             }
         }
     }
+
+    /// Store OAuth token for a provider
+    pub async fn store_oauth_token(&self, provider: &str, token: &str) -> Result<()> {
+        info!("Storing OAuth token for provider: {}", provider);
+        // Use the same storage mechanism but with a different key format
+        let oauth_key = format!("{}_oauth_token", provider);
+        self.storage.write().unwrap().store_api_key(&oauth_key, token).await
+            .context("Failed to store OAuth token")?;
+        
+        // Broadcast authentication event
+        self.broadcast_event(AuthEvent::ProviderAuthenticated { 
+            provider: provider.to_string() 
+        });
+        
+        info!("✓ OAuth token stored for provider: {}", provider);
+        Ok(())
+    }
+
+    /// Get OAuth token for a provider
+    pub async fn get_oauth_token(&self, provider: &str) -> Result<Option<String>> {
+        let oauth_key = format!("{}_oauth_token", provider);
+        self.storage.read().unwrap().get_api_key(&oauth_key).await
+    }
+
+    /// Remove OAuth token for a provider
+    pub async fn remove_oauth_token(&self, provider: &str) -> Result<()> {
+        info!("Removing OAuth token for provider: {}", provider);
+        let oauth_key = format!("{}_oauth_token", provider);
+        self.storage.write().unwrap().remove_api_key(&oauth_key).await
+            .context("Failed to remove OAuth token")?;
+        
+        // Broadcast unauthentication event
+        self.broadcast_event(AuthEvent::ProviderUnauthenticated { 
+            provider: provider.to_string() 
+        });
+        
+        info!("✓ OAuth token removed for provider: {}", provider);
+        Ok(())
+    }
+
+    /// Start OAuth flow for a provider
+    pub async fn start_oauth_flow(&self, provider: &str) -> Result<String> {
+        use self::oauth::OAuthHandler;
+        
+        match provider {
+            "anthropic-pro" | "anthropic-max" => {
+                let oauth_handler = OAuthHandler::new_anthropic_pro();
+                
+                // Check if we're in SSH session
+                if OAuthHandler::is_ssh_session() {
+                    info!("📋 SSH session detected - manual authentication required");
+                    let auth_url = oauth_handler.start_auth_flow().await?;
+                    return Ok(auth_url);
+                }
+                
+                // Start the OAuth flow
+                let auth_url = oauth_handler.start_auth_flow().await?;
+                
+                // Note: OAuth callback handling would typically be done here
+                // For now, users will need to manually complete the OAuth flow
+                
+                Ok(auth_url)
+            }
+            _ => Err(anyhow::anyhow!("OAuth not supported for provider: {}", provider))
+        }
+    }
 }
 
 impl Default for AuthManager {
     fn default() -> Self {
         Self::new().expect("Failed to create AuthManager")
+    }
+}
+
+impl Clone for AuthManager {
+    fn clone(&self) -> Self {
+        // Create a new AuthManager with the same storage path
+        Self::new().expect("Failed to clone AuthManager")
     }
 }
