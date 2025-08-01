@@ -87,7 +87,7 @@ use model_selection::ModelSelectionOverlay;
 use diff_viewer::{DiffViewer, generate_diff};
 use slash_commands::{parse_slash_command, format_help};
 use syntax_highlight::SyntaxHighlighter;
-use spinners::{BRAILLE_SPINNER, THINKING_SPINNER, STAR_PULSE, TURBO_CIRCULAR, TURBO_NEURAL, TURBO_COSMIC};
+use spinners::{TURBO_CIRCULAR, TURBO_NEURAL};
 
 // Import AI consciousness themed messages from spinners module
 use spinners::{THINKING_MESSAGES, AWAKENING_MESSAGES};
@@ -996,6 +996,10 @@ impl TuiManager {
                             KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                                 // Ctrl+W to delete last word (like terminal)
                                 self.delete_last_word();
+                            }
+                            KeyCode::Char('m') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Ctrl+M to open model selection
+                                self.show_model_selection_with_auth_check().await;
                             }
                             KeyCode::Char(c) => {
                                 // Insert character at cursor position
