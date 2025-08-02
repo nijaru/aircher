@@ -134,7 +134,7 @@ impl AuthWizard {
         match self.current_step {
             WizardStep::ProviderSelection => {
                 match c.to_ascii_lowercase() {
-                    'm' => {
+                    'k' => {
                         // Navigate to key management
                         self.current_step = WizardStep::KeyManagement;
                         self.selected_provider_index = 0;
@@ -623,7 +623,7 @@ impl AuthWizard {
         f.render_widget(list, chunks[1]);
 
         // Instructions
-        let instructions = Paragraph::new("↑↓ Navigate • Enter: Select • M: Manage Keys • Esc: Cancel")
+        let instructions = Paragraph::new("↑↓ Navigate • Enter: Select • K: Manage Keys • Esc: Cancel")
             .style(Style::default().fg(Color::Gray))
             .alignment(Alignment::Center)
             .block(Block::default().borders(Borders::ALL));
