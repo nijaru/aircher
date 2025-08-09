@@ -1027,6 +1027,46 @@ impl TuiManager {
                                 // Ctrl+W to delete last word (like terminal)
                                 self.delete_last_word();
                             }
+                            KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Ctrl+A to move to beginning of line
+                                self.move_to_line_start();
+                            }
+                            KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Ctrl+E to move to end of line
+                                self.move_to_line_end();
+                            }
+                            KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Ctrl+K to delete from cursor to end of line
+                                self.delete_to_line_end();
+                                // Update autocomplete
+                                if self.input.is_empty() {
+                                    self.autocomplete.hide();
+                                } else {
+                                    let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
+                                }
+                            }
+                            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Ctrl+U to delete from cursor to beginning of line
+                                self.delete_to_line_start();
+                                // Update autocomplete
+                                if self.input.is_empty() {
+                                    self.autocomplete.hide();
+                                } else {
+                                    let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
+                                }
+                            }
+                            KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::ALT) => {
+                                // Alt+B to move backward one word
+                                self.move_word_backward();
+                                // Re-generate suggestions at new cursor position
+                                let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
+                            }
+                            KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::ALT) => {
+                                // Alt+F to move forward one word
+                                self.move_word_forward();
+                                // Re-generate suggestions at new cursor position
+                                let _ = self.autocomplete.generate_suggestions(&self.input, self.cursor_position);
+                            }
                             KeyCode::Char('m') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                                 // Ctrl+M to open model selection
                                 self.show_model_selection_with_auth_check().await;
@@ -1331,6 +1371,71 @@ impl TuiManager {
         // Remove characters from pos to cursor_position
         chars.drain(pos..self.cursor_position);
         self.input = chars.into_iter().collect();
+        self.cursor_position = pos;
+    }
+    
+    /// Move cursor to beginning of line (Ctrl+A)
+    fn move_to_line_start(&mut self) {
+        self.cursor_position = 0;
+    }
+    
+    /// Move cursor to end of line (Ctrl+E)
+    fn move_to_line_end(&mut self) {
+        self.cursor_position = self.input.len();
+    }
+    
+    /// Delete from cursor to end of line (Ctrl+K)
+    fn delete_to_line_end(&mut self) {
+        if self.cursor_position < self.input.len() {
+            self.input.truncate(self.cursor_position);
+        }
+    }
+    
+    /// Delete from cursor to beginning of line (Ctrl+U)
+    fn delete_to_line_start(&mut self) {
+        if self.cursor_position > 0 {
+            self.input.drain(..self.cursor_position);
+            self.cursor_position = 0;
+        }
+    }
+    
+    /// Move cursor backward one word (Alt+B)
+    fn move_word_backward(&mut self) {
+        if self.cursor_position == 0 {
+            return;
+        }
+        
+        let chars: Vec<char> = self.input.chars().collect();
+        let mut pos = self.cursor_position;
+        
+        // Skip current whitespace
+        while pos > 0 && chars[pos - 1].is_whitespace() {
+            pos -= 1;
+        }
+        
+        // Move to beginning of word
+        while pos > 0 && !chars[pos - 1].is_whitespace() {
+            pos -= 1;
+        }
+        
+        self.cursor_position = pos;
+    }
+    
+    /// Move cursor forward one word (Alt+F)
+    fn move_word_forward(&mut self) {
+        let chars: Vec<char> = self.input.chars().collect();
+        let mut pos = self.cursor_position;
+        
+        // Skip current word
+        while pos < chars.len() && !chars[pos].is_whitespace() {
+            pos += 1;
+        }
+        
+        // Skip whitespace
+        while pos < chars.len() && chars[pos].is_whitespace() {
+            pos += 1;
+        }
+        
         self.cursor_position = pos;
     }
 
