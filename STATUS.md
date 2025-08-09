@@ -1,6 +1,6 @@
 # Aircher Development Status
 
-**Last Updated**: 2025-01-22
+**Last Updated**: 2025-08-09
 
 ## 🎉 Current State: Production Ready
 
@@ -37,16 +37,26 @@ The core semantic search system is now **production-ready** with professional-gr
 
 ## 🔄 Current Development Phase
 
-### Focus: Advanced Features and Ecosystem Integration
+### Focus: Basic Agent Integration (Phase 1)
 
-With core engine, code quality, and user experience polish complete, the focus shifts to:
+**Critical Gap**: The agent system exists but is not connected to the TUI. We need to implement basic tool calling before any advanced features.
 
-1. **Code Quality** ✅ (Complete)
+See `docs/architecture/roadmap.md` for comprehensive development plan.
+
+### Current Priority: Connect Agent to TUI
+1. **Agent Integration** 🚨 (Phase 1 - BLOCKING)
+   - ❌ Wire AgentController to TuiManager
+   - ❌ Parse LLM responses for tool calls
+   - ❌ Execute tools through registry
+   - ❌ Display tool results in conversation
+
+2. **Tool Calling Loop** (Phase 2 - Next)
+   - ❌ Structured tool calling format
+   - ❌ Multi-turn tool execution
+   - ❌ Tool status streaming
+
+3. **Previous Completed Work**
    - ✅ Eliminated ALL compiler warnings (190 → 0)
-   - ✅ Improved code organization and documentation
-   - ✅ Enhanced test coverage and reliability
-
-2. **User Experience** ✅ (Complete - Phase 7)
    - ✅ Enhanced search result display with syntax highlighting
    - ✅ Professional-grade visual formatting and structure
    - ✅ Better context display with file structure information
@@ -57,62 +67,57 @@ With core engine, code quality, and user experience polish complete, the focus s
    - ✅ MCP client integration for ecosystem connectivity
    - Cross-file intelligence and architectural analysis
 
-## 📋 Next Development Priorities
+## 📋 Development Roadmap
 
-### Phase 7: User Experience Enhancements ✅ (Completed)
-1. **Search Result Quality** ✅ (Completed)
-   - ✅ Enhanced context display around matches
-   - ✅ Advanced syntax highlighting with tree-sitter + fallbacks
-   - ✅ Professional visual formatting and structure
-   - ✅ File structure context and directory information
+### Completed Work
+- ✅ **Semantic Search Engine**: Production-ready with 19+ language support
+- ✅ **TUI Interface**: Full conversation UI with provider selection
+- ✅ **Multi-Provider Support**: OpenAI, Anthropic, Gemini, Ollama
+- ✅ **Performance**: 45x faster indexing with hnswlib-rs
+- ✅ **MCP Client**: Full implementation (but no CLI interface yet)
 
-2. **Query Intelligence** ✅ (Completed)
-   - ✅ "Did you mean?" functionality for typo correction
-   - ✅ Automatic synonym expansion for broader coverage
-   - ✅ Query complexity analysis and suggestions
-   - 🔄 Search history and favorites (future enhancement)
+### Current Development Phases
 
-3. **TUI Demo Mode** ✅ (Completed)
-   - ✅ Allow trying the interface without API keys
-   - ✅ Graceful auth setup screen with clear instructions
-   - ✅ Full semantic search available without API keys
-   - ✅ Demo mode indicators and helpful messages
+#### Phase 1: Basic Agent Integration 🚨 **CURRENT**
+**Timeline**: 3-5 days
+- Connect AgentController to TUI
+- Parse LLM responses for tool calls
+- Execute tools through registry
+- Display tool results in conversation
 
-### Phase 8: Advanced Features ✅ (Major Progress)
-1. **Performance Optimization** ✅ (100% Complete)
-   - ✅ Full hnswlib-rs integration as primary vector backend
-   - ✅ 45.4x faster index construction (0.12s vs 5.63s)
-   - ✅ 2.1x faster search operations (0.8ms vs 1.7ms)
-   - ✅ Production-ready performance for large codebases
-   - ✅ SIMD optimizations and parallel processing
+#### Phase 2: Tool Calling Loop **NEXT**
+**Timeline**: 1 week
+- Structured tool calling format (XML)
+- Multi-turn tool execution
+- Stream tool status updates
+- Context management for results
 
-2. **MCP Client Integration** ✅ (Completed)
-   - ✅ Full MCP client implementation with stdio/HTTP transports
-   - ✅ CLI commands for server management and tool discovery
-   - ✅ Intelligence Engine integration with MCP tools
-   - ✅ Working demo with filesystem, postgres, and github servers
-   - Unified interface for multiple MCP servers
+#### Phase 3: Core Tools Enhancement
+**Timeline**: 1 week
+- File operations (create, edit, delete)
+- Git integration
+- Workspace awareness
+- Test execution
 
-3. **Cross-file Intelligence**
-   - Detect relationships between files and modules
-   - Understand architectural patterns and dependencies
-   - Suggest refactoring opportunities based on code analysis
+#### Phase 4: Enhanced UI/UX
+**Timeline**: 1 week
+- Tool execution progress
+- Approval shortcuts
+- Cost tracking
 
-### Phase 9: Ecosystem Integration (4-6 weeks)
-1. **MCP Server Mode**
-   - Expose Aircher capabilities as MCP server
-   - Allow other tools to use semantic search functionality
-   - API for external integrations and tool composition
+#### Phase 5: Advanced Features
+**Timeline**: 2-3 weeks
+- Turbo Mode v1 (basic parallelization)
+- Intelligence features
+- Session management
 
-2. **IDE Plugins**
-   - VS Code extension for seamless integration
-   - Neovim plugin for terminal-based workflows
-   - JetBrains plugin for IDE environments
+#### Phase 6: Turbo Mode v2 (Orchestration)
+**Timeline**: 2-3 weeks
+- Task decomposition
+- Two-tier model configuration
+- See `docs/architecture/turbo-mode.md`
 
-3. **CI/CD Integration**
-   - GitHub Actions for automated code analysis
-   - GitLab CI integration for pipeline enhancement
-   - Build system plugins for development workflows
+See `docs/architecture/roadmap.md` for detailed technical plan.
 
 ## 📊 Performance Benchmarks
 

@@ -192,3 +192,18 @@ Critical fixes for model selection reliability and user experience:
 - Mouse scroll support for chat history
 - Intelligent prompting for auth when no providers configured
 - Session branching and message indexing for conversation management
+
+## Development Priorities
+
+**CRITICAL**: The agent system (`src/agent/`) exists but is NOT connected to the TUI. This must be fixed before any advanced features.
+
+### Current Focus: Basic Agent Integration
+1. Connect `AgentController` to `TuiManager` in `src/ui/mod.rs`
+2. Parse LLM responses for tool calls (XML format like `<tool_use>`)
+3. Execute tools through the existing `ToolRegistry`
+4. Display tool results in the conversation
+
+See `docs/architecture/roadmap.md` for the complete development plan.
+
+### Future: Turbo Mode (Phase 6)
+After basic tool calling works, turbo mode will add task orchestration with two-tier model configuration (high/low). Design available in `docs/architecture/turbo-mode.md` but this is NOT the current priority.
