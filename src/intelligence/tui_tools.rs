@@ -487,10 +487,10 @@ impl IntelligenceTools for TuiIntelligenceTools {
             }
         }
         
-        // Look for legacy CLAUDE.md
-        let claude_md_path = project_root.join("CLAUDE.md");
-        if claude_md_path.exists() {
-            if let Ok(content) = self.read_file_safe(&claude_md_path.to_string_lossy()).await {
+        // Look for AGENTS.md (renamed from CLAUDE.md)
+        let agents_md_path = project_root.join("AGENTS.md");
+        if agents_md_path.exists() {
+            if let Ok(content) = self.read_file_safe(&agents_md_path.to_string_lossy()).await {
                 config.legacy_claude = Some(content);
             }
         }

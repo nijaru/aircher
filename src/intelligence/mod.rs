@@ -247,7 +247,7 @@ pub struct AiConfiguration {
     pub project_instructions: Option<String>, // ./AGENT.md
     pub cursor_rules: Option<String>,         // ./.cursorrules
     pub copilot_instructions: Option<String>, // ./.copilot
-    pub legacy_claude: Option<String>,        // ./CLAUDE.md
+    pub legacy_claude: Option<String>,        // ./AGENTS.md (legacy field name)
     pub custom_instructions: Vec<CustomInstruction>,
 }
 
