@@ -1,6 +1,48 @@
 # Aircher Agent Instructions
 
-This document contains important context and decisions for AI agents working on the Aircher codebase.
+This document provides context and instructions for AI agents working with the Aircher project.
+
+## Project Overview
+
+Aircher is a **semantic code search engine** with TUI interface built in Rust. Currently production-ready for search functionality, with AI chat capabilities in development.
+
+**What Works Today:**
+- Advanced semantic code search (production-ready)
+- TUI interface with graceful auth flow 
+- Multi-provider authentication (Claude, OpenAI, Gemini, Ollama)
+- Demo mode (full functionality without API keys)
+
+**What's Missing (Current Development Priority):**
+- AI agent integration - agent system exists but isn't connected to TUI
+- Tool calling in conversations 
+- File operations through chat interface
+
+## Current Status
+
+- ✅ **Production-ready** semantic search system (99.9% faster subsequent searches)
+- ✅ **TUI with demo mode** - full interface available without API keys
+- ✅ **Clean codebase** - eliminated ~190 compiler warnings
+- ✅ **19+ language support** with tree-sitter parsing
+- ❌ **AI chat with tools** - agent system disconnected from TUI (Phase 1 priority)
+
+## Key Features Completed
+
+### 1. Semantic Code Search (Production Ready)
+- Sub-second search with index persistence  
+- Advanced filtering, query expansion, typo correction
+- 19+ programming languages supported
+- Real-time file monitoring
+
+### 2. TUI Interface (Fully Functional)
+- Demo mode works immediately without setup
+- Interactive auth wizard for provider setup
+- Model selection and provider switching
+- Graceful fallback when API keys unavailable
+
+### 3. Multi-Provider Support (Authentication Only)
+- OpenAI, Anthropic, Gemini, Ollama integration
+- OAuth2 support for Anthropic Pro/Max
+- Dynamic model fetching from provider APIs
 
 ## Architectural Decisions
 
@@ -207,3 +249,56 @@ See `docs/architecture/roadmap.md` for the complete development plan and `TECH_S
 
 ### Future: Turbo Mode (Phase 6)
 After basic tool calling works, turbo mode will add task orchestration with two-tier model configuration (high/low). Design available in `docs/architecture/turbo-mode.md` but this is NOT the current priority.
+
+## Working With This Codebase
+
+### Key Directories
+- `src/ui/` - TUI implementation with auth flow and model selection
+- `src/semantic_search.rs` - Production-ready search functionality  
+- `src/intelligence/` - Context-aware assistance engine
+- `src/providers/` - Multi-provider authentication and API integration
+- `src/agent/` - Tool system (exists but not connected to TUI)
+- `tests/` - Comprehensive test suite
+
+### Development Flow
+1. **Maintain user experience** - demo mode must work without API keys
+2. **Performance is critical** - search must remain sub-second
+3. **Zero tolerance for warnings** - fix immediately
+4. **Test before committing** - run `cargo test` and manual TUI testing
+
+### What Actually Works vs Documentation
+- ✅ **Semantic search**: `/search` command works perfectly in TUI
+- ✅ **Provider auth**: `/auth` and `/model` commands work
+- ✅ **Demo mode**: Launch `aircher` without any setup
+- ❌ **AI chat with tools**: Can chat with LLMs but they can't use tools yet
+
+## Testing Commands
+
+```bash
+# Test demo mode (should work immediately)
+cargo run --release
+
+# Test semantic search (works without API keys)
+cargo run --release
+# In TUI: /search error handling
+
+# Test with API keys (basic chat only, no tools)
+ANTHROPIC_API_KEY=sk-ant-... cargo run --release
+
+# Run full test suite
+cargo test
+
+# Check for warnings (should be zero)
+cargo check
+```
+
+## Critical Architecture Gaps
+
+**The Big Issue**: AgentController exists in `src/agent/controller.rs` but is never instantiated or connected to the TUI. This means:
+
+- Users can chat with LLMs through the TUI
+- LLMs receive messages but cannot execute any tools
+- Tools like `read_file`, `write_file`, `run_command` are implemented but unreachable
+- No tool calling loop, no file operations, no command execution
+
+**Phase 1 Fix Required**: Connect `AgentController` to `TuiManager` in `src/ui/mod.rs`
