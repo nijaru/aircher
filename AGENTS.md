@@ -203,7 +203,7 @@ Critical fixes for model selection reliability and user experience:
 3. Execute tools through the existing `ToolRegistry`
 4. Display tool results in the conversation
 
-See `docs/architecture/roadmap.md` for the complete development plan.
+See `docs/architecture/roadmap.md` for the complete development plan and `TECH_SPEC.md` for technical details.
 
 ### Future: Turbo Mode (Phase 6)
 After basic tool calling works, turbo mode will add task orchestration with two-tier model configuration (high/low). Design available in `docs/architecture/turbo-mode.md` but this is NOT the current priority.
