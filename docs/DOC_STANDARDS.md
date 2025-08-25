@@ -9,7 +9,7 @@ Every piece of information lives in EXACTLY ONE place. Never duplicate facts acr
 ### 2. Clear Hierarchy
 ```
 README.md           # Public introduction
-CLAUDE.md           # AI agent context (if using AI)
+AGENTS.md           # AI agent context (if using AI)
 STATUS.md           # Current state (what is)
 TECH_SPEC.md        # Architecture (how it works)
 TODO.md             # Tasks (what needs doing)
@@ -19,7 +19,7 @@ DECISIONS.md        # History (why decisions were made)
 ### 3. Token Efficiency
 - Reference, don't duplicate: `See STATUS.md#performance`
 - Use anchors for sections: `#known-issues`
-- Keep summaries in CLAUDE.md minimal
+- Keep summaries in AGENTS.md minimal
 - Full details in dedicated files
 
 ## File Organization
@@ -28,7 +28,7 @@ DECISIONS.md        # History (why decisions were made)
 
 | Information Type | Location | Example |
 |-----------------|----------|---------|
-| Quick context | CLAUDE.md | "Project overview for AI agents" |
+| Quick context | AGENTS.md | "Project overview for AI agents" |
 | Current metrics | STATUS.md | "Performance, issues, state" |
 | Known bugs | STATUS.md#known-issues | "Active issues and workarounds" |
 | Architecture | TECH_SPEC.md#architecture | "System design and structure" |
@@ -106,7 +106,7 @@ date +"%Y-%m-%d"  # Command to get current date
 1. Test and measure
 2. Update STATUS.md#performance-metrics
 3. Add decision to DECISIONS.md if significant
-4. Update CLAUDE.md if major milestone
+4. Update AGENTS.md if major milestone
 
 ### For Bug Fixes
 1. Fix the bug
@@ -118,7 +118,7 @@ date +"%Y-%m-%d"  # Command to get current date
 1. Document decision in DECISIONS.md FIRST
 2. Update TECH_SPEC.md with details
 3. Update STATUS.md if impacts current state
-4. Update CLAUDE.md summary if major
+4. Update AGENTS.md summary if major
 
 ## AI Agent Optimization
 
@@ -126,18 +126,18 @@ date +"%Y-%m-%d"  # Command to get current date
 
 **Minimal context (fast responses):**
 ```bash
-@CLAUDE.md  # Always, provides base context
+@AGENTS.md  # Always, provides base context
 ```
 
 **Standard work:**
 ```bash
-@CLAUDE.md
+@AGENTS.md
 @docs/STATUS.md  # Add current state
 ```
 
 **Complex work:**
 ```bash
-@CLAUDE.md
+@AGENTS.md
 @docs/STATUS.md
 @docs/TECH_SPEC.md  # Add technical details
 @docs/TODO.md       # Add task context
@@ -147,7 +147,7 @@ date +"%Y-%m-%d"  # Command to get current date
 
 1. **Use section anchors**: `@docs/STATUS.md#performance-metrics`
 2. **Reference don't copy**: "See TECH_SPEC.md for details"
-3. **Summarize in CLAUDE.md**: Keep details in dedicated files
+3. **Summarize in AGENTS.md**: Keep details in dedicated files
 4. **Archive old content**: Don't keep outdated info in active files
 
 ## Quality Checklist
@@ -158,7 +158,7 @@ Before committing documentation changes:
 - [ ] Updated REFERENCE.md if moved content?
 - [ ] Used ISO dates (2025-08-23)?
 - [ ] Archived old versions if major change?
-- [ ] Updated CLAUDE.md if significant?
+- [ ] Updated AGENTS.md if significant?
 - [ ] Verified cross-references still work?
 - [ ] Removed any outdated information?
 - [ ] Added to DECISIONS.md if notable?
@@ -171,7 +171,7 @@ Before committing documentation changes:
 4. **Keeping contradictions** - Archive old, keep current
 5. **Wrong date format** - Use YYYY-MM-DD not MM/DD/YY
 6. **Forgetting DECISIONS.md** - Document WHY not just WHAT
-7. **Bloating CLAUDE.md** - Keep it minimal, link to details
+7. **Bloating AGENTS.md** - Keep it minimal, link to details
 
 ---
 *General-purpose documentation guide for any project.*

@@ -239,7 +239,7 @@ aircher --cross-project-analysis "authentication patterns"
 Universal AI configuration files for consistent behavior across tools:
 
 ```
-~/.agent/AGENT.md          # Global AI instructions (like ~/.claude/CLAUDE.md)
+~/.agent/AGENT.md          # Global AI instructions (like ~/.agents/AGENTS.md)
 project-root/AGENT.md      # Project-specific AI instructions  
 project-root/.cursorrules  # Cursor IDE rules
 project-root/.copilot      # GitHub Copilot instructions
@@ -248,7 +248,7 @@ project-root/.copilot      # GitHub Copilot instructions
 **Intelligence Engine Discovery Order:**
 1. Global `~/.agent/AGENT.md` (user-wide context)
 2. Project `AGENT.md` (project-specific instructions)
-3. Legacy files: `CLAUDE.md`, `.cursorrules`, `.copilot-instructions`
+3. Legacy files: `AGENTS.md`, `.cursorrules`, `.copilot-instructions`
 4. Standard patterns: `AI_INSTRUCTIONS.md`, `.ai-instructions`
 
 ### Cross-Project Learning

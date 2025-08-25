@@ -3,7 +3,7 @@
 
 ## Quick Start for AI Agents
 
-1. **Check Context**: Read project CLAUDE.md if exists
+1. **Check Context**: Read project AGENTS.md if exists
 2. **Before Any Code**: Check existing patterns with `rg`
 3. **Core Rule**: Edit existing files, never create without explicit request
 4. **Test Everything**: Performance claims need benchmarks
@@ -362,4 +362,4 @@ ls test_*.py        # Find temp files to clean
 - [ ] Changes match user's request exactly
 
 ---
-*This is a general-purpose code standards guide. For project-specific patterns, check the project's CLAUDE.md or README.*
+*This is a general-purpose code standards guide. For project-specific patterns, check the project's AGENTS.md or README.*

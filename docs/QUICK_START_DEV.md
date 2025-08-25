@@ -69,7 +69,7 @@ cargo run --release
 
 1. **docs/architecture/roadmap.md** - Complete technical plan
 2. **docs/CURRENT_STATE.md** - Detailed gap analysis  
-3. **CLAUDE.md** - Agent instructions (keep updated)
+3. **AGENTS.md** - Agent instructions (keep updated)
 4. **STATUS.md** - Project status
 
 ## The Big Picture
