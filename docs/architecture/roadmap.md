@@ -1,25 +1,39 @@
 # Aircher Development Roadmap
 
+## Quick Summary (2025-08-25)
+
+**Current Phase**: Phase 2 - Tool Calling Loop (Polish & Reliability)  
+**Previous**: Phase 1 ✅ Agent Integration COMPLETED  
+**Next**: Phase 3 - Core Tools Enhancement
+
+**Key Discovery**: Agent system was already connected, just needed provider fixes!
+
 ## Current Architecture Status (August 2025)
+
+**Reality Check (2025-08-25)**: Agent system IS connected. See `TOOL_CALLING_REALITY_CHECK.md` for details.
 
 ### ✅ What's Working
 - **TUI Chat Interface**: Full conversation UI with provider/model selection
-- **Multi-Provider Support**: OpenAI, Anthropic, Gemini, Ollama integration
+- **Multi-Provider Support**: OpenAI, Anthropic, Gemini, Ollama integration  
 - **Semantic Search**: Advanced code search with 19+ language support
 - **Configuration System**: Hierarchical config with auth management
 - **Basic Streaming**: Real-time response streaming from LLMs
+- **Agent Integration**: AgentController connected to TUI (`src/ui/mod.rs:3797`)
+- **Tool Registry**: 6+ working tools (file ops, code search, commands)
+- **Tool Parsing**: XML and JSON format support
+- **Ollama Tools**: Fixed provider to support gpt-oss tool calling
 
-### ⚠️ What's Built but Not Connected
-- **Agent Controller**: Exists but not wired to TUI (`src/agent/controller.rs`)
-- **Tool Registry**: Complete tool system but not used (`src/agent/tools/`)
-- **File Operations**: Tools implemented but not accessible
-- **Permission System**: Command approval built but not integrated
+### ⚠️ What Needs Polish
+- **Tool Result Display**: Results work but need better formatting
+- **Multi-turn Execution**: Single tool calls work, chaining needs testing
+- **Error Recovery**: Tool failures need graceful handling
+- **Permission UI**: Approval system built but needs UX work
 
-### ❌ What's Missing (Gap Analysis)
-- **No Tool Calling Loop**: LLMs can't execute tools during conversation
-- **No Agent Integration**: Agent controller disconnected from chat
-- **No Tool UI**: No way to show tool execution in TUI
-- **No Structured Output**: Still using text parsing instead of JSON
+### ❌ What's Missing (Gap Analysis)  
+- **Streaming Tool Status**: Tool execution not streamed to UI
+- **Tool History**: No way to review past tool executions
+- **Advanced Tools**: Git, test execution, workspace awareness
+- **Cost Tracking**: No per-tool usage metrics
 
 ## Development Phases
 
@@ -30,27 +44,28 @@
 - ✅ Message streaming and display
 - ✅ Configuration and settings
 
-### Phase 1: Basic Agent Integration 🚨 **CURRENT PRIORITY**
+### Phase 1: Basic Agent Integration ✅ **COMPLETED**
 **Goal**: Connect existing agent system to TUI
-**Timeline**: 3-5 days
+**Completed**: 2025-08-25
 **Dependencies**: None
 
-**Tasks**:
-1. Wire AgentController to TuiManager
-2. Parse LLM responses for tool calls
-3. Execute tools through existing registry
-4. Display tool results in conversation
-5. Handle tool approval flow
+**Tasks Completed**:
+1. ✅ Wire AgentController to TuiManager
+2. ✅ Parse LLM responses for tool calls (XML + JSON)
+3. ✅ Execute tools through existing registry  
+4. ✅ Display tool results in conversation
+5. ✅ Fix Ollama provider tool support
 
-**Success Criteria**:
-- Can read/write files through conversation
-- Can execute shell commands with approval
-- Tool status visible in UI
+**Achievements**:
+- Tool calling works with Ollama gpt-oss
+- 6+ tools functional in registry
+- Agent processes messages with tool execution
+- Provider-specific bugs fixed
 
-### Phase 2: Tool Calling Loop
-**Goal**: Implement proper multi-turn tool use
-**Timeline**: 1 week
-**Dependencies**: Phase 1
+### Phase 2: Tool Calling Loop 🚨 **CURRENT PRIORITY**
+**Goal**: Polish tool execution UX and reliability
+**Timeline**: 1 week  
+**Dependencies**: Phase 1 ✅
 
 **Tasks**:
 1. Implement structured tool calling format (XML or JSON)

@@ -343,16 +343,23 @@ pub fn detect_model_capabilities(provider: &str, model: &str) -> ModelCapabiliti
             cost_tier: CostTier::Low,
         },
         
-        // Ollama models - mostly read-only
-        ("ollama", m) if m.contains("llama") => ModelCapabilities {
-            supports_tools: false, // Most Ollama models don't have reliable tool support
+        // Ollama models - check for tool-capable models
+        ("ollama", m) if m.contains("gpt-oss") || m.contains("qwen2.5-coder") || m.contains("deepseek-r1") => ModelCapabilities {
+            supports_tools: true, // These models have good tool support
             supports_streaming: true,
             max_context: 128_000,
-            quality_tier: if m.contains("3.3") { QualityTier::Standard } else { QualityTier::Basic },
+            quality_tier: QualityTier::Standard,
+            cost_tier: CostTier::Free,
+        },
+        ("ollama", m) if m.contains("llama") && (m.contains("3.1") || m.contains("3.3")) => ModelCapabilities {
+            supports_tools: true, // Modern Llama models with tool training
+            supports_streaming: true,
+            max_context: 128_000,
+            quality_tier: QualityTier::Standard,
             cost_tier: CostTier::Free,
         },
         ("ollama", _) => ModelCapabilities {
-            supports_tools: false,
+            supports_tools: false, // Default for older/unknown models
             supports_streaming: true,
             max_context: 32_000,
             quality_tier: QualityTier::Basic,

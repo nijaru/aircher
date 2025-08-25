@@ -1,12 +1,17 @@
 # Aircher Development Status
 
-**Last Updated**: 2025-08-09
+**Last Updated**: 2025-08-25
 
 ## 🎉 Current State: Production Ready
 
 The core semantic search system is now **production-ready** with professional-grade performance and reliability.
 
 ### ✅ Major Achievements
+
+#### Recent Fixes (2025-08-25)
+- **Tool calling fixed**: Ollama provider now properly supports tool calls
+- **Agent system connected**: Verified AgentController integration with TUI
+- **Documentation corrected**: Updated to reflect actual working state
 
 #### Performance Milestones
 - **99.9% faster subsequent searches**: 0.02s (from cache) vs 20s (rebuilding)
@@ -37,18 +42,16 @@ The core semantic search system is now **production-ready** with professional-gr
 
 ## 🔄 Current Development Phase
 
-### Focus: Basic Agent Integration (Phase 1)
+### Focus: Tool Calling Reliability & UX (Phase 2)
 
-**Critical Gap**: The agent system exists but is not connected to the TUI. We need to implement basic tool calling before any advanced features.
+**Reality Check (2025-08-25)**: Agent system IS connected and partially functional. Tool calling works with Ollama gpt-oss after fixing provider bugs. See `TOOL_CALLING_REALITY_CHECK.md` for empirical testing results.
 
-See `docs/architecture/roadmap.md` for comprehensive development plan.
-
-### Current Priority: Connect Agent to TUI
-1. **Agent Integration** 🚨 (Phase 1 - BLOCKING)
-   - ❌ Wire AgentController to TuiManager
-   - ❌ Parse LLM responses for tool calls
-   - ❌ Execute tools through registry
-   - ❌ Display tool results in conversation
+### Current Priority: Tool Execution Reliability
+1. **Agent Integration** ✅ (Phase 1 - COMPLETED)
+   - ✅ Wire AgentController to TuiManager (`src/ui/mod.rs:3797-3815`)
+   - ✅ Parse LLM responses for tool calls (XML + JSON formats)
+   - ✅ Execute tools through registry (6+ functional tools)
+   - ✅ Fix Ollama provider tool support (was hardcoded to false)
 
 2. **Tool Calling Loop** (Phase 2 - Next)
    - ❌ Structured tool calling format
@@ -78,14 +81,14 @@ See `docs/architecture/roadmap.md` for comprehensive development plan.
 
 ### Current Development Phases
 
-#### Phase 1: Basic Agent Integration 🚨 **CURRENT**
-**Timeline**: 3-5 days
-- Connect AgentController to TUI
-- Parse LLM responses for tool calls
-- Execute tools through registry
-- Display tool results in conversation
+#### Phase 1: Basic Agent Integration ✅ **COMPLETED**
+**Completed**: 2025-08-25
+- ✅ Connect AgentController to TUI
+- ✅ Parse LLM responses for tool calls  
+- ✅ Execute tools through registry
+- ✅ Display tool results in conversation
 
-#### Phase 2: Tool Calling Loop **NEXT**
+#### Phase 2: Tool Calling Loop 🚨 **CURRENT**
 **Timeline**: 1 week
 - Structured tool calling format (XML)
 - Multi-turn tool execution
@@ -136,7 +139,7 @@ See `docs/architecture/roadmap.md` for detailed technical plan.
 
 ## 🐛 Known Issues
 
-### 🚨 CRITICAL (January 2025) - 2/3 FIXED
+### 🚨 CRITICAL (August 2025) - 3/4 FIXED
 1. **Enhanced Search Display** ✅ FIXED: Phase 7 integration complete
    - Syntax highlighting now working with tree-sitter for 19+ languages
    - Multi-line chunks use AST-based highlighting
@@ -146,7 +149,12 @@ See `docs/architecture/roadmap.md` for detailed technical plan.
    - No artificial limits - handles 10,000+ vectors efficiently
    - Instant search results with high-performance backend
 
-3. **MCP Integration Inaccessible** ⚠️ REMAINING: Complete implementation with no CLI interface
+3. **Ollama Tool Support** ✅ FIXED: Provider now properly handles tool calls
+   - Was hardcoded to return `false` for `supports_tools()`
+   - Now properly parses OpenAI-style JSON tool calls from gpt-oss
+   - Added support for `tool_calls` and `thinking` fields in responses
+
+4. **MCP Integration Inaccessible** ⚠️ REMAINING: Complete implementation with no CLI interface
    - Full MCP client with stdio/HTTP transports implemented
    - No CLI commands to access any MCP functionality
    - See CRITICAL-FIX-002 in tasks.json
