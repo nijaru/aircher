@@ -237,13 +237,15 @@ Critical fixes for model selection reliability and user experience:
 
 ## Development Priorities
 
-**CRITICAL**: The agent system (`src/agent/`) exists but is NOT connected to the TUI. This must be fixed before any advanced features.
+**REALITY CHECK (Aug 2025)**: Agent system IS connected to TUI and partially functional. See `TOOL_CALLING_REALITY_CHECK.md` for empirical testing results.
 
-### Current Focus: Basic Agent Integration
-1. Connect `AgentController` to `TuiManager` in `src/ui/mod.rs`
-2. Parse LLM responses for tool calls (XML format like `<tool_use>`)
-3. Execute tools through the existing `ToolRegistry`
-4. Display tool results in the conversation
+### Current Focus: Tool Calling Reliability & UX
+1. ✅ **COMPLETED**: AgentController connected to TuiManager (`src/ui/mod.rs:3797-3815`)
+2. ✅ **COMPLETED**: Tool call parsing (XML + JSON formats via `ToolCallParser`)
+3. ✅ **COMPLETED**: Tool execution through `ToolRegistry` (6+ functional tools)
+4. ✅ **COMPLETED**: Ollama provider tool support (fixed hardcoded `false` issue)
+5. 🔧 **IN PROGRESS**: End-to-end tool calling reliability testing
+6. 📋 **NEXT**: Tool result display and conversation flow UX
 
 See `docs/architecture/roadmap.md` for the complete development plan and `TECH_SPEC.md` for technical details.
 

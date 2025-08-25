@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use super::{
     ChatRequest, ChatResponse, FinishReason, LLMProvider, Message, MessageRole, PricingInfo,
-    PricingModel, StreamChunk, UsageInfo,
+    PricingModel, StreamChunk, ToolCall, UsageInfo,
 };
 use crate::config::ProviderConfig;
 use crate::auth::AuthManager;
@@ -35,6 +35,21 @@ struct OllamaRequest {
 pub struct OllamaMessage {
     role: String,
     content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<OllamaToolCall>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OllamaToolCall {
+    function: OllamaFunction,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OllamaFunction {
+    name: String,
+    arguments: serde_json::Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -408,6 +423,8 @@ impl OllamaProvider {
                     MessageRole::Tool => "tool".to_string(),
                 },
                 content: msg.content.clone(),
+                tool_calls: None, // Input messages don't have tool calls
+                thinking: None,   // No thinking for input messages
             })
             .collect()
     }
@@ -542,6 +559,23 @@ impl LLMProvider for OllamaProvider {
             .await
             .context("Failed to parse response")?;
 
+        // Convert Ollama tool calls to our standard format
+        let tool_calls = if let Some(ollama_tool_calls) = &ollama_response.message.tool_calls {
+            Some(
+                ollama_tool_calls
+                    .iter()
+                    .enumerate()
+                    .map(|(i, tool_call)| ToolCall {
+                        id: format!("call_{}", i),
+                        name: tool_call.function.name.clone(),
+                        arguments: tool_call.function.arguments.clone(),
+                    })
+                    .collect(),
+            )
+        } else {
+            None
+        };
+
         Ok(ChatResponse {
             id: Uuid::new_v4().to_string(),
             content: ollama_response.message.content,
@@ -550,7 +584,7 @@ impl LLMProvider for OllamaProvider {
             tokens_used: ollama_response.prompt_eval_count.unwrap_or(0) + ollama_response.eval_count.unwrap_or(0),
             cost: Some(0.0), // Free for local models
             finish_reason: FinishReason::Stop,
-            tool_calls: None,
+            tool_calls,
         })
     }
 
@@ -594,7 +628,7 @@ impl LLMProvider for OllamaProvider {
     }
 
     fn supports_tools(&self) -> bool {
-        false // Ollama doesn't support function calling yet
+        true // Modern Ollama models support function calling (gpt-oss, qwen2.5-coder, etc.)
     }
 
     fn supports_vision(&self) -> bool {

@@ -21,7 +21,7 @@ async fn test_ollama_provider_creation() -> Result<()> {
     assert_eq!(provider.name(), "ollama");
     assert_eq!(provider.pricing_model(), PricingModel::Free);
     assert_eq!(provider.calculate_cost(1000, 1000), Some(0.0));
-    assert!(!provider.supports_tools());
+    assert!(provider.supports_tools()); // Modern Ollama models support tools
     assert!(provider.supports_vision());
     assert_eq!(provider.context_window(), 4096);
 
