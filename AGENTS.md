@@ -285,25 +285,34 @@ After basic tool calling works, turbo mode will add task orchestration with two-
 - ✅ **Demo mode**: Launch `aircher` without any setup
 - ❌ **AI chat with tools**: Can chat with LLMs but they can't use tools yet
 
-## Testing Commands
+## Build & Test Commands
 
 ```bash
-# Test demo mode (should work immediately)
-cargo run --release
+# Core development commands
+cargo check          # Type checking and warnings (MUST be zero warnings)
+cargo test           # Run all tests
+cargo test -- test_name  # Run single test by name
+cargo run --release  # Start TUI (demo mode works without API keys)
 
-# Test semantic search (works without API keys)
-cargo run --release
-# In TUI: /search error handling
+# Linting and formatting
+cargo clippy --all-targets --all-features  # Linting
+cargo fmt            # Code formatting
+make check           # Run fmt + lint + test
 
-# Test with API keys (basic chat only, no tools)
-ANTHROPIC_API_KEY=sk-ant-... cargo run --release
-
-# Run full test suite
-cargo test
-
-# Check for warnings (should be zero)
-cargo check
+# Manual testing scenarios
+cargo run --release  # Test demo mode
+# In TUI: /search error handling (semantic search)
+ANTHROPIC_API_KEY=sk-ant-... cargo run --release  # Test with API keys
 ```
+
+## Code Style Guidelines
+
+- **Error Handling**: Use `anyhow::Result` for functions, `thiserror::Error` for custom error types
+- **Imports**: Group by std, external crates, internal modules with empty lines between
+- **Naming**: snake_case for functions/variables, PascalCase for types, SCREAMING_SNAKE for constants
+- **Documentation**: Use `///` for public items, focus on behavior not implementation
+- **Async**: Use `async_trait` for trait methods, prefer `tokio` ecosystem
+- **Newlines**: Always end files with newlines, follow existing patterns exactly
 
 ## Critical Architecture Gaps
 

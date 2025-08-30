@@ -75,7 +75,10 @@
       "Bash(RUST_LOG=\"aircher::ui::model_selection=debug,aircher::ui=debug\" cargo run)",
       "Bash(RUST_LOG=\"aircher::ui=debug\" cargo run)",
       "Bash(RUST_LOG=aircher=debug cargo run)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(jj describe:*)",
+      "Bash(jj git push:*)",
+      "Bash(jj log:*)"
     ],
     "deny": []
   }
