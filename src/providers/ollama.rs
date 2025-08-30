@@ -61,6 +61,7 @@ struct OllamaOptions {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct OllamaResponse {
     model: String,
     created_at: String,
@@ -81,6 +82,7 @@ struct OllamaResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct OllamaStreamResponse {
     model: String,
     created_at: String,
@@ -465,9 +467,33 @@ impl OllamaProvider {
                                         output_tokens = count;
                                     }
                                     
+                                    // Build content, appending tool calls on the final chunk so
+                                    // upstream agent parsers can detect them in streaming mode.
+                                    let mut content = stream_response.message.content;
+                                    if stream_response.done {
+                                        if let Some(tool_calls) = &stream_response.message.tool_calls {
+                                            // Avoid duplicating tool blocks if model already included them
+                                            let already_contains = content.contains("<tool_use>");
+                                            // Append tool calls using the XML-style wrapper that our parser supports
+                                            if !already_contains {
+                                                for tc in tool_calls {
+                                                    let name = &tc.function.name;
+                                                    let args = &tc.function.arguments;
+                                                    let params_json = match serde_json::to_string(args) {
+                                                        Ok(s) => s,
+                                                        Err(_) => String::from("{}"),
+                                                    };
+                                                    content.push_str("\n<tool_use>\n");
+                                                    content.push_str(&format!("<tool>{}</tool><params>{}</params>", name, params_json));
+                                                    content.push_str("\n</tool_use>\n");
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     let chunk = StreamChunk {
                                         id: Uuid::new_v4().to_string(),
-                                        content: stream_response.message.content,
+                                        content,
                                         delta: !stream_response.done,
                                         tokens_used: if stream_response.done {
                                             Some(input_tokens + output_tokens)

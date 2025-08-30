@@ -79,6 +79,8 @@ pub struct UiConfig {
     pub refresh_rate_ms: u64,
     pub show_token_count: bool,
     pub show_cost_estimate: bool,
+    #[serde(default = "default_submit_on_enter")]
+    pub submit_on_enter: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -357,9 +359,12 @@ impl Default for UiConfig {
             refresh_rate_ms: 100,
             show_token_count: true,
             show_cost_estimate: true,
+            submit_on_enter: true,
         }
     }
 }
+
+fn default_submit_on_enter() -> bool { true }
 
 impl Default for IntelligenceConfig {
     fn default() -> Self {

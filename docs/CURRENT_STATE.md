@@ -2,13 +2,12 @@
 
 ## What Actually Works Today
 
-### ✅ Fully Functional
+### ✅ Fully Functional (2025-08-26)
 - **TUI Chat Interface** (`src/ui/mod.rs`)
-  - Send messages to LLMs
-  - Receive streaming responses
-  - Switch providers/models with `/model`
-  - Authentication with `/auth`
-  - Configuration with `/config`
+  - Non-blocking send/streaming; operations line above input shows live status
+  - Provider/model selection (`/model`, Ctrl+M)
+  - Authentication wizard (`/auth`)
+  - Settings modal with “Submit on Enter” toggle
 
 - **Multi-Provider Support** (`src/providers/`)
   - OpenAI, Anthropic, Gemini, Ollama
@@ -16,104 +15,38 @@
   - Model selection and validation
 
 - **Semantic Search** (`src/search/`, `src/intelligence/`)
-  - `/search` command works in TUI
+  - `/search` command in TUI
   - 19+ language support
-  - Vector search with hnswlib-rs
-  - Index persistence and caching
+  - hnswlib-rs vector backend with index persistence
 
-### ⚠️ Built but Disconnected
+- **Agent System** (`src/agent/`)
+  - Connected to TUI; executes tools in-stream
+  - Tool calls parsed (XML + JSON); Ollama streaming tool-calls surfaced
+  - Tool status/result lines rendered in chat
+  - Predictive compaction before sending to avoid context limits
 
-**Agent System** (`src/agent/`)
-```rust
-// This exists and works:
-pub struct AgentController {
-    tools: ToolRegistry,
-    // ... handles tool execution
-}
-
-// But it's never called from TUI!
-// No connection in src/ui/mod.rs
-```
-
-**Tool Registry** (`src/agent/tools/`)
-```rust
-// These tools are implemented:
-- read_file
-- write_file  
-- edit_file
-- list_files
-- run_command
-- search_code
-- find_definition
-
-// But they can't be triggered from chat!
-```
-
-**Permission System** (`src/agent/tools/permission_handler.rs`)
-```rust
-// Approval flow exists but unused
-pub async fn request_permission() -> bool
-```
-
-### ❌ Completely Missing
-
-1. **Tool Calling Parser**
-   - No code to detect `<tool_use>` in LLM responses
-   - No XML/JSON parsing for tool parameters
-   - No tool result formatting
-
-2. **Agent-TUI Connection**
-   ```rust
-   // Missing in src/ui/mod.rs:
-   fn handle_tool_request(&mut self, tool_call: ToolCall) {
-       // This doesn't exist
-   }
-   ```
-
-3. **Tool UI Components**
-   - No tool status display
-   - No approval dialog in TUI
-   - No progress indicators
+### ⚠️ Needs Polish / Reliability
+- Multi-turn tool execution: extend reliability tests and guard loops
+- Tool result UX: collapsible sections + code highlighting for long outputs
+- Provider error surfacing: concise, actionable one-liners
+- Permission modal UX: shortcut keys and smoother flow
 
 ## Code Locations
 
-### Key Files to Modify
-
+### Key Files
 1. **src/ui/mod.rs** (TuiManager)
-   - Add agent controller field
-   - Parse messages for tool calls
-   - Handle tool execution flow
+   - Non-blocking send + agent stream draining
+   - Operations line rendering above input
+   - Predictive compaction preflight
+   - Provider/model preflight and selection overlay
 
 2. **src/agent/controller.rs**
-   - Currently standalone
-   - Needs integration points
-   - Add streaming callbacks
+   - Structured parsing of tool calls (XML/JSON)
+   - Streaming updates (text chunks + tool status/result lines)
+   - Tool execution loop with iteration cap
 
-3. **src/providers/mod.rs**
-   - Add tool calling format
-   - Standardize across providers
-
-### Example Integration Point
-
-```rust
-// src/ui/mod.rs - This is what's missing:
-
-impl TuiManager {
-    async fn handle_assistant_message(&mut self, content: String) {
-        // Current code just displays the message
-        self.add_message(Message::assistant(content));
-        
-        // MISSING: Parse for tool calls
-        if let Some(tool_call) = parse_tool_call(&content) {
-            // Execute through agent
-            let result = self.agent.execute_tool(tool_call).await?;
-            // Show result
-            self.add_message(Message::tool_result(result));
-            // Continue conversation...
-        }
-    }
-}
-```
+3. **src/providers/**
+   - Provider adapters; Ollama streaming tool-calls exposed at final chunk
 
 ## Why This Matters
 
@@ -148,18 +81,13 @@ cargo run --release
 # Bot will say it'll help but can't actually read the file
 ```
 
-## The Gap
+## The Gap (2025-08-26)
 
-The irony: We have a sophisticated agent system with tools, permissions, and error handling, but it sits completely disconnected from the user interface. The TUI can chat with LLMs, but the LLMs can't use any tools.
+The core loop is connected and functional. The remaining work is reliability and UX polish for tool-heavy, multi-turn tasks and improving provider/model first-run flows.
 
-**It's like having a car with an engine and wheels that aren't connected.**
+## Next Steps
 
-## Next Step
-
-Connect the engine to the wheels:
-1. Add `agent_controller: Option<AgentController>` to TuiManager
-2. Initialize it when provider is selected
-3. Parse assistant messages for tool calls
-4. Execute and display results
-
-This is Phase 1 in the roadmap and blocks everything else.
+1. Reliability: multi-turn tool execution tests with gpt-oss
+2. UX: collapsible tool result sections; code highlighting
+3. Provider UX: improved first-run prompts when models/providers are unavailable
+4. Optional: configurable Enter behavior (implemented) and discoverability in docs

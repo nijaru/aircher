@@ -209,9 +209,7 @@ impl AgentTool for WriteFileTool {
 }
 
 #[derive(Debug, Clone)]
-pub struct EditFileTool {
-    workspace_root: Option<PathBuf>,
-}
+pub struct EditFileTool {}
 
 #[derive(Debug, Deserialize)]
 struct EditFileParams {
@@ -224,9 +222,7 @@ struct EditFileParams {
 
 impl EditFileTool {
     pub fn new() -> Self {
-        Self {
-            workspace_root: std::env::current_dir().ok(),
-        }
+        Self {}
     }
 }
 
@@ -307,9 +303,7 @@ impl AgentTool for EditFileTool {
 }
 
 #[derive(Debug, Clone)]
-pub struct ListFilesTool {
-    workspace_root: Option<PathBuf>,
-}
+pub struct ListFilesTool {}
 
 #[derive(Debug, Deserialize)]
 struct ListFilesParams {
@@ -329,9 +323,7 @@ fn default_path() -> String {
 
 impl ListFilesTool {
     pub fn new() -> Self {
-        Self {
-            workspace_root: std::env::current_dir().ok(),
-        }
+        Self {}
     }
 }
 

@@ -150,6 +150,101 @@ date +"%Y-%m-%d"  # Command to get current date
 3. **Summarize in AGENTS.md**: Keep details in dedicated files
 4. **Archive old content**: Don't keep outdated info in active files
 
+## TUI Tool Status Lines
+
+This project renders tool execution in the chat as compact, single‑line status messages to keep the terminal UI readable.
+
+- Format: `symbol tool target — state/summary`
+- Running: `🔧 read_file Cargo.toml — running…`
+- Success: `✓ read_file Cargo.toml — 120 lines`
+- Error: `✗ run_command cargo test — exit 101`
+- Batch header (optional): `🔧 Executing 3 tools…`
+
+Authoring guidance for docs and examples:
+- Prefer short targets (basename for files, truncated args for commands)
+- Keep details (full JSON, long outputs) out of main flow; link or reference
+- Use the same symbols and ordering for consistency across docs and UI
+
+When updating screenshots or walkthroughs, match the above style so users see the same patterns in the TUI.
+
+## TUI Interaction Conventions
+
+For consistency across docs and the app, use and document these keybindings:
+- Enter: submit; Shift/Ctrl+Enter: newline
+- Tab: accept autocomplete (when visible); Esc: close autocomplete
+- Ctrl+M: open model selection; `/model` also supported
+- Shift+Tab: cycle modes (default/plan/auto-accept/turbo)
+
+Planned configuration:
+- Document `ui.submit_on_enter` if/when added, and indicate how newline shortcuts can be customized.
+
+## Progress & Status Conventions
+
+Keep progress information consistent and scannable across the project. Use the following structure and locations.
+
+- STATUS.md (authoritative, high level)
+  - Last Updated (ISO date)
+  - Recent Fixes (bulleted, concise, user-visible)
+  - Current Focus (phase, e.g., Phase 2 Tool Loop)
+  - Recent Progress (what landed this week)
+  - Next Steps (3–5 bullets with clear outcomes)
+  - Known Issues (prioritized)
+
+- TODO.md (actionable work)
+  - Immediate tasks (this week)
+  - Next sprint/backlog
+  - Recently completed (rolling list with dates)
+
+- AGENTS.md (AI-facing quick context)
+  - “What works today” vs. “Current priority”
+  - Keyboard shortcuts and interaction patterns (kept up-to-date)
+  - Short notes for streaming/compaction behavior
+
+- TECH_SPEC.md (technical truth)
+  - Current state of the agent loop (connected/streaming/tool status)
+  - Keybindings + config excerpts (e.g., `ui.submit_on_enter`)
+  - Pointers to roadmap and status
+
+- Roadmap (docs/architecture/roadmap.md)
+  - Phase summaries (progress + next steps)
+  - Success criteria per phase
+  - Risks and mitigations
+
+Update triggers:
+- Behavior changes that affect users or test flows (e.g., keybindings, streaming placement, timeouts)
+- Provider integration changes (model defaults/fallbacks, error surfaces)
+- Tool loop architecture changes (parsing, streaming, iteration rules)
+
+Checklist for updates:
+- [ ] STATUS.md (date, recent fixes, next steps)
+- [ ] TODO.md (immediate + recently completed)
+- [ ] AGENTS.md (shortcuts, streaming/compaction notes)
+- [ ] TECH_SPEC.md (current state, config)
+- [ ] Roadmap (progress + next tasks)
+
+Style guidelines:
+- Be concise and specific (1–2 lines per bullet)
+- Use ISO dates (YYYY-MM-DD)
+- Prefer imperative mood for next steps (e.g., “Add collapsible results”)
+- Link to code paths when useful (e.g., `src/ui/mod.rs`)
+
+MVP readiness rubric:
+- [ ] Non-blocking send/receive
+- [ ] Adaptive timeouts and clear errors
+- [ ] Predictive compaction and context safety
+- [ ] Provider/model preflight (overlay when missing)
+- [ ] Tool loop iteration cap + duplicate-batch guard
+- [ ] Truncated tool results + readable status lines
+
+## Predictive Compaction
+
+To prevent context-limit errors mid-turn, the TUI predicts when a new message may exceed ~85% of the model’s context window and triggers compaction (if enabled):
+- Auto-enabled: compact immediately, with a brief system notice.
+- Auto-disabled with warnings: show a warning suggesting `/compact`.
+- Estimation is lightweight (chars/4 + fixed overhead) and model-aware via provider context window.
+
+When documenting flows or creating screenshots, prefer sequences that show the system’s proactive compaction note when approaching limits.
+
 ## Quality Checklist
 
 Before committing documentation changes:
