@@ -83,7 +83,7 @@ fn multiply(x: f64, y: f64) -> f64 {
         println!("🔍 Searching for: '{}'", query);
         
         match search.search(query, 3).await {
-            Ok(results) => {
+            Ok((results, _metrics)) => {
                 println!("✅ Search successful, found {} results", results.len());
                 for (i, result) in results.iter().enumerate() {
                     println!("  {}. {} (lines {}-{}) - score: {:.3}", 

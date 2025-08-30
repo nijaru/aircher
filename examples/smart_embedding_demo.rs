@@ -9,7 +9,7 @@
 use anyhow::Result;
 use aircher::cost::{
     SmartSetupEngine, SetupStrategy, SmartEmbeddingSetup, 
-    ModelConfiguration, ModelTier, EmbeddingManager
+    ModelConfiguration, EmbeddingManager
 };
 
 #[tokio::main]
@@ -111,7 +111,7 @@ async fn demonstrate_size_strategy() -> Result<()> {
     
     // Demonstrate the actual selection logic
     println!("\n🧪 Live Selection Demo:");
-    let setup_config = SmartEmbeddingSetup {
+    let _setup_config = SmartEmbeddingSetup {
         strategy: SetupStrategy::AutoSelect,
         auto_upgrade_threshold_mb: 8192, // 8GB
         ..Default::default()
