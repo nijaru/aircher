@@ -1,28 +1,21 @@
 # TODO - Current Tasks & Priorities
 
-**Last Updated**: 2025-08-25
+**Last Updated**: 2025-08-26
 
 ## 🚨 Immediate (This Week)
 
 ### Tool Calling Reliability
-- [ ] Test end-to-end tool execution through TUI chat interface
-- [ ] Verify tool result integration in conversation flow
-- [ ] Test multi-turn conversations with tool results
-- [ ] Handle tool execution errors gracefully
-- [ ] Add retry logic for failed tool calls
+- [ ] Expand multi-turn tool execution reliability tests (gpt-oss)
+- [ ] Handle tool execution errors gracefully (surface concise errors)
+- [ ] Add retry or fallback for transient provider errors
 
 ### Provider Testing
-- [ ] Test tool calling with OpenAI GPT-4
-- [ ] Test tool calling with Anthropic Claude
-- [ ] Test tool calling with Gemini
-- [ ] Document provider-specific tool calling formats
+- [ ] Test tool calling with OpenAI/Anthropic/Gemini (post-Ollama)
+- [ ] Document provider-specific tool calling formats (XML/JSON)
 
 ## 📋 Next Sprint (Phase 2 - Tool Calling Loop)
 
 ### Tool Result Display
-- [ ] Format tool results in conversation UI
-- [ ] Add tool execution status indicators
-- [ ] Show tool calling progress/spinner
 - [ ] Implement collapsible tool result sections
 - [ ] Add syntax highlighting for code in tool results
 
@@ -33,9 +26,8 @@
 - [ ] Add tool call history tracking
 
 ### Stream Tool Status
-- [ ] Stream tool execution progress
-- [ ] Show real-time file operation status
-- [ ] Display command execution output as it arrives
+- [ ] Show real-time file operation status (progress-percentage where available)
+- [ ] Display command execution output as it arrives for long commands
 - [ ] Add cancellation support for long-running tools
 
 ## 🎯 Phase 3 - Core Tools Enhancement
@@ -79,7 +71,7 @@
 
 ### Documentation
 - [ ] Update TECH_SPEC.md with agent architecture
-- [ ] Document tool calling flow
+- [ ] Document tool calling flow (streaming + operations line)
 - [ ] Add provider integration guide
 - [ ] Create troubleshooting guide
 - [ ] Update API documentation
@@ -114,15 +106,15 @@
 - [ ] Share sessions between users
 - [ ] Session templates for common tasks
 
-## ✅ Recently Completed (2025-08-25)
+## ✅ Recently Completed (2025-08-26)
 
-- [x] Fix Ollama provider tool support (was hardcoded to false)
-- [x] Verify agent system IS connected to TUI
-- [x] Document actual vs assumed functionality
-- [x] Test tool calling with gpt-oss model
-- [x] Update documentation to reflect reality
-- [x] Parse OpenAI-style JSON tool calls
-- [x] Fix OllamaMessage struct fields
+- [x] Non-blocking sends (no UI freeze during streaming)
+- [x] Operations line rendered above input (streaming status)
+- [x] Predictive compaction before sending
+- [x] TUI keybindings finalized (Enter/Shift/Ctrl+Enter, Tab, Ctrl+M)
+- [x] Ollama defaults set (`ollama / gpt-oss`) and fallback to available model
+- [x] Tool-line UX: compact status/results with durations, batch header
+- [x] Ollama provider: streaming tool-calls surfaced at final chunk
 
 ## 📝 Notes
 

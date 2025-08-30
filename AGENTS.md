@@ -13,9 +13,9 @@ Aircher is a **semantic code search engine** with TUI interface built in Rust. C
 - Demo mode (full functionality without API keys)
 
 **What's Missing (Current Development Priority):**
-- AI agent integration - agent system exists but isn't connected to TUI
-- Tool calling in conversations 
-- File operations through chat interface
+- Tool calling reliability & UX polish (agent connected; working with Ollama)
+- Multi-turn tool execution refinement
+- File operations through chat interface (basic tools exist)
 
 ## Current Status
 
@@ -23,7 +23,7 @@ Aircher is a **semantic code search engine** with TUI interface built in Rust. C
 - ✅ **TUI with demo mode** - full interface available without API keys
 - ✅ **Clean codebase** - eliminated ~190 compiler warnings
 - ✅ **19+ language support** with tree-sitter parsing
-- ❌ **AI chat with tools** - agent system disconnected from TUI (Phase 1 priority)
+- ✅ **AI chat with tools** - agent connected to TUI; Phase 2 reliability in progress
 
 ## Key Features Completed
 
@@ -145,11 +145,22 @@ A layered notification system provides appropriate feedback for different types 
 
 ### Keyboard Shortcuts
 
-- **Tab** in input: Insert 4 spaces for code
-- **Tab/←/→** in /model: Switch between provider and model selection
-- **Ctrl+C**: Clear input if text exists, quit if empty (single press)
-- **Double Escape** (within 400ms): Show conversation history modal
-- **PgUp/PgDown**: Scroll chat history (planned)
+- Enter: submit message
+- Shift+Enter or Ctrl+Enter: newline
+- Tab: accept autocomplete suggestion (if visible); otherwise insert 4 spaces (indent)
+- Esc: close autocomplete or interrupt streaming
+- Ctrl+M: open model selection overlay (/model also supported)
+- Ctrl+C: clear input if text exists, quit if empty (single press)
+- Double Escape (within 400ms): Show conversation history modal
+- PgUp/PgDown: Scroll chat history (planned)
+
+### Streaming & Operations Line (Implemented)
+- Streaming progress renders inside the chat area in a one-line operations bar directly above the input.
+- Shows rotating status like “Retrieving content… (Xs · tokens · esc to interrupt)”.
+
+### Predictive Compaction (Implemented)
+- Before sending long messages, the TUI checks projected context usage against the current model’s window.
+- If auto-compaction is enabled, we compact proactively at ~85% headroom; otherwise, we show a warning.
 
 ### Dynamic Model Fetching (Fully Implemented)
 
@@ -304,3 +315,50 @@ cargo check
 - No tool calling loop, no file operations, no command execution
 
 **Phase 1 Fix Required**: Connect `AgentController` to `TuiManager` in `src/ui/mod.rs`
+
+## Tool Use Guide (Claude/GPT)
+
+Preferred tool call format (parser-friendly across providers):
+
+```
+<tool_use>
+<tool>read_file</tool><params>{"path": "Cargo.toml", "line_start": 1, "line_end": 120}</params>
+</tool_use>
+```
+
+Also accepted (OpenAI-style JSON):
+
+```
+{"tool": "list_files", "params": {"path": "src/agent/tools", "recursive": false}}
+```
+
+Guidelines:
+- Read before editing; use `search_code` to locate targets.
+- Keep params minimal and precise; avoid dumping large content.
+- Chain tools over multiple turns where helpful.
+
+TUI tool status lines (single-line summaries):
+- Running: `🔧 read_file Cargo.toml — running…`
+- Success: `✓ read_file Cargo.toml — 120 lines (48ms)`
+- Error: `✗ run_command cargo test — exit 101`
+- Batch: `🔧 Executing 3 tools…`
+
+Notes:
+- Tool lines include durations when available.
+- `run_command` supports a `timeout_seconds` parameter (default 30s).
+
+## TUI Keybindings
+
+- Enter: submit message
+- Shift+Enter or Ctrl+Enter: insert newline
+- Tab: accept autocomplete suggestion (if visible)
+- Esc: close autocomplete or interrupt streaming
+- Ctrl+M: open model selection overlay
+- /model: open model selection via slash command
+
+Future option (planned): configurable Enter behavior.
+- Proposal: `ui.submit_on_enter` boolean in config to switch default between submit vs newline, and a list of newline shortcuts (e.g., `["shift+enter", "ctrl+enter"]`).
+
+## Predictive Compaction
+
+Before sending long messages or tool-heavy turns, the TUI checks projected context usage against the model’s window and will compact proactively when auto-compaction is enabled. A brief system notice is shown when this happens.

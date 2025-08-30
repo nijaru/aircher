@@ -21,6 +21,7 @@ pub struct ProviderManager {
     providers: HashMap<String, Box<dyn LLMProvider>>,
     hosts: HashMap<String, Box<dyn LLMProvider>>,
     _config: ConfigManager,
+    #[allow(dead_code)]
     auth_manager: Arc<AuthManager>,
     cost_tracker: CostTracker,
     model_selector: IntelligentModelSelector,

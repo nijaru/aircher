@@ -5,6 +5,12 @@ use tokio::time::timeout;
 
 use aircher::config::ConfigManager;
 use aircher::providers::{ChatRequest, Message, ProviderManager};
+use aircher::auth::AuthManager;
+use std::sync::Arc;
+
+fn create_auth() -> Arc<AuthManager> {
+    Arc::new(AuthManager::new().expect("failed to create AuthManager"))
+}
 
 /// Integration tests for provider implementations
 /// These tests require actual API keys to be set in environment variables
@@ -19,7 +25,7 @@ async fn test_claude_api_integration() -> Result<()> {
     }
 
     let config = ConfigManager::load().await?;
-    let providers = ProviderManager::new(&config).await?;
+    let providers = ProviderManager::new(&config, create_auth()).await?;
 
     let provider = providers
         .get_provider("claude")
@@ -52,7 +58,7 @@ async fn test_gemini_api_integration() -> Result<()> {
     }
 
     let config = ConfigManager::load().await?;
-    let providers = ProviderManager::new(&config).await?;
+    let providers = ProviderManager::new(&config, create_auth()).await?;
 
     let provider = providers
         .get_provider("gemini")
@@ -86,7 +92,7 @@ async fn test_openrouter_integration() -> Result<()> {
     }
 
     let config = ConfigManager::load().await?;
-    let providers = ProviderManager::new(&config).await?;
+    let providers = ProviderManager::new(&config, create_auth()).await?;
 
     let provider = providers
         .get_host("openrouter")
@@ -118,7 +124,7 @@ async fn test_provider_error_handling() -> Result<()> {
     let original_key = env::var("ANTHROPIC_API_KEY").ok();
     env::set_var("ANTHROPIC_API_KEY", "invalid_key_for_testing");
     
-    let result = ProviderManager::new(&config).await;
+    let result = ProviderManager::new(&config, create_auth()).await;
     
     // Restore original key if it existed
     if let Some(key) = original_key {
@@ -137,7 +143,7 @@ async fn test_provider_error_handling() -> Result<()> {
 #[tokio::test]
 async fn test_provider_availability() -> Result<()> {
     let config = ConfigManager::load().await?;
-    let providers = ProviderManager::new(&config).await?;
+    let providers = ProviderManager::new(&config, create_auth()).await?;
 
     // Test that we can list providers
     let provider_list = providers.list_providers();
@@ -157,7 +163,7 @@ async fn test_provider_availability() -> Result<()> {
 #[tokio::test]
 async fn test_cost_calculation() -> Result<()> {
     let config = ConfigManager::load().await?;
-    let providers = ProviderManager::new(&config).await?;
+    let providers = ProviderManager::new(&config, create_auth()).await?;
 
     // Test cost calculation for each provider
     for provider_name in providers.list_providers() {

@@ -1,71 +1,73 @@
 use serde_json::Value;
 use crate::agent::tools::ToolCall;
 
+// Helpers
+fn shorten_path(path: &str, max: usize) -> String {
+    if path.len() <= max {
+        return path.to_string();
+    }
+    // Preserve the tail (filename) when possible
+    let parts: Vec<&str> = path.split('/').collect();
+    if let Some(last) = parts.last() {
+        // Show leading ellipsis and last component
+        let prefix = if parts.len() > 2 { "…/" } else { "" };
+        let mut s = format!("{}{}", prefix, last);
+        if s.len() > max {
+            // Truncate filename too
+            s.truncate(max.saturating_sub(1));
+            s.push('…');
+        }
+        s
+    } else {
+        let mut s = path.to_string();
+        s.truncate(max.saturating_sub(1));
+        s.push('…');
+        s
+    }
+}
+
+fn join_args(args: &Value, max: usize) -> String {
+    let joined = args
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(" "))
+        .unwrap_or_default();
+    if joined.len() <= max {
+        joined
+    } else {
+        let mut s = joined;
+        s.truncate(max.saturating_sub(1));
+        s.push('…');
+        s
+    }
+}
+
 /// Format tool calls into user-friendly status messages
 pub fn format_tool_status(tool_name: &str, params: &Value, executing: bool) -> String {
+    // Consistent: symbol tool target — state
+    // Running:  "🔧 read_file Cargo.toml — running…"
+    // Finished: handled by format_tool_result
     let icon = if executing { "🔧" } else { "✓" };
-    
-    match tool_name {
-        "read_file" => {
-            if let Some(path) = params.get("path").and_then(|p| p.as_str()) {
-                format!("{} Reading file: {}", icon, path)
-            } else {
-                format!("{} Reading file", icon)
-            }
+    let target = match tool_name {
+        "read_file" | "write_file" | "edit_file" | "list_files" => {
+            params.get("path").and_then(|p| p.as_str()).map(|p| shorten_path(p, 48)).unwrap_or_default()
         }
-        "write_file" => {
-            if let Some(path) = params.get("path").and_then(|p| p.as_str()) {
-                format!("{} Writing file: {}", icon, path)
-            } else {
-                format!("{} Writing file", icon)
-            }
-        }
-        "edit_file" => {
-            if let Some(path) = params.get("path").and_then(|p| p.as_str()) {
-                format!("{} Editing file: {}", icon, path)
-            } else {
-                format!("{} Editing file", icon)
-            }
-        }
-        "list_files" => {
-            if let Some(path) = params.get("path").and_then(|p| p.as_str()) {
-                let recursive = params.get("recursive").and_then(|r| r.as_bool()).unwrap_or(false);
-                if recursive {
-                    format!("{} Listing directory recursively: {}", icon, path)
-                } else {
-                    format!("{} Listing directory: {}", icon, path)
-                }
-            } else {
-                format!("{} Listing directory", icon)
-            }
-        }
-        "search_code" => {
-            if let Some(query) = params.get("query").and_then(|q| q.as_str()) {
-                format!("{} Searching for: {}", icon, query)
-            } else {
-                format!("{} Searching code", icon)
-            }
-        }
+        "search_code" => params.get("query").and_then(|q| q.as_str()).map(|q| {
+            let mut s = q.to_string();
+            if s.len() > 48 { s.truncate(47); s.push('…'); }
+            s
+        }).unwrap_or_default(),
         "run_command" => {
-            if let Some(cmd) = params.get("command").and_then(|c| c.as_str()) {
-                let args = params.get("args")
-                    .and_then(|a| a.as_array())
-                    .map(|arr| arr.iter()
-                        .filter_map(|v| v.as_str())
-                        .collect::<Vec<_>>()
-                        .join(" "))
-                    .unwrap_or_default();
-                
-                if args.is_empty() {
-                    format!("{} Running command: {}", icon, cmd)
-                } else {
-                    format!("{} Running command: {} {}", icon, cmd, args)
-                }
-            } else {
-                format!("{} Running command", icon)
-            }
+            let cmd = params.get("command").and_then(|c| c.as_str()).unwrap_or("");
+            let args = join_args(params.get("args").unwrap_or(&Value::Null), 40);
+            if args.is_empty() { cmd.to_string() } else { format!("{} {}", cmd, args) }
         }
-        _ => format!("{} Using tool: {}", icon, tool_name),
+        _ => String::new(),
+    };
+    let state = if executing { "running…" } else { "done" };
+    if target.is_empty() {
+        format!("{} {} — {}", icon, tool_name, state)
+    } else {
+        format!("{} {} {} — {}", icon, tool_name, target, state)
     }
 }
 
@@ -73,32 +75,36 @@ pub fn format_tool_status(tool_name: &str, params: &Value, executing: bool) -> S
 pub fn format_tool_result(tool_name: &str, result: &Result<Value, String>) -> String {
     match result {
         Ok(value) => format_tool_success(tool_name, value),
-        Err(error) => format!("✗ {}: {}", tool_name, error),
+        Err(error) => format!("✗ {} — {}", tool_name, error),
     }
 }
 
 fn format_tool_success(tool_name: &str, value: &Value) -> String {
+    let dur = value.get("duration_ms").and_then(|d| d.as_u64());
+    let with_dur = |base: String| -> String {
+        if let Some(ms) = dur { format!("{} ({}ms)", base, ms) } else { base }
+    };
     match tool_name {
         "read_file" => {
             if let Some(content) = value.get("content").and_then(|c| c.as_str()) {
                 let lines = content.lines().count();
-                format!("✓ Read {} lines", lines)
+                with_dur(format!("✓ read_file — {} lines", lines))
             } else {
-                "✓ File read successfully".to_string()
+                with_dur("✓ read_file — ok".to_string())
             }
         }
         "write_file" => {
             if let Some(bytes) = value.get("bytes_written").and_then(|b| b.as_u64()) {
-                format!("✓ Wrote {} bytes", bytes)
+                with_dur(format!("✓ write_file — {} bytes", bytes))
             } else {
-                "✓ File written successfully".to_string()
+                with_dur("✓ write_file — ok".to_string())
             }
         }
         "edit_file" => {
             if let Some(changes) = value.get("changes_made").and_then(|c| c.as_u64()) {
-                format!("✓ Made {} changes", changes)
+                with_dur(format!("✓ edit_file — {} changes", changes))
             } else {
-                "✓ File edited successfully".to_string()
+                with_dur("✓ edit_file — ok".to_string())
             }
         }
         "list_files" => {
@@ -110,14 +116,13 @@ fn format_tool_success(tool_name: &str, value: &Value) -> String {
                 .and_then(|d| d.as_array())
                 .map(|a| a.len())
                 .unwrap_or(0);
-            
-            format!("✓ Found {} files, {} directories", file_count, dir_count)
+            with_dur(format!("✓ list_files — {} files, {} dirs", file_count, dir_count))
         }
         "search_code" => {
             if let Some(results) = value.get("results").and_then(|r| r.as_array()) {
-                format!("✓ Found {} matches", results.len())
+                with_dur(format!("✓ search_code — {} matches", results.len()))
             } else {
-                "✓ Search completed".to_string()
+                with_dur("✓ search_code — ok".to_string())
             }
         }
         "run_command" => {
@@ -125,14 +130,14 @@ fn format_tool_success(tool_name: &str, value: &Value) -> String {
             let success = value.get("success").and_then(|s| s.as_bool()).unwrap_or(false);
             
             if success {
-                "✓ Command executed successfully".to_string()
+                with_dur("✓ run_command — ok".to_string())
             } else if let Some(code) = exit_code {
-                format!("✗ Command failed with exit code {}", code)
+                format!("✗ run_command — exit {}", code)
             } else {
-                "✗ Command failed".to_string()
+                "✗ run_command — failed".to_string()
             }
         }
-        _ => "✓ Tool executed successfully".to_string(),
+        _ => "✓ tool — ok".to_string(),
     }
 }
 

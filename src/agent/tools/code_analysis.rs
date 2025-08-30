@@ -8,8 +8,8 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 
 pub struct SearchCodeTool {
-    semantic_search: Option<Box<SemanticCodeSearch>>,
-    intelligence: Option<IntelligenceEngine>,
+    _semantic_search: Option<Box<SemanticCodeSearch>>,
+    _intelligence: Option<IntelligenceEngine>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -31,15 +31,15 @@ impl SearchCodeTool {
     pub fn new() -> Self {
         // These will be injected when the tool is registered with the controller
         Self {
-            semantic_search: None,
-            intelligence: None,
+            _semantic_search: None,
+            _intelligence: None,
         }
     }
     
     pub fn with_semantic_search(semantic_search: SemanticCodeSearch, intelligence: IntelligenceEngine) -> Self {
         Self {
-            semantic_search: Some(Box::new(semantic_search)),
-            intelligence: Some(intelligence),
+            _semantic_search: Some(Box::new(semantic_search)),
+            _intelligence: Some(intelligence),
         }
     }
 }
@@ -96,6 +96,9 @@ impl AgentTool for SearchCodeTool {
             success: true,
             result: json!({
                 "query": params.query,
+                "limit": params.limit,
+                "file_types": params.file_types,
+                "chunk_types": params.chunk_types,
                 "results": [],
                 "count": 0,
                 "message": "Search tool ready - integration with TUI in progress"
@@ -159,7 +162,7 @@ impl AgentTool for FindDefinitionTool {
             .map_err(|e| ToolError::InvalidParameters(e.to_string()))?;
         
         // Use ripgrep to find definitions
-        use std::process::Command;
+use tokio::process::Command;
         
         let mut cmd = Command::new("rg");
         cmd.arg("--json")
@@ -187,7 +190,7 @@ impl AgentTool for FindDefinitionTool {
             cmd.current_dir(root);
         }
         
-        let output = cmd.output()
+        let output = cmd.output().await
             .map_err(|e| ToolError::ExecutionFailed(format!("Failed to run ripgrep: {}", e)))?;
         
         if !output.status.success() {
@@ -229,6 +232,7 @@ impl AgentTool for FindDefinitionTool {
             success: true,
             result: json!({
                 "symbol": params.symbol,
+                "file_types": params.file_types,
                 "definitions": definitions,
                 "count": definitions.len()
             }),

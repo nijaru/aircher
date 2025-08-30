@@ -2,19 +2,20 @@ use anyhow::Result;
 use serde_json::Value;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
+use std::collections::HashSet;
 
 use crate::auth::AuthManager;
 use crate::intelligence::IntelligenceEngine;
-use crate::providers::{LLMProvider, ChatRequest, Message, MessageRole};
+use crate::providers::{LLMProvider, ChatRequest, Message, MessageRole, PricingModel};
 use crate::agent::tools::{ToolRegistry, ToolCall};
 use crate::agent::parser::{ToolCallParser, format_tool_results};
-use crate::agent::tool_formatter::{format_tool_status, format_tool_result};
+use crate::agent::tool_formatter::{format_tool_status, format_tool_result, format_tool_batch};
 use crate::agent::streaming::{AgentUpdate, AgentStream, create_agent_stream};
 use crate::agent::conversation::{CodingConversation, Message as ConvMessage, MessageRole as ConvRole, ProjectContext};
 
 pub struct AgentController {
     tools: ToolRegistry,
-    intelligence: IntelligenceEngine,
+    _intelligence: IntelligenceEngine,
     auth_manager: Arc<AuthManager>,
     parser: ToolCallParser,
     conversation: CodingConversation,
@@ -29,7 +30,7 @@ impl AgentController {
     ) -> Result<Self> {
         Ok(Self {
             tools: ToolRegistry::default(),
-            intelligence,
+            _intelligence: intelligence,
             auth_manager,
             parser: ToolCallParser::new()?,
             conversation: CodingConversation {
@@ -42,47 +43,35 @@ impl AgentController {
         })
     }
     
-    /// Validate that authentication is configured for the provider needed by this model
-    async fn validate_auth_for_model(&self, model: &str) -> Result<()> {
-        // Map model to provider - this is a simplified mapping
-        let provider_name = if model.contains("claude") || model.contains("anthropic") {
-            "anthropic"
-        } else if model.contains("gpt") || model.contains("openai") {
-            "openai"
-        } else if model.contains("gemini") || model.contains("google") {
-            "gemini"
-        } else if model.contains("llama") || model.contains("mistral") || model.contains("qwen") {
-            "ollama" // Local models don't need auth
-        } else {
-            // Default to anthropic for unknown models
-            "anthropic"
-        };
-        
-        // Skip auth check for local providers
-        if provider_name == "ollama" {
+    /// Validate that authentication is configured for the active provider/model
+    async fn validate_auth_for_request(&self, provider: &dyn LLMProvider, model: &str) -> Result<()> {
+        // Skip auth for local/free providers (e.g., Ollama)
+        if matches!(provider.pricing_model(), PricingModel::Free) || provider.name().eq_ignore_ascii_case("ollama") {
             return Ok(());
         }
-        
-        // Check if we have valid auth for this provider
-        match self.auth_manager.get_api_key(provider_name).await {
+
+        // Map common provider names to auth keys
+        let pname = provider.name().to_lowercase();
+        let (auth_key, env_var) = if pname.contains("anthropic") || pname.contains("claude") {
+            ("anthropic", "ANTHROPIC_API_KEY")
+        } else if pname.contains("openai") {
+            ("openai", "OPENAI_API_KEY")
+        } else if pname.contains("gemini") || pname.contains("google") {
+            ("gemini", "GOOGLE_API_KEY")
+        } else {
+            // Unknown provider auth handled at provider construction time
+            return Ok(());
+        };
+
+        match self.auth_manager.get_api_key(auth_key).await {
             Ok(_) => {
-                debug!("Auth validated for provider: {}", provider_name);
+                debug!("Auth validated for provider: {}", provider.name());
                 Ok(())
             }
             Err(e) => {
                 let error_msg = format!(
-                    "Authentication required for model '{}' (provider: {}). \
-                    Please run 'aircher auth login {}' to set up your API key, \
-                    or set the {} environment variable.",
-                    model,
-                    provider_name,
-                    provider_name,
-                    match provider_name {
-                        "anthropic" => "ANTHROPIC_API_KEY",
-                        "openai" => "OPENAI_API_KEY", 
-                        "gemini" => "GOOGLE_API_KEY",
-                        _ => "API_KEY"
-                    }
+                    "Authentication required for provider '{}' (model: '{}'). Run /auth or set {}.",
+                    provider.name(), model, env_var
                 );
                 warn!("Auth validation failed: {}", e);
                 Err(anyhow::anyhow!(error_msg))
@@ -95,7 +84,7 @@ impl AgentController {
         info!("Processing user message: {}", user_message);
         
         // Validate authentication before making LLM calls
-        self.validate_auth_for_model(model).await?;
+        self.validate_auth_for_request(provider, model).await?;
         
         // Add user message to conversation
         self.conversation.messages.push(ConvMessage {
@@ -108,6 +97,7 @@ impl AgentController {
         let mut iterations = 0;
         let mut final_response = String::new();
         let mut tool_status_messages = Vec::new();
+        let mut seen_tool_batches: HashSet<String> = HashSet::new();
         
         loop {
             iterations += 1;
@@ -177,6 +167,21 @@ impl AgentController {
             } else {
                 // Execute tool calls
                 info!("Executing {} tool calls", tool_calls.len());
+
+                // Detect repeated tool-call batch
+                let sig = Self::signature_for_calls(&tool_calls);
+                if seen_tool_batches.contains(&sig) {
+                    warn!("Detected repeated tool calls; stopping after {} iterations", iterations);
+                    final_response = "Stopped due to repeated tool calls. Please adjust your approach.".to_string();
+                    self.conversation.messages.push(ConvMessage {
+                        role: ConvRole::System,
+                        content: "Detected repeated tool calls; halting to prevent loops.".to_string(),
+                        tool_calls: None,
+                        timestamp: chrono::Utc::now(),
+                    });
+                    break;
+                }
+                seen_tool_batches.insert(sig);
                 
                 // Add tool status messages for UI
                 for call in &tool_calls {
@@ -249,10 +254,11 @@ impl AgentController {
         info!("Processing user message with streaming: {}", user_message);
         
         // Validate authentication before making LLM calls
-        self.validate_auth_for_model(model).await?;
+        self.validate_auth_for_request(provider, model).await?;
         
         let mut iterations = 0;
         let mut tool_status_messages = Vec::new();
+        let mut seen_tool_batches: HashSet<String> = HashSet::new();
         
         loop {
             iterations += 1;
@@ -304,7 +310,7 @@ impl AgentController {
             match provider.stream(&request).await {
                 Ok(mut stream) => {
                     let mut response_content = String::new();
-                    let mut total_tokens = 0;
+                    let mut _total_tokens = 0;
                     
                     // Process streaming chunks
                     while let Some(chunk_result) = stream.recv().await {
@@ -312,7 +318,7 @@ impl AgentController {
                             Ok(chunk) => {
                                 response_content.push_str(&chunk.content);
                                 if let Some(tokens) = chunk.tokens_used {
-                                    total_tokens = tokens;
+                                    _total_tokens = tokens;
                                 }
                                 
                                 // Send streaming update to UI
@@ -349,7 +355,27 @@ impl AgentController {
                     } else {
                         // Execute tool calls
                         info!("Executing {} tool calls", tool_calls.len());
+                        // Detect repeated tool-call batch
+                        let sig = Self::signature_for_calls(&tool_calls);
+                        if seen_tool_batches.contains(&sig) {
+                            warn!("Detected repeated tool calls; stopping after {} iterations", iterations);
+                            let _ = tx.send(Ok(AgentUpdate::ToolStatus("✗ Repeated tool calls detected; stopping.".to_string()))).await;
+                            self.conversation.messages.push(ConvMessage {
+                                role: ConvRole::System,
+                                content: "Detected repeated tool calls; halting to prevent loops.".to_string(),
+                                tool_calls: None,
+                                timestamp: chrono::Utc::now(),
+                            });
+                            break;
+                        }
+                        seen_tool_batches.insert(sig);
                         
+                        // Send batch header then per-tool status updates
+                        let batch = format_tool_batch(&tool_calls);
+                        if !batch.is_empty() {
+                            let _ = tx.send(Ok(AgentUpdate::ToolStatus(batch.clone()))).await;
+                            tool_status_messages.push(batch);
+                        }
                         // Send tool status updates
                         for call in &tool_calls {
                             let status = format_tool_status(&call.name, &call.parameters, true);
@@ -399,6 +425,24 @@ impl AgentController {
         
         Ok(())
     }
+
+    /// Create a stable signature for a batch of tool calls
+    fn signature_for_calls(calls: &[ToolCall]) -> String {
+        let mut parts: Vec<String> = calls.iter().map(|c| {
+            let mut args = c.parameters.clone();
+            // Best-effort canonicalization: sort object keys if present
+            if let Some(obj) = args.as_object_mut() {
+                let mut entries: Vec<(String, Value)> = obj.iter().map(|(k,v)| (k.clone(), v.clone())).collect();
+                entries.sort_by(|a, b| a.0.cmp(&b.0));
+                let mut new = serde_json::Map::new();
+                for (k, v) in entries { new.insert(k, v); }
+                args = Value::Object(new);
+            }
+            format!("{}:{}", c.name, args)
+        }).collect();
+        parts.sort();
+        parts.join("|")
+    }
     
     /// Execute a list of tool calls
     async fn execute_tools(&self, tool_calls: &[ToolCall]) -> Vec<(String, Result<Value, String>)> {
@@ -408,10 +452,17 @@ impl AgentController {
             debug!("Executing tool: {} with params: {}", call.name, call.parameters);
             
             if let Some(tool) = self.tools.get(&call.name) {
+                let start = std::time::Instant::now();
                 match tool.execute(call.parameters.clone()).await {
                     Ok(output) => {
+                        let duration_ms = start.elapsed().as_millis() as u64;
                         if output.success {
-                            results.push((call.name.clone(), Ok(output.result)));
+                            // Try to inject duration_ms into result if it's an object
+                            let mut result_value = output.result;
+                            if let Some(obj) = result_value.as_object_mut() {
+                                obj.insert("duration_ms".to_string(), serde_json::json!(duration_ms));
+                            }
+                            results.push((call.name.clone(), Ok(result_value)));
                         } else {
                             let error = output.error.unwrap_or_else(|| "Unknown error".to_string());
                             results.push((call.name.clone(), Err(error)));
@@ -489,4 +540,3 @@ Be concise but thorough. Focus on solving the user's problem effectively."#,
         self.conversation.messages.clear();
     }
 }
-

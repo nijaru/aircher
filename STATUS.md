@@ -1,6 +1,6 @@
 # Aircher Development Status
 
-**Last Updated**: 2025-08-25
+**Last Updated**: 2025-08-26
 
 ## 🎉 Current State: Production Ready
 
@@ -8,10 +8,14 @@ The core semantic search system is now **production-ready** with professional-gr
 
 ### ✅ Major Achievements
 
-#### Recent Fixes (2025-08-25)
-- **Tool calling fixed**: Ollama provider now properly supports tool calls
-- **Agent system connected**: Verified AgentController integration with TUI
-- **Documentation corrected**: Updated to reflect actual working state
+#### Recent Fixes (2025-08-26)
+- TUI input reliability: Enter submits; Shift/Ctrl+Enter newline; Tab accept suggestion
+- Non-blocking sends: streaming updates no longer freeze the UI
+- Operations line: streaming status now appears above input (not in status bar)
+- Predictive compaction: proactive compaction at ~85% context or warning
+- Ollama defaults: default provider/model set to `ollama / gpt-oss`
+- Ollama fallback: auto-switch to available local model if selected is missing
+- Tool status lines: compact, one-line messages with durations; batch header for multi-tool runs
 
 #### Performance Milestones
 - **99.9% faster subsequent searches**: 0.02s (from cache) vs 20s (rebuilding)
@@ -53,10 +57,10 @@ The core semantic search system is now **production-ready** with professional-gr
    - ✅ Execute tools through registry (6+ functional tools)
    - ✅ Fix Ollama provider tool support (was hardcoded to false)
 
-2. **Tool Calling Loop** (Phase 2 - Next)
-   - ❌ Structured tool calling format
-   - ❌ Multi-turn tool execution
-   - ❌ Tool status streaming
+2. **Tool Calling Loop** (Phase 2 - In Progress)
+   - ✅ Structured tool calls (XML/JSON parsed; Ollama streaming tool-calls exposed)
+   - ✅ Tool status streaming (tool status/result lines rendered as they occur)
+   - 🔧 Multi-turn tool execution (working; expanding reliability tests)
 
 3. **Previous Completed Work**
    - ✅ Eliminated ALL compiler warnings (190 → 0)
@@ -89,11 +93,16 @@ The core semantic search system is now **production-ready** with professional-gr
 - ✅ Display tool results in conversation
 
 #### Phase 2: Tool Calling Loop 🚨 **CURRENT**
-**Timeline**: 1 week
-- Structured tool calling format (XML)
-- Multi-turn tool execution
-- Stream tool status updates
-- Context management for results
+**Recent Progress**
+- TUI input + streaming reliability fixed (non-blocking send path)
+- Operations line positioned in chat area
+- Predictive compaction before sending
+- Tool-line UX (status/results with durations, batch header)
+
+**Next Steps**
+- Expand multi-turn tool execution reliability tests (gpt-oss)
+- Improve provider error surfaces and first-run prompts (e.g., pulling models)
+- Optional config for Enter behavior (ui.submit_on_enter)
 
 #### Phase 3: Core Tools Enhancement
 **Timeline**: 1 week
@@ -154,7 +163,7 @@ See `docs/architecture/roadmap.md` for detailed technical plan.
    - Now properly parses OpenAI-style JSON tool calls from gpt-oss
    - Added support for `tool_calls` and `thinking` fields in responses
 
-4. **MCP Integration Inaccessible** ⚠️ REMAINING: Complete implementation with no CLI interface
+4. **MCP Integration Inaccessible** ⚠️ REMAINING: CLI surface for full MCP capabilities
    - Full MCP client with stdio/HTTP transports implemented
    - No CLI commands to access any MCP functionality
    - See CRITICAL-FIX-002 in tasks.json
@@ -172,6 +181,7 @@ See `docs/architecture/roadmap.md` for detailed technical plan.
 
 ### Minor Issues
 1. **Documentation**: API docs could use more examples
+2. **First-run Ollama UX**: When no local models, add inline prompt to pull a recommended model
 
 ### Non-Critical
 1. **Large file handling**: Files >10MB need optimization

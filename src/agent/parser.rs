@@ -108,7 +108,16 @@ pub fn format_tool_results(results: &[(String, Result<Value, String>)]) -> Strin
         
         match result {
             Ok(value) => {
-                formatted.push_str(&serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string()));
+                let s = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
+                // Truncate overly long outputs to keep conversation reliable
+                const MAX_OUTPUT_CHARS: usize = 6000;
+                if s.len() > MAX_OUTPUT_CHARS {
+                    let mut truncated = s[..MAX_OUTPUT_CHARS].to_string();
+                    truncated.push_str("\n… (truncated)\n");
+                    formatted.push_str(&truncated);
+                } else {
+                    formatted.push_str(&s);
+                }
             }
             Err(error) => {
                 formatted.push_str(&format!("Error: {}", error));

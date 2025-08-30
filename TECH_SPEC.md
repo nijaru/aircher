@@ -75,11 +75,15 @@ Others: Bash, SQL, TOML, JSON, YAML, Markdown
 
 ## Agent System (`src/agent/`)
 
-### Current State
-Agent system is implemented but not connected to TUI. See `docs/CURRENT_STATE.md` for gap analysis.
+### Current State (2025-08-26)
+Agent system is connected to the TUI and executes tools in multi-turn loops.
+- Streaming: Agent streams updates to the UI (text chunks + tool status lines)
+- Tool calls: XML and OpenAI-style JSON tool calls are parsed; Ollama streaming tool calls are surfaced at the end of a stream
+- Predictive compaction: Preflight compaction before a turn avoids context overflows
+- Operations line: Live status (e.g., “Retrieving content… (Xs · tokens · esc)”) renders above the input box
 
 ### Tool Registry
-Available tools (implemented but unused):
+Available tools (used in production path):
 - File operations: read_file, write_file, edit_file
 - Code analysis: search_code, find_definition
 - System: run_command, git_status
@@ -104,16 +108,17 @@ See `docs/architecture/roadmap.md` for detailed implementation plan.
 - Authentication wizard
 - Auto-compaction warnings
 
-### Keyboard Shortcuts
+### Keyboard Shortcuts (2025-08-26)
 ```
-Ctrl+A/E    - Line start/end
-Ctrl+W      - Delete word
-Ctrl+K/U    - Delete to line end/start  
-Alt+B/F     - Word navigation
-Ctrl+L      - Jump to chat bottom
-Ctrl+M      - Model selection
-/model      - Provider selection
-/search     - Semantic search
+Enter               - Submit (configurable)
+Shift/Ctrl/Alt+Enter- Newline
+Tab                 - Accept autocomplete (or insert 4 spaces if hidden)
+Esc                 - Close autocomplete / interrupt streaming
+Ctrl+M              - Model selection (/model also supported)
+Ctrl+A/E            - Line start/end, Ctrl+W/K/U word/edit
+Alt+B/F             - Word navigation
+Ctrl+L              - Jump to chat bottom
+/search             - Semantic search
 ```
 
 ## Configuration System (`src/config/`)
@@ -139,6 +144,7 @@ default_limit = 10
 [ui]
 theme = "default"
 auto_compaction = true
+submit_on_enter = true
 ```
 
 ## Performance Characteristics

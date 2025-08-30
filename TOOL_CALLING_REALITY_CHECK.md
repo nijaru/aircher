@@ -1,13 +1,15 @@
 # Tool Calling Reality Check - Actual vs Assumed Functionality
 
-**Date**: August 25, 2025  
+**Date**: August 26, 2025  
 **Goal**: Test empirical reality of tool calling functionality vs documentation assumptions
 
 ## Summary
 
-✅ **MAJOR DISCOVERY**: Tool calling partially works but had critical bugs in Ollama provider  
-✅ **FIXED**: Ollama provider tool support (was hardcoded to `false`, now properly detects tool calls)  
-✅ **VERIFIED**: gpt-oss model produces proper OpenAI-style tool calls  
+✅ **MAJOR DISCOVERY (confirmed)**: Tool calling works post-provider fixes
+✅ **FIXED**: Ollama provider tool support (streaming tool_calls surfaced at final chunk)
+✅ **VERIFIED**: gpt-oss model produces proper OpenAI-style tool calls
+✅ **ADDED**: Streaming tool status/result lines in TUI; non-blocking send path
+✅ **ADDED**: Predictive compaction pre-send (~85% window)
 
 ## Key Findings
 
@@ -96,23 +98,21 @@ curl -s http://localhost:11434/api/chat | jq '.message.tool_calls'
 5. ✅ Permission system for command approval
 6. ✅ Streaming agent responses (partially implemented)
 
-### What Needs Investigation:
-1. 🔍 End-to-end tool execution via TUI chat
-2. 🔍 Tool result formatting and display  
-3. 🔍 Error handling for failed tool calls
-4. 🔍 Multi-turn conversations with tool results
+### What Needs Investigation (Updated):
+1. 🔍 Multi-turn tool execution reliability and loop termination
+2. 🔍 UX: Collapsible tool results + code highlighting
+3. 🔍 Error surfaces: concise provider/tool error messages
 
 ### What Was Wrong in Documentation:
 1. ❌ Claimed agent system was "NOT connected" - FALSE
 2. ❌ Claimed tool calling was non-functional - PARTIALLY FALSE  
 3. ❌ Didn't mention Ollama provider bugs - MISSING CRITICAL INFO
 
-## Immediate Next Steps
+## Immediate Next Steps (Updated)
 
-1. **Test end-to-end tool execution** through actual TUI interface
-2. **Verify tool result integration** in conversation flow
-3. **Update roadmap** based on actual current state (further along than assumed)
-4. **Test multi-tool scenarios** with gpt-oss
+1. Expand reliability tests for multi-turn tool flows (gpt-oss)
+2. Improve provider/model first-run UX (prompt selection when missing)
+3. Collapsible tool outputs with syntax highlighting
 
 ## Impact on Roadmap
 

@@ -46,7 +46,7 @@ impl SettingsModal {
     }
 
     pub fn move_down(&mut self) {
-        let max_items: usize = 5; // Number of UI settings
+        let max_items: usize = 6; // Number of UI settings
         
         if self.selected_setting < max_items.saturating_sub(1) {
             self.selected_setting += 1;
@@ -75,6 +75,20 @@ impl SettingsModal {
                 }
                 _ => {}
             }
+        }
+    }
+
+    pub fn can_edit_selected(&self) -> bool {
+        matches!(self.selected_setting, 0 | 1)
+    }
+
+    pub fn toggle_selected(&mut self) {
+        match self.selected_setting {
+            2 => { self.config.ui.enable_mouse = !self.config.ui.enable_mouse; }
+            3 => { self.config.ui.show_token_count = !self.config.ui.show_token_count; }
+            4 => { self.config.ui.show_cost_estimate = !self.config.ui.show_cost_estimate; }
+            5 => { self.config.ui.submit_on_enter = !self.config.ui.submit_on_enter; }
+            _ => {}
         }
     }
 
@@ -181,6 +195,7 @@ impl SettingsModal {
             ("Enable Mouse", self.config.ui.enable_mouse.to_string()),
             ("Show Token Count", self.config.ui.show_token_count.to_string()),
             ("Show Cost Estimate", self.config.ui.show_cost_estimate.to_string()),
+            ("Submit on Enter", self.config.ui.submit_on_enter.to_string()),
         ];
 
         let setting_items: Vec<ListItem> = settings

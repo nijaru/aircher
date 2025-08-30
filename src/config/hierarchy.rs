@@ -378,9 +378,10 @@ impl ConfigHierarchy {
 
         ConfigManager {
             global: GlobalConfig {
-                default_provider: "anthropic-api".to_string(),
-                default_model: "claude-sonnet-4".to_string(),
-                default_host: "anthropic".to_string(),
+                // Prefer local by default for zero-cost, zero-auth startup
+                default_provider: "ollama".to_string(),
+                default_model: "gpt-oss".to_string(),
+                default_host: "ollama".to_string(),
                 max_context_tokens: 100_000,
                 budget_limit: None,
                 data_directory: data_dir.clone(),
@@ -393,6 +394,7 @@ impl ConfigHierarchy {
                 refresh_rate_ms: 100,
                 show_token_count: true,
                 show_cost_estimate: true,
+                submit_on_enter: true,
             },
             database: DatabaseConfig {
                 conversations_db: data_dir.join("conversations.db"),
@@ -696,4 +698,3 @@ pub struct ConfigPaths {
     pub global: PathBuf,
     pub local: Option<PathBuf>,
 }
-

@@ -1,6 +1,12 @@
 use aircher::config::ProviderConfig;
 use aircher::providers::ollama::OllamaProvider;
 use aircher::providers::LLMProvider;
+use aircher::auth::AuthManager;
+use std::sync::Arc;
+
+fn create_auth() -> Arc<AuthManager> {
+    Arc::new(AuthManager::new().expect("failed to create AuthManager"))
+}
 use anyhow::Result;
 use tokio::time::{timeout, Duration};
 
@@ -17,7 +23,7 @@ async fn test_ollama_auto_discovery_with_empty_config() -> Result<()> {
     };
 
     // This should try auto-discovery and fallback to localhost if nothing found
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     assert_eq!(provider.name(), "ollama");
     
     Ok(())
@@ -40,7 +46,7 @@ async fn test_ollama_auto_discovery_with_fallback_urls() -> Result<()> {
     };
 
     // This should try the fallback URLs first, then auto-discovery
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     assert_eq!(provider.name(), "ollama");
     
     Ok(())
@@ -62,7 +68,7 @@ async fn test_ollama_explicit_config_overrides_discovery() -> Result<()> {
     };
 
     // This should use the explicit base_url and skip auto-discovery
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     assert_eq!(provider.name(), "ollama");
     
     Ok(())
@@ -84,7 +90,7 @@ async fn test_ollama_discovery_timeout() -> Result<()> {
     };
 
     // Test that discovery doesn't hang indefinitely
-    let result = timeout(Duration::from_secs(10), OllamaProvider::new(config)).await;
+    let result = timeout(Duration::from_secs(10), OllamaProvider::new(config, create_auth())).await;
     assert!(result.is_ok(), "Discovery should complete within timeout");
     
     Ok(())
@@ -106,7 +112,7 @@ async fn test_ollama_discovery_with_invalid_urls() -> Result<()> {
     };
 
     // Should gracefully handle invalid URLs and fallback to localhost
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     assert_eq!(provider.name(), "ollama");
     
     Ok(())
@@ -128,7 +134,7 @@ async fn test_ollama_discovery_priority_order() -> Result<()> {
     };
 
     // Test verifies that the provider is created (priority order tested implicitly)
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     assert_eq!(provider.name(), "ollama");
     
     Ok(())
@@ -149,7 +155,7 @@ async fn test_ollama_tailscale_autodiscovery() -> Result<()> {
     };
 
     println!("Testing Tailscale auto-discovery...");
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     
     // If we reach here, auto-discovery worked
     println!("Auto-discovery successful!");
@@ -188,7 +194,7 @@ async fn test_candidate_url_generation() -> Result<()> {
 
     // This should complete quickly even with many candidate URLs
     let start = std::time::Instant::now();
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     let duration = start.elapsed();
     
     assert_eq!(provider.name(), "ollama");
@@ -213,7 +219,7 @@ async fn test_manual_config_still_works() -> Result<()> {
     };
 
     // Manual config should be used, not fallback URLs
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     assert_eq!(provider.name(), "ollama");
     
     Ok(())

@@ -4,9 +4,10 @@ use aircher::providers::{
     PricingModel,
 };
 use aircher::providers::openai::OpenAIProvider;
+use aircher::auth::AuthManager;
 use aircher::config::{ProviderConfig, ModelConfig};
 use std::env;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 // Serialize tests that manipulate environment variables
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -48,6 +49,10 @@ fn create_test_config() -> ProviderConfig {
     }
 }
 
+fn create_auth() -> Arc<AuthManager> {
+    Arc::new(AuthManager::new().expect("failed to create AuthManager"))
+}
+
 #[tokio::test]
 async fn test_openai_provider_creation() -> Result<()> {
     let _guard = ENV_MUTEX.lock().unwrap();
@@ -56,7 +61,7 @@ async fn test_openai_provider_creation() -> Result<()> {
     env::set_var("OPENAI_API_KEY", "test-key-12345");
     
     let config = create_test_config();
-    let provider = OpenAIProvider::new(config)?;
+    let provider = OpenAIProvider::new(config, create_auth())?;
     
     assert_eq!(provider.name(), "OpenAI");
     assert!(provider.supports_tools());
@@ -75,7 +80,7 @@ async fn test_openai_provider_missing_api_key() {
     env::remove_var("OPENAI_API_KEY");
     
     let config = create_test_config();
-    let result = OpenAIProvider::new(config);
+    let result = OpenAIProvider::new(config, create_auth());
     
     assert!(result.is_err());
     if let Err(e) = result {
@@ -94,7 +99,7 @@ async fn test_openai_pricing_model() -> Result<()> {
     env::set_var("OPENAI_API_KEY", "test-key-12345");
     
     let config = create_test_config();
-    let provider = OpenAIProvider::new(config)?;
+    let provider = OpenAIProvider::new(config, create_auth())?;
     
     match provider.pricing_model() {
         PricingModel::PerToken {
@@ -118,7 +123,7 @@ async fn test_openai_cost_calculation() -> Result<()> {
     env::set_var("OPENAI_API_KEY", "test-key-12345");
     
     let config = create_test_config();
-    let provider = OpenAIProvider::new(config)?;
+    let provider = OpenAIProvider::new(config, create_auth())?;
     
     // Test cost calculation for 1000 input tokens and 500 output tokens
     let cost = provider.calculate_cost(1000, 500);
@@ -136,7 +141,7 @@ async fn test_openai_pricing_info() -> Result<()> {
     env::set_var("OPENAI_API_KEY", "test-key-12345");
     
     let config = create_test_config();
-    let provider = OpenAIProvider::new(config)?;
+    let provider = OpenAIProvider::new(config, create_auth())?;
     
     let pricing = provider.get_pricing();
     assert!(pricing.is_some());
@@ -155,7 +160,7 @@ async fn test_openai_usage_info() -> Result<()> {
     env::set_var("OPENAI_API_KEY", "test-key-12345");
     
     let config = create_test_config();
-    let provider = OpenAIProvider::new(config)?;
+    let provider = OpenAIProvider::new(config, create_auth())?;
     
     // OpenAI doesn't provide usage info in standard tier
     let usage = provider.get_usage_info().await?;
@@ -173,7 +178,7 @@ async fn test_openai_model_capabilities() -> Result<()> {
     env::set_var("OPENAI_API_KEY", "test-key-12345");
     
     let config = create_test_config();
-    let provider = OpenAIProvider::new(config)?;
+    let provider = OpenAIProvider::new(config, create_auth())?;
     
     // Test capabilities
     assert!(provider.supports_tools());
@@ -196,7 +201,7 @@ mod integration_tests {
         }
         
         let config = create_test_config();
-        let provider = OpenAIProvider::new(config)?;
+        let provider = OpenAIProvider::new(config, create_auth())?;
         
         let health = provider.health_check().await;
         // Don't assert success since we might not have a valid API key
@@ -215,7 +220,7 @@ mod integration_tests {
         }
         
         let config = create_test_config();
-        let provider = OpenAIProvider::new(config)?;
+        let provider = OpenAIProvider::new(config, create_auth())?;
         
         let messages = vec![Message::user("Hello, this is a test".to_string())];
         let request = ChatRequest::new(messages, "gpt-3.5-turbo".to_string());
@@ -235,7 +240,7 @@ async fn test_openai_request_conversion() -> Result<()> {
     env::set_var("OPENAI_API_KEY", "test-key-12345");
     
     let config = create_test_config();
-    let provider = OpenAIProvider::new(config)?;
+    let provider = OpenAIProvider::new(config, create_auth())?;
     
     // Test message conversion by ensuring the provider accepts various message types
     let messages = vec![
@@ -261,7 +266,7 @@ async fn test_openai_stream_setup() -> Result<()> {
     env::set_var("OPENAI_API_KEY", "test-key-12345");
     
     let config = create_test_config();
-    let provider = OpenAIProvider::new(config)?;
+    let provider = OpenAIProvider::new(config, create_auth())?;
     
     let messages = vec![Message::user("Test streaming".to_string())];
     let request = ChatRequest::new(messages, "gpt-3.5-turbo".to_string()).with_streaming();

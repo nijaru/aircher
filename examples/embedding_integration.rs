@@ -8,7 +8,7 @@
 
 use anyhow::Result;
 use aircher::cost::{EmbeddingManager, EmbeddingConfig, ModelConfiguration};
-use aircher::commands::quick_embedding_setup;
+// quick_embedding_setup has been removed; keep the example self-contained
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -34,11 +34,9 @@ async fn demonstrate_setup_strategies() -> Result<()> {
     
     // Strategy 1: Auto-setup (minimal friction)
     println!("1️⃣ Auto-Setup (Recommended for most users):");
-    let embedding_model = quick_embedding_setup().await?;
-    match embedding_model {
-        Some(model) => println!("   ✅ Auto-selected: {}", model),
-        None => println!("   ⚠️  No embedding model available"),
-    }
+    // Auto-setup example stub (demonstrative only)
+    println!("   (auto-setup) Checking for local embedding models…");
+    println!("   ⚠️  No embedding model available (demo)");
     println!();
     
     // Strategy 2: Configurable with sensible defaults

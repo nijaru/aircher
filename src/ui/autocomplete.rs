@@ -14,6 +14,7 @@ pub struct AutocompleteEngine {
     pub suggestions: Vec<Suggestion>,
     selected_index: usize,
     is_visible: bool,
+    #[allow(dead_code)]
     common_patterns: HashMap<String, Vec<String>>,
     recent_commands: Vec<String>,
 }
@@ -661,7 +662,7 @@ mod tests {
         let mut engine = AutocompleteEngine::new();
         
         // Test slash command detection
-        engine.generate_suggestions("/h", 2);
+        let _ = engine.generate_suggestions("/h", 2);
         assert!(engine.is_visible);
         assert!(!engine.suggestions.is_empty());
         
@@ -676,7 +677,7 @@ mod tests {
         let mut engine = AutocompleteEngine::new();
         
         // Test partial word matching
-        engine.generate_suggestions("fi", 2);
+        let _ = engine.generate_suggestions("fi", 2);
         
         // Should have suggestions for "fix"
         assert!(engine.suggestions.iter().any(|s| 
@@ -687,7 +688,7 @@ mod tests {
     #[test]
     fn test_suggestion_selection() {
         let mut engine = AutocompleteEngine::new();
-        engine.generate_suggestions("/h", 2);
+        let _ = engine.generate_suggestions("/h", 2);
         
         if !engine.suggestions.is_empty() {
             // Test navigation
@@ -711,7 +712,7 @@ mod tests {
         
         assert!(!engine.is_visible);
         
-        engine.generate_suggestions("/test", 2);
+        let _ = engine.generate_suggestions("/test", 2);
         // Should be visible if suggestions were generated
         
         engine.hide();

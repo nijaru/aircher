@@ -29,9 +29,11 @@ use crate::intelligence::tools::IntelligenceTools;
 use crate::intelligence::file_monitor;
 use crate::semantic_search::SemanticCodeSearch;
 use crate::agent::{AgentController, conversation::ProgrammingLanguage};
+use crate::agent::streaming::{AgentStream, AgentUpdate};
 use crate::auth::AuthManager;
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 enum NetworkStatus {
     Online,
     Offline,
@@ -147,11 +149,17 @@ pub struct TuiManager {
     show_auth_setup: bool,
     // State
     budget_warning_shown: bool,
+    #[allow(dead_code)]
     cost_warnings: Vec<String>,
     should_quit: bool,
     pending_auth_provider: Option<String>,
     // Streaming state
     streaming_state: StreamingState,
+    // Agent streaming pipeline
+    agent_stream: Option<AgentStream>,
+    agent_assistant_index: Option<usize>,
+    last_agent_update: Option<Instant>,
+    agent_first_chunk_received: bool,
     // Ctrl+C handling
     last_ctrl_c_time: Option<Instant>,
     // UI modes (affect next message sent)
@@ -164,10 +172,12 @@ pub struct TuiManager {
     history_index: Option<usize>,
     // Error handling
     recent_app_error: Option<(Instant, String)>,
+    #[allow(dead_code)]
     network_status: NetworkStatus,
     // Channel for triggering UI updates
     update_tx: Option<mpsc::Sender<String>>,
     // Channel for permission requests from tools
+    #[allow(dead_code)]
     permission_rx: Option<crate::agent::tools::permission_channel::PermissionRequestReceiver>,
     permission_tx: Option<crate::agent::tools::permission_channel::PermissionRequestSender>,
     // Message queuing during agent processing
@@ -182,6 +192,7 @@ pub struct TuiManager {
 #[derive(Debug, Clone)]
 struct QueuedMessage {
     content: String,
+    #[allow(dead_code)]
     timestamp: Instant,
 }
 
@@ -334,6 +345,10 @@ impl TuiManager {
             pending_auth_provider: None,
             // Initialize streaming state
             streaming_state: StreamingState::Idle,
+            agent_stream: None,
+            agent_assistant_index: None,
+            last_agent_update: None,
+            agent_first_chunk_received: false,
             // Initialize Ctrl+C handling
             last_ctrl_c_time: None,
             // Initialize UI modes (session-based, reset on restart)
@@ -489,6 +504,10 @@ impl TuiManager {
             pending_auth_provider: None,
             // Initialize streaming state
             streaming_state: StreamingState::Idle,
+            agent_stream: None,
+            agent_assistant_index: None,
+            last_agent_update: None,
+            agent_first_chunk_received: false,
             // Initialize Ctrl+C handling
             last_ctrl_c_time: None,
             // Initialize UI modes (session-based, reset on restart)
@@ -520,6 +539,7 @@ impl TuiManager {
     }
 
     /// Handle application errors - show in chat and update status
+    #[allow(dead_code)]
     fn handle_app_error(&mut self, error: String) {
         // Show error in conversation
         self.add_message(Message::new(
@@ -535,6 +555,7 @@ impl TuiManager {
     }
     
     /// Handle network/API errors - show in chat and update network status
+    #[allow(dead_code)]
     fn handle_network_error(&mut self, error: String) {
         // Show error in conversation
         self.add_message(Message::new(
@@ -550,6 +571,7 @@ impl TuiManager {
     }
     
     /// Log errors to a file for debugging
+    #[allow(dead_code)]
     fn log_error_to_file(&self, error: &str) {
         use std::fs::OpenOptions;
         use std::io::Write;
@@ -702,11 +724,28 @@ impl TuiManager {
                                 self.settings_modal.toggle();
                             }
                             KeyCode::Tab => {
-                                // Shift+Tab cycles modes, regular Tab opens selection modal
-                                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                // Typical autocomplete UX: Tab accepts suggestion if visible
+                                if self.autocomplete.is_visible() {
+                                    if let Some(completion) = self.autocomplete.accept_suggestion() {
+                                        self.autocomplete.hide();
+                                        if self.input.contains('@') {
+                                            if let Some(at_pos) = self.input.rfind('@') {
+                                                self.input.truncate(at_pos + 1);
+                                                self.input.push_str(&completion);
+                                                self.cursor_position = self.input.len();
+                                            }
+                                        } else {
+                                            self.input = completion.clone();
+                                            self.cursor_position = self.input.len();
+                                        }
+                                    }
+                                } else if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                    // Shift+Tab cycles modes when autocomplete not visible
                                     self.cycle_modes();
                                 } else {
-                                    self.selection_modal.toggle();
+                                    // Insert 4 spaces for code indentation
+                                    self.input.insert_str(self.cursor_position, "    ");
+                                    self.cursor_position += 4;
                                 }
                             }
                             KeyCode::BackTab => {
@@ -714,12 +753,31 @@ impl TuiManager {
                                 self.cycle_modes();
                             }
                             KeyCode::Enter => {
-                                // Check if Alt+Enter or Shift+Enter was pressed for newline
-                                if key.modifiers.contains(KeyModifiers::ALT) || key.modifiers.contains(KeyModifiers::SHIFT) {
-                                    // Add newline to input
-                                    self.input.insert(self.cursor_position, '\n');
-                                    self.cursor_position += 1;
-                                } else if self.autocomplete.is_visible() {
+                                // Configurable Enter behavior
+                                let submit_on_enter = self.config.ui.submit_on_enter;
+                                let is_newline_combo = key.modifiers.contains(KeyModifiers::ALT)
+                                    || key.modifiers.contains(KeyModifiers::SHIFT)
+                                    || key.modifiers.contains(KeyModifiers::CONTROL);
+
+                                if submit_on_enter {
+                                    if is_newline_combo {
+                                        // Insert newline
+                                        self.input.insert(self.cursor_position, '\n');
+                                        self.cursor_position += 1;
+                                        continue;
+                                    }
+                                    // Else fall through to submit logic
+                                } else {
+                                    // Enter inserts newline by default
+                                    if !key.modifiers.contains(KeyModifiers::CONTROL) {
+                                        self.input.insert(self.cursor_position, '\n');
+                                        self.cursor_position += 1;
+                                        continue;
+                                    }
+                                    // Ctrl+Enter submits when submit_on_enter is false
+                                }
+
+                                if self.autocomplete.is_visible() {
                                     // Accept autocomplete suggestion
                                     if let Some(completion) = self.autocomplete.accept_suggestion() {
                                         // Clear autocomplete first to prevent double processing
@@ -802,6 +860,92 @@ impl TuiManager {
                                                 }
                                                 _ => {
                                                     // For unknown commands, leave the input as-is so user can modify
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // No suggestion selected -> treat Enter as submit
+                                        self.autocomplete.hide();
+                                        if !self.input.is_empty() {
+                                            let message = self.input.clone();
+                                            self.input.clear();
+                                            self.cursor_position = 0;
+                                            // Add to message history (avoid consecutive duplicates)
+                                            if self.message_history.is_empty() || self.message_history.last() != Some(&message) {
+                                                self.message_history.push(message.clone());
+                                                if self.message_history.len() > 1000 { self.message_history.remove(0); }
+                                            }
+
+                                            // Slash command handling
+                                            if let Some((command, args)) = parse_slash_command(&message) {
+                                                match command {
+                                                    "/model" => { self.show_model_selection_with_auth_check().await; }
+                                                    "/search" => {
+                                                        if !args.is_empty() {
+                                                            self.add_message(Message::user(message.clone()));
+                                                            if let Err(e) = self.handle_search_command(args).await {
+                                                                self.add_message(Message::new(MessageRole::System, format!("Search failed: {}", e)));
+                                                            }
+                                                        } else {
+                                                            self.add_message(Message::new(MessageRole::System, "Usage: /search <query>".to_string()));
+                                                        }
+                                                    }
+                                                    "/init" => {
+                                                        if let Err(e) = self.handle_init_command().await {
+                                                            self.add_message(Message::new(MessageRole::System, format!("Init failed: {}", e)));
+                                                        }
+                                                    }
+                                                    "/help" => {
+                                                        for line in format_help() { self.add_message(Message::new(MessageRole::System, line)); }
+                                                    }
+                                                    "/clear" => {
+                                                        self.messages.clear();
+                                                        self.scroll_offset = 0;
+                                                        self.add_message(Message::new(MessageRole::System, "Conversation cleared. Context reset.".to_string()));
+                                                    }
+                                                    "/config" => { self.settings_modal.toggle(); }
+                                                    "/auth" => {
+                                                        if let Err(e) = self.handle_auth_command().await {
+                                                            self.add_message(Message::new(MessageRole::System, format!("Auth setup failed: {}", e)));
+                                                        }
+                                                    }
+                                                    "/sessions" => { self.session_browser.show(); self.load_sessions().await; }
+                                                    "/compact" => {
+                                                        self.add_message(Message::user(message.clone()));
+                                                        if let Err(e) = self.handle_compact_command(args).await {
+                                                            self.add_message(Message::new(MessageRole::System, format!("Compaction failed: {}", e)));
+                                                        }
+                                                    }
+                                                    "/turbo" => {
+                                                        if self.turbo_mode {
+                                                            self.turbo_mode = false; self.turbo_mode_start = None; self.auto_accept_edits = false; self.plan_mode = false;
+                                                            self.add_message(Message::new(MessageRole::System, "Default mode restored. Will prompt for approval before making changes.".to_string()));
+                                                        } else {
+                                                            self.auto_accept_edits = false; self.plan_mode = false; self.turbo_mode = true; self.turbo_mode_start = Some(Instant::now());
+                                                            self.add_message(Message::new(MessageRole::System, "🚀 Turbo mode activated! I'll autonomously execute complex tasks with full file permissions.".to_string()));
+                                                        }
+                                                    }
+                                                    "/provider" => { self.show_provider_selection().await; }
+                                                    "/quit" => { self.should_quit = true; }
+                                                    _ => {
+                                                        self.add_message(Message::new(MessageRole::System, format!("Unknown command: {}. Type /help for available commands.", command)));
+                                                    }
+                                                }
+                                            } else if message.starts_with('/') {
+                                                self.add_message(Message::new(MessageRole::System, "Unknown command. Type /help for available commands.".to_string()));
+                                            } else {
+                                                // Regular message
+                                                if self.provider_name.is_empty() || self.model.is_empty() {
+                                                    self.add_message(Message::user(message.clone()));
+                                                    self.add_message(Message::new(MessageRole::System, "No model selected. Use /model to select a provider and model.".to_string()));
+                                                } else if self.providers.is_some() {
+                                                    self.add_message(Message::user(message.clone()));
+                                                    if let Err(e) = self.handle_ai_message(message).await {
+                                                        self.add_message(Message::new(MessageRole::System, format!("Error: {}", e)));
+                                                    }
+                                                } else {
+                                                    self.add_message(Message::user(message.clone()));
+                                                    self.add_message(Message::new(MessageRole::System, "No AI provider configured. Type /model to select one or /config to set up API keys.".to_string()));
                                                 }
                                             }
                                         }
@@ -1214,8 +1358,8 @@ impl TuiManager {
                 }
             }
 
-            // Handle async messages (trigger redraw on streaming updates)
-            while let Ok(msg) = rx.try_recv() {
+        // Handle async messages (trigger redraw on streaming updates)
+        while let Ok(msg) = rx.try_recv() {
                 debug!("Received async message: {:?}", msg);
                 if msg == "update" {
                     // Trigger redraw for streaming updates
@@ -1291,13 +1435,111 @@ impl TuiManager {
                 if let Some(providers) = self.providers.clone() {
                     let queued = self.message_queue.remove(0);
                     debug!("Processing queued message from main loop: {}", queued.content);
-                    if let Err(e) = self.send_message(queued.content, &providers).await {
+                    if let Err(e) = self.initiate_ai_stream(queued.content, &providers).await {
                         tracing::error!("Failed to process queued message: {}", e);
                         self.add_message(Message::new(
                             MessageRole::System, 
                             format!("❌ Failed to process queued message: {}", e)
                         ));
                     }
+                }
+            }
+        }
+
+        // Drive agent streaming updates without blocking the UI
+        if self.agent_stream.is_some() {
+            // Temporarily take ownership to satisfy the borrow checker
+            let mut stream = self.agent_stream.take().unwrap();
+            let mut drained = 0;
+            let mut finished = false;
+            while drained < 10 {
+                match stream.try_recv() {
+                    Ok(Ok(AgentUpdate::ToolStatus(status))) => {
+                        self.add_message(Message::new(MessageRole::Tool, status));
+                        self.last_agent_update = Some(Instant::now());
+                        drained += 1;
+                    }
+                    Ok(Ok(AgentUpdate::TextChunk { content, delta: _, tokens_used })) => {
+                        if let Some(idx) = self.agent_assistant_index {
+                            // Append content to assistant message
+                            if let Some(msg) = self.messages.get_mut(idx) {
+                                msg.content.push_str(&content);
+                            }
+                        }
+                        if let Some(tokens) = tokens_used { self.update_streaming_tokens(tokens); }
+                        self.last_agent_update = Some(Instant::now());
+                        self.agent_first_chunk_received = true;
+                        drained += 1;
+                    }
+                    Ok(Ok(AgentUpdate::Complete { total_tokens: tokens, tool_status_messages: _ })) => {
+                        // Finalize streaming state
+                        self.session_tokens += tokens;
+                        self.context_monitor.update_usage(self.session_tokens);
+                        self.stop_streaming();
+                        self.agent_processing = false;
+                        self.agent_assistant_index = None;
+                        self.last_agent_update = None;
+                        finished = true;
+                        break;
+                    }
+                    Ok(Ok(AgentUpdate::Error(err))) => {
+                        self.add_message(Message::new(MessageRole::System, format!("❌ Agent error: {}", err)));
+                        self.stop_streaming();
+                        self.agent_processing = false;
+                        self.agent_assistant_index = None;
+                        self.last_agent_update = None;
+                        finished = true;
+                        break;
+                    }
+                    Ok(Err(e)) => {
+                        self.add_message(Message::new(MessageRole::System, format!("❌ Stream error: {}", e)));
+                        self.stop_streaming();
+                        self.agent_processing = false;
+                        self.agent_assistant_index = None;
+                        self.last_agent_update = None;
+                        finished = true;
+                        break;
+                    }
+                    Err(_) => { break; } // No more updates right now
+                }
+            }
+            if !finished {
+                // Put the stream back for the next tick
+                self.agent_stream = Some(stream);
+            }
+        }
+
+        // Watchdog: if a stream is active but no updates for a period, abort gracefully
+        if self.agent_processing {
+            if let Some(last) = self.last_agent_update {
+                // Use a longer timeout before the first chunk (models may be loading)
+                let pre_first_chunk_timeout = if self.provider_name == "ollama" { 180 } else { 120 };
+                let post_first_chunk_timeout = 45u64;
+                let timeout_secs = if self.agent_first_chunk_received { post_first_chunk_timeout } else { pre_first_chunk_timeout };
+
+                if last.elapsed() > Duration::from_secs(timeout_secs) {
+                    let note = if self.agent_first_chunk_received {
+                        format!(
+                            "⚠️ Provider unresponsive for {}s; stopping streaming. Try again or switch model with Ctrl+M.",
+                            timeout_secs
+                        )
+                    } else if self.provider_name == "ollama" {
+                        format!(
+                            "⏳ Waiting for first tokens ({}s). Ollama may be loading the model; consider Ctrl+M to switch to a smaller model or wait.",
+                            timeout_secs
+                        )
+                    } else {
+                        format!(
+                            "⚠️ No response for {}s; stopping streaming. Try again or switch model with Ctrl+M.",
+                            timeout_secs
+                        )
+                    };
+                    self.add_message(Message::new(MessageRole::System, note));
+                    self.stop_streaming();
+                    self.agent_processing = false;
+                    self.agent_stream = None;
+                    self.agent_assistant_index = None;
+                    self.last_agent_update = None;
                 }
             }
         }
@@ -1451,12 +1693,15 @@ impl TuiManager {
         // Minimal margins like Claude Code
         let screen_height = f.area().height;
         let input_area_height = self.calculate_input_height(screen_height) + 1; // +1 for info line
+        let has_ops_line = self.get_streaming_display().is_some();
+        let ops_height = if has_ops_line { 1 } else { 0 };
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(if self.messages.is_empty() { 5 } else { 0 }), // Welcome box
                 Constraint::Length(if self.messages.is_empty() { 1 } else { 0 }), // Tip line
                 Constraint::Min(1),    // Chat area
+                Constraint::Length(ops_height), // Operations line (streaming state) above input
                 Constraint::Length(input_area_height), // Dynamic input box area
                 Constraint::Length(1), // Status line
             ])
@@ -1467,14 +1712,24 @@ impl TuiManager {
             self.draw_welcome_box(f, chunks[0]);
         }
 
-        // Chat area is always at index 2
+        // Chat area
         self.draw_chat_area(f, chunks[2]);
 
-        // Input box area is always at index 3
-        self.draw_input_box(f, chunks[3]);
+        // Operations line (streaming state) just above input
+        if let Some(streaming_display) = self.get_streaming_display() {
+            use ratatui::widgets::Paragraph;
+            let ops = Paragraph::new(streaming_display)
+                .style(Style::default().fg(Color::Rgb(107, 114, 128)));
+            if chunks.len() > 3 && chunks[3].height > 0 {
+                f.render_widget(ops, chunks[3]);
+            }
+        }
 
-        // Status line is always at index 4
-        self.draw_status_bar(f, chunks[4]);
+        // Input box area is at index 4
+        self.draw_input_box(f, chunks[4]);
+
+        // Status line is at index 5
+        self.draw_status_bar(f, chunks[5]);
 
         // Render modals (on top of everything)
         self.selection_modal.render(f, f.area());
@@ -1839,7 +2094,7 @@ impl TuiManager {
         // Left side: dynamic status based on conversation state and modes
         let shortcuts_line = if self.autocomplete.is_visible() {
             Line::from(Span::styled(
-                "↑↓ navigate • Enter accept • Esc cancel",
+                "↑↓ navigate • Tab accept • Esc cancel",
                 Style::default().fg(Color::Rgb(107, 114, 128)) // Comment gray
             ))
         } else if self.messages.is_empty() {
@@ -1877,7 +2132,7 @@ impl TuiManager {
             } else {
                 // Default mode
                 Line::from(Span::styled(
-                    "shift+tab to cycle modes",
+                    "Ctrl+M model • Shift/Ctrl+Enter newline • Shift+Tab modes",
                     Style::default().fg(Color::Rgb(107, 114, 128)) // Comment gray
                 ))
             }
@@ -2329,8 +2584,12 @@ impl TuiManager {
                 KeyCode::Enter => {
                     if self.settings_modal.is_editing() {
                         self.settings_modal.finish_editing();
-                    } else {
+                    } else if self.settings_modal.can_edit_selected() {
                         self.settings_modal.start_editing();
+                    } else {
+                        self.settings_modal.toggle_selected();
+                        // Reflect in live config immediately for UI-affecting toggles
+                        self.config = self.settings_modal.get_config().clone();
                     }
                     return Ok(true);
                 }
@@ -2652,9 +2911,33 @@ impl TuiManager {
 
         // Get provider
         debug!("send_message_fallback: attempting to use provider '{}' with model '{}'", self.provider_name, self.model);
-        let provider = providers
-            .get_provider_or_host(&self.provider_name)
-            .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", self.provider_name))?;
+        let provider = match providers.get_provider_or_host(&self.provider_name) {
+            Some(p) => p,
+            None => {
+                // Provider missing: prompt user to select one instead of erroring
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    format!("⚠️ Provider '{}' not available. Opening model selection…", self.provider_name),
+                ));
+                self.show_model_selection_with_auth_check().await;
+                return Ok(());
+            }
+        };
+
+        // Generic model availability check from config (non-Ollama providers)
+        if self.provider_name != "ollama" {
+            if self.config.get_model(&self.provider_name, &self.model).is_none() {
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    format!(
+                        "⚠️ Model '{}' not found for provider '{}'. Opening model selection…",
+                        self.model, self.provider_name
+                    ),
+                ));
+                self.show_model_selection_with_auth_check().await;
+                return Ok(());
+            }
+        }
 
         // Get intelligence context for the user's message
         let context = self.intelligence_tools.get_development_context(&message).await;
@@ -3036,6 +3319,7 @@ impl TuiManager {
     }
     
     /// Handle /read command to display file contents
+    #[allow(dead_code)]
     async fn handle_read_command(&mut self, filename: &str) -> Result<()> {
         let filename = filename.trim();
         info!("Reading file: '{}'", filename);
@@ -3130,6 +3414,7 @@ impl TuiManager {
     }
     
     /// Show example diff for testing the diff viewer
+    #[allow(dead_code)]
     fn show_example_diff(&mut self) {
         let old_content = r#"function greet(name) {
     console.log("Hello " + name);
@@ -3675,9 +3960,104 @@ function farewell(name) {
                     self.queue_message(message);
                     info!("Message queued - agent is currently processing");
                 } else {
-                    // Send message to AI normally
-                    self.send_message(message, &providers).await?;
+                    // Initiate async streaming without blocking the UI
+                    self.initiate_ai_stream(message, &providers).await?;
                 }
+            }
+        }
+        Ok(())
+    }
+
+    /// Initiate AI message streaming and let the main loop drive updates
+    async fn initiate_ai_stream(&mut self, message: String, providers: &ProviderManager) -> Result<()> {
+        // Ensure agent is initialized
+        self.ensure_agent_initialized(providers).await?;
+        let provider = providers
+            .get_provider_or_host(&self.provider_name)
+            .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", self.provider_name))?;
+
+        // Preflight compaction based on context headroom
+        self.preflight_compaction_if_needed(provider, &message).await?;
+
+        // Ensure a valid Ollama model is selected if using local provider
+        if self.provider_name == "ollama" {
+            let available = providers.get_provider_models("ollama");
+            if available.is_empty() {
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    "⚠️ Ollama running but no models detected. Use 'ollama pull <model>' to install one.".to_string(),
+                ));
+            } else if self.model.is_empty() || !available.contains(&self.model) {
+                // Prefer gpt-oss if present, else first available
+                let fallback = available.iter().find(|m| m.contains("gpt-oss")).cloned()
+                    .unwrap_or_else(|| available[0].clone());
+                let old_model = std::mem::replace(&mut self.model, fallback.clone());
+                let provider_name = self.provider_name.clone();
+                let model_clone = self.model.clone();
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    format!("🔁 Model '{}' unavailable. Switched to '{}'.", old_model, fallback),
+                ));
+                self.save_provider_selection(&provider_name, &model_clone);
+            }
+        }
+
+        if let Some(ref mut agent) = self.agent_controller {
+            match agent.process_message_streaming(&message, provider, &self.model).await {
+                Ok(stream) => {
+                    // Start streaming state and create placeholder assistant message
+                    self.start_streaming();
+                    let assistant_msg = Message::new(MessageRole::Assistant, String::new());
+                    self.add_message(assistant_msg);
+                    let idx = self.messages.len() - 1;
+                    self.agent_assistant_index = Some(idx);
+                    self.agent_stream = Some(stream);
+                    self.agent_processing = true;
+                    self.last_agent_update = Some(Instant::now());
+                    self.agent_first_chunk_received = false;
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        } else {
+            // Fallback if agent is not available
+            self.queue_message(message);
+        }
+        Ok(())
+    }
+
+    /// Predictively compact if we're close to the model's context limit
+    async fn preflight_compaction_if_needed(&mut self, provider: &dyn crate::providers::LLMProvider, next_message: &str) -> Result<()> {
+        // Estimate token usage: current session + upcoming user message + overhead
+        let context_window = provider.context_window().max(1024); // guard against tiny
+        let upcoming_tokens = (next_message.len() as u32 / 4).max(8); // rough estimate
+        let overhead = 256u32; // system prompt + formatting
+        let projected = self.session_tokens.saturating_add(upcoming_tokens).saturating_add(overhead);
+
+        // Trigger if projected usage would exceed 85% of context
+        let threshold = (context_window as f32 * 0.85) as u32;
+        if projected >= threshold && self.messages.len() >= self.config.compaction.min_messages as usize {
+            // Respect config: if auto-enabled, compact; otherwise warn
+            if self.config.compaction.auto_enabled {
+                // Compact now to avoid hitting limits mid-turn
+                let notice = format!(
+                    "🧹 Context high ({} / {} est). Compacting before sending…",
+                    projected, context_window
+                );
+                self.add_message(Message::new(MessageRole::System, notice));
+                if let Err(e) = self.handle_compact_command("").await {
+                    self.add_message(Message::new(
+                        MessageRole::System,
+                        format!("Compaction failed: {}", e),
+                    ));
+                }
+            } else if self.config.compaction.show_warnings {
+                let notice = format!(
+                    "⚠️ Context high ({} / {} est). Run /compact before sending to avoid limits.",
+                    projected, context_window
+                );
+                self.add_message(Message::new(MessageRole::System, notice));
             }
         }
         Ok(())
@@ -3958,6 +4338,7 @@ function farewell(name) {
     }
     
     // Load a specific session and replace current conversation
+    #[allow(dead_code)]
     async fn load_session(&mut self, session_id: String) -> Result<()> {
         // Load session data
         match self.session_manager.load_session(&session_id).await? {

@@ -1,9 +1,15 @@
 use aircher::config::ProviderConfig;
 use aircher::providers::ollama::OllamaProvider;
+use aircher::auth::AuthManager;
 use aircher::providers::{ChatRequest, LLMProvider, Message, MessageRole, PricingModel};
 use anyhow::Result;
 use std::time::Duration;
 use tokio::time::timeout;
+use std::sync::Arc;
+
+fn create_auth() -> Arc<AuthManager> {
+    Arc::new(AuthManager::new().expect("failed to create AuthManager"))
+}
 
 #[tokio::test]
 async fn test_ollama_provider_creation() -> Result<()> {
@@ -17,7 +23,7 @@ async fn test_ollama_provider_creation() -> Result<()> {
         max_retries: 3,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     assert_eq!(provider.name(), "ollama");
     assert_eq!(provider.pricing_model(), PricingModel::Free);
     assert_eq!(provider.calculate_cost(1000, 1000), Some(0.0));
@@ -40,7 +46,7 @@ async fn test_ollama_provider_with_custom_base_url() -> Result<()> {
         max_retries: 3,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     assert_eq!(provider.name(), "ollama");
     
     // Should handle custom base URL for Tailscale or remote Ollama
@@ -59,7 +65,7 @@ async fn test_ollama_provider_with_empty_base_url() -> Result<()> {
         max_retries: 3,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     assert_eq!(provider.name(), "ollama");
     
     // Should default to localhost:11434 when base_url is empty
@@ -78,7 +84,7 @@ async fn test_ollama_health_check_with_timeout() -> Result<()> {
         max_retries: 1,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     
     // Test health check with timeout (should not hang)
     let health_check_result = timeout(Duration::from_secs(3), provider.health_check()).await?;
@@ -105,7 +111,7 @@ async fn test_ollama_get_models() -> Result<()> {
         max_retries: 3,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     let models = provider.get_models();
     
     // Should return empty list if Ollama is not running
@@ -127,7 +133,7 @@ async fn test_ollama_pricing_info() -> Result<()> {
         max_retries: 3,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     
     // Test pricing info
     let pricing = provider.get_pricing();
@@ -160,7 +166,7 @@ async fn test_ollama_message_conversion() -> Result<()> {
         max_retries: 3,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     
     let messages = vec![
         Message::new(MessageRole::System, "You are a helpful assistant.".to_string()),
@@ -199,7 +205,7 @@ async fn test_ollama_chat_integration() -> Result<()> {
         max_retries: 3,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     
     // First check if Ollama is running
     let health = provider.health_check().await?;
@@ -256,7 +262,7 @@ async fn test_ollama_streaming_integration() -> Result<()> {
         max_retries: 3,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     
     // First check if Ollama is running
     let health = provider.health_check().await?;
@@ -339,7 +345,7 @@ async fn test_ollama_tailscale_integration() -> Result<()> {
         max_retries: 3,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     
     println!("Testing Tailscale Ollama at: {}", tailscale_url);
     
@@ -395,7 +401,7 @@ async fn test_ollama_error_handling() -> Result<()> {
         max_retries: 1,
     };
 
-    let provider = OllamaProvider::new(config).await?;
+    let provider = OllamaProvider::new(config, create_auth()).await?;
     
     // Health check should return false for invalid URL
     let health = provider.health_check().await?;

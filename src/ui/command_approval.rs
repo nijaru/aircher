@@ -23,6 +23,7 @@ enum Mode {
 
 struct SelectOption {
     label: &'static str,
+    #[allow(dead_code)]
     shortcut: char,
     choice: Option<ApprovalChoice>,
     enters_input_mode: bool,

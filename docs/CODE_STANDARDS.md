@@ -361,5 +361,32 @@ ls test_*.py        # Find temp files to clean
 - [ ] Existing functionality preserved
 - [ ] Changes match user's request exactly
 
+## TUI Tool Line Guidelines
+
+When emitting tool status/result messages in the TUI:
+
+- Use compact, single‑line updates with consistent symbols and order.
+  - Running: `🔧 <tool> <target> — running…`
+  - Success: `✓ <tool> <target> — <summary>`
+  - Error: `✗ <tool> <target> — <reason>`
+- Prefer short targets:
+  - Files: show basename or a shortened `…/file.rs` form
+  - Commands: truncate args to ~60 chars with an ellipsis
+- Group multiple tools with a batch header: `🔧 Executing N tools…`
+- Keep JSON/details out of these lines; summaries only.
+- Color comes from message role (Tool), not inline ANSI.
+
+Rationale: This mirrors successful patterns in Claude Code/Codex/Gemini and optimizes scan‑ability in a terminal UI.
+
+## TUI Keybinding Guidelines
+
+- Enter defaults to submit; Shift/Ctrl+Enter insert newline.
+- Tab accepts autocomplete when visible; otherwise insert four spaces (indent).
+- Esc closes autocomplete or interrupts streaming.
+- Provide an accessible model switch: Ctrl+M and `/model`.
+- Avoid overloading Tab with modal actions; keep behavior predictable.
+
+Planned: If adding configurable Enter behavior, prefer a single boolean `ui.submit_on_enter` and a small set of allowed newline shortcuts to prevent fragmentation.
+
 ---
 *This is a general-purpose code standards guide. For project-specific patterns, check the project's AGENTS.md or README.*

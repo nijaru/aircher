@@ -1,6 +1,6 @@
 # Aircher Development Roadmap
 
-## Quick Summary (2025-08-25)
+## Quick Summary (2025-08-26)
 
 **Current Phase**: Phase 2 - Tool Calling Loop (Polish & Reliability)  
 **Previous**: Phase 1 ✅ Agent Integration COMPLETED  
@@ -10,7 +10,7 @@
 
 ## Current Architecture Status (August 2025)
 
-**Reality Check (2025-08-25)**: Agent system IS connected. See `TOOL_CALLING_REALITY_CHECK.md` for details.
+**Reality Check (2025-08-26)**: Agent system IS connected; streaming and tool status integrated. See `TOOL_CALLING_REALITY_CHECK.md`.
 
 ### ✅ What's Working
 - **TUI Chat Interface**: Full conversation UI with provider/model selection
@@ -24,16 +24,15 @@
 - **Ollama Tools**: Fixed provider to support gpt-oss tool calling
 
 ### ⚠️ What Needs Polish
-- **Tool Result Display**: Results work but need better formatting
-- **Multi-turn Execution**: Single tool calls work, chaining needs testing
-- **Error Recovery**: Tool failures need graceful handling
-- **Permission UI**: Approval system built but needs UX work
+- **Tool Result Display**: Add collapsible sections + code highlighting
+- **Multi-turn Execution**: Reliability testing and loop termination guards
+- **Error Recovery**: Concise provider/tool error surfaces
+- **Permission UI**: Approval modal shortcuts and smoother flow
 
 ### ❌ What's Missing (Gap Analysis)  
-- **Streaming Tool Status**: Tool execution not streamed to UI
-- **Tool History**: No way to review past tool executions
+- **Tool History**: Review of past tool executions
 - **Advanced Tools**: Git, test execution, workspace awareness
-- **Cost Tracking**: No per-tool usage metrics
+- **Cost Tracking**: Per-tool usage metrics
 
 ## Development Phases
 
@@ -67,12 +66,17 @@
 **Timeline**: 1 week  
 **Dependencies**: Phase 1 ✅
 
-**Tasks**:
-1. Implement structured tool calling format (XML or JSON)
-2. Add iterative tool execution (max 10 iterations)
-3. Stream tool status updates to UI
-4. Handle tool errors gracefully
-5. Add context management for tool results
+**Recent Progress**
+- Structured tool calls (XML/JSON) parsed; Ollama streaming tool-calls surfaced
+- Non-blocking send + operations line above input
+- Predictive compaction pre-send (~85% context)
+- Compact, one-line tool status/result lines with durations + batch header
+
+**Tasks**
+1. Expand multi-turn execution reliability; guard against infinite loops (max 10)
+2. Improve error surfaces for provider and tool failures (concise, actionable)
+3. Collapsible tool outputs + code highlighting for results
+4. Optional: Tool history and replay view
 
 **Success Criteria**:
 - Multi-step tasks complete successfully
@@ -224,19 +228,16 @@ Command: cargo test
 
 ## Next Steps
 
-1. **Immediate** (Today):
-   - Begin Phase 1 implementation
-   - Wire AgentController to TuiManager
-   - Test basic tool execution
+1. **Immediate** (This Week):
+   - Phase 2 reliability testing for multi-turn tools (gpt-oss)
+   - Improve provider error messaging + first-run prompts
+   - Document current behavior in STATUS.md/AGENTS.md (done)
 
-2. **This Week**:
-   - Complete Phase 1
-   - Begin Phase 2 tool calling loop
-   - Update STATUS.md with progress
+2. **Next**:
+   - Phase 3 core tools (git/test/workspace) and result UX polish (collapsible + highlighting)
 
-3. **Next Month**:
-   - Achieve competitor parity (Phase 3)
-   - Begin differentiation features (Phase 4-5)
+3. **Following**:
+   - Phase 4 approvals UX and cost tracking; Phase 5 Turbo v1; Phase 6 orchestration
 
 ## Implementation Notes
 
