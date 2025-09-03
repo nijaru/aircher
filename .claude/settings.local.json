@@ -80,7 +80,14 @@
       "Bash(jj git push:*)",
       "Bash(jj log:*)",
       "Bash(jj new:*)",
-      "Bash(jj bookmark:*)"
+      "Bash(jj bookmark:*)",
+      "WebFetch(domain:agentclientprotocol.com)",
+      "Read(/Users/nick/.local/share/chezmoi/**)",
+      "Bash(chezmoi:*)",
+      "WebSearch",
+      "Bash(gh issue list:*)",
+      "Bash(gh project list:*)",
+      "Bash(gh auth:*)"
     ],
     "deny": []
   }
