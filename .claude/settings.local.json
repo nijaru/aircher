@@ -78,7 +78,8 @@
       "Read(//tmp/**)",
       "Bash(jj describe:*)",
       "Bash(jj git push:*)",
-      "Bash(jj log:*)"
+      "Bash(jj log:*)",
+      "Bash(jj new:*)"
     ],
     "deny": []
   }
