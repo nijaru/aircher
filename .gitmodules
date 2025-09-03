@@ -10,3 +10,6 @@
 [submodule "external/opencode"]
 	path = external/opencode
 	url = https://github.com/sst/opencode.git
+[submodule "docs/agent-contexts"]
+	path = docs/agent-contexts
+	url = https://github.com/nijaru/agent-contexts
