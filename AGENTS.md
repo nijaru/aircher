@@ -4,6 +4,12 @@ This document provides context and instructions for AI agents working with the A
 
 @docs/agent-contexts/AI_AGENT_INDEX.md
 
+## Intelligence System Design
+
+@docs/intelligence/autonomous-agent-design.md  # Core autonomous intelligence architecture
+@docs/intelligence/refactoring-plan.md         # Implementation roadmap and phases
+@docs/ui/tui-interface-design.md               # TUI enhancements for intelligence features
+
 ## Project Overview
 
 Aircher is a **semantic code search engine** with TUI interface built in Rust. Currently production-ready for search functionality, with AI chat capabilities in development.
