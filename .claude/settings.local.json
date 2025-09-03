@@ -79,7 +79,8 @@
       "Bash(jj describe:*)",
       "Bash(jj git push:*)",
       "Bash(jj log:*)",
-      "Bash(jj new:*)"
+      "Bash(jj new:*)",
+      "Bash(jj bookmark:*)"
     ],
     "deny": []
   }
