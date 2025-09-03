@@ -87,7 +87,8 @@
       "WebSearch",
       "Bash(gh issue list:*)",
       "Bash(gh project list:*)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(jj git fetch:*)"
     ],
     "deny": []
   }
