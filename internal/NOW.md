@@ -2,16 +2,21 @@
 
 **Last Updated**: 2025-09-10
 
-## 🚨 Immediate (This Week)
+## 🚨 Immediate (This Week) - DUAL-MODE ARCHITECTURE
 
-### Tool Calling Reliability
-- [ ] Expand multi-turn tool execution reliability tests (gpt-oss)
-- [ ] Handle tool execution errors gracefully (surface concise errors)
-- [ ] Add retry or fallback for transient provider errors
+### Phase 1: Architecture Foundation (Week 1)
+- [x] Strategic analysis and planning (ACP compatibility assessed)  
+- [x] Update competitive positioning for dual-mode approach
+- [ ] Add agent-client-protocol dependency
+- [ ] Extract agent core from TUI coupling
+- [ ] Create shared agent core with pluggable tool layer
+- [ ] Implement basic ACP Agent trait
 
-### Provider Testing
-- [ ] Test tool calling with OpenAI/Anthropic/Gemini (post-Ollama)
-- [ ] Document provider-specific tool calling formats (XML/JSON)
+### Completed Recent Work
+- [x] TODO panel integrated into TUI layout
+- [x] Rich model selection with metadata (context, pricing, capabilities)
+- [x] Tool calling system validated (6 core tools working)
+- [x] Agent controller properly connected to TUI
 
 ## 📋 Next Sprint (Phase 2 - Tool Calling Loop)
 
