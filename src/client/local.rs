@@ -11,6 +11,7 @@ use serde_json::Value;
 use super::{AgentClient, AgentInfo, AgentResponse, ToolCallInfo, ToolStatus};
 use crate::agent::unified::UnifiedAgent;
 use crate::agent::tools::ToolCall;
+use crate::agent::streaming::{AgentStream, create_agent_stream};
 
 /// Local client that directly calls the UnifiedAgent
 pub struct LocalClient {
@@ -29,7 +30,7 @@ impl AgentClient for LocalClient {
         // Get agent capabilities directly
         let available_tools: Vec<String> = self.agent.tools.list_tools()
             .into_iter()
-            .map(|t| t.to_string())
+            .map(|t| t.name)
             .collect();
         
         Ok(AgentInfo {
@@ -67,14 +68,14 @@ impl AgentClient for LocalClient {
         ).await?;
         
         // Parse any tool calls from the response
-        let tool_calls = self.agent.parser.parse_tool_calls(&response_content)?;
+        let tool_calls = self.agent.parser.parse(&response_content);
         
         // Convert to client format
         let tool_call_info: Vec<ToolCallInfo> = tool_calls.iter().map(|tc| {
             ToolCallInfo {
                 name: tc.name.clone(),
                 status: ToolStatus::Success, // TODO: Track actual status
-                result: Some(tc.params.clone()),
+                result: Some(tc.parameters.clone()),
                 error: None,
             }
         }).collect();
@@ -93,7 +94,7 @@ impl AgentClient for LocalClient {
     ) -> Result<ToolCallInfo> {
         let tool_call = ToolCall {
             name: tool_name.clone(),
-            params,
+            parameters: params,
         };
         
         match self.agent.execute_tool(&tool_call).await {
@@ -123,9 +124,9 @@ impl AgentClient for LocalClient {
                 if message.role == crate::agent::conversation::MessageRole::Assistant {
                     let tool_calls = if let Some(ref tcs) = message.tool_calls {
                         tcs.iter().map(|tc| ToolCallInfo {
-                            name: tc.name.clone(),
+                            name: tc.tool_name.clone(),
                             status: ToolStatus::Success,
-                            result: Some(tc.params.clone()),
+                            result: tc.result.clone(),
                             error: None,
                         }).collect()
                     } else {
@@ -144,6 +145,28 @@ impl AgentClient for LocalClient {
         } else {
             Ok(Vec::new())
         }
+    }
+    
+    async fn send_prompt_streaming(
+        &self,
+        session_id: &str,
+        message: String,
+        provider: Option<String>,
+        model: Option<String>,
+    ) -> Result<AgentStream> {
+        // Create streaming channel
+        let (tx, rx) = create_agent_stream();
+        
+        // Process with streaming through UnifiedAgent
+        self.agent.process_prompt_streaming(
+            session_id,
+            message,
+            provider.as_deref(),
+            model.as_deref(),
+            tx,
+        ).await?;
+        
+        Ok(rx)
     }
     
     async fn end_session(&self, session_id: &str) -> Result<()> {
