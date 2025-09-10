@@ -2,10 +2,15 @@
 
 This document provides context and instructions for AI agents working with the Aircher project.
 
-@docs/agent-contexts/AI_AGENT_INDEX.md
+@external/agent-contexts/AI_AGENT_INDEX.md
+
+## Key Files (Always Check/Update)
+@internal/NOW.md                   # Current tasks & sprint status
+@internal/DECISIONS.md             # Major decisions (append-only)
+@internal/KNOWLEDGE.md             # Patterns & learnings
+@COMPETITIVE_ROADMAP.md            # Strategic development plan
 
 ## Intelligence System Design
-
 @docs/intelligence/autonomous-agent-design.md  # Core autonomous intelligence architecture
 @docs/intelligence/refactoring-plan.md         # Implementation roadmap and phases
 @docs/ui/tui-interface-design.md               # TUI enhancements for intelligence features
@@ -116,6 +121,8 @@ The agent should be a power user of existing CLI tools rather than reimplementin
 - Immediately compatible with new tools
 
 ## Code Standards
+
+@external/agent-contexts/standards/AI_CODE_PATTERNS.md  # Universal naming and structure patterns
 
 - Add newlines at end of files
 - Follow existing code patterns
