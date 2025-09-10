@@ -10,6 +10,7 @@ use tokio::sync::RwLock;
 pub mod context;
 pub mod narrative;
 pub mod memory;
+pub mod persistent_memory;
 pub mod tools;
 pub mod tui_tools;
 pub mod file_monitor;
@@ -20,6 +21,7 @@ pub mod ast_analysis;
 pub use context::*;
 pub use narrative::*;
 pub use memory::*;
+pub use persistent_memory::*;
 pub use tools::*;
 pub use mcp_integration::*;
 pub use ast_analysis::*;
@@ -31,6 +33,7 @@ pub struct IntelligenceEngine {
     context_engine: ContextualRelevanceEngine,
     narrative_tracker: DevelopmentNarrativeTracker,
     memory_system: ConversationalMemorySystem,
+    persistent_memory: Option<Arc<RwLock<PersistentProjectMemory>>>,
     semantic_search: Option<Arc<RwLock<SemanticCodeSearch>>>,
     ast_analyzer: Arc<RwLock<ASTAnalyzer>>,
 }
@@ -48,6 +51,7 @@ impl IntelligenceEngine {
             context_engine,
             narrative_tracker,
             memory_system,
+            persistent_memory: None,
             semantic_search: None,
             ast_analyzer,
         })
@@ -70,6 +74,7 @@ impl IntelligenceEngine {
             context_engine,
             narrative_tracker,
             memory_system,
+            persistent_memory: None,
             semantic_search: Some(Arc::new(RwLock::new(semantic_search))),
             ast_analyzer,
         })
@@ -83,6 +88,57 @@ impl IntelligenceEngine {
     /// Create an MCP-enhanced version of this intelligence engine
     pub async fn with_mcp_enhancement(self) -> Result<McpEnhancedIntelligenceEngine<Self>> {
         McpEnhancedIntelligenceEngine::new(self).await
+    }
+    
+    /// Initialize persistent memory for a project
+    pub async fn initialize_persistent_memory(&mut self, project_root: std::path::PathBuf) -> Result<()> {
+        let persistent_memory = PersistentProjectMemory::new(project_root).await?;
+        
+        self.persistent_memory = Some(Arc::new(RwLock::new(persistent_memory)));
+        Ok(())
+    }
+    
+    /// Start a new session with persistent memory
+    pub async fn start_memory_session(&self, session_id: Option<String>) -> Result<Option<String>> {
+        if let Some(memory) = &self.persistent_memory {
+            let mut memory_guard = memory.write().await;
+            let session_id = memory_guard.start_session(session_id).await?;
+            Ok(Some(session_id))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    /// Record a conversation turn for learning
+    pub async fn record_interaction(
+        &self,
+        session_id: &str,
+        user_query: &str,
+        files_involved: &[String],
+        tools_used: &[String],
+        outcome: &Outcome,
+    ) -> Result<()> {
+        if let Some(memory) = &self.persistent_memory {
+            let mut memory_guard = memory.write().await;
+            memory_guard.record_conversation_turn(
+                session_id, 
+                user_query, 
+                files_involved, 
+                tools_used, 
+                outcome
+            ).await?;
+        }
+        Ok(())
+    }
+    
+    /// Get relevant patterns from persistent memory
+    pub async fn get_learned_patterns(&self, query: &str, session_id: &str) -> Result<Vec<LearnedPattern>> {
+        if let Some(memory) = &self.persistent_memory {
+            let memory_guard = memory.read().await;
+            memory_guard.get_relevant_patterns(query, session_id).await
+        } else {
+            Ok(Vec::new())
+        }
     }
 }
 
@@ -138,13 +194,53 @@ impl IntelligenceTools for IntelligenceEngine {
             }
         }
 
+        // Enhance with persistent memory patterns if available
+        let mut enhanced_patterns = memory.patterns;
+        let mut enhanced_actions = relevance.predicted_actions;
+        
+        if let Some(_persistent_memory) = &self.persistent_memory {
+            // Try to get patterns with a default session ID if none provided
+            let session_id = "current"; // In practice, this would come from the session context
+            
+            if let Ok(learned_patterns) = self.get_learned_patterns(query, session_id).await {
+                // Convert learned patterns to intelligence patterns
+                for learned_pattern in &learned_patterns {
+                    let pattern = Pattern {
+                        pattern_type: format!("{:?}", learned_pattern.pattern_type),
+                        description: learned_pattern.description.clone(),
+                        confidence: learned_pattern.success_rate,
+                        occurrences: learned_pattern.usage_count,
+                    };
+                    enhanced_patterns.push(pattern);
+                    
+                    // Add suggested actions based on learned patterns
+                    if learned_pattern.success_rate > 0.7 {
+                        let action = Action {
+                            action_type: "learned_pattern".to_string(),
+                            description: format!("Based on past success: {}", learned_pattern.description),
+                            confidence: learned_pattern.success_rate,
+                        };
+                        enhanced_actions.push(action);
+                    }
+                }
+                
+                // Boost confidence if we have good learned patterns
+                if !learned_patterns.is_empty() {
+                    let avg_pattern_confidence = learned_patterns.iter()
+                        .map(|p| p.success_rate)
+                        .sum::<f64>() / learned_patterns.len() as f64;
+                    enhanced_confidence = (enhanced_confidence + avg_pattern_confidence) / 2.0;
+                }
+            }
+        }
+
         ContextualInsight {
             development_phase: narrative.current_epic,
             active_story: narrative.recent_focus,
             key_files: enhanced_files,
             architectural_context: narrative.recent_decisions,
-            recent_patterns: memory.patterns,
-            suggested_next_actions: relevance.predicted_actions,
+            recent_patterns: enhanced_patterns,
+            suggested_next_actions: enhanced_actions,
             confidence: enhanced_confidence,
         }
     }
@@ -287,6 +383,40 @@ impl IntelligenceTools for IntelligenceEngine {
             suggestions,
             ast_analysis: Some(analysis),
         })
+    }
+    
+    async fn initialize_project_memory(&mut self, project_root: std::path::PathBuf) -> Result<(), String> {
+        self.initialize_persistent_memory(project_root).await
+            .map_err(|e| format!("Failed to initialize project memory: {}", e))
+    }
+    
+    async fn start_session(&self, session_id: Option<String>) -> Result<Option<String>, String> {
+        self.start_memory_session(session_id).await
+            .map_err(|e| format!("Failed to start memory session: {}", e))
+    }
+    
+    async fn record_learning(
+        &self,
+        session_id: &str,
+        user_query: &str,
+        files_involved: &[String],
+        tools_used: &[String],
+        outcome: Outcome,
+    ) -> Result<(), String> {
+        self.record_interaction(session_id, user_query, files_involved, tools_used, &outcome).await
+            .map_err(|e| format!("Failed to record learning: {}", e))
+    }
+    
+    async fn get_relevant_patterns(&self, query: &str, session_id: &str) -> Result<Vec<String>, String> {
+        let patterns = self.get_learned_patterns(query, session_id).await
+            .map_err(|e| format!("Failed to get learned patterns: {}", e))?;
+        
+        // Convert LearnedPattern to String descriptions
+        let pattern_descriptions = patterns.into_iter()
+            .map(|p| format!("{} (success: {:.1}%)", p.description, p.success_rate * 100.0))
+            .collect();
+            
+        Ok(pattern_descriptions)
     }
 }
 
