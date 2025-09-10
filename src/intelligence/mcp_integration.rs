@@ -34,7 +34,7 @@ pub struct ResourceInfo {
 use super::{
     IntelligenceTools, ContextualInsight, ImpactAnalysis, ContextSuggestions, 
     Outcome, ProjectMomentum, CrossProjectInsight, AiConfiguration,
-    Action, Pattern, ArchitecturalLesson, ImplementationExample
+    Action, Pattern, ArchitecturalLesson, ImplementationExample, CodeSearchResult
 };
 
 /// MCP-enhanced Intelligence Engine that augments core intelligence
@@ -437,6 +437,11 @@ where
     /// Pass through to base intelligence
     async fn load_ai_configuration(&self) -> AiConfiguration {
         self.base_intelligence.load_ai_configuration().await
+    }
+    
+    async fn search_code_semantically(&self, query: &str, limit: usize) -> Result<Vec<CodeSearchResult>, String> {
+        // Delegate to base intelligence engine
+        self.base_intelligence.search_code_semantically(query, limit).await
     }
 }
 

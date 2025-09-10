@@ -1,6 +1,6 @@
 use super::{AgentTool, ToolError, ToolOutput};
 use crate::semantic_search::SemanticCodeSearch;
-use crate::intelligence::IntelligenceEngine;
+use crate::intelligence::{IntelligenceEngine, IntelligenceTools};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -91,21 +91,67 @@ impl AgentTool for SearchCodeTool {
         let params: SearchCodeParams = serde_json::from_value(params)
             .map_err(|e| ToolError::InvalidParameters(e.to_string()))?;
         
-        // For now, return a simple indication that search is available but needs integration
-        Ok(ToolOutput {
-            success: true,
-            result: json!({
-                "query": params.query,
-                "limit": params.limit,
-                "file_types": params.file_types,
-                "chunk_types": params.chunk_types,
-                "results": [],
-                "count": 0,
-                "message": "Search tool ready - integration with TUI in progress"
-            }),
-            error: None,
-            usage: None,
-        })
+        // Use intelligence engine for semantic search if available
+        if let Some(intelligence) = &self._intelligence {
+            match intelligence.search_code_semantically(&params.query, params.limit).await {
+                Ok(results) => {
+                    let json_results: Vec<Value> = results.iter().map(|result| {
+                        json!({
+                            "file_path": result.file_path,
+                            "line_start": result.line_start,
+                            "line_end": result.line_end,
+                            "content": result.content,
+                            "similarity_score": result.similarity_score,
+                            "chunk_type": result.chunk_type,
+                            "context_lines": result.context_lines
+                        })
+                    }).collect();
+                    
+                    Ok(ToolOutput {
+                        success: true,
+                        result: json!({
+                            "query": params.query,
+                            "limit": params.limit,
+                            "file_types": params.file_types,
+                            "chunk_types": params.chunk_types,
+                            "results": json_results,
+                            "count": results.len(),
+                            "message": format!("Found {} semantic matches", results.len())
+                        }),
+                        error: None,
+                        usage: None,
+                    })
+                }
+                Err(e) => {
+                    Ok(ToolOutput {
+                        success: false,
+                        result: json!({
+                            "query": params.query,
+                            "error": e,
+                            "message": "Semantic search failed"
+                        }),
+                        error: Some(e),
+                        usage: None,
+                    })
+                }
+            }
+        } else {
+            // Fallback message when intelligence engine is not available
+            Ok(ToolOutput {
+                success: true,
+                result: json!({
+                    "query": params.query,
+                    "limit": params.limit,
+                    "file_types": params.file_types,
+                    "chunk_types": params.chunk_types,
+                    "results": [],
+                    "count": 0,
+                    "message": "Intelligence engine not available - search tool needs proper integration"
+                }),
+                error: None,
+                usage: None,
+            })
+        }
     }
 }
 
