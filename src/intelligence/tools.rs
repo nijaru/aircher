@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 use super::{ContextualInsight, ImpactAnalysis, ContextSuggestions, Outcome, ProjectMomentum, CrossProjectInsight, AiConfiguration, CodeSearchResult};
+use super::ast_analysis::{ASTAnalysis};
+use super::CodeInsights;
 
 /// Tool interface for AI agents to interact with the Intelligence Engine
 #[async_trait]
@@ -57,6 +59,18 @@ pub trait IntelligenceTools: Send + Sync {
     /// Uses integrated semantic search engine to find relevant code sections
     /// based on natural language queries.
     async fn search_code_semantically(&self, query: &str, limit: usize) -> Result<Vec<CodeSearchResult>, String>;
+    
+    /// Analyze code structure using AST analysis
+    /// 
+    /// Provides syntactic and semantic analysis of code files to understand
+    /// structure, patterns, complexity, and relationships.
+    async fn analyze_code_structure(&self, file_path: &str) -> Result<ASTAnalysis, String>;
+    
+    /// Get intelligent code insights for a file
+    /// 
+    /// Combines AST analysis with contextual understanding to provide
+    /// comprehensive insights about code structure and patterns.
+    async fn get_code_insights(&self, file_path: &str) -> Result<CodeInsights, String>;
 }
 
 /// Example tool usage patterns for AI agents

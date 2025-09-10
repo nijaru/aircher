@@ -443,6 +443,16 @@ where
         // Delegate to base intelligence engine
         self.base_intelligence.search_code_semantically(query, limit).await
     }
+    
+    async fn analyze_code_structure(&self, file_path: &str) -> Result<super::ast_analysis::ASTAnalysis, String> {
+        // Delegate to base intelligence engine
+        self.base_intelligence.analyze_code_structure(file_path).await
+    }
+    
+    async fn get_code_insights(&self, file_path: &str) -> Result<super::CodeInsights, String> {
+        // Delegate to base intelligence engine
+        self.base_intelligence.get_code_insights(file_path).await
+    }
 }
 
 /// MCP-specific intelligence extensions

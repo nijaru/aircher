@@ -509,6 +509,16 @@ impl IntelligenceTools for TuiIntelligenceTools {
         // TUI tools don't have semantic search capability
         Err("Semantic search not available in TUI intelligence tools".to_string())
     }
+    
+    async fn analyze_code_structure(&self, _file_path: &str) -> Result<super::ASTAnalysis, String> {
+        // TUI tools don't have AST analysis capability
+        Err("AST analysis not available in TUI intelligence tools".to_string())
+    }
+    
+    async fn get_code_insights(&self, _file_path: &str) -> Result<super::CodeInsights, String> {
+        // TUI tools don't have full code insights capability
+        Err("Code insights not available in TUI intelligence tools".to_string())
+    }
 }
 
 impl Default for TuiIntelligenceTools {
