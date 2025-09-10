@@ -78,10 +78,12 @@ pub mod typeahead;
 pub mod model_selection;
 pub mod syntax_highlight;
 pub mod spinners;
+pub mod todo_panel;
 
 use auth_wizard::AuthWizard;
 use selection::SelectionModal;
 use session_browser::SessionBrowser;
+use todo_panel::TodoPanel;
 use settings::SettingsModal;
 use help::HelpModal;
 use autocomplete::AutocompleteEngine;
@@ -137,6 +139,7 @@ pub struct TuiManager {
     diff_viewer: DiffViewer,
     command_approval: CommandApprovalModal,
     auth_wizard: AuthWizard,
+    todo_panel: todo_panel::TodoPanel,
     // Autocomplete
     autocomplete: AutocompleteEngine,
     // Syntax highlighting
@@ -328,6 +331,7 @@ impl TuiManager {
             diff_viewer: DiffViewer::new(),
             command_approval: CommandApprovalModal::new(),
             auth_wizard: AuthWizard::new(),
+            todo_panel: TodoPanel::new(),
             // Autocomplete
             autocomplete: AutocompleteEngine::new(),
             // Syntax highlighting
@@ -487,6 +491,7 @@ impl TuiManager {
             diff_viewer: DiffViewer::new(),
             command_approval: CommandApprovalModal::new(),
             auth_wizard: AuthWizard::new(),
+            todo_panel: TodoPanel::new(),
             // Initialize autocomplete
             autocomplete: AutocompleteEngine::new(),
             // Initialize syntax highlighting
@@ -1696,12 +1701,14 @@ impl TuiManager {
         let input_area_height = self.calculate_input_height(screen_height) + 1; // +1 for info line
         let has_ops_line = self.get_streaming_display().is_some();
         let ops_height = if has_ops_line { 1 } else { 0 };
+        let todo_height = if self.todo_panel.is_visible() && !self.todo_panel.get_todos().is_empty() { 4 } else { 0 };
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(if self.messages.is_empty() { 5 } else { 0 }), // Welcome box
                 Constraint::Length(if self.messages.is_empty() { 1 } else { 0 }), // Tip line
                 Constraint::Min(1),    // Chat area
+                Constraint::Length(todo_height), // TODO panel
                 Constraint::Length(ops_height), // Operations line (streaming state) above input
                 Constraint::Length(input_area_height), // Dynamic input box area
                 Constraint::Length(1), // Status line
@@ -1716,21 +1723,26 @@ impl TuiManager {
         // Chat area
         self.draw_chat_area(f, chunks[2]);
 
+        // TODO panel
+        if todo_height > 0 {
+            self.todo_panel.render(f, chunks[3]);
+        }
+
         // Operations line (streaming state) just above input
         if let Some(streaming_display) = self.get_streaming_display() {
             use ratatui::widgets::Paragraph;
             let ops = Paragraph::new(streaming_display)
                 .style(Style::default().fg(Color::Rgb(107, 114, 128)));
-            if chunks.len() > 3 && chunks[3].height > 0 {
-                f.render_widget(ops, chunks[3]);
+            if chunks.len() > 4 && chunks[4].height > 0 {
+                f.render_widget(ops, chunks[4]);
             }
         }
 
-        // Input box area is at index 4
-        self.draw_input_box(f, chunks[4]);
+        // Input box area is at index 5
+        self.draw_input_box(f, chunks[5]);
 
-        // Status line is at index 5
-        self.draw_status_bar(f, chunks[5]);
+        // Status line is at index 6
+        self.draw_status_bar(f, chunks[6]);
 
         // Render modals (on top of everything)
         self.selection_modal.render(f, f.area());

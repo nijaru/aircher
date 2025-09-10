@@ -236,12 +236,12 @@ impl ModelSelectionOverlay {
             
             let provider_items: Vec<TypeaheadItem> = provider_legacy_items
                 .into_iter()
-                .map(|(name, _is_local, is_authenticated, _provider_config)| TypeaheadItem {
-                    label: format_provider_name_with_status_legacy(&name, config),
-                    value: name.clone(),
-                    description: Some(format_provider_description_with_auth_legacy(&name, config)),
-                    available: is_authenticated,
-                })
+                .map(|(name, _is_local, is_authenticated, _provider_config)| TypeaheadItem::new(
+                    format_provider_name_with_status_legacy(&name, config),
+                    name.clone(),
+                    Some(format_provider_description_with_auth_legacy(&name, config)),
+                    is_authenticated,
+                ))
                 .collect();
 
             self.provider_typeahead.set_items(provider_items);
@@ -260,12 +260,12 @@ impl ModelSelectionOverlay {
         let mut provider_items: Vec<_> = config.providers
             .keys()
             .map(|name| {
-                TypeaheadItem {
-                    label: format!("◦ {} (checking...)", format_provider_name(name)),
-                    value: name.clone(),
-                    description: Some("Verifying authentication status...".to_string()),
-                    available: false, // Temporarily unavailable until checked
-                }
+                TypeaheadItem::new(
+                    format!("◦ {} (checking...)", format_provider_name(name)),
+                    name.clone(),
+                    Some("Verifying authentication status...".to_string()),
+                    false, // Temporarily unavailable until checked
+                )
             })
             .collect();
             
@@ -309,12 +309,12 @@ impl ModelSelectionOverlay {
         
         let provider_items: Vec<TypeaheadItem> = provider_legacy_items
             .into_iter()
-            .map(|(name, _is_local, is_authenticated, _provider_config)| TypeaheadItem {
-                label: format_provider_name_with_status_legacy(&name, config),
-                value: name.clone(),
-                description: Some(format_provider_description_with_auth_legacy(&name, config)),
-                available: is_authenticated,
-            })
+            .map(|(name, _is_local, is_authenticated, _provider_config)| TypeaheadItem::new(
+                format_provider_name_with_status_legacy(&name, config),
+                name.clone(),
+                Some(format_provider_description_with_auth_legacy(&name, config)),
+                is_authenticated,
+            ))
             .collect();
 
         self.provider_typeahead.set_items(provider_items);
@@ -360,11 +360,11 @@ impl ModelSelectionOverlay {
             let provider_typeahead_items: Vec<TypeaheadItem> = provider_items
                 .into_iter()
                 .map(|(name, auth_status, _provider_config)| {
-                    TypeaheadItem {
-                        label: format_provider_name_with_auth_status(&name, &auth_status),
-                        value: name.clone(),
-                        description: Some(format_provider_description_with_auth_status(&name, &auth_status, config)),
-                        available: {
+                    TypeaheadItem::new(
+                        format_provider_name_with_auth_status(&name, &auth_status),
+                        name.clone(),
+                        Some(format_provider_description_with_auth_status(&name, &auth_status, config)),
+                        {
                             let is_auth = matches!(auth_status, AuthStatus::Authenticated);
                             // Special case: Ollama is always available even if not running (will auto-start or show empty models)
                             let is_available = if name == "ollama" {
@@ -375,7 +375,7 @@ impl ModelSelectionOverlay {
                             debug!("Provider {} auth status: {:?}, available: {}", name, auth_status, is_available);
                             is_available
                         },
-                    }
+                    )
                 })
                 .collect();
 
@@ -516,12 +516,12 @@ impl ModelSelectionOverlay {
                 )
             };
             
-            let no_auth_item = TypeaheadItem {
+            let no_auth_item = TypeaheadItem::new(
                 label,
-                value: "_no_auth".to_string(),
+                "_no_auth".to_string(),
                 description,
-                available: false,
-            };
+                false,
+            );
             debug!("Setting error message item: label='{}', description='{:?}'", 
                    no_auth_item.label, no_auth_item.description);
             self.model_typeahead.set_items(vec![no_auth_item]);
@@ -544,12 +544,12 @@ impl ModelSelectionOverlay {
             // Check if provider_manager is available
             if self.provider_manager.is_none() {
                 debug!("⏳ Provider manager not yet available, showing loading state for {}", self.current_provider);
-                let loading_item = TypeaheadItem {
-                    label: "🔄 Loading models...".to_string(),
-                    value: "_loading".to_string(),
-                    description: Some("Initializing provider connection".to_string()),
-                    available: false,
-                };
+                let loading_item = TypeaheadItem::new(
+                    "🔄 Loading models...".to_string(),
+                    "_loading".to_string(),
+                    Some("Initializing provider connection".to_string()),
+                    false,
+                );
                 self.model_typeahead.set_items(vec![loading_item]);
                 self.model_typeahead.set_current_value(None);
                 self.update_model_description();
@@ -580,28 +580,55 @@ impl ModelSelectionOverlay {
         
         // Add "Default" option for Anthropic providers (similar to Claude Code)
         if self.current_provider == "anthropic-api" || self.current_provider == "anthropic-pro" {
-            model_items.push(TypeaheadItem {
-                label: "Default (Smart model selection based on usage)".to_string(),
-                value: "default".to_string(),
-                description: Some("Automatically selects the best model based on task complexity and usage limits".to_string()),
-                available: true,
-            });
+            model_items.push(TypeaheadItem::new(
+                "Default (Smart model selection based on usage)".to_string(),
+                "default".to_string(),
+                Some("Automatically selects the best model based on task complexity and usage limits".to_string()),
+                true,
+            ));
         }
         
-        // Add regular models with proper icon columns
+        // Add regular models with rich metadata
         model_items.extend(models.into_iter()
             .enumerate()
             .map(|(idx, model)| {
-                // Create aligned icon columns for capabilities
-                let icons = format_model_icons(&model, idx == 0);
-                let formatted_label = format!("{} {}", icons, model.name);
-                
-                TypeaheadItem {
-                    label: formatted_label,
-                    value: model.name.clone(),
-                    description: format_model_description(&model),
-                    available: true, // Models are available if provider is configured
+                // Create capabilities list
+                let mut capabilities = Vec::new();
+                if model.supports_tools {
+                    capabilities.push("tools".to_string());
                 }
+                if model.supports_streaming {
+                    capabilities.push("streaming".to_string());
+                }
+                
+                // Create pricing metadata
+                let pricing = if model.input_cost_per_1m == 0.0 && model.output_cost_per_1m == 0.0 {
+                    None // Free models (Ollama)
+                } else {
+                    Some(crate::ui::typeahead::ModelPricing {
+                        input_cost: model.input_cost_per_1m / 1000.0,  // Convert to per 1K tokens
+                        output_cost: model.output_cost_per_1m / 1000.0, // Convert to per 1K tokens
+                        currency: "USD".to_string(),
+                    })
+                };
+                
+                // Create rich metadata
+                let metadata = crate::ui::typeahead::TypeaheadMetadata {
+                    context_window: Some(model.context_window),
+                    pricing,
+                    capabilities,
+                    provider_info: Some(self.current_provider.clone()),
+                    is_default: idx == 0, // First model is considered default
+                    is_large_context: model.context_window >= 1_000_000, // 1M+ tokens is large
+                };
+                
+                TypeaheadItem::with_metadata(
+                    model.name.clone(), // Use clean model name (icons now handled by metadata display)
+                    model.name.clone(),
+                    format_model_description(&model),
+                    true, // Models are available if provider is configured
+                    metadata,
+                )
             }));
 
         // If no models available, show provider-specific message
@@ -642,12 +669,12 @@ impl ModelSelectionOverlay {
                 )
             };
             
-            model_items.push(TypeaheadItem {
+            model_items.push(TypeaheadItem::new(
                 label,
-                value: "_empty".to_string(),
+                "_empty".to_string(),
                 description,
-                available: false,
-            });
+                false,
+            ));
         }
         
         // Sort models alphabetically by their actual model name (value), not the formatted label
@@ -770,12 +797,12 @@ impl ModelSelectionOverlay {
         self.models_fetched_for = Some(provider_name.to_string());
         
         // Update model typeahead to show loading state
-        let loading_item = TypeaheadItem {
-            label: "⏳ Loading models...".to_string(),
-            value: "_loading".to_string(),
-            description: Some("Fetching available models from provider".to_string()),
-            available: false,
-        };
+        let loading_item = TypeaheadItem::new(
+            "⏳ Loading models...".to_string(),
+            "_loading".to_string(),
+            Some("Fetching available models from provider".to_string()),
+            false,
+        );
         debug!("Setting loading state for provider: {}", provider_name);
         self.model_typeahead.set_items(vec![loading_item]);
         self.model_typeahead.set_current_value(None); // Clear current value to ensure loading shows
@@ -915,12 +942,12 @@ impl ModelSelectionOverlay {
                         }
                         
                         // Show error state
-                        let error_item = TypeaheadItem {
-                            label: "Failed to load models".to_string(),
-                            value: "_error".to_string(),
-                            description: Some(format!("Error: {}", error)),
-                            available: false,
-                        };
+                        let error_item = TypeaheadItem::new(
+                            "Failed to load models".to_string(),
+                            "_error".to_string(),
+                            Some(format!("Error: {}", error)),
+                            false,
+                        );
                         self.model_typeahead.set_items(vec![error_item]);
                         self.update_model_description();
                     }

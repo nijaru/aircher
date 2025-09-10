@@ -25,6 +25,120 @@ pub struct TypeaheadItem {
     pub value: String,
     pub description: Option<String>,
     pub available: bool,
+    // Rich metadata for enhanced model selection
+    pub metadata: Option<TypeaheadMetadata>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TypeaheadMetadata {
+    pub context_window: Option<u32>,    // Context window size (e.g., 200000)
+    pub pricing: Option<ModelPricing>,  // Input/output pricing
+    pub capabilities: Vec<String>,      // ["tools", "streaming", etc.]
+    pub provider_info: Option<String>,  // Additional provider-specific info
+    pub is_default: bool,              // ⭐ Default/recommended model
+    pub is_large_context: bool,        // 🧠 Large context models (1M+ tokens)
+}
+
+#[derive(Clone, Debug)]
+pub struct ModelPricing {
+    pub input_cost: f64,    // Cost per 1K input tokens
+    pub output_cost: f64,   // Cost per 1K output tokens  
+    pub currency: String,   // "USD"
+}
+
+impl TypeaheadItem {
+    /// Create a simple item without metadata
+    pub fn new(label: String, value: String, description: Option<String>, available: bool) -> Self {
+        Self {
+            label,
+            value,
+            description,
+            available,
+            metadata: None,
+        }
+    }
+
+    /// Create an enhanced item with metadata
+    pub fn with_metadata(
+        label: String,
+        value: String,
+        description: Option<String>,
+        available: bool,
+        metadata: TypeaheadMetadata,
+    ) -> Self {
+        Self {
+            label,
+            value,
+            description,
+            available,
+            metadata: Some(metadata),
+        }
+    }
+
+    /// Format context window for display (e.g., "200k ctx", "2M ctx")
+    pub fn format_context_window(&self) -> Option<String> {
+        if let Some(metadata) = &self.metadata {
+            if let Some(context) = metadata.context_window {
+                return Some(if context >= 1_000_000 {
+                    format!("{}M ctx", context / 1_000_000)
+                } else if context >= 1_000 {
+                    format!("{}k ctx", context / 1_000)
+                } else {
+                    format!("{} ctx", context)
+                });
+            }
+        }
+        None
+    }
+
+    /// Format pricing for display (e.g., "$3.00⇄$15.00", "Free")
+    pub fn format_pricing(&self) -> Option<String> {
+        if let Some(metadata) = &self.metadata {
+            if let Some(pricing) = &metadata.pricing {
+                if pricing.input_cost == 0.0 && pricing.output_cost == 0.0 {
+                    return Some("Free".to_string());
+                } else {
+                    return Some(format!(
+                        "${:.2}⇄${:.2}",
+                        pricing.input_cost, pricing.output_cost
+                    ));
+                }
+            }
+        }
+        None
+    }
+
+    /// Get capability icons (e.g., "🔧⚡")
+    pub fn get_capability_icons(&self) -> String {
+        if let Some(metadata) = &self.metadata {
+            let mut icons = String::new();
+            for capability in &metadata.capabilities {
+                match capability.as_str() {
+                    "tools" | "function_calling" => icons.push('🔧'),
+                    "streaming" => icons.push('⚡'),
+                    "vision" => icons.push('👁'),
+                    _ => {}
+                }
+            }
+            return icons;
+        }
+        String::new()
+    }
+
+    /// Get status icons (⭐ for default, 🧠 for large context)
+    pub fn get_status_icons(&self) -> String {
+        if let Some(metadata) = &self.metadata {
+            let mut icons = String::new();
+            if metadata.is_default {
+                icons.push('⭐');
+            }
+            if metadata.is_large_context {
+                icons.push('🧠');
+            }
+            return icons;
+        }
+        String::new()
+    }
 }
 
 impl TypeaheadOverlay {
@@ -268,7 +382,7 @@ impl TypeaheadOverlay {
                 spans.push(Span::raw("  "));
             }
             
-            // Add label
+            // Add label with status icons
             let label_style = if item.available {
                 if is_current {
                     Style::default().add_modifier(Modifier::BOLD) // Bold for current selection
@@ -278,11 +392,38 @@ impl TypeaheadOverlay {
             } else {
                 Style::default().fg(Color::DarkGray)
             };
+            
+            // Add status icons before label (⭐ 🧠)
+            let status_icons = item.get_status_icons();
+            if !status_icons.is_empty() {
+                spans.push(Span::styled(format!("{} ", status_icons), Style::default()));
+            }
+            
             spans.push(Span::styled(&item.label, label_style));
             
-            // Note: Availability status is already shown in the label with icons
+            // Add capability icons after label (🔧⚡)
+            let capability_icons = item.get_capability_icons();
+            if !capability_icons.is_empty() {
+                spans.push(Span::styled(format!(" {}", capability_icons), Style::default().fg(Color::Yellow)));
+            }
             
-            // Add description if present
+            // Add context window info
+            if let Some(context) = item.format_context_window() {
+                spans.push(Span::styled(
+                    format!(" • {}", context), 
+                    Style::default().fg(Color::Blue)
+                ));
+            }
+            
+            // Add pricing info
+            if let Some(pricing) = item.format_pricing() {
+                spans.push(Span::styled(
+                    format!(" • {}", pricing), 
+                    Style::default().fg(Color::Green)
+                ));
+            }
+            
+            // Add description if present (kept for backwards compatibility)
             if let Some(desc) = &item.description {
                 spans.push(Span::styled(
                     format!(" - {}", desc), 
