@@ -1,150 +1,179 @@
 # Aircher Competitive Development Roadmap
 
-*Strategic plan to make Aircher competitive with Amp, Claude Code, and other coding agents*
+*Strategic plan to make Aircher the multi-modal model expert agent*
 
-## Our Market Position
+## Our Market Position (2025 Refined)
 
-**Target Users**: Developers who want:
-- **Choice** in models and providers (vs Amp's "always best models")
-- **Transparency** in costs and usage
-- **Local options** (Ollama) alongside cloud providers
-- **Fast terminal interface** (vs Electron-based competitors)
+**The Multi-Modal Model Expert Agent** - serving developers who want:
+- **Model Selection Transparency** (vs Amp's "always best models")
+- **Multi-Modal Access** (Terminal TUI + Editor Integration via ACP)
+- **Provider Flexibility** (Local Ollama + Cloud providers with cost transparency)
+- **Performance Advantage** (Rust native vs Electron/Node.js alternatives)
+- **Standards Compliance** (ACP compatibility for future-proofing)
 
-## Competitive Analysis
+## Competitive Analysis (2025 ACP Era)
 
 ### vs Amp
-- **Amp's Strength**: Curated "always best" models, no choice complexity
-- **Our Advantage**: Model selection transparency, multi-provider flexibility, local model support
-- **Must Match**: TODO panel, tool calling reliability, conversation UX
+- **Amp's Strength**: Curated "always best" models, simplified experience
+- **Our Advantage**: Model selection transparency + dual-mode access (TUI + ACP)
+- **Strategic Edge**: Work in both terminal AND editor environments
 
 ### vs Claude Code  
-- **Their Weakness**: Electron-based, performance issues with long conversations
-- **Our Advantage**: Native Rust TUI, fast startup, efficient rendering
-- **Must Match**: Polish, conversation threading
+- **Their Strength**: Native Anthropic integration, ACP support in Zed
+- **Our Advantage**: Multi-provider choice + ACP compatibility + terminal performance
+- **Differentiation**: Model transparency while matching ACP standards
 
 ### vs OpenCode/Cursor
-- **Their Strength**: IDE integration
-- **Our Advantage**: Terminal-first workflow, faster for CLI-heavy developers
-- **Must Match**: Code editing capabilities
+- **Their Strength**: Rich IDE integration
+- **Our Advantage**: Standards-compliant ACP + terminal workflow + multi-provider
+- **Future Position**: Work across editors (Zed, VS Code future, Neovim) vs vendor lock-in
 
-## Development Phases
+### New Competitive Landscape: ACP-Native Agents
+- **Industry Direction**: Agent Client Protocol becoming standard (Google + Zed + Anthropic)
+- **Our Position**: First to combine model selection transparency WITH ACP compatibility
+- **Unique Value**: Terminal performance + Editor integration + Provider choice
 
-### Phase 1: Core Functionality (Week 1)
-**Goal**: Fix critical blockers, establish foundation
+## Development Phases (Dual-Mode Architecture)
 
-**Priority Tasks**:
-1. **Fix Tool Calling System** (Critical)
-   - Debug tool execution pipeline
-   - Fix agent-to-TUI tool integration
-   - Test end-to-end tool workflows
+### Phase 1: Architecture Foundation (Week 1)
+**Goal**: Refactor for dual-mode operation (TUI + ACP)
 
-2. **Enhanced Model Selection UX** (Differentiation)
-   - Polish model picker with rich metadata
-   - Add cost estimation and comparison
-   - Smart recommendations based on task type
-
-3. **Clean Codebase** (Quality)
-   - Fix all build warnings (currently 8)
-   - Optimize imports and dead code
-   - Improve error handling
-
-4. **Basic TODO System** (Parity)
-   - Implement TODO panel in TUI
-   - Basic CRUD operations for tasks
-   - Integration with agent tool execution
-
-**Success Metrics**:
-- ✅ Agent can successfully use tools (read_file, write_file, run_command)
-- ✅ Model selection feels polished and informative
-- ✅ Zero compiler warnings
-- ✅ Basic TODO tracking functional
-
-### Phase 2: UX Polish (Week 2-3)
-**Goal**: Match Amp's conversation experience
+**✅ Completed Tasks**:
+- ✅ Agent controller with 6 core tools
+- ✅ TODO panel integrated into TUI
+- ✅ Rich model selection with metadata
+- ✅ Tool calling system functional
 
 **Priority Tasks**:
-1. **Collapsible Tool Outputs**
-   - Clean conversation view with expandable sections
-   - Smart summarization of tool results
-   - Performance optimization for long conversations
+1. **Shared Agent Core** (Architecture)
+   - Extract agent logic from TUI coupling
+   - Create mode-agnostic conversation management
+   - Implement pluggable tool execution layer
 
-2. **Thread Persistence** 
-   - Save and resume conversations
-   - Thread management interface
-   - Search/browse previous conversations
+2. **ACP Foundation** (Standards)
+   - Add `agent-client-protocol` dependency
+   - Implement basic `Agent` trait
+   - Create JSON-RPC entry point
 
-3. **File Change Tracking**
-   - Track agent file modifications
-   - Revert/undo functionality
-   - Diff visualization
-
-4. **Enhanced Conversation UI**
-   - Better message formatting
-   - Syntax highlighting in tool outputs
-   - Progress indicators and streaming
+3. **Tool Layer Abstraction** (Flexibility)
+   - Direct tools for TUI mode
+   - Client-mediated tools for ACP mode
+   - Unified tool interface
 
 **Success Metrics**:
-- ✅ Long conversations remain performant
-- ✅ Tool outputs are cleanly presented
-- ✅ Users can easily revert unwanted changes
-- ✅ Conversation history is persistent and searchable
+- ✅ Agent core works independently of UI
+- ✅ Basic ACP agent responds to initialize/prompt
+- ✅ Tool execution adapts to mode
 
-### Phase 3: Differentiation (Week 4+)
-**Goal**: Establish unique competitive advantages
+### Phase 2: Dual-Mode Implementation (Week 2)  
+**Goal**: Working TUI and ACP modes
 
 **Priority Tasks**:
-1. **Superior Model Selection**
-   - Real-time model availability
-   - Cost tracking and budgeting
-   - Performance comparisons
-   - Context window optimization
+1. **Entry Point Refactoring**
+   - `--acp` flag for ACP mode
+   - `--tui` (default) for terminal mode
+   - Shared configuration system
 
-2. **Multi-Provider Excellence**
-   - Seamless provider switching
-   - Fallback mechanisms
-   - Cost optimization across providers
-   - Usage analytics
+2. **Session Management**
+   - ACP-compatible session handling
+   - State externalization 
+   - Multi-session support
 
-3. **Local Model Advantage**
-   - Enhanced Ollama integration
-   - Model management (install/update)
-   - Hybrid local/cloud workflows
-   - Privacy-focused features
+3. **Tool System Integration**
+   - File operations via ACP client requests
+   - Command execution with permissions
+   - Streaming tool output
 
-4. **Developer Workflow Integration**
-   - Git integration improvements
-   - Project-specific agent memory
-   - Custom tool development
-   - Workflow automation
+4. **Zed Integration Testing**
+   - Test with real Zed editor
+   - Validate tool execution flow
+   - Debug ACP protocol issues
 
 **Success Metrics**:
-- ✅ Users prefer our model selection over competitors
-- ✅ Multi-provider setup is seamless
-- ✅ Local model integration feels native
-- ✅ Developers adopt Aircher as primary coding agent
+- ✅ Works in Zed editor via ACP
+- ✅ TUI mode unchanged experience
+- ✅ Tools work in both modes
+- ✅ Session persistence across modes
 
-## Technical Architecture
+### Phase 3: Polish & Differentiation (Week 3-4)
+**Goal**: Market-ready dual-mode agent
 
-### TUI Layout (Revised)
+**Priority Tasks**:
+1. **Enhanced ACP Features**
+   - Rich tool metadata in ACP responses
+   - Progress indication for long operations
+   - Error handling and recovery
+
+2. **Model Selection Integration**
+   - Provider choice in ACP mode
+   - Cost tracking across modes
+   - Performance monitoring
+
+3. **Advanced Capabilities**
+   - Multi-file operations
+   - Project context awareness
+   - Git integration via ACP
+
+4. **Documentation & Examples**
+   - ACP integration guide
+   - Zed setup instructions
+   - Developer examples
+
+**Success Metrics**:
+- ✅ Competitive with Claude Code in Zed
+- ✅ Unique model selection advantages clear
+- ✅ Performance benefits demonstrated
+- ✅ Community adoption starts
+
+## Technical Architecture (Dual-Mode)
+
+### Layered Architecture Design
 ```
-┌─ Aircher Agent ─────────────────────────────────────┐
-│                                                     │
-│ [Conversation Area - Expandable]                    │
-│                                                     │
-├─ TODO Tasks ────────────────────────────────────────┤
-│ ☐ Task 1  ✓ Task 2  🔄 Task 3                      │
-├─────────────────────────────────────────────────────┤
-│ > Input Area - Auto-expanding                       │
-└─────────────────────────────────────────────────────┘
-  Status Bar: Model • Context • Cost • Tasks
+┌─────────────────────────────────────────────────────────────┐
+│                    User Interfaces                          │
+│  ┌─────────────────┐              ┌─────────────────────────┐│
+│  │   TUI Mode      │              │     ACP Mode            ││
+│  │   (ratatui)     │              │  (JSON-RPC/stdio)      ││
+│  │                 │              │                         ││
+│  │ ┌─Conversation─┐│              │  ┌─Editor Integration─┐ ││
+│  │ ├─TODO Panel──┤│              │  │  • File Operations  │ ││
+│  │ ├─Input──────┤ │              │  │  • Tool Execution   │ ││
+│  │ └─Status Bar─┘ │              │  │  • Session Mgmt     │ ││
+│  └─────────────────┘              └─────────────────────────┘│
+├─────────────────────────────────────────────────────────────┤
+│              Aircher Agent Core                             │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │  • Model Selection & Provider Management               ││
+│  │  • Conversation Management                             ││  
+│  │  • Intelligence Engine                                 ││
+│  │  • Session State Management                            ││
+│  └─────────────────────────────────────────────────────────┘│
+├─────────────────────────────────────────────────────────────┤
+│                Tool Execution Layer                         │
+│  ┌─────────────────┐              ┌─────────────────────────┐│
+│  │  Direct Tools   │              │  Client-Mediated Tools  ││
+│  │  (TUI mode)     │              │     (ACP mode)          ││
+│  │  • file_ops     │              │  • client.read_file()   ││
+│  │  • run_command  │              │  • client.write_file()  ││
+│  │  • search_code  │              │  • client.run_command() ││
+│  └─────────────────┘              └─────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Key Components to Build
-1. **TodoPanel** - Task tracking widget
-2. **ConversationView** - Collapsible message renderer  
-3. **ModelSelector** - Enhanced model picker with metadata
-4. **ThreadManager** - Conversation persistence
-5. **FileTracker** - Change tracking and revert system
+### Key Architectural Principles
+1. **Shared Core Logic** - Model selection, conversation, intelligence same for both modes
+2. **Pluggable Interfaces** - Tool execution adapts based on mode
+3. **State Externalization** - Session management works locally and remotely
+4. **Configuration-Driven** - Single codebase, runtime behavior selection
+
+### Entry Points
+```rust
+// src/main.rs
+match args.get(1) {
+    Some("--acp") => acp_main().await,    // Agent Client Protocol mode
+    _ => tui_main().await,                // Terminal User Interface mode
+}
+```
 
 ## Success Metrics
 
