@@ -1,6 +1,6 @@
 # Aircher Agent Instructions
 
-This document provides context and instructions for AI agents working with the Aircher project.
+Entry point for AI agents working with Aircher - the multi-modal AI coding agent.
 
 @external/agent-contexts/AI_AGENT_INDEX.md
 
@@ -9,28 +9,29 @@ This document provides context and instructions for AI agents working with the A
 @internal/DECISIONS.md             # Major decisions (append-only)
 @internal/KNOWLEDGE.md             # Patterns & learnings
 @COMPETITIVE_ROADMAP.md            # Strategic development plan
+@IMPLEMENTATION_PLAN.md            # Agent-first architecture plan
 
-## Intelligence System Design
-@docs/intelligence/autonomous-agent-design.md  # Core autonomous intelligence architecture
-@docs/intelligence/refactoring-plan.md         # Implementation roadmap and phases
-@docs/ui/tui-interface-design.md               # TUI enhancements for intelligence features
+## Current Architecture Direction
+@docs/architecture/agent-first-architecture.md  # CRITICAL: New unified agent design
+@internal/STATUS.md                             # Development phase tracking
+@internal/TECH_SPEC.md                          # Technical specifications
 
 ## Project Overview
 
-Aircher is a **semantic code search engine** with TUI interface built in Rust. Currently production-ready for search functionality, with AI chat capabilities in development.
+Aircher is evolving into a **dual-mode AI coding agent** with both Terminal UI (TUI) and Agent Client Protocol (ACP) support.
+
+**Architecture Principle**: Single UnifiedAgent implementation with multiple frontends (TUI uses LocalClient, editors use ACP).
+
+**Current Refactor Priority**: 
+- Implementing agent-first architecture to eliminate duplicate agent logic
+- TUI becomes a client to the ACP-compatible agent core
+- Ensures consistency across all interfaces
 
 **What Works Today:**
 - Advanced semantic code search (production-ready)
-- TUI interface with graceful auth flow 
-- Multi-provider authentication (Claude, OpenAI, Gemini, Ollama)
-- Demo mode (full functionality without API keys)
-
-**What's Missing (Current Development Priority):**
-- Tool calling system integration (critical blocker)
-- TODO panel implementation (Amp-inspired task tracking)
-- Thread persistence and conversation management
-- File change tracking and revert capabilities
-- Enhanced model selection UX (our competitive advantage)
+- TUI interface with model selection and auth flow
+- Multi-provider support (Claude, OpenAI, Gemini, Ollama)
+- Tool calling system (6 core tools functional)
 
 ## Current Status
 
