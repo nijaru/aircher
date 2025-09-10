@@ -1,22 +1,27 @@
 # TODO - Current Tasks & Priorities
 
-**Last Updated**: 2025-09-10
+**Last Updated**: 2025-01-10
 
-## 🚨 Immediate (This Week) - DUAL-MODE ARCHITECTURE
+## 🚨 CRITICAL: Agent-First Architecture Refactor
 
-### Phase 1: Architecture Foundation (Week 1)
+### Why This Matters
+**Problem**: We have duplicate agent implementations (TUI AgentController vs ACP Agent)  
+**Solution**: Single UnifiedAgent with TUI as a client frontend  
+**Impact**: Consistency, maintainability, true ACP compliance
+
+### Immediate Tasks (This Week)
+- [ ] Create UnifiedAgent implementing ACP Agent trait
+- [ ] Move tool registry and execution to UnifiedAgent
+- [ ] Implement LocalClient for TUI direct access
+- [ ] Refactor TUI to use client abstraction
+- [ ] Test identical behavior between TUI and ACP modes
+
+### Architecture Foundation Progress
 - [x] Strategic analysis and planning (ACP compatibility assessed)  
 - [x] Update competitive positioning for dual-mode approach
-- [ ] Add agent-client-protocol dependency
-- [ ] Extract agent core from TUI coupling
-- [ ] Create shared agent core with pluggable tool layer
-- [ ] Implement basic ACP Agent trait
-
-### Completed Recent Work
-- [x] TODO panel integrated into TUI layout
-- [x] Rich model selection with metadata (context, pricing, capabilities)
-- [x] Tool calling system validated (6 core tools working)
-- [x] Agent controller properly connected to TUI
+- [x] Add agent-client-protocol dependency (feature-flagged)
+- [x] Create implementation plan for agent-first architecture
+- [x] Build proof of concept showing viability
 
 ## 📋 Next Sprint (Phase 2 - Tool Calling Loop)
 
