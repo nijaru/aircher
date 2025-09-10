@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use super::{ContextualInsight, ImpactAnalysis, ContextSuggestions, Outcome, ProjectMomentum, CrossProjectInsight, AiConfiguration};
+use super::{ContextualInsight, ImpactAnalysis, ContextSuggestions, Outcome, ProjectMomentum, CrossProjectInsight, AiConfiguration, CodeSearchResult};
 
 /// Tool interface for AI agents to interact with the Intelligence Engine
 #[async_trait]
@@ -51,6 +51,12 @@ pub trait IntelligenceTools: Send + Sync {
     /// Discovers and loads AGENT.md, .cursorrules, and other AI config files
     /// to provide consistent context across tools.
     async fn load_ai_configuration(&self) -> AiConfiguration;
+    
+    /// Perform semantic search on the codebase
+    /// 
+    /// Uses integrated semantic search engine to find relevant code sections
+    /// based on natural language queries.
+    async fn search_code_semantically(&self, query: &str, limit: usize) -> Result<Vec<CodeSearchResult>, String>;
 }
 
 /// Example tool usage patterns for AI agents

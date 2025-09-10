@@ -504,6 +504,11 @@ impl IntelligenceTools for TuiIntelligenceTools {
         
         config
     }
+    
+    async fn search_code_semantically(&self, _query: &str, _limit: usize) -> Result<Vec<super::CodeSearchResult>, String> {
+        // TUI tools don't have semantic search capability
+        Err("Semantic search not available in TUI intelligence tools".to_string())
+    }
 }
 
 impl Default for TuiIntelligenceTools {
