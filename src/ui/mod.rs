@@ -28,7 +28,8 @@ use crate::intelligence::tui_tools::TuiIntelligenceTools;
 use crate::intelligence::tools::IntelligenceTools;
 use crate::intelligence::file_monitor;
 use crate::semantic_search::SemanticCodeSearch;
-use crate::agent::{AgentController, conversation::ProgrammingLanguage};
+use crate::agent::conversation::ProgrammingLanguage;
+use crate::ui::agent_integration::AgentIntegration;
 use crate::agent::streaming::{AgentStream, AgentUpdate};
 use crate::auth::AuthManager;
 
@@ -79,6 +80,7 @@ pub mod model_selection;
 pub mod syntax_highlight;
 pub mod spinners;
 pub mod todo_panel;
+pub mod agent_integration;
 
 use auth_wizard::AuthWizard;
 use selection::SelectionModal;
@@ -129,7 +131,7 @@ pub struct TuiManager {
     // Semantic search
     semantic_search: SemanticCodeSearch,
     // AI Agent
-    agent_controller: Option<AgentController>,
+    agent_integration: Option<AgentIntegration>,
     // Modals
     selection_modal: SelectionModal,
     settings_modal: SettingsModal,
@@ -305,7 +307,7 @@ impl TuiManager {
             // Semantic search
             semantic_search,
             // AI Agent
-            agent_controller: None, // Will be initialized when needed
+            agent_integration: None, // Will be initialized when needed
             // Modals
             selection_modal: if let Some(ref providers) = providers {
                 SelectionModal::new(providers.as_ref(), config)
@@ -474,7 +476,7 @@ impl TuiManager {
             // Semantic search
             semantic_search,
             // AI Agent
-            agent_controller: None, // Will be initialized when needed
+            agent_integration: None, // Will be initialized when needed
             // Initialize modals
             selection_modal: SelectionModal::new(providers, config),
             settings_modal: SettingsModal::new(config),
@@ -2753,25 +2755,25 @@ impl TuiManager {
         
         // Try to use agent controller for enhanced functionality
         // Switch to schlepping mode before agent processing
-        let should_use_agent = self.agent_controller.is_some();
+        let should_use_agent = self.agent_integration.is_some();
         if should_use_agent {
             self.start_schlepping();
         }
         
-        if let Some(ref mut agent) = self.agent_controller {
+        if let Some(ref agent) = self.agent_integration {
             // Get provider for agent
             debug!("send_message: attempting to use provider '{}' with model '{}'", self.provider_name, self.model);
             let provider = providers
                 .get_provider_or_host(&self.provider_name)
                 .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", self.provider_name))?;
             
-            info!("Using agent controller for enhanced AI assistance");
+            info!("Using agent integration for enhanced AI assistance");
             
             // Set agent processing state
             self.agent_processing = true;
             
-            // Process message through agent with streaming
-            match agent.process_message_streaming(&message, provider, &self.model).await {
+            // Use new streaming implementation
+            match agent.send_message_streaming(message.clone(), Some(self.provider_name.clone()), Some(self.model.clone())).await {
                 Ok(mut agent_stream) => {
                     // Add user message to local display
                     let user_msg = Message::new(MessageRole::User, message.clone());
@@ -3180,12 +3182,12 @@ impl TuiManager {
     
     /// Initialize agent controller for coding assistance  
     async fn ensure_agent_initialized(&mut self, _providers: &ProviderManager) -> Result<()> {
-        if self.agent_controller.is_none() {
+        if self.agent_integration.is_none() {
             // Create database manager for intelligence engine
             let database_manager = DatabaseManager::new(&self.config).await?;
             
             // Create intelligence engine
-            let intelligence = crate::intelligence::IntelligenceEngine::new(&self.config, &database_manager).await?;
+            let _intelligence = crate::intelligence::IntelligenceEngine::new(&self.config, &database_manager).await?;
             
             // Detect project language and create project context
             let root_path = std::env::current_dir()?;
@@ -3197,29 +3199,14 @@ impl TuiManager {
                 recent_changes: Vec::new(),
             };
             
-            // Initialize agent controller
-            let mut controller = AgentController::new(intelligence, self.auth_manager.clone(), project_context)?;
+            // Initialize agent integration (replaces AgentController)
+            let agent_integration = AgentIntegration::new(
+                &self.config,
+                self.auth_manager.clone(), 
+                project_context
+            ).await?;
             
-            // Register default tools
-            controller.register_tool(Box::new(crate::agent::tools::file_ops::ReadFileTool::new()));
-            controller.register_tool(Box::new(crate::agent::tools::file_ops::WriteFileTool::new()));
-            controller.register_tool(Box::new(crate::agent::tools::file_ops::ListFilesTool::new()));
-            controller.register_tool(Box::new(crate::agent::tools::code_analysis::SearchCodeTool::new()));
-            controller.register_tool(Box::new(crate::agent::tools::code_analysis::FindDefinitionTool::new()));
-            
-            // Create RunCommandTool with permissions
-            if let Some(perm_tx) = &self.permission_tx {
-                let permissions_arc = std::sync::Arc::new(tokio::sync::Mutex::new(self.permissions_manager.clone()));
-                let run_command_tool = crate::agent::tools::system_ops::RunCommandTool::with_permissions(
-                    permissions_arc,
-                    Some(perm_tx.clone())
-                );
-                controller.register_tool(Box::new(run_command_tool));
-            } else {
-                controller.register_tool(Box::new(crate::agent::tools::system_ops::RunCommandTool::new()));
-            }
-            
-            self.agent_controller = Some(controller);
+            self.agent_integration = Some(agent_integration);
             info!("Agent controller initialized successfully");
         }
         Ok(())
@@ -4018,8 +4005,8 @@ function farewell(name) {
             }
         }
 
-        if let Some(ref mut agent) = self.agent_controller {
-            match agent.process_message_streaming(&message, provider, &self.model).await {
+        if let Some(ref agent) = self.agent_integration {
+            match agent.send_message_streaming(message.clone(), Some(self.provider_name.clone()), Some(self.model.clone())).await {
                 Ok(stream) => {
                     // Start streaming state and create placeholder assistant message
                     self.start_streaming();

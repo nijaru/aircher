@@ -17,7 +17,7 @@ pub struct Message {
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum MessageRole {
     User,
     Assistant,

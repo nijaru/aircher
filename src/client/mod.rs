@@ -7,6 +7,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use crate::agent::streaming::AgentStream;
 
 pub mod local;
 // pub mod remote; // Future: for network access
@@ -62,6 +63,15 @@ pub trait AgentClient: Send + Sync {
         provider: Option<String>,
         model: Option<String>,
     ) -> Result<AgentResponse>;
+    
+    /// Send a prompt with streaming response
+    async fn send_prompt_streaming(
+        &self,
+        session_id: &str,
+        message: String,
+        provider: Option<String>,
+        model: Option<String>,
+    ) -> Result<AgentStream>;
     
     /// Execute a specific tool
     async fn execute_tool(
