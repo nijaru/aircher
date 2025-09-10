@@ -3,6 +3,7 @@ pub mod acp;
 pub mod agent;
 pub mod app;
 pub mod auth;
+pub mod client;
 pub mod cli;
 pub mod commands;
 pub mod config;
