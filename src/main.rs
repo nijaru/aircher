@@ -1,9 +1,14 @@
 use anyhow::Result;
-use std::{env, sync::Arc};
+use std::env;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use aircher::cli::CliApp;
+
+#[cfg(feature = "acp")]
+use std::sync::Arc;
+#[cfg(feature = "acp")]
 use aircher::config::ConfigManager;
+#[cfg(feature = "acp")]
 use aircher::auth::AuthManager;
 
 #[tokio::main]
@@ -15,7 +20,13 @@ async fn main() -> Result<()> {
     let mode = determine_mode(&args);
     
     match mode {
+        #[cfg(feature = "acp")]
         Mode::Acp => acp_main().await,
+        #[cfg(not(feature = "acp"))]
+        Mode::Acp => {
+            eprintln!("ACP mode not available - compiled without 'acp' feature");
+            std::process::exit(1);
+        },
         Mode::Tui => tui_main(args).await,
         Mode::Cli => cli_main(args).await,
     }
@@ -50,6 +61,7 @@ fn determine_mode(args: &[String]) -> Mode {
     }
 }
 
+#[cfg(feature = "acp")]
 /// Entry point for Agent Client Protocol mode
 async fn acp_main() -> Result<()> {
     // Initialize logging for ACP mode (to stderr, won't interfere with JSON-RPC on stdout)

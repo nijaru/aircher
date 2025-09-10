@@ -32,14 +32,15 @@ pub async fn acp_main(
     // Initialize project context
     let project_context = ProjectContext {
         root_path: std::env::current_dir()?,
-        name: "ACP Project".to_string(), // ACP clients provide project context
-        language: crate::agent::conversation::ProgrammingLanguage::Mixed,
-        framework: None,
-        dependencies: Vec::new(),
+        recent_changes: Vec::new(),
     };
 
     // Initialize intelligence engine  
-    let intelligence = IntelligenceEngine::new()?;
+    // For now, create a basic config and database manager
+    // TODO: Properly pass these from the caller
+    use crate::storage::DatabaseManager;
+    let db_manager = DatabaseManager::new().await?;
+    let intelligence = IntelligenceEngine::new(&config, &db_manager).await?;
 
     // Create ACP agent
     let agent = AircherAcpAgent::new(

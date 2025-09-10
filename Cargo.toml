@@ -15,13 +15,14 @@ default = []
 testing = []
 benchmarks = ["testing"]
 mcp = ["rmcp", "rmcp-macros"]
+acp = ["agent-client-protocol"]
 
 [dependencies]
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
 
 # Agent Client Protocol support
-agent-client-protocol = "0.1.1"
+agent-client-protocol = { version = "0.1.1", optional = true }
 
 # HTTP client for API calls
 reqwest = { version = "0.12", features = ["json", "stream"] }

@@ -1,3 +1,4 @@
+#[cfg(feature = "acp")]
 pub mod acp;
 pub mod agent;
 pub mod app;

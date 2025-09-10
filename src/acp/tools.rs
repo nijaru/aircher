@@ -6,13 +6,15 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
+use std::sync::Arc;
 
 use crate::agent::tools::{AgentTool, ToolOutput, ToolError};
 
 /// ACP client connection for making requests to the editor
 /// This will be provided by the ACP connection when tools are executed
+#[async_trait]
 pub trait AcpClient: Send + Sync {
     async fn read_file(&self, path: &str) -> Result<String>;
     async fn write_file(&self, path: &str, content: &str) -> Result<()>;
@@ -22,11 +24,11 @@ pub trait AcpClient: Send + Sync {
 
 /// Read file tool that works via ACP client requests
 pub struct AcpReadFileTool {
-    client: Box<dyn AcpClient>,
+    client: Arc<dyn AcpClient>,
 }
 
 impl AcpReadFileTool {
-    pub fn new(client: Box<dyn AcpClient>) -> Self {
+    pub fn new(client: Arc<dyn AcpClient>) -> Self {
         Self { client }
     }
 }
@@ -111,11 +113,11 @@ impl AgentTool for AcpReadFileTool {
 
 /// Write file tool that works via ACP client requests
 pub struct AcpWriteFileTool {
-    client: Box<dyn AcpClient>,
+    client: Arc<dyn AcpClient>,
 }
 
 impl AcpWriteFileTool {
-    pub fn new(client: Box<dyn AcpClient>) -> Self {
+    pub fn new(client: Arc<dyn AcpClient>) -> Self {
         Self { client }
     }
 }
@@ -179,11 +181,11 @@ impl AgentTool for AcpWriteFileTool {
 
 /// Command execution tool that works via ACP client requests
 pub struct AcpRunCommandTool {
-    client: Box<dyn AcpClient>,
+    client: Arc<dyn AcpClient>,
 }
 
 impl AcpRunCommandTool {
-    pub fn new(client: Box<dyn AcpClient>) -> Self {
+    pub fn new(client: Arc<dyn AcpClient>) -> Self {
         Self { client }
     }
 }
@@ -248,7 +250,7 @@ impl AgentTool for AcpRunCommandTool {
 }
 
 /// Create ACP-compatible tool registry
-pub fn create_acp_tool_registry(client: Box<dyn AcpClient>) -> crate::agent::tools::ToolRegistry {
+pub fn create_acp_tool_registry(client: Arc<dyn AcpClient>) -> crate::agent::tools::ToolRegistry {
     let mut registry = crate::agent::tools::ToolRegistry::new();
 
     // Register ACP-compatible tools
