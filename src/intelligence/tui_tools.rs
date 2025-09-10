@@ -519,6 +519,33 @@ impl IntelligenceTools for TuiIntelligenceTools {
         // TUI tools don't have full code insights capability
         Err("Code insights not available in TUI intelligence tools".to_string())
     }
+    
+    async fn initialize_project_memory(&mut self, _project_root: std::path::PathBuf) -> Result<(), String> {
+        // TUI tools don't support persistent memory initialization
+        Err("Project memory initialization not available in TUI intelligence tools".to_string())
+    }
+    
+    async fn start_session(&self, _session_id: Option<String>) -> Result<Option<String>, String> {
+        // TUI tools don't support session management
+        Ok(None)
+    }
+    
+    async fn record_learning(
+        &self,
+        _session_id: &str,
+        _user_query: &str,
+        _files_involved: &[String],
+        _tools_used: &[String],
+        _outcome: super::Outcome,
+    ) -> Result<(), String> {
+        // TUI tools don't support learning recording
+        Ok(())
+    }
+    
+    async fn get_relevant_patterns(&self, _query: &str, _session_id: &str) -> Result<Vec<String>, String> {
+        // TUI tools don't have persistent pattern storage
+        Ok(Vec::new())
+    }
 }
 
 impl Default for TuiIntelligenceTools {

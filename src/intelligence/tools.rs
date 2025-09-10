@@ -71,6 +71,37 @@ pub trait IntelligenceTools: Send + Sync {
     /// Combines AST analysis with contextual understanding to provide
     /// comprehensive insights about code structure and patterns.
     async fn get_code_insights(&self, file_path: &str) -> Result<CodeInsights, String>;
+    
+    /// Initialize persistent memory for learning from interactions
+    /// 
+    /// Sets up project-specific memory that persists across sessions,
+    /// enabling the agent to learn and improve over time.
+    async fn initialize_project_memory(&mut self, project_root: std::path::PathBuf) -> Result<(), String>;
+    
+    /// Start or resume a memory session
+    /// 
+    /// Creates a persistent session that tracks conversation context
+    /// and learns from successful patterns.
+    async fn start_session(&self, session_id: Option<String>) -> Result<Option<String>, String>;
+    
+    /// Record an interaction for learning
+    /// 
+    /// Records conversation turns with outcomes to learn what
+    /// context and approaches work best for different tasks.
+    async fn record_learning(
+        &self,
+        session_id: &str,
+        user_query: &str,
+        files_involved: &[String],
+        tools_used: &[String],
+        outcome: Outcome,
+    ) -> Result<(), String>;
+    
+    /// Get learned patterns relevant to a query
+    /// 
+    /// Retrieves patterns learned from past successful interactions
+    /// that might be relevant to the current query or task.
+    async fn get_relevant_patterns(&self, query: &str, session_id: &str) -> Result<Vec<String>, String>;
 }
 
 /// Example tool usage patterns for AI agents

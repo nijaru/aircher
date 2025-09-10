@@ -453,6 +453,33 @@ where
         // Delegate to base intelligence engine
         self.base_intelligence.get_code_insights(file_path).await
     }
+    
+    async fn initialize_project_memory(&mut self, project_root: std::path::PathBuf) -> Result<(), String> {
+        // Delegate to base intelligence engine
+        self.base_intelligence.initialize_project_memory(project_root).await
+    }
+    
+    async fn start_session(&self, session_id: Option<String>) -> Result<Option<String>, String> {
+        // Delegate to base intelligence engine
+        self.base_intelligence.start_session(session_id).await
+    }
+    
+    async fn record_learning(
+        &self,
+        session_id: &str,
+        user_query: &str,
+        files_involved: &[String],
+        tools_used: &[String],
+        outcome: super::Outcome,
+    ) -> Result<(), String> {
+        // Delegate to base intelligence engine
+        self.base_intelligence.record_learning(session_id, user_query, files_involved, tools_used, outcome).await
+    }
+    
+    async fn get_relevant_patterns(&self, query: &str, session_id: &str) -> Result<Vec<String>, String> {
+        // Delegate to base intelligence engine
+        self.base_intelligence.get_relevant_patterns(query, session_id).await
+    }
 }
 
 /// MCP-specific intelligence extensions
