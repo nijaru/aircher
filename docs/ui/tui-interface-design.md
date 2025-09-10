@@ -10,9 +10,22 @@
 
 **Progressive Enhancement**: Basic functionality always works, polish enhances experience.
 
-## Input Interface Design
+## TUI Layout Design
 
 ### Visual Layout
+
+**New Layout Philosophy:** Vertical stack optimized for terminal workflows:
+
+1. **Conversation Area** (top, expandable) - Chat history with collapsible tool outputs
+2. **TODO Panel** (middle, compact) - Active tasks and progress tracking  
+3. **Input Area** (bottom, auto-expanding) - Message composition with smart features
+4. **Status Bar** (bottom edge) - Model info, context usage, costs, todo count
+
+This layout prioritizes:
+- Maximum conversation visibility
+- TODO tasks visible during message composition
+- Stable input position (never moves)
+- Rich status information always accessible
 
 ```
 ┌─ Aircher Agent ─────────────────────────────────────┐
@@ -25,13 +38,17 @@
 │ │   └─ Next actions: check dependencies, run tests ││
 │ └───────────────────────────────────────────────────┘│
 │                                                     │
+├─ TODO Tasks ────────────────────────────────────────┤
+│ ☐ Fix compilation error in main.rs                  │
+│ ☐ Add tests for semantic search                     │
+│ ✓ Update model selection UI                         │
 ├─────────────────────────────────────────────────────┤
 │ > Type your message here...                         │
 │                                                     │  
 │   [dynamic expansion up to ~20 lines]               │
 │                                                     │
 └─────────────────────────────────────────────────────┘
-  Status: Claude 3.5 Sonnet • 15.2k/200k tokens • $0.03
+  Claude 3.5 Sonnet • 15.2k/200k • $0.03 • 3 todos
 ```
 
 ### Input Component Specification
@@ -81,6 +98,48 @@ pub struct InputInterface {
 - `Ctrl+V` - Paste (with smart formatting)
 - `Ctrl+K` - Cut from cursor to end
 - `Ctrl+A` - Select all text
+
+## TODO Panel
+
+### TODO Management
+
+**Purpose**: Show active tasks and progress during agent conversations, inspired by Amp's TODO panel but integrated into the terminal workflow.
+
+**Features**:
+- Compact display above input area
+- Real-time task updates during agent work
+- Visual progress indicators
+- Keyboard shortcuts for management
+- Auto-sync with agent tool execution
+
+**TODO Item States**:
+```rust
+pub enum TodoStatus {
+    Todo,        // ☐ - Pending task
+    InProgress,  // 🔄 - Currently being worked on  
+    Completed,   // ✓ - Finished successfully
+    Failed,      // ✗ - Task failed or blocked
+}
+
+pub struct TodoItem {
+    id: String,
+    content: String,
+    status: TodoStatus,
+    priority: TodoPriority, // High, Medium, Low
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+}
+```
+
+**Display Format**:
+```
+├─ TODO Tasks (3 active, 1 completed) ──────────────────┤
+│ 🔄 Fix compilation error in main.rs            [High]  │
+│ ☐ Add tests for semantic search               [Medium] │
+│ ☐ Update documentation                         [Low]   │
+│ ✓ Install dependencies                        [High]  │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## Conversation Display
 

@@ -21,9 +21,11 @@ Aircher is a **semantic code search engine** with TUI interface built in Rust. C
 - Demo mode (full functionality without API keys)
 
 **What's Missing (Current Development Priority):**
-- Tool calling reliability & UX polish (agent connected; working with Ollama)
-- Multi-turn tool execution refinement
-- File operations through chat interface (basic tools exist)
+- Tool calling system integration (critical blocker)
+- TODO panel implementation (Amp-inspired task tracking)
+- Thread persistence and conversation management
+- File change tracking and revert capabilities
+- Enhanced model selection UX (our competitive advantage)
 
 ## Current Status
 
@@ -291,7 +293,9 @@ After basic tool calling works, turbo mode will add task orchestration with two-
 - ✅ **Semantic search**: `/search` command works perfectly in TUI
 - ✅ **Provider auth**: `/auth` and `/model` commands work
 - ✅ **Demo mode**: Launch `aircher` without any setup
-- ❌ **AI chat with tools**: Can chat with LLMs but they can't use tools yet
+- ✅ **AI chat with tools**: Agent system IS connected to TUI and partially functional
+- ❌ **Tool calling reliability**: End-to-end tool execution needs polish
+- ❌ **TODO system**: Missing task tracking UI component
 
 ## Build & Test Commands
 
