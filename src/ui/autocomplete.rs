@@ -296,6 +296,7 @@ impl AutocompleteEngine {
         }
     }
     
+    #[allow(dead_code)] // TODO: Implement pattern suggestions
     fn add_pattern_suggestions(&mut self, prefix: &str, current_word: &str) {
         if current_word.len() < 2 {
             return;
@@ -321,6 +322,7 @@ impl AutocompleteEngine {
         }
     }
     
+    #[allow(dead_code)] // TODO: Implement recent command suggestions
     fn add_recent_command_suggestions(&mut self, current_word: &str) {
         for recent in &self.recent_commands {
             if recent.to_lowercase().starts_with(&current_word.to_lowercase()) && recent != current_word {
@@ -335,6 +337,7 @@ impl AutocompleteEngine {
         }
     }
     
+    #[allow(dead_code)] // TODO: Implement contextual suggestions
     fn add_contextual_suggestions(&mut self, input: &str) {
         let lowercase_input = input.to_lowercase();
         
@@ -390,6 +393,7 @@ impl AutocompleteEngine {
         }
     }
     
+    #[allow(dead_code)] // TODO: Implement pattern confidence calculation
     fn calculate_pattern_confidence(&self, prefix: &str, completion: &str) -> f32 {
         let mut confidence: f32 = 0.5;
         

@@ -333,7 +333,7 @@ impl CommandApprovalModal {
         lines
     }
 
-    fn build_confirmation_prompt(&self) -> Paragraph {
+    fn build_confirmation_prompt(&self) -> Paragraph<'_> {
         let mut contents = vec![];
 
         // Add command directly like Claude Code - clean and simple

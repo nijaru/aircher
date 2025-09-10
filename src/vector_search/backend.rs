@@ -21,9 +21,11 @@ pub trait VectorSearchBackend: Send + Sync {
     fn search_with_filter(&self, query_embedding: &[f32], k: usize, filter: &SearchFilter) -> Result<Vec<SearchResult>>;
     
     /// Save index to disk
+    #[allow(async_fn_in_trait)]
     async fn save_index(&self) -> Result<()>;
     
-    /// Load index from disk
+    /// Load index from disk  
+    #[allow(async_fn_in_trait)]
     async fn load_index(&mut self) -> Result<()>;
     
     /// Get statistics about the index

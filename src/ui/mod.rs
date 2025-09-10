@@ -121,6 +121,7 @@ pub struct TuiManager {
     _project_manager: ProjectManager,
     session_manager: SessionManager,
     current_session: Option<Session>,
+    #[allow(dead_code)] // TODO: Implement intelligence tools integration
     intelligence_tools: TuiIntelligenceTools,
     file_monitor: Option<file_monitor::FileMonitor>,
     // Semantic search
@@ -2728,6 +2729,7 @@ impl TuiManager {
         Ok(true)
     }
 
+    #[allow(dead_code)] // TODO: Remove if unused legacy method
     async fn send_message(&mut self, message: String, providers: &ProviderManager) -> Result<()> {
         // Start hustling animation (uploading message)
         // Estimate tokens based on message length (rough approximation)
@@ -3211,6 +3213,7 @@ impl TuiManager {
         Ok(())
     }
     
+    #[allow(dead_code)] // TODO: Remove if unused legacy method
     async fn create_enhanced_system_prompt_with_mode(&self, context: &crate::intelligence::ContextualInsight) -> Result<String> {
         let mut prompt = self.create_enhanced_system_prompt(context).await?;
         
@@ -3261,6 +3264,7 @@ impl TuiManager {
         Ok(prompt)
     }
 
+    #[allow(dead_code)] // TODO: Remove if unused legacy method  
     async fn create_enhanced_system_prompt(&self, context: &crate::intelligence::ContextualInsight) -> Result<String> {
         // Load AI configuration
         let ai_config = self.intelligence_tools.load_ai_configuration().await;

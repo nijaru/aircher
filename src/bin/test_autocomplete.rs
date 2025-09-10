@@ -12,6 +12,7 @@ struct TestCase {
 #[derive(Debug)]
 struct TestResult {
     passed: bool,
+    #[allow(dead_code)] // Used for debugging
     input: String,
     found: Vec<String>,
     missing: Vec<String>,

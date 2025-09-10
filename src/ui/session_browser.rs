@@ -136,7 +136,7 @@ impl SessionBrowser {
         }
     }
 
-    fn format_session_item(session: &Session) -> ListItem {
+    fn format_session_item(session: &Session) -> ListItem<'_> {
         let local_time: DateTime<Local> = session.updated_at.with_timezone(&Local);
         let time_str = local_time.format("%b %d %H:%M").to_string();
         

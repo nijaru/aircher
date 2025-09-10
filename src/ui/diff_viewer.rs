@@ -198,7 +198,7 @@ impl DiffViewer {
         f.render_widget(help_paragraph, inner_chunks[2]);
     }
 
-    fn format_diff_line(&self, diff_line: &DiffLine) -> ListItem {
+    fn format_diff_line(&self, diff_line: &DiffLine) -> ListItem<'_> {
         let (prefix, style) = match diff_line.line_type {
             DiffLineType::Addition => ("+", Style::default().fg(Color::Green)),
             DiffLineType::Deletion => ("-", Style::default().fg(Color::Red)),
