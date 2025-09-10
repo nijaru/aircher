@@ -15,12 +15,14 @@ pub mod tui_tools;
 pub mod file_monitor;
 pub mod mcp_integration;
 pub mod mcp_examples;
+pub mod ast_analysis;
 
 pub use context::*;
 pub use narrative::*;
 pub use memory::*;
 pub use tools::*;
 pub use mcp_integration::*;
+pub use ast_analysis::*;
 
 /// Intelligence Engine - Context-aware development assistant for AI agents
 pub struct IntelligenceEngine {
@@ -30,6 +32,7 @@ pub struct IntelligenceEngine {
     narrative_tracker: DevelopmentNarrativeTracker,
     memory_system: ConversationalMemorySystem,
     semantic_search: Option<Arc<RwLock<SemanticCodeSearch>>>,
+    ast_analyzer: Arc<RwLock<ASTAnalyzer>>,
 }
 
 impl IntelligenceEngine {
@@ -37,6 +40,7 @@ impl IntelligenceEngine {
         let context_engine = ContextualRelevanceEngine::new(config).await?;
         let narrative_tracker = DevelopmentNarrativeTracker::new(config).await?;
         let memory_system = ConversationalMemorySystem::new(storage).await?;
+        let ast_analyzer = Arc::new(RwLock::new(ASTAnalyzer::new()?));
 
         Ok(Self {
             _config: config.clone(),
@@ -45,6 +49,7 @@ impl IntelligenceEngine {
             narrative_tracker,
             memory_system,
             semantic_search: None,
+            ast_analyzer,
         })
     }
     
@@ -57,6 +62,7 @@ impl IntelligenceEngine {
         let context_engine = ContextualRelevanceEngine::new(config).await?;
         let narrative_tracker = DevelopmentNarrativeTracker::new(config).await?;
         let memory_system = ConversationalMemorySystem::new(storage).await?;
+        let ast_analyzer = Arc::new(RwLock::new(ASTAnalyzer::new()?));
 
         Ok(Self {
             _config: config.clone(),
@@ -65,6 +71,7 @@ impl IntelligenceEngine {
             narrative_tracker,
             memory_system,
             semantic_search: Some(Arc::new(RwLock::new(semantic_search))),
+            ast_analyzer,
         })
     }
     
@@ -215,6 +222,72 @@ impl IntelligenceTools for IntelligenceEngine {
             Err("Semantic search not available - engine not initialized with search capability".to_string())
         }
     }
+    
+    async fn analyze_code_structure(&self, file_path: &str) -> Result<ASTAnalysis, String> {
+        let path = std::path::Path::new(file_path);
+        let mut analyzer = self.ast_analyzer.write().await;
+        
+        match analyzer.analyze_file(path).await {
+            Ok(Some(analysis)) => Ok(analysis),
+            Ok(None) => Err(format!("Unsupported file type or failed to parse: {}", file_path)),
+            Err(e) => Err(format!("AST analysis failed: {}", e))
+        }
+    }
+    
+    async fn get_code_insights(&self, file_path: &str) -> Result<CodeInsights, String> {
+        let analysis = self.analyze_code_structure(file_path).await?;
+        
+        // Calculate quality score
+        let quality_score = crate::intelligence::ast_analysis::utils::calculate_quality_score(&analysis);
+        
+        // Extract key functions
+        let key_functions = crate::intelligence::ast_analysis::utils::extract_function_signatures(&analysis);
+        
+        // Extract dependencies
+        let dependencies = crate::intelligence::ast_analysis::utils::extract_dependencies(&analysis);
+        
+        // Generate complexity summary
+        let complexity_summary = format!(
+            "Cyclomatic: {}, Cognitive: {}, Depth: {}, LOC: {}, Comments: {:.1}%",
+            analysis.complexity_metrics.cyclomatic_complexity,
+            analysis.complexity_metrics.cognitive_complexity,
+            analysis.complexity_metrics.nesting_depth,
+            analysis.complexity_metrics.lines_of_code,
+            analysis.complexity_metrics.comment_ratio * 100.0
+        );
+        
+        // Extract patterns
+        let patterns = analysis.patterns.iter()
+            .map(|p| format!("{}: {}", p.pattern_type, p.description))
+            .collect();
+        
+        // Generate suggestions based on analysis
+        let mut suggestions = Vec::new();
+        
+        if analysis.complexity_metrics.cyclomatic_complexity > 10 {
+            suggestions.push("Consider refactoring complex functions to reduce cyclomatic complexity".to_string());
+        }
+        
+        if analysis.complexity_metrics.comment_ratio < 0.1 {
+            suggestions.push("Add more comments to improve code documentation".to_string());
+        }
+        
+        if analysis.functions.len() > 20 {
+            suggestions.push("Consider splitting this file into smaller modules".to_string());
+        }
+        
+        Ok(CodeInsights {
+            file_path: file_path.to_string(),
+            language: analysis.language.clone(),
+            quality_score,
+            complexity_summary,
+            key_functions,
+            dependencies,
+            patterns,
+            suggestions,
+            ast_analysis: Some(analysis),
+        })
+    }
 }
 
 /// Core data structures for Intelligence Engine
@@ -329,6 +402,19 @@ pub struct CodeSearchResult {
     pub similarity_score: f32,
     pub chunk_type: String,
     pub context_lines: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CodeInsights {
+    pub file_path: String,
+    pub language: String,
+    pub quality_score: f32,
+    pub complexity_summary: String,
+    pub key_functions: Vec<String>,
+    pub dependencies: Vec<String>,
+    pub patterns: Vec<String>,
+    pub suggestions: Vec<String>,
+    pub ast_analysis: Option<ASTAnalysis>,
 }
 
 #[derive(Debug, Clone)]
