@@ -3,9 +3,12 @@ use serde_json::Value;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 use std::collections::HashSet;
+use std::time::Instant;
+use chrono::Utc;
 
 use crate::auth::AuthManager;
 use crate::intelligence::IntelligenceEngine;
+use crate::intelligence::duckdb_memory::AgentAction;
 use crate::providers::{LLMProvider, ChatRequest, Message, MessageRole, PricingModel};
 use crate::agent::tools::{ToolRegistry, ToolCall};
 use crate::agent::parser::{ToolCallParser, format_tool_results};
@@ -15,7 +18,7 @@ use crate::agent::conversation::{CodingConversation, Message as ConvMessage, Mes
 
 pub struct AgentController {
     tools: ToolRegistry,
-    _intelligence: IntelligenceEngine,
+    intelligence: IntelligenceEngine,
     auth_manager: Arc<AuthManager>,
     parser: ToolCallParser,
     conversation: CodingConversation,
@@ -30,7 +33,7 @@ impl AgentController {
     ) -> Result<Self> {
         Ok(Self {
             tools: ToolRegistry::default(),
-            _intelligence: intelligence,
+            intelligence,
             auth_manager,
             parser: ToolCallParser::new()?,
             conversation: CodingConversation {
@@ -79,6 +82,164 @@ impl AgentController {
         }
     }
     
+    /// Convert tool registry to provider tool format for LLM requests
+    fn convert_tools_to_provider_format(&self) -> Vec<crate::providers::Tool> {
+        self.tools.list_tools()
+            .into_iter()
+            .map(|tool_info| crate::providers::Tool {
+                name: tool_info.name,
+                description: tool_info.description,
+                parameters: tool_info.parameters,
+            })
+            .collect()
+    }
+    
+    /// Build intelligence-enhanced system prompt
+    async fn build_intelligent_system_prompt(&self, user_message: &str) -> Result<String> {
+        let base_prompt = self.build_system_prompt();
+        
+        // Get intelligence insights
+        let suggestions = self.intelligence.get_suggestions(user_message, None).await?;
+        
+        // Check for file mentions
+        if let Some(file) = extract_file_mention(user_message) {
+            match self.intelligence.predict_file_changes(&file).await {
+                Ok(related_files) => {
+                    return Ok(format!(
+                        "{}\n\n## Intelligence Context:\n{}\nRelated files that often change with {}: {:?}",
+                        base_prompt, suggestions, file, related_files
+                    ));
+                }
+                Err(_) => {
+                    // Fallback if file prediction fails
+                    return Ok(format!("{}\n\n## Intelligence Context:\n{}", base_prompt, suggestions));
+                }
+            }
+        }
+        
+        Ok(format!("{}\n\n## Intelligence Context:\n{}", base_prompt, suggestions))
+    }
+    
+    /// Execute tools with tracking for pattern learning
+    async fn execute_tools_with_tracking(&self, tool_calls: &[ToolCall]) -> (Vec<(String, Result<Value, String>)>, Vec<AgentAction>) {
+        let mut results = Vec::new();
+        let mut actions = Vec::new();
+        
+        for call in tool_calls {
+            debug!("Executing tool: {} with params: {}", call.name, call.parameters);
+            
+            let start = Instant::now();
+            
+            if let Some(tool) = self.tools.get(&call.name) {
+                match tool.execute(call.parameters.clone()).await {
+                    Ok(output) => {
+                        let duration_ms = start.elapsed().as_millis() as u64;
+                        let success = output.success;
+                        
+                        // Track the action for learning
+                        actions.push(AgentAction {
+                            tool: call.name.clone(),
+                            params: call.parameters.clone(),
+                            success,
+                            duration_ms,
+                            result_summary: if success {
+                                format!("Success: {}", summarize_value(&output.result))
+                            } else {
+                                format!("Error: {}", output.error.as_deref().unwrap_or("Unknown error"))
+                            },
+                        });
+                        
+                        if success {
+                            // Try to inject duration_ms into result if it's an object
+                            let mut result_value = output.result;
+                            if let Some(obj) = result_value.as_object_mut() {
+                                obj.insert("duration_ms".to_string(), serde_json::json!(duration_ms));
+                            }
+                            results.push((call.name.clone(), Ok(result_value)));
+                        } else {
+                            let error = output.error.unwrap_or_else(|| "Unknown error".to_string());
+                            results.push((call.name.clone(), Err(error)));
+                        }
+                    }
+                    Err(e) => {
+                        let duration_ms = start.elapsed().as_millis() as u64;
+                        let error_msg = e.to_string();
+                        
+                        // Track the failed action
+                        actions.push(AgentAction {
+                            tool: call.name.clone(),
+                            params: call.parameters.clone(),
+                            success: false,
+                            duration_ms,
+                            result_summary: format!("Error: {}", error_msg),
+                        });
+                        
+                        results.push((call.name.clone(), Err(error_msg)));
+                    }
+                }
+            } else {
+                let duration_ms = start.elapsed().as_millis() as u64;
+                let error_msg = format!("Tool '{}' not found", call.name);
+                
+                // Track the failed action
+                actions.push(AgentAction {
+                    tool: call.name.clone(),
+                    params: call.parameters.clone(),
+                    success: false,
+                    duration_ms,
+                    result_summary: error_msg.clone(),
+                });
+                
+                results.push((call.name.clone(), Err(error_msg)));
+            }
+        }
+        
+        (results, actions)
+    }
+    
+    /// Record interaction pattern for learning
+    async fn record_interaction_pattern(
+        &self,
+        user_message: &str,
+        actions: &[AgentAction],
+        response: &str,
+        success: bool,
+    ) -> Result<()> {
+        use crate::intelligence::duckdb_memory::Pattern;
+        
+        // Extract files mentioned or modified
+        let files = extract_files_from_actions(actions);
+        
+        // Generate embedding for the pattern
+        let embedding_text = format!("{} {}", user_message, response);
+        let embedding = self.intelligence.get_embedding(&embedding_text).await
+            .unwrap_or_else(|e| {
+                warn!("Failed to generate embedding: {}", e);
+                vec![] // Fallback to empty embedding
+            });
+        
+        // Create pattern for learning
+        let pattern = Pattern {
+            id: uuid::Uuid::new_v4().to_string(),
+            description: user_message.to_string(),
+            context: user_message.to_string(),
+            actions: actions.to_vec(),
+            files_involved: files,
+            success,
+            timestamp: Utc::now(),
+            session_id: self.conversation.project_context.root_path
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or("aircher")
+                .to_string(),
+            embedding_text,
+            embedding,
+        };
+        
+        self.intelligence.record_pattern(pattern).await?;
+        Ok(())
+    }
+    
     /// Process a user message and return the assistant's response with tool status
     pub async fn process_message(&mut self, user_message: &str, provider: &dyn LLMProvider, model: &str) -> Result<(String, Vec<String>)> {
         info!("Processing user message: {}", user_message);
@@ -98,6 +259,7 @@ impl AgentController {
         let mut final_response = String::new();
         let mut tool_status_messages = Vec::new();
         let mut seen_tool_batches: HashSet<String> = HashSet::new();
+        let mut all_actions = Vec::new(); // Track all actions for pattern learning
         
         loop {
             iterations += 1;
@@ -106,12 +268,18 @@ impl AgentController {
                 break;
             }
             
-            // Build chat request with system prompt
+            // Build chat request with intelligence-enhanced system prompt (only on first iteration)
+            let system_prompt = if iterations == 1 {
+                self.build_intelligent_system_prompt(user_message).await?
+            } else {
+                self.build_system_prompt()
+            };
+            
             let mut messages = vec![
                 Message {
                     id: uuid::Uuid::new_v4().to_string(),
                     role: MessageRole::System,
-                    content: self.build_system_prompt(),
+                    content: system_prompt,
                     timestamp: chrono::Utc::now(),
                     tokens_used: None,
                     cost: None,
@@ -136,20 +304,45 @@ impl AgentController {
             }
             
             // Get response from LLM
+            let tools = if provider.supports_tools() {
+                Some(self.convert_tools_to_provider_format())
+            } else {
+                None
+            };
+            
+            debug!("Provider supports tools: {}, sending {} tools", provider.supports_tools(), tools.as_ref().map(|t| t.len()).unwrap_or(0));
+            
             let request = ChatRequest {
                 messages,
                 model: model.to_string(),
                 temperature: Some(0.7),
                 max_tokens: Some(2000),
                 stream: false, // TODO: Implement streaming support in agent
-                tools: None,
+                tools, // FIXED: Actually send tool schemas to LLM instead of None
             };
             
+            debug!("Calling provider.chat() with model: {}", model);
             let response = provider.chat(&request).await?;
+            debug!("Got response from provider");
             let assistant_message = response.content;
             
-            // Parse tool calls
-            let (clean_text, tool_calls) = self.parser.parse_structured(&assistant_message)?;
+            debug!("LLM Response: {}", assistant_message);
+            
+            // Use tool calls from response if available, otherwise parse from content
+            let (clean_text, mut tool_calls) = if let Some(response_tool_calls) = response.tool_calls {
+                // Modern providers (like Ollama with gpt-oss) return tool_calls directly
+                let tool_calls = response_tool_calls.into_iter().map(|tc| {
+                    crate::agent::tools::ToolCall {
+                        name: tc.name,
+                        parameters: tc.arguments,
+                    }
+                }).collect();
+                (assistant_message.clone(), tool_calls)
+            } else {
+                // Legacy parsing for providers that embed tool calls in content
+                self.parser.parse_structured(&assistant_message)?
+            };
+            debug!("Parsed - clean_text: '{}', tool_calls: {:?}", clean_text, tool_calls);
             
             if tool_calls.is_empty() {
                 // No tool calls, this is the final response
@@ -185,10 +378,12 @@ impl AgentController {
                 
                 // Add tool status messages for UI
                 for call in &tool_calls {
-                    tool_status_messages.push(format_tool_status(&call.name, &call.parameters, true));
+                    let status = format_tool_status(&call.name, &call.parameters, true);
+                    tool_status_messages.push(status);
                 }
                 
-                let tool_results = self.execute_tools(&tool_calls).await;
+                let (tool_results, actions) = self.execute_tools_with_tracking(&tool_calls).await;
+                all_actions.extend(actions); // Track actions for pattern learning
                 
                 // Add result status messages
                 for (tool_name, result) in &tool_results {
@@ -215,6 +410,22 @@ impl AgentController {
                     tool_calls: None,
                     timestamp: chrono::Utc::now(),
                 });
+            }
+        }
+        
+        // Record interaction pattern for learning if we had any actions
+        if !all_actions.is_empty() {
+            let success = !final_response.contains("error") && 
+                         !final_response.contains("failed") && 
+                         !final_response.contains("Stopped due to repeated tool calls");
+            
+            if let Err(e) = self.record_interaction_pattern(
+                user_message,
+                &all_actions,
+                &final_response,
+                success,
+            ).await {
+                warn!("Failed to record interaction pattern: {}", e);
             }
         }
         
@@ -538,5 +749,43 @@ Be concise but thorough. Focus on solving the user's problem effectively."#,
     /// Clear the conversation history
     pub fn clear_conversation(&mut self) {
         self.conversation.messages.clear();
+    }
+}
+
+// Helper functions for intelligence integration
+fn extract_file_mention(text: &str) -> Option<String> {
+    // Look for file patterns like "main.rs", "src/lib.rs", etc.
+    use regex::Regex;
+    let file_regex = Regex::new(r"\b[\w/.-]+\.\w+\b").unwrap();
+    file_regex.find(text).map(|m| m.as_str().to_string())
+}
+
+fn extract_files_from_actions(actions: &[AgentAction]) -> Vec<String> {
+    let mut files = Vec::new();
+    for action in actions {
+        if action.tool == "read_file" || action.tool == "write_file" || action.tool == "edit_file" {
+            if let Some(path) = action.params.get("path")
+                .or_else(|| action.params.get("file_path"))
+                .and_then(|v| v.as_str()) {
+                files.push(path.to_string());
+            }
+        }
+    }
+    files.dedup();
+    files
+}
+
+fn summarize_value(value: &Value) -> String {
+    match value {
+        Value::String(s) => {
+            if s.len() > 100 {
+                format!("{}...", &s[..100])
+            } else {
+                s.clone()
+            }
+        }
+        Value::Object(map) => format!("{} fields", map.len()),
+        Value::Array(arr) => format!("{} items", arr.len()),
+        _ => value.to_string(),
     }
 }

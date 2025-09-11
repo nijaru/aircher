@@ -29,6 +29,8 @@ struct OllamaRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     options: Option<OllamaOptions>,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -560,6 +562,18 @@ impl LLMProvider for OllamaProvider {
                 None
             },
             stream: false,
+            tools: request.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| {
+                    serde_json::json!({
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.parameters,
+                        }
+                    })
+                }).collect()
+            }),
         };
 
         let response = self
@@ -629,6 +643,18 @@ impl LLMProvider for OllamaProvider {
                 None
             },
             stream: true,
+            tools: request.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| {
+                    serde_json::json!({
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.parameters,
+                        }
+                    })
+                }).collect()
+            }),
         };
 
         let response = self
