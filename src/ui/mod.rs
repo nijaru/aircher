@@ -29,7 +29,7 @@ use crate::intelligence::tools::IntelligenceTools;
 use crate::intelligence::file_monitor;
 use crate::semantic_search::SemanticCodeSearch;
 use crate::agent::conversation::ProgrammingLanguage;
-use crate::ui::agent_integration::AgentIntegration;
+// use crate::ui::agent_integration::AgentIntegration; // TODO: Implement AgentIntegration
 use crate::agent::streaming::{AgentStream, AgentUpdate};
 use crate::auth::AuthManager;
 
@@ -80,12 +80,14 @@ pub mod model_selection;
 pub mod syntax_highlight;
 pub mod spinners;
 pub mod todo_panel;
+pub mod collapsible_tool;
 pub mod agent_integration;
 
 use auth_wizard::AuthWizard;
 use selection::SelectionModal;
 use session_browser::SessionBrowser;
 use todo_panel::TodoPanel;
+use collapsible_tool::CollapsibleToolManager;
 use settings::SettingsModal;
 use help::HelpModal;
 use autocomplete::AutocompleteEngine;
@@ -131,7 +133,7 @@ pub struct TuiManager {
     // Semantic search
     semantic_search: SemanticCodeSearch,
     // AI Agent
-    agent_integration: Option<AgentIntegration>,
+    agent_controller: Option<crate::agent::AgentController>,
     // Modals
     selection_modal: SelectionModal,
     settings_modal: SettingsModal,
@@ -193,6 +195,8 @@ pub struct TuiManager {
     context_monitor: ContextMonitor,
     // Auto-compaction state
     pending_auto_compaction: bool,
+    // Collapsible tool results
+    tool_manager: CollapsibleToolManager,
 }
 
 #[derive(Debug, Clone)]
@@ -307,7 +311,7 @@ impl TuiManager {
             // Semantic search
             semantic_search,
             // AI Agent
-            agent_integration: None, // Will be initialized when needed
+            agent_controller: None, // Will be initialized when needed
             // Modals
             selection_modal: if let Some(ref providers) = providers {
                 SelectionModal::new(providers.as_ref(), config)
@@ -383,6 +387,7 @@ impl TuiManager {
                 ContextMonitor::new(context_window, &compaction_config)
             },
             pending_auto_compaction: false,
+            tool_manager: CollapsibleToolManager::new(),
         })
     }
 
@@ -476,7 +481,7 @@ impl TuiManager {
             // Semantic search
             semantic_search,
             // AI Agent
-            agent_integration: None, // Will be initialized when needed
+            agent_controller: None, // Will be initialized when needed
             // Initialize modals
             selection_modal: SelectionModal::new(providers, config),
             settings_modal: SettingsModal::new(config),
@@ -543,6 +548,7 @@ impl TuiManager {
                 ContextMonitor::new(context_window, &compaction_config)
             },
             pending_auto_compaction: false,
+            tool_manager: CollapsibleToolManager::new(),
         })
     }
 
@@ -1223,6 +1229,19 @@ impl TuiManager {
                                 // Ctrl+M to open model selection
                                 self.show_model_selection_with_auth_check().await;
                             }
+                            KeyCode::Char(' ') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Space to toggle tool result expansion (when not in input mode)
+                                if self.input.is_empty() {
+                                    // TODO: Add logic to find currently selected tool result and toggle it
+                                    // For now, just insert space in input like normal
+                                    self.input.insert(self.cursor_position, ' ');
+                                    self.cursor_position += 1;
+                                } else {
+                                    // In input mode, insert space normally
+                                    self.input.insert(self.cursor_position, ' ');
+                                    self.cursor_position += 1;
+                                }
+                            }
                             KeyCode::Char(c) => {
                                 // Insert character at cursor position
                                 self.input.insert(self.cursor_position, c);
@@ -1883,14 +1902,8 @@ impl TuiManager {
                     }).collect()
                 },
                 MessageRole::Tool => {
-                    // Tool messages: Cyan bar on left, off-white text
-                    let tool_color = Style::default().fg(Color::Rgb(240, 240, 235)); // Off-white
-                    msg.content.lines().map(|line| {
-                        ListItem::new(Line::from(vec![
-                            Span::styled("▐ ", Style::default().fg(Color::Cyan)), // Cyan bar on left
-                            Span::styled(line, tool_color),
-                        ]))
-                    }).collect()
+                    // Enhanced tool messages with collapsible functionality
+                    self.render_tool_message_with_collapsible(msg, i)
                 },
             };
             
@@ -2002,6 +2015,39 @@ impl TuiManager {
                 f.render_widget(error_widget, error_area);
             }
         }
+    }
+
+    /// Render tool message with collapsible functionality
+    fn render_tool_message_with_collapsible(&self, msg: &Message, message_index: usize) -> Vec<ListItem<'static>> {
+        // Extract tool results from message content
+        let tool_results = collapsible_tool::extract_tool_results_from_content(&msg.content);
+        
+        if tool_results.is_empty() {
+            // Fallback to simple rendering if no tool results found
+            let tool_color = Style::default().fg(Color::Rgb(240, 240, 235)); // Off-white
+            return msg.content.lines().map(|line| {
+                ListItem::new(Line::from(vec![
+                    Span::styled("▐ ".to_string(), Style::default().fg(Color::Cyan)), // Cyan bar on left
+                    Span::styled(line.to_string(), tool_color),
+                ]))
+            }).collect();
+        }
+
+        let mut items = Vec::new();
+        
+        for (tool_index, tool_result) in tool_results.iter().enumerate() {
+            let tool_id = format!("msg_{}_{}", message_index, tool_index);
+            let is_collapsed = self.tool_manager.is_collapsed(&tool_id);
+            let is_selected = self.tool_manager.get_selected().map_or(false, |selected| selected == &tool_id);
+            
+            if is_collapsed {
+                items.extend(tool_result.render_collapsed(is_selected));
+            } else {
+                items.extend(tool_result.render_expanded(is_selected, &self.syntax_highlighter));
+            }
+        }
+        
+        items
     }
 
     fn draw_input_box(&self, f: &mut Frame, area: Rect) {
@@ -2755,148 +2801,43 @@ impl TuiManager {
         
         // Try to use agent controller for enhanced functionality
         // Switch to schlepping mode before agent processing
-        let should_use_agent = self.agent_integration.is_some();
+        let should_use_agent = self.agent_controller.is_some();
         if should_use_agent {
             self.start_schlepping();
         }
         
-        if let Some(ref agent) = self.agent_integration {
+        if let Some(ref mut agent) = self.agent_controller {
+            // Use agent controller with tool calling fix
+            info!("Using agent controller for enhanced AI assistance");
+            
             // Get provider for agent
-            debug!("send_message: attempting to use provider '{}' with model '{}'", self.provider_name, self.model);
             let provider = providers
                 .get_provider_or_host(&self.provider_name)
                 .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", self.provider_name))?;
             
-            info!("Using agent integration for enhanced AI assistance");
-            
-            // Set agent processing state
-            self.agent_processing = true;
-            
-            // Use new streaming implementation
-            match agent.send_message_streaming(message.clone(), Some(self.provider_name.clone()), Some(self.model.clone())).await {
-                Ok(mut agent_stream) => {
-                    // Add user message to local display
+            // Process message with agent controller (this has our tool calling fix)
+            match agent.process_message(&message, provider, &self.model).await {
+                Ok((response, tool_status)) => {
+                    // Add user message to display
                     let user_msg = Message::new(MessageRole::User, message.clone());
                     self.add_message(user_msg);
                     
-                    // Start streaming animation
-                    self.start_streaming();
+                    // Add tool status messages if any
+                    for status in tool_status {
+                        let status_msg = Message::new(MessageRole::System, status);
+                        self.add_message(status_msg);
+                    }
                     
-                    // Process agent updates
-                    let mut assistant_content = String::new();
-                    let assistant_msg_id = uuid::Uuid::new_v4().to_string();
-                    let mut total_tokens = 0u32;
-                    
-                    // Add empty assistant message that we'll update
-                    let assistant_msg = Message::new(MessageRole::Assistant, String::new());
+                    // Add agent response
+                    let assistant_msg = Message::new(MessageRole::Assistant, response);
                     self.add_message(assistant_msg);
-                    let assistant_index = self.messages.len() - 1;
                     
-                    // Process streaming updates
-                    while let Some(update_result) = agent_stream.recv().await {
-                        match update_result {
-                            Ok(update) => {
-                                match update {
-                                    crate::agent::streaming::AgentUpdate::ToolStatus(status) => {
-                                        // Add tool status message
-                                        let tool_msg = Message::new(MessageRole::Tool, status);
-                                        self.add_message(tool_msg);
-                                    }
-                                    crate::agent::streaming::AgentUpdate::TextChunk { content, delta: _, tokens_used } => {
-                                        // Update streaming content
-                                        assistant_content.push_str(&content);
-                                        if let Some(tokens) = tokens_used {
-                                            total_tokens = tokens;
-                                            self.update_streaming_tokens(tokens);
-                                        }
-                                        
-                                        // Update the assistant message in place
-                                        if let Some(msg) = self.messages.get_mut(assistant_index) {
-                                            msg.content = assistant_content.clone();
-                                        }
-                                    }
-                                    crate::agent::streaming::AgentUpdate::Complete { total_tokens: final_tokens, tool_status_messages: _ } => {
-                                        total_tokens = final_tokens;
-                                        break;
-                                    }
-                                    crate::agent::streaming::AgentUpdate::Error(error) => {
-                                        let error_msg = Message::new(MessageRole::System, format!("❌ Agent error: {}", error));
-                                        self.add_message(error_msg);
-                                        break;
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                let error_msg = Message::new(MessageRole::System, format!("❌ Stream error: {}", e));
-                                self.add_message(error_msg);
-                                break;
-                            }
-                        }
-                    }
-                    
-                    // Stop streaming animation
-                    self.stop_streaming();
-                    
-                    // Update session stats
-                    self.session_tokens += input_tokens + total_tokens;
-                    self.context_monitor.update_usage(self.session_tokens);
-                    
-                    // Calculate cost for the response (input + output tokens)
-                    if let Some(cost) = provider.calculate_cost(input_tokens, total_tokens) {
-                        self.session_cost += cost;
-                    }
-                    
-                    // Update session if available
-                    if let Some(ref session) = self.current_session {
-                        // Save user message
-                        let user_session_msg = crate::sessions::Message {
-                            id: uuid::Uuid::new_v4().to_string(),
-                            role: crate::sessions::MessageRole::User,
-                            content: message,
-                            timestamp: chrono::Utc::now(),
-                            tokens_used: None,
-                            cost: None,
-                        };
-                        
-                        self.session_manager.add_message(&session.id, &user_session_msg).await?;
-                        
-                        // Save assistant message
-                        let assistant_session_msg = crate::sessions::Message {
-                            id: assistant_msg_id,
-                            role: crate::sessions::MessageRole::Assistant,
-                            content: assistant_content,
-                            timestamp: chrono::Utc::now(),
-                            tokens_used: Some(total_tokens),
-                            cost: provider.calculate_cost(input_tokens, total_tokens),
-                        };
-                        
-                        self.session_manager.add_message(&session.id, &assistant_session_msg).await?;
-                        
-                        // Update session stats in database
-                        self.session_manager.save_session(&Session {
-                            id: session.id.clone(),
-                            title: session.title.clone(),
-                            created_at: session.created_at,
-                            updated_at: chrono::Utc::now(),
-                            provider: self.provider_name.clone(),
-                            model: self.model.clone(),
-                            total_cost: self.session_cost,
-                            total_tokens: self.session_tokens,
-                            message_count: self.messages.len() as u32,
-                            tags: session.tags.clone(),
-                            is_archived: false,
-                            description: session.description.clone(),
-                        }).await?;
-                    }
-                    
-                    // Agent processing complete - reset state
-                    self.agent_processing = false;
-                    
+                    self.stop_schlepping();
                     Ok(())
                 }
                 Err(e) => {
                     info!("Agent processing failed, falling back to direct provider: {}", e);
-                    self.agent_processing = false;
+                    self.stop_schlepping();
                     self.send_message_fallback(message, providers).await
                 }
             }
@@ -3182,12 +3123,12 @@ impl TuiManager {
     
     /// Initialize agent controller for coding assistance  
     async fn ensure_agent_initialized(&mut self, _providers: &ProviderManager) -> Result<()> {
-        if self.agent_integration.is_none() {
+        if self.agent_controller.is_none() {
             // Create database manager for intelligence engine
             let database_manager = DatabaseManager::new(&self.config).await?;
             
             // Create intelligence engine
-            let _intelligence = crate::intelligence::IntelligenceEngine::new(&self.config, &database_manager).await?;
+            let intelligence = crate::intelligence::IntelligenceEngine::new(&self.config, &database_manager).await?;
             
             // Detect project language and create project context
             let root_path = std::env::current_dir()?;
@@ -3199,14 +3140,14 @@ impl TuiManager {
                 recent_changes: Vec::new(),
             };
             
-            // Initialize agent integration (replaces AgentController)
-            let agent_integration = AgentIntegration::new(
-                &self.config,
-                self.auth_manager.clone(), 
-                project_context
-            ).await?;
+            // Create agent controller with our tool calling fix
+            let agent_controller = crate::agent::AgentController::new(
+                intelligence,
+                self.auth_manager.clone(),
+                project_context,
+            )?;
             
-            self.agent_integration = Some(agent_integration);
+            self.agent_controller = Some(agent_controller);
             info!("Agent controller initialized successfully");
         }
         Ok(())
@@ -4005,7 +3946,9 @@ function farewell(name) {
             }
         }
 
-        if let Some(ref agent) = self.agent_integration {
+        if false { // TODO: Implement agent integration
+            // Placeholder for agent integration
+            /*
             match agent.send_message_streaming(message.clone(), Some(self.provider_name.clone()), Some(self.model.clone())).await {
                 Ok(stream) => {
                     // Start streaming state and create placeholder assistant message
@@ -4023,6 +3966,7 @@ function farewell(name) {
                     return Err(e);
                 }
             }
+            */
         } else {
             // Fallback if agent is not available
             self.queue_message(message);
@@ -4102,6 +4046,11 @@ function farewell(name) {
     
     /// Stop streaming
     pub fn stop_streaming(&mut self) {
+        self.streaming_state = StreamingState::Idle;
+    }
+    
+    /// Stop schlepping (tool processing)
+    pub fn stop_schlepping(&mut self) {
         self.streaming_state = StreamingState::Idle;
     }
     

@@ -1,12 +1,20 @@
 # Aircher Development Status
 
-**Last Updated**: 2025-08-26
+**Last Updated**: 2025-09-11
 
-## 🎉 Current State: Production Ready
+## 🎉 Current State: Fully Functional AI Agent
 
-The core semantic search system is now **production-ready** with professional-grade performance and reliability.
+Aircher is now a **fully functional AI coding agent** with working tool calling, semantic search, and multi-provider support.
 
 ### ✅ Major Achievements
+
+#### 🚨 CRITICAL BREAKTHROUGH: Tool Calling Fixed (2025-09-11)
+- **Tool calling now works**: Fixed fundamental bug where `tools: None` was sent to LLMs
+- **Ollama provider fixed**: Added missing tools field to OllamaRequest struct
+- **Agent integration complete**: Connected AgentController to TUI successfully
+- **Multi-turn execution**: Agent can execute tools, get results, and provide answers
+- **Verified working**: Integration tests pass, gpt-oss model confirmed functional
+- **6 tools available**: read_file, write_file, edit_file, list_files, search_code, run_command
 
 #### Recent Fixes (2025-08-26)
 - TUI input reliability: Enter submits; Shift/Ctrl+Enter newline; Tab accept suggestion
@@ -46,21 +54,22 @@ The core semantic search system is now **production-ready** with professional-gr
 
 ## 🔄 Current Development Phase
 
-### Focus: Tool Calling Reliability & UX (Phase 2)
+### Phase 2 COMPLETE: Tool Calling Fully Functional ✅
 
-**Reality Check (2025-08-25)**: Agent system IS connected and partially functional. Tool calling works with Ollama gpt-oss after fixing provider bugs. See `TOOL_CALLING_REALITY_CHECK.md` for empirical testing results.
+**Status (2025-09-11)**: Tool calling is now **fully working** with Ollama gpt-oss. Agent can execute tools, get results, and provide intelligent responses.
 
-### Current Priority: Tool Execution Reliability
-1. **Agent Integration** ✅ (Phase 1 - COMPLETED)
-   - ✅ Wire AgentController to TuiManager (`src/ui/mod.rs:3797-3815`)
-   - ✅ Parse LLM responses for tool calls (XML + JSON formats)
-   - ✅ Execute tools through registry (6+ functional tools)
-   - ✅ Fix Ollama provider tool support (was hardcoded to false)
+### Completed: Core Tool Execution
+1. **Agent Integration** ✅ (COMPLETED)
+   - ✅ AgentController connected to TUI and functional
+   - ✅ ChatResponse.tool_calls used directly (not content parsing)
+   - ✅ Multi-turn conversations with tool execution working
+   - ✅ Ollama provider properly sends tools to API
 
-2. **Tool Calling Loop** (Phase 2 - In Progress)
-   - ✅ Structured tool calls (XML/JSON parsed; Ollama streaming tool-calls exposed)
-   - ✅ Tool status streaming (tool status/result lines rendered as they occur)
-   - 🔧 Multi-turn tool execution (working; expanding reliability tests)
+2. **Tool Calling Loop** ✅ (COMPLETED)
+   - ✅ Tools execute and return real results
+   - ✅ Agent uses tool results to answer questions
+   - ✅ Tool status messages properly collected
+   - ✅ Integration test validates end-to-end functionality
 
 3. **Previous Completed Work**
    - ✅ Eliminated ALL compiler warnings (190 → 0)
