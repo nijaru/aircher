@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::{RwLock, Mutex};
+use tracing::warn;
 
 pub mod context;
 pub mod narrative;
@@ -122,8 +123,24 @@ impl IntelligenceEngine {
         Ok(())
     }
     
+    /// Get embeddings for text using semantic search
+    pub async fn get_embedding(&self, text: &str) -> Result<Vec<f32>> {
+        if let Some(semantic) = &self.semantic_search {
+            let mut search = semantic.write().await;
+            match search.generate_embedding(text).await {
+                Ok(embedding) => Ok(embedding),
+                Err(e) => {
+                    warn!("Failed to generate embedding: {}, falling back to empty vector", e);
+                    Ok(vec![])
+                }
+            }
+        } else {
+            Ok(vec![])
+        }
+    }
+    
     /// Get intelligent suggestions based on context
-    pub async fn get_suggestions(&self, context: &str, embedding: Option<&[f32]>) -> Result<String> {
+    pub async fn get_suggestions(&self, context: &str, _embedding: Option<&[f32]>) -> Result<String> {
         if let Some(memory) = &self.duckdb_memory {
             let memory_guard = memory.lock().await;
             memory_guard.suggest_next(context).await
@@ -196,12 +213,12 @@ impl IntelligenceTools for IntelligenceEngine {
         }
 
         // Enhance with persistent memory patterns if available
-        let mut enhanced_patterns = memory.patterns;
-        let mut enhanced_actions = relevance.predicted_actions;
+        let enhanced_patterns = memory.patterns;
+        let enhanced_actions = relevance.predicted_actions;
         
         if let Some(_duckdb_memory) = &self.duckdb_memory {
             // Try to get patterns with a default session ID if none provided
-            let session_id = "current"; // In practice, this would come from the session context
+            let _session_id = "current"; // In practice, this would come from the session context
             
             // Skip learned patterns for now - would need to integrate with DuckDBMemory
             // This would use duckdb_memory.find_similar_patterns() in a real implementation
@@ -400,6 +417,7 @@ impl IntelligenceTools for IntelligenceEngine {
                 timestamp: Utc::now(),
                 session_id: session_id.to_string(),
                 embedding_text: user_query.to_string(),
+                embedding: vec![], // Legacy code path, no embedding generation
             };
             
             memory_guard.record_pattern(pattern).await

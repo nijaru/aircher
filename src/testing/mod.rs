@@ -186,6 +186,74 @@ impl IntelligenceTools for MockIntelligenceTools {
             custom_instructions: vec![],
         }
     }
+    
+    async fn search_code_semantically(&self, query: &str, _limit: usize) -> Result<Vec<crate::intelligence::CodeSearchResult>, String> {
+        self.call_log.lock().unwrap().push(format!("search_code_semantically: {}", query));
+        Ok(vec![])
+    }
+    
+    async fn analyze_code_structure(&self, file_path: &str) -> Result<crate::intelligence::ast_analysis::ASTAnalysis, String> {
+        self.call_log.lock().unwrap().push(format!("analyze_code_structure: {}", file_path));
+        Ok(crate::intelligence::ast_analysis::ASTAnalysis {
+            file_path: std::path::PathBuf::from(file_path),
+            language: "rust".to_string(),
+            functions: vec![],
+            classes: vec![],
+            imports: vec![],
+            exports: vec![],
+            complexity_metrics: crate::intelligence::ast_analysis::ComplexityMetrics {
+                cyclomatic_complexity: 1,
+                cognitive_complexity: 1,
+                nesting_depth: 1,
+                lines_of_code: 10,
+                comment_ratio: 0.1,
+            },
+            patterns: vec![],
+            dependencies: vec![],
+        })
+    }
+    
+    async fn get_code_insights(&self, file_path: &str) -> Result<crate::intelligence::CodeInsights, String> {
+        self.call_log.lock().unwrap().push(format!("get_code_insights: {}", file_path));
+        Ok(crate::intelligence::CodeInsights {
+            file_path: file_path.to_string(),
+            language: "rust".to_string(),
+            quality_score: 0.8,
+            complexity_summary: "Mock complexity".to_string(),
+            key_functions: vec![],
+            dependencies: vec![],
+            patterns: vec![],
+            suggestions: vec![],
+            ast_analysis: None,
+        })
+    }
+    
+    async fn initialize_project_memory(&mut self, project_root: std::path::PathBuf) -> Result<(), String> {
+        self.call_log.lock().unwrap().push(format!("initialize_project_memory: {}", project_root.display()));
+        Ok(())
+    }
+    
+    async fn start_session(&self, session_id: Option<String>) -> Result<Option<String>, String> {
+        self.call_log.lock().unwrap().push(format!("start_session: {:?}", session_id));
+        Ok(Some("mock_session_123".to_string()))
+    }
+    
+    async fn record_learning(
+        &self,
+        session_id: &str,
+        user_query: &str,
+        files_involved: &[String],
+        tools_used: &[String],
+        _outcome: Outcome,
+    ) -> Result<(), String> {
+        self.call_log.lock().unwrap().push(format!("record_learning: {} {} {:?} {:?}", session_id, user_query, files_involved, tools_used));
+        Ok(())
+    }
+    
+    async fn get_relevant_patterns(&self, query: &str, session_id: &str) -> Result<Vec<String>, String> {
+        self.call_log.lock().unwrap().push(format!("get_relevant_patterns: {} {}", query, session_id));
+        Ok(vec!["Mock pattern 1".to_string(), "Mock pattern 2".to_string()])
+    }
 }
 
 /// Mock Session Manager for testing

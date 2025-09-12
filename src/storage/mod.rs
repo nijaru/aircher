@@ -1,6 +1,12 @@
+pub mod conversation_storage;
+
 use crate::config::ConfigManager;
 use anyhow::Result;
 use std::path::PathBuf;
+
+pub use conversation_storage::{
+    ConversationStorage, ConversationMetadata, ShareableConversation, ConversationStats
+};
 
 #[derive(Clone)]
 pub struct DatabaseManager {

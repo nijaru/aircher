@@ -31,6 +31,8 @@ struct GeminiRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     system_instruction: Option<GeminiContent>,
     generation_config: GenerationConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,7 +43,16 @@ struct GeminiContent {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct GeminiPart {
-    text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    function_call: Option<GeminiFunctionCall>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct GeminiFunctionCall {
+    name: String,
+    args: serde_json::Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,7 +133,8 @@ impl GeminiProvider {
                     system_instruction = Some(GeminiContent {
                         role: "user".to_string(), // Gemini uses user role for system instructions
                         parts: vec![GeminiPart {
-                            text: message.content.clone(),
+                            text: Some(message.content.clone()),
+                            function_call: None,
                         }],
                     });
                 }
@@ -130,7 +142,8 @@ impl GeminiProvider {
                     gemini_contents.push(GeminiContent {
                         role: "user".to_string(),
                         parts: vec![GeminiPart {
-                            text: message.content.clone(),
+                            text: Some(message.content.clone()),
+                            function_call: None,
                         }],
                     });
                 }
@@ -138,7 +151,8 @@ impl GeminiProvider {
                     gemini_contents.push(GeminiContent {
                         role: "model".to_string(), // Gemini uses "model" for assistant
                         parts: vec![GeminiPart {
-                            text: message.content.clone(),
+                            text: Some(message.content.clone()),
+                            function_call: None,
                         }],
                     });
                 }
@@ -147,7 +161,8 @@ impl GeminiProvider {
                     gemini_contents.push(GeminiContent {
                         role: "user".to_string(),
                         parts: vec![GeminiPart {
-                            text: format!("Tool response: {}", message.content),
+                            text: Some(format!("Tool response: {}", message.content)),
+                            function_call: None,
                         }],
                     });
                 }
@@ -201,6 +216,17 @@ impl LLMProvider for GeminiProvider {
                 temperature: req.temperature,
                 max_output_tokens: req.max_tokens,
             },
+            tools: req.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| {
+                    serde_json::json!({
+                        "function_declarations": [{
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.parameters,
+                        }]
+                    })
+                }).collect()
+            }),
         };
 
         // Gemini API URLs include the model and action
@@ -245,13 +271,22 @@ impl LLMProvider for GeminiProvider {
         }
 
         let candidate = &gemini_response.candidates[0];
-        let content = candidate
-            .content
-            .parts
-            .iter()
-            .map(|part| part.text.clone())
-            .collect::<Vec<_>>()
-            .join("");
+        // Extract text content and tool calls
+        let mut content = String::new();
+        let mut tool_calls = Vec::new();
+        
+        for part in &candidate.content.parts {
+            if let Some(text) = &part.text {
+                content.push_str(text);
+            }
+            if let Some(function_call) = &part.function_call {
+                tool_calls.push(super::ToolCall {
+                    id: uuid::Uuid::new_v4().to_string(), // Gemini doesn't provide IDs
+                    name: function_call.name.clone(),
+                    arguments: function_call.args.clone(),
+                });
+            }
+        }
 
         let input_tokens = gemini_response
             .usage_metadata
@@ -275,7 +310,7 @@ impl LLMProvider for GeminiProvider {
             tokens_used: total_tokens,
             cost,
             finish_reason: self.map_finish_reason(candidate.finish_reason.as_deref()),
-            tool_calls: None, // TODO: Implement tool calls
+            tool_calls: if tool_calls.is_empty() { None } else { Some(tool_calls) },
         })
     }
 
@@ -294,6 +329,17 @@ impl LLMProvider for GeminiProvider {
                 temperature: req.temperature,
                 max_output_tokens: req.max_tokens,
             },
+            tools: req.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| {
+                    serde_json::json!({
+                        "function_declarations": [{
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.parameters,
+                        }]
+                    })
+                }).collect()
+            }),
         };
 
         // Gemini streaming API uses streamGenerateContent
@@ -350,7 +396,8 @@ impl LLMProvider for GeminiProvider {
                                                 .content
                                                 .parts
                                                 .iter()
-                                                .map(|part| part.text.clone())
+                                                .filter_map(|part| part.text.as_ref())
+                                                .cloned()
                                                 .collect::<Vec<_>>()
                                                 .join("");
 
@@ -471,7 +518,8 @@ impl LLMProvider for GeminiProvider {
         let test_contents = vec![GeminiContent {
             role: "user".to_string(),
             parts: vec![GeminiPart {
-                text: "Hello".to_string(),
+                text: Some("Hello".to_string()),
+                function_call: None,
             }],
         }];
 
@@ -482,6 +530,7 @@ impl LLMProvider for GeminiProvider {
                 temperature: None,
                 max_output_tokens: Some(10),
             },
+            tools: None, // No tools needed for health check
         };
 
         let url = format!(

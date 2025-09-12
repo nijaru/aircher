@@ -9,6 +9,8 @@ pub mod file_ops;
 pub mod code_analysis;
 pub mod system_ops;
 pub mod permission_channel;
+pub mod lsp_tools;
+pub mod git_tools;
 
 #[cfg(test)]
 mod tests;
@@ -109,13 +111,34 @@ impl Default for ToolRegistry {
     fn default() -> Self {
         let mut registry = Self::new();
         
-        // Register default tools
+        // Register default file operation tools
         registry.register(Box::new(ReadFileTool::new()));
         registry.register(Box::new(WriteFileTool::new()));
         registry.register(Box::new(EditFileTool::new()));
         registry.register(Box::new(ListFilesTool::new()));
+        
+        // Register code analysis tools
         registry.register(Box::new(SearchCodeTool::new()));
+        
+        // Register system operation tools
         registry.register(Box::new(RunCommandTool::new()));
+        
+        // Register LSP tools if workspace is available
+        if let Ok(workspace) = std::env::current_dir() {
+            registry.register(Box::new(lsp_tools::CodeCompletionTool::new(workspace.clone())));
+            registry.register(Box::new(lsp_tools::HoverTool::new(workspace.clone())));
+            registry.register(Box::new(lsp_tools::GoToDefinitionTool::new(workspace.clone())));
+            registry.register(Box::new(lsp_tools::FindReferencesTool::new(workspace.clone())));
+            registry.register(Box::new(lsp_tools::RenameSymbolTool::new(workspace.clone())));
+            registry.register(Box::new(lsp_tools::DiagnosticsTool::new(workspace.clone())));
+            registry.register(Box::new(lsp_tools::FormatCodeTool::new(workspace.clone())));
+            
+            // Register Git workflow tools
+            registry.register(Box::new(git_tools::SmartCommitTool::new(workspace.clone())));
+            registry.register(Box::new(git_tools::CreatePRTool::new(workspace.clone())));
+            registry.register(Box::new(git_tools::BranchManagementTool::new(workspace.clone())));
+            registry.register(Box::new(git_tools::TestRunnerTool::new(workspace)));
+        }
         
         registry
     }

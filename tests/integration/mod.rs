@@ -1,5 +1,6 @@
 pub mod providers;
 pub mod error_handling;
+pub mod intelligent_agent_test;
 
 // Integration test module
 // 

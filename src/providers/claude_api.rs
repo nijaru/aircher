@@ -35,6 +35,8 @@ struct ClaudeRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -60,7 +62,14 @@ struct ClaudeResponse {
 struct ClaudeContent {
     #[serde(rename = "type")]
     content_type: String,
-    text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    input: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -206,6 +215,15 @@ impl LLMProvider for ClaudeApiProvider {
             system,
             temperature: req.temperature,
             stream: false,
+            tools: req.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| {
+                    serde_json::json!({
+                        "name": tool.name,
+                        "description": tool.description,
+                        "input_schema": tool.parameters,
+                    })
+                }).collect()
+            }),
         };
 
         let url = format!("{}/messages", self.config.base_url);
@@ -239,14 +257,29 @@ impl LLMProvider for ClaudeApiProvider {
             .await
             .context("Failed to parse Claude API response")?;
 
-        // Extract text content
-        let content = claude_response
-            .content
-            .into_iter()
-            .filter(|c| c.content_type == "text")
-            .map(|c| c.text)
-            .collect::<Vec<_>>()
-            .join("");
+        // Extract text content and tool calls
+        let mut content = String::new();
+        let mut tool_calls = Vec::new();
+        
+        for c in &claude_response.content {
+            match c.content_type.as_str() {
+                "text" => {
+                    if let Some(text) = &c.text {
+                        content.push_str(text);
+                    }
+                }
+                "tool_use" => {
+                    if let (Some(id), Some(name), Some(input)) = (&c.id, &c.name, &c.input) {
+                        tool_calls.push(super::ToolCall {
+                            id: id.clone(),
+                            name: name.clone(),
+                            arguments: input.clone(),
+                        });
+                    }
+                }
+                _ => {} // Ignore unknown content types
+            }
+        }
 
         let total_tokens = claude_response.usage.input_tokens + claude_response.usage.output_tokens;
         let cost = self.calculate_cost_for_model(
@@ -263,7 +296,7 @@ impl LLMProvider for ClaudeApiProvider {
             tokens_used: total_tokens,
             cost,
             finish_reason: self.map_finish_reason(claude_response.stop_reason.as_deref()),
-            tool_calls: None, // TODO: Implement tool calls
+            tool_calls: if tool_calls.is_empty() { None } else { Some(tool_calls) },
         })
     }
 
@@ -282,6 +315,15 @@ impl LLMProvider for ClaudeApiProvider {
             system,
             temperature: req.temperature,
             stream: true,
+            tools: req.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| {
+                    serde_json::json!({
+                        "name": tool.name,
+                        "description": tool.description,
+                        "input_schema": tool.parameters,
+                    })
+                }).collect()
+            }),
         };
 
         let url = format!("{}/messages", self.config.base_url);
@@ -429,6 +471,7 @@ impl LLMProvider for ClaudeApiProvider {
             system: None,
             temperature: None,
             stream: false,
+            tools: None, // No tools needed for health check
         };
 
         let url = format!("{}/messages", self.config.base_url);
