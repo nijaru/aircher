@@ -81,6 +81,7 @@ pub mod syntax_highlight;
 pub mod spinners;
 pub mod todo_panel;
 pub mod collapsible_tool;
+pub mod compaction_analyzer;
 pub mod agent_integration;
 
 use auth_wizard::AuthWizard;
@@ -88,6 +89,7 @@ use selection::SelectionModal;
 use session_browser::SessionBrowser;
 use todo_panel::TodoPanel;
 use collapsible_tool::CollapsibleToolManager;
+use compaction_analyzer::{ConversationAnalyzer, CompactionContext};
 use settings::SettingsModal;
 use help::HelpModal;
 use autocomplete::AutocompleteEngine;
@@ -127,6 +129,8 @@ pub struct TuiManager {
     _project_manager: ProjectManager,
     session_manager: SessionManager,
     current_session: Option<Session>,
+    // Conversation storage
+    conversation_storage: crate::storage::ConversationStorage,
     #[allow(dead_code)] // TODO: Implement intelligence tools integration
     intelligence_tools: TuiIntelligenceTools,
     file_monitor: Option<file_monitor::FileMonitor>,
@@ -306,6 +310,8 @@ impl TuiManager {
             _project_manager: project_manager,
             session_manager,
             current_session,
+            // Conversation storage
+            conversation_storage: crate::storage::ConversationStorage::new()?,
             intelligence_tools,
             file_monitor,
             // Semantic search
@@ -476,6 +482,8 @@ impl TuiManager {
             _project_manager: project_manager,
             session_manager,
             current_session: Some(current_session),
+            // Conversation storage
+            conversation_storage: crate::storage::ConversationStorage::new()?,
             intelligence_tools,
             file_monitor: Some(file_monitor),
             // Semantic search
@@ -941,6 +949,31 @@ impl TuiManager {
                                                     }
                                                     "/provider" => { self.show_provider_selection().await; }
                                                     "/quit" => { self.should_quit = true; }
+                                                    "/save" => {
+                                                        if let Err(e) = self.handle_save_command(args).await {
+                                                            self.add_message(Message::new(MessageRole::System, format!("Save failed: {}", e)));
+                                                        }
+                                                    }
+                                                    "/load" => {
+                                                        if let Err(e) = self.handle_load_command(args).await {
+                                                            self.add_message(Message::new(MessageRole::System, format!("Load failed: {}", e)));
+                                                        }
+                                                    }
+                                                    "/share" => {
+                                                        if let Err(e) = self.handle_share_command().await {
+                                                            self.add_message(Message::new(MessageRole::System, format!("Share failed: {}", e)));
+                                                        }
+                                                    }
+                                                    "/export" => {
+                                                        if let Err(e) = self.handle_export_command(args).await {
+                                                            self.add_message(Message::new(MessageRole::System, format!("Export failed: {}", e)));
+                                                        }
+                                                    }
+                                                    "/import" => {
+                                                        if let Err(e) = self.handle_import_command(args).await {
+                                                            self.add_message(Message::new(MessageRole::System, format!("Import failed: {}", e)));
+                                                        }
+                                                    }
                                                     _ => {
                                                         self.add_message(Message::new(MessageRole::System, format!("Unknown command: {}. Type /help for available commands.", command)));
                                                     }
@@ -4445,26 +4478,21 @@ function farewell(name) {
             .collect::<Vec<_>>()
             .join("\n\n");
 
-        // Create summarization prompt
-        let mut prompt = format!(
-            "Please create a concise summary of this conversation that captures:\n\
-            1. The main topics discussed\n\
-            2. Key decisions or conclusions reached\n\
-            3. Important context that should be preserved\n\
-            4. Current project state or progress\n\n\
-            Keep the summary detailed enough to maintain continuity but concise enough to save context.\n\n"
-        );
-
-        // Add custom instructions if provided
-        if !custom_instructions.is_empty() {
-            prompt.push_str(&format!(
-                "Special instructions for this compaction: {}\n\n",
+        // Use smart compaction analysis to create context-aware prompt
+        let analyzer = ConversationAnalyzer::new()?;
+        let context = analyzer.analyze_conversation(&self.messages)?;
+        
+        let prompt = if !custom_instructions.is_empty() {
+            // If user provided custom instructions, use those with enhanced context
+            format!(
+                "{}\n\nAdditional instructions: {}",
+                context.generate_smart_prompt(&conversation_text),
                 custom_instructions
-            ));
-        }
-
-        prompt.push_str("Conversation to summarize:\n\n");
-        prompt.push_str(&conversation_text);
+            )
+        } else {
+            // Use smart context-aware prompt
+            context.generate_smart_prompt(&conversation_text)
+        };
 
         // Create chat request for summarization
         let messages = vec![Message::user(prompt)];
@@ -4615,6 +4643,308 @@ function farewell(name) {
         content.push_str("```\n");
 
         Ok(content)
+    }
+
+    /// Handle conversation save command
+    async fn handle_save_command(&mut self, title: &str) -> Result<()> {
+        use crate::agent::conversation::{CodingConversation, Message as AgentMessage, MessageRole as AgentRole, ProjectContext, ProgrammingLanguage};
+        
+        // Convert TUI messages to agent conversation format
+        let agent_messages = self.messages.iter().map(|msg| {
+            AgentMessage {
+                role: match msg.role {
+                    MessageRole::User => AgentRole::User,
+                    MessageRole::Assistant => AgentRole::Assistant,
+                    MessageRole::System => AgentRole::System,
+                    MessageRole::Tool => AgentRole::System, // Convert tool messages to system
+                },
+                content: msg.content.clone(),
+                tool_calls: None,
+                timestamp: chrono::Utc::now(),
+            }
+        }).collect();
+
+        let conversation = CodingConversation {
+            messages: agent_messages,
+            project_context: ProjectContext {
+                root_path: std::env::current_dir()?,
+                language: ProgrammingLanguage::Other("Unknown".to_string()),
+                framework: None,
+                recent_changes: Vec::new(),
+            },
+            active_files: Vec::new(),
+            task_list: Vec::new(),
+        };
+
+        let title = if title.trim().is_empty() { None } else { Some(title.to_string()) };
+        let id = self.conversation_storage.save_conversation(
+            &conversation,
+            title,
+            Some(self.provider_name.clone()),
+            Some(self.model.clone()),
+        ).await?;
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            format!("✅ Conversation saved with ID: {}", id),
+        ));
+
+        Ok(())
+    }
+
+    /// Handle conversation load command
+    async fn handle_load_command(&mut self, id_or_search: &str) -> Result<()> {
+        if id_or_search.trim().is_empty() {
+            // List recent conversations
+            let conversations = self.conversation_storage.list_conversations();
+            
+            if conversations.is_empty() {
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    "No saved conversations found. Use `/save [title]` to save the current conversation.".to_string(),
+                ));
+                return Ok(());
+            }
+
+            // Collect conversation info to avoid borrow conflicts
+            let conversation_list: Vec<String> = conversations.iter().take(10).enumerate().map(|(i, meta)| {
+                format!("{}. {} - {} messages ({})", 
+                    i + 1, 
+                    meta.title, 
+                    meta.message_count,
+                    meta.updated_at.format("%Y-%m-%d %H:%M")
+                )
+            }).collect();
+
+            self.add_message(Message::new(
+                MessageRole::System,
+                "📚 Recent conversations:".to_string(),
+            ));
+
+            for conv_info in conversation_list {
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    conv_info,
+                ));
+            }
+
+            self.add_message(Message::new(
+                MessageRole::System,
+                "Use `/load <ID>` to load a specific conversation.".to_string(),
+            ));
+
+            return Ok(());
+        }
+
+        // Try to load by ID first, then by search
+        let conversation = if let Ok(conv) = self.conversation_storage.load_conversation(id_or_search).await {
+            conv
+        } else {
+            // Search by title
+            let results = self.conversation_storage.search_conversations(id_or_search).await?;
+            if results.is_empty() {
+                self.add_message(Message::new(
+                    MessageRole::System,
+                    format!("No conversation found matching: {}", id_or_search),
+                ));
+                return Ok(());
+            }
+
+            let first_result = results[0];
+            self.conversation_storage.load_conversation(&first_result.id).await?
+        };
+
+        // Convert agent messages to TUI format and replace current conversation
+        self.messages.clear();
+        for agent_msg in conversation.messages {
+            let role = match agent_msg.role {
+                crate::agent::conversation::MessageRole::User => MessageRole::User,
+                crate::agent::conversation::MessageRole::Assistant => MessageRole::Assistant,
+                crate::agent::conversation::MessageRole::System => MessageRole::System,
+                crate::agent::conversation::MessageRole::Tool => MessageRole::System, // Convert tool messages to system
+            };
+            self.messages.push(Message::new(role, agent_msg.content));
+        }
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "✅ Conversation loaded successfully.".to_string(),
+        ));
+
+        // Reset scroll to show new content
+        self.scroll_offset = 0;
+
+        Ok(())
+    }
+
+    /// Handle conversation share command
+    async fn handle_share_command(&mut self) -> Result<()> {
+        use crate::agent::conversation::{CodingConversation, Message as AgentMessage, MessageRole as AgentRole, ProjectContext, ProgrammingLanguage};
+        
+        if self.messages.is_empty() {
+            self.add_message(Message::new(
+                MessageRole::System,
+                "No conversation to share. Start a conversation first.".to_string(),
+            ));
+            return Ok(());
+        }
+
+        // Convert current conversation to shareable format
+        let agent_messages = self.messages.iter().map(|msg| {
+            AgentMessage {
+                role: match msg.role {
+                    MessageRole::User => AgentRole::User,
+                    MessageRole::Assistant => AgentRole::Assistant,
+                    MessageRole::System => AgentRole::System,
+                    MessageRole::Tool => AgentRole::System, // Convert tool messages to system
+                },
+                content: msg.content.clone(),
+                tool_calls: None,
+                timestamp: chrono::Utc::now(),
+            }
+        }).collect();
+
+        let conversation = CodingConversation {
+            messages: agent_messages,
+            project_context: ProjectContext {
+                root_path: std::env::current_dir()?,
+                language: ProgrammingLanguage::Other("Unknown".to_string()),
+                framework: None,
+                recent_changes: Vec::new(),
+            },
+            active_files: Vec::new(),
+            task_list: Vec::new(),
+        };
+
+        // Save first, then generate share URL (placeholder implementation)
+        let id = self.conversation_storage.save_conversation(
+            &conversation,
+            Some(format!("Shared conversation {}", chrono::Utc::now().format("%Y-%m-%d %H:%M"))),
+            Some(self.provider_name.clone()),
+            Some(self.model.clone()),
+        ).await?;
+
+        // Generate a shareable URL (placeholder - would integrate with actual sharing service)
+        let share_url = format!("https://aircher.dev/share/{}", id);
+        
+        // Mark conversation as shared
+        self.conversation_storage.share_conversation(&id, share_url.clone()).await?;
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            format!("🔗 Conversation shared: {}", share_url),
+        ));
+
+        // TODO: Actually implement sharing backend integration
+        self.add_message(Message::new(
+            MessageRole::System,
+            "Note: Sharing backend not yet implemented. URL is a placeholder.".to_string(),
+        ));
+
+        Ok(())
+    }
+
+    /// Handle conversation export command
+    async fn handle_export_command(&mut self, filename: &str) -> Result<()> {
+        use crate::agent::conversation::{CodingConversation, Message as AgentMessage, MessageRole as AgentRole, ProjectContext, ProgrammingLanguage};
+        
+        if self.messages.is_empty() {
+            self.add_message(Message::new(
+                MessageRole::System,
+                "No conversation to export. Start a conversation first.".to_string(),
+            ));
+            return Ok(());
+        }
+
+        // Convert to agent conversation format
+        let agent_messages = self.messages.iter().map(|msg| {
+            AgentMessage {
+                role: match msg.role {
+                    MessageRole::User => AgentRole::User,
+                    MessageRole::Assistant => AgentRole::Assistant,
+                    MessageRole::System => AgentRole::System,
+                    MessageRole::Tool => AgentRole::System, // Convert tool messages to system
+                },
+                content: msg.content.clone(),
+                tool_calls: None,
+                timestamp: chrono::Utc::now(),
+            }
+        }).collect();
+
+        let conversation = CodingConversation {
+            messages: agent_messages,
+            project_context: ProjectContext {
+                root_path: std::env::current_dir()?,
+                language: ProgrammingLanguage::Other("Unknown".to_string()),
+                framework: None,
+                recent_changes: Vec::new(),
+            },
+            active_files: Vec::new(),
+            task_list: Vec::new(),
+        };
+
+        // Save conversation first to get metadata
+        let id = self.conversation_storage.save_conversation(
+            &conversation,
+            Some("Exported conversation".to_string()),
+            Some(self.provider_name.clone()),
+            Some(self.model.clone()),
+        ).await?;
+
+        // Export conversation
+        let shareable = self.conversation_storage.export_conversation(&id).await?;
+        
+        // Determine filename
+        let export_filename = if filename.trim().is_empty() {
+            format!("conversation_{}.json", chrono::Utc::now().format("%Y%m%d_%H%M%S"))
+        } else {
+            if filename.ends_with(".json") {
+                filename.to_string()
+            } else {
+                format!("{}.json", filename)
+            }
+        };
+
+        // Write to file
+        let json_content = serde_json::to_string_pretty(&shareable)?;
+        std::fs::write(&export_filename, json_content)?;
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            format!("✅ Conversation exported to: {}", export_filename),
+        ));
+
+        Ok(())
+    }
+
+    /// Handle conversation import command
+    async fn handle_import_command(&mut self, filename: &str) -> Result<()> {
+        if filename.trim().is_empty() {
+            self.add_message(Message::new(
+                MessageRole::System,
+                "Usage: /import <filename.json>".to_string(),
+            ));
+            return Ok(());
+        }
+
+        // Read and parse the JSON file
+        let content = std::fs::read_to_string(filename)?;
+        let shareable: crate::storage::ShareableConversation = serde_json::from_str(&content)?;
+
+        // Import the conversation
+        let id = self.conversation_storage.import_conversation(shareable).await?;
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            format!("✅ Conversation imported with ID: {}", id),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            format!("Use `/load {}` to load the imported conversation.", id),
+        ));
+
+        Ok(())
     }
 }
 

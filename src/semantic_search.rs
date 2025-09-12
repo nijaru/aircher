@@ -820,6 +820,11 @@ impl SemanticCodeSearch {
             }
         }
     }
+    
+    /// Generate embedding for text using the underlying embedding model
+    pub async fn generate_embedding(&mut self, text: &str) -> Result<Vec<f32>> {
+        self.embedding_manager.generate_embeddings(text).await
+    }
 }
 
 #[derive(Debug)]

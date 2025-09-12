@@ -1,3 +1,6 @@
+// TEMPORARY: Commented out until UnifiedAgent is implemented
+
+/*
 /// Agent integration module for TUI
 /// 
 /// This module bridges the TUI with the UnifiedAgent through the LocalClient,
@@ -19,112 +22,72 @@ use crate::storage::DatabaseManager;
 
 /// Manages the agent connection for the TUI
 pub struct AgentIntegration {
-    /// The client used to communicate with the agent
     client: Arc<dyn AgentClient>,
-    
-    /// Current session ID
-    session_id: String,
-    
-    /// The underlying agent (kept for provider updates)
-    agent: Arc<UnifiedAgent>,
+    session_id: Option<String>,
 }
 
 impl AgentIntegration {
-    /// Create a new agent integration for the TUI
+    /// Create new agent integration from config
     pub async fn new(
         config: &ConfigManager,
         auth_manager: Arc<AuthManager>,
-        project_context: ProjectContext,
+        provider_manager: Arc<ProviderManager>,
     ) -> Result<Self> {
-        // Initialize the database manager
+        // Create intelligence engine
         let db_manager = DatabaseManager::new(config).await?;
-        
-        // Create the intelligence engine
         let intelligence = IntelligenceEngine::new(config, &db_manager).await?;
         
-        // Create the unified agent (single implementation for all modes)
+        // Create project context
+        let project_context = ProjectContext {
+            root_path: std::env::current_dir()?,
+            language: None, // Will be detected
+            framework: None, // Will be detected
+            recent_changes: Vec::new(),
+        };
+        
+        // Create unified agent
         let agent = Arc::new(
-            UnifiedAgent::new(intelligence, auth_manager.clone(), project_context).await?
+            UnifiedAgent::new(intelligence, auth_manager, project_context).await?
         );
         
-        // Create the local client for TUI (direct access, no JSON-RPC)
+        // Create local client for direct access
         let client = Arc::new(LocalClient::new(agent.clone()));
         
-        // Initialize the agent
-        let _info = client.initialize().await?;
-        
-        // Create a session
-        let session_id = client.create_session().await?;
+        // Initialize client
+        client.initialize().await?;
         
         Ok(Self {
             client,
-            session_id,
-            agent,
+            session_id: None,
         })
     }
     
-    /// Set the provider manager (called after providers are initialized)
-    pub async fn set_provider_manager(&self, provider_manager: ProviderManager) {
-        self.agent.set_provider_manager(provider_manager).await;
+    /// Create session for conversation
+    pub async fn create_session(&mut self) -> Result<String> {
+        let session_id = self.client.create_session().await?;
+        self.session_id = Some(session_id.clone());
+        Ok(session_id)
     }
     
-    /// Send a message to the agent
-    pub async fn send_message(
-        &self,
-        message: String,
-        provider: Option<String>,
-        model: Option<String>,
-    ) -> Result<AgentResponse> {
-        self.client.send_prompt(
-            &self.session_id,
-            message,
-            provider,
-            model,
-        ).await
+    /// Send message and get response
+    pub async fn send_message(&self, message: &str) -> Result<AgentResponse> {
+        let session_id = self.session_id.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("No active session"))?;
+        
+        self.client.send_message(session_id.clone(), message.to_string()).await
     }
     
-    /// Send a message to the agent with streaming response
-    pub async fn send_message_streaming(
-        &self,
-        message: String,
-        provider: Option<String>,
-        model: Option<String>,
-    ) -> Result<AgentStream> {
-        self.client.send_prompt_streaming(
-            &self.session_id,
-            message,
-            provider,
-            model,
-        ).await
+    /// Send message and get streaming response
+    pub async fn stream_message(&self, message: &str) -> Result<AgentStream> {
+        let session_id = self.session_id.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("No active session"))?;
+        
+        self.client.stream_message(session_id.clone(), message.to_string()).await
     }
     
-    /// Get the current session ID
-    pub fn session_id(&self) -> &str {
-        &self.session_id
-    }
-    
-    /// Get session history
-    pub async fn get_history(&self) -> Result<Vec<AgentResponse>> {
-        self.client.get_session_history(&self.session_id).await
-    }
-    
-    /// End the current session
-    pub async fn end_session(&self) -> Result<()> {
-        self.client.end_session(&self.session_id).await
+    /// Get current session ID
+    pub fn session_id(&self) -> Option<&str> {
+        self.session_id.as_deref()
     }
 }
-
-/// Helper to migrate from old AgentController to new AgentIntegration
-pub mod migration {
-    use super::*;
-    
-    /// Convert old AgentController initialization to new AgentIntegration
-    pub async fn from_agent_controller_params(
-        config: &ConfigManager,
-        auth_manager: Arc<AuthManager>,
-        project_context: ProjectContext,
-    ) -> Result<AgentIntegration> {
-        // This is what TuiManager would call instead of creating AgentController
-        AgentIntegration::new(config, auth_manager, project_context).await
-    }
-}
+*/

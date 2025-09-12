@@ -37,12 +37,30 @@ struct OpenRouterRequest {
     stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     provider: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct OpenRouterMessage {
     role: String,
     content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<OpenRouterToolCall>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OpenRouterToolCall {
+    id: String,
+    #[serde(rename = "type")]
+    tool_type: String,
+    function: OpenRouterFunction,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OpenRouterFunction {
+    name: String,
+    arguments: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -204,6 +222,7 @@ impl OpenRouterHost {
                 } else {
                     msg.content.clone()
                 },
+                tool_calls: None, // Tool calls are only in responses, not requests
             })
             .collect()
     }
@@ -287,6 +306,18 @@ impl LLMProvider for OpenRouterHost {
             temperature: req.temperature,
             stream: Some(false),
             provider: None, // Let OpenRouter choose best provider
+            tools: req.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| {
+                    serde_json::json!({
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.parameters,
+                        }
+                    })
+                }).collect()
+            }),
         };
 
         let url = format!("{}/chat/completions", self.config.base_url);
@@ -345,6 +376,18 @@ impl LLMProvider for OpenRouterHost {
 
         let cost = self.calculate_cost_for_model(&req.model, input_tokens, output_tokens);
 
+        // Parse tool calls if present
+        let tool_calls = choice.message.tool_calls.as_ref().map(|calls| {
+            calls.iter().map(|call| {
+                super::ToolCall {
+                    id: call.id.clone(),
+                    name: call.function.name.clone(),
+                    arguments: serde_json::from_str(&call.function.arguments)
+                        .unwrap_or_else(|_| serde_json::Value::Null),
+                }
+            }).collect()
+        });
+
         Ok(ChatResponse {
             id: openrouter_response.id,
             content,
@@ -353,7 +396,7 @@ impl LLMProvider for OpenRouterHost {
             tokens_used: total_tokens,
             cost,
             finish_reason: self.map_finish_reason(choice.finish_reason.as_deref()),
-            tool_calls: None, // TODO: Implement tool calls
+            tool_calls,
         })
     }
 
@@ -372,6 +415,18 @@ impl LLMProvider for OpenRouterHost {
             temperature: req.temperature,
             stream: Some(true),
             provider: None, // Let OpenRouter choose best provider
+            tools: req.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| {
+                    serde_json::json!({
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.parameters,
+                        }
+                    })
+                }).collect()
+            }),
         };
 
         let url = format!("{}/chat/completions", self.config.base_url);

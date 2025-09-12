@@ -647,6 +647,67 @@ mod tests {
                 custom_instructions: vec![],
             }
         }
+        
+        async fn search_code_semantically(&self, _query: &str, _limit: usize) -> Result<Vec<CodeSearchResult>, String> {
+            Ok(vec![])
+        }
+        
+        async fn analyze_code_structure(&self, file_path: &str) -> Result<ASTAnalysis, String> {
+            Ok(ASTAnalysis {
+                file_path: std::path::PathBuf::from(file_path),
+                language: "rust".to_string(),
+                functions: vec![],
+                classes: vec![],
+                imports: vec![],
+                exports: vec![],
+                complexity_metrics: crate::intelligence::ast_analysis::ComplexityMetrics {
+                    cyclomatic_complexity: 1,
+                    cognitive_complexity: 1,
+                    nesting_depth: 1,
+                    lines_of_code: 10,
+                    comment_ratio: 0.1,
+                },
+                patterns: vec![],
+                dependencies: vec![],
+            })
+        }
+        
+        async fn get_code_insights(&self, file_path: &str) -> Result<CodeInsights, String> {
+            Ok(CodeInsights {
+                file_path: file_path.to_string(),
+                language: "rust".to_string(),
+                quality_score: 0.8,
+                complexity_summary: "Mock complexity".to_string(),
+                key_functions: vec![],
+                dependencies: vec![],
+                patterns: vec![],
+                suggestions: vec![],
+                ast_analysis: None,
+            })
+        }
+        
+        async fn initialize_project_memory(&mut self, _project_root: std::path::PathBuf) -> Result<(), String> {
+            Ok(())
+        }
+        
+        async fn start_session(&self, _session_id: Option<String>) -> Result<Option<String>, String> {
+            Ok(Some("test_session".to_string()))
+        }
+        
+        async fn record_learning(
+            &self,
+            _session_id: &str,
+            _user_query: &str,
+            _files_involved: &[String],
+            _tools_used: &[String],
+            _outcome: Outcome,
+        ) -> Result<(), String> {
+            Ok(())
+        }
+        
+        async fn get_relevant_patterns(&self, _query: &str, _session_id: &str) -> Result<Vec<String>, String> {
+            Ok(vec![])
+        }
     }
     
     #[tokio::test]

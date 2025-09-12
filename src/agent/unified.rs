@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use tracing::{debug, info};
 
 use crate::auth::AuthManager;
@@ -8,14 +9,16 @@ use crate::providers::{LLMProvider, ChatRequest, Message, MessageRole, PricingMo
 use crate::agent::tools::ToolRegistry;
 use crate::agent::parser::ToolCallParser;
 use crate::agent::conversation::{CodingConversation, Message as ConvMessage, MessageRole as ConvRole, ProjectContext};
+use crate::agent::reasoning::{AgentReasoning, Task, TaskStatus};
 
 /// Unified Agent implementation that serves both TUI and ACP modes
 pub struct UnifiedAgent {
-    tools: ToolRegistry,
-    intelligence: IntelligenceEngine,
+    tools: Arc<ToolRegistry>,
+    intelligence: Arc<IntelligenceEngine>,
     auth_manager: Arc<AuthManager>,
     parser: ToolCallParser,
     conversation: CodingConversation,
+    reasoning: Arc<AgentReasoning>,
     max_iterations: usize,
 }
 
@@ -25,8 +28,17 @@ impl UnifiedAgent {
         auth_manager: Arc<AuthManager>,
         project_context: ProjectContext,
     ) -> Result<Self> {
+        let tools = Arc::new(ToolRegistry::default());
+        let intelligence = Arc::new(intelligence);
+        
+        // Create the reasoning engine with intelligent planning capabilities
+        let reasoning = Arc::new(AgentReasoning::new(
+            intelligence.clone(),
+            tools.clone(),
+        ));
+        
         Ok(Self {
-            tools: ToolRegistry::default(),
+            tools,
             intelligence,
             auth_manager,
             parser: ToolCallParser::new()?,
@@ -36,6 +48,7 @@ impl UnifiedAgent {
                 active_files: Vec::new(),
                 task_list: Vec::new(),
             },
+            reasoning,
             max_iterations: 10, // Prevent infinite loops
         })
     }
@@ -54,11 +67,10 @@ impl UnifiedAgent {
     
     /// Process a user message and return the assistant's response with tool status
     pub async fn process_message(&mut self, user_message: &str, provider: &dyn LLMProvider, model: &str) -> Result<(String, Vec<String>)> {
-        info!("Processing user message: {}", user_message);
+        info!("Processing user message with intelligent reasoning: {}", user_message);
         
         // Validate authentication before making LLM calls
         if !matches!(provider.pricing_model(), PricingModel::Free) && !provider.name().eq_ignore_ascii_case("ollama") {
-            // For paid providers, validate auth (simplified for this implementation)
             debug!("Auth validated for provider: {}", provider.name());
         }
         
@@ -72,6 +84,59 @@ impl UnifiedAgent {
         
         let mut final_response = String::new();
         let mut tool_status_messages = Vec::new();
+        
+        // Use intelligent reasoning to plan and execute the task
+        let result = match self.reasoning.process_request(user_message).await {
+            Ok(result) => result,
+            Err(e) => {
+                debug!("Reasoning engine failed, falling back to direct processing: {}", e);
+                // Fall back to original direct processing if reasoning fails
+                return self.process_message_direct(user_message, provider, model).await;
+            }
+        };
+        
+        // Check if task was successfully completed by reasoning engine
+        if result.success && result.task.status == TaskStatus::Completed {
+            info!("Task completed successfully by reasoning engine");
+            
+            // Add status messages for each subtask executed
+            for subtask in &result.task.subtasks {
+                if !subtask.tool_calls.is_empty() {
+                    tool_status_messages.push(format!("🎯 {} ({})", 
+                        subtask.description, 
+                        if subtask.status == TaskStatus::Completed { "✓" } else { "⚠" }
+                    ));
+                }
+            }
+            
+            // Generate response based on task results
+            final_response = if !result.summary.is_empty() {
+                result.summary.clone()
+            } else {
+                format!("Successfully completed: {}", result.task.description)
+            };
+            
+            // Add subtask summary if applicable
+            if !result.task.subtasks.is_empty() {
+                let completed_count = result.task.subtasks.iter()
+                    .filter(|t| t.status == TaskStatus::Completed)
+                    .count();
+                final_response.push_str(&format!("\n\nExecuted {} subtasks successfully.", completed_count));
+            }
+            
+            // Add assistant message to conversation
+            self.conversation.messages.push(ConvMessage {
+                role: ConvRole::Assistant,
+                content: final_response.clone(),
+                tool_calls: None,
+                timestamp: chrono::Utc::now(),
+            });
+            
+            return Ok((final_response, tool_status_messages));
+        }
+        
+        // If reasoning didn't complete the task, continue with LLM-based processing
+        debug!("Reasoning engine provided plan, continuing with LLM execution");
         
         // Build chat request with intelligence-enhanced system prompt
         let system_prompt = "You are Aircher, an AI coding assistant. Use the provided tools to help with coding tasks.".to_string();
@@ -182,6 +247,124 @@ impl UnifiedAgent {
             }).collect();
             
             // Add assistant message to conversation
+            self.conversation.messages.push(ConvMessage {
+                role: ConvRole::Assistant,
+                content: final_response.clone(),
+                tool_calls: Some(conversation_tool_calls),
+                timestamp: chrono::Utc::now(),
+            });
+        }
+        
+        Ok((final_response, tool_status_messages))
+    }
+    
+    /// Direct message processing without reasoning engine (fallback)
+    async fn process_message_direct(&mut self, user_message: &str, provider: &dyn LLMProvider, model: &str) -> Result<(String, Vec<String>)> {
+        let mut final_response = String::new();
+        let mut tool_status_messages = Vec::new();
+        
+        // Build chat request with intelligence-enhanced system prompt
+        let system_prompt = "You are Aircher, an AI coding assistant. Use the provided tools to help with coding tasks.".to_string();
+        
+        let mut messages = vec![
+            Message {
+                id: uuid::Uuid::new_v4().to_string(),
+                role: MessageRole::System,
+                content: system_prompt,
+                timestamp: chrono::Utc::now(),
+                tokens_used: None,
+                cost: None,
+            },
+        ];
+        
+        // Add conversation history
+        for msg in &self.conversation.messages {
+            messages.push(Message {
+                id: uuid::Uuid::new_v4().to_string(),
+                role: match msg.role {
+                    ConvRole::User => MessageRole::User,
+                    ConvRole::Assistant => MessageRole::Assistant,
+                    ConvRole::System => MessageRole::System,
+                    ConvRole::Tool => MessageRole::User,
+                },
+                content: msg.content.clone(),
+                timestamp: msg.timestamp,
+                tokens_used: None,
+                cost: None,
+            });
+        }
+        
+        // Send with tools if provider supports them
+        let tools = if provider.supports_tools() {
+            Some(self.convert_tools_to_provider_format())
+        } else {
+            None
+        };
+        
+        let request = ChatRequest {
+            messages,
+            model: model.to_string(),
+            temperature: Some(0.7),
+            max_tokens: Some(2000),
+            stream: false,
+            tools,
+        };
+        
+        let response = provider.chat(&request).await?;
+        let assistant_message = response.content;
+        
+        // Parse tool calls
+        let (clean_text, tool_calls) = self.parser.parse_structured(&assistant_message)?;
+        
+        if tool_calls.is_empty() {
+            final_response = clean_text.clone();
+            
+            self.conversation.messages.push(ConvMessage {
+                role: ConvRole::Assistant,
+                content: clean_text,
+                tool_calls: None,
+                timestamp: chrono::Utc::now(),
+            });
+        } else {
+            info!("Executing {} tool calls", tool_calls.len());
+            
+            for call in &tool_calls {
+                tool_status_messages.push(format!("🔧 Executing tool: {}", call.name));
+            }
+            
+            let mut tool_results = Vec::new();
+            for call in &tool_calls {
+                debug!("Executing tool: {} with params: {}", call.name, call.parameters);
+                
+                if let Some(tool) = self.tools.get(&call.name) {
+                    match tool.execute(call.parameters.clone()).await {
+                        Ok(output) => {
+                            if output.success {
+                                tool_results.push(format!("Tool {} succeeded: {:?}", call.name, output.result));
+                            } else {
+                                let error = output.error.unwrap_or_else(|| "Unknown error".to_string());
+                                tool_results.push(format!("Tool {} failed: {}", call.name, error));
+                            }
+                        }
+                        Err(e) => {
+                            tool_results.push(format!("Tool {} error: {}", call.name, e));
+                        }
+                    }
+                } else {
+                    tool_results.push(format!("Tool {} not found", call.name));
+                }
+            }
+            
+            final_response = format!("Executed tools:\n{}", tool_results.join("\n"));
+            
+            let conversation_tool_calls: Vec<crate::agent::conversation::ToolCall> = tool_calls.into_iter().map(|tc| {
+                crate::agent::conversation::ToolCall {
+                    tool_name: tc.name,
+                    parameters: tc.parameters,
+                    result: None,
+                }
+            }).collect();
+            
             self.conversation.messages.push(ConvMessage {
                 role: ConvRole::Assistant,
                 content: final_response.clone(),

@@ -28,9 +28,19 @@ fn get_ollama_context_window(model_name: &str) -> u32 {
     // Extract context window from model name patterns
     let name_lower = model_name.to_lowercase();
     
-    // Check for explicit context indicators
-    if name_lower.contains("128k") {
+    // Check for explicit context indicators (most reliable)
+    if name_lower.contains("1m") || name_lower.contains("1000k") {
+        return 1000000;
+    } else if name_lower.contains("512k") {
+        return 512000;
+    } else if name_lower.contains("256k") {
+        return 256000;
+    } else if name_lower.contains("200k") {
+        return 200000;
+    } else if name_lower.contains("128k") {
         return 128000;
+    } else if name_lower.contains("64k") {
+        return 64000;
     } else if name_lower.contains("32k") {
         return 32768;
     } else if name_lower.contains("16k") {
@@ -43,7 +53,7 @@ fn get_ollama_context_window(model_name: &str) -> u32 {
         return 2048;
     }
     
-    // Model-specific defaults based on common Ollama models
+    // Enhanced model-specific defaults based on latest Ollama models
     if name_lower.contains("llama3.3") || name_lower.contains("llama-3.3") {
         128000
     } else if name_lower.contains("llama3.2") || name_lower.contains("llama-3.2") {
@@ -52,26 +62,50 @@ fn get_ollama_context_window(model_name: &str) -> u32 {
         128000
     } else if name_lower.contains("llama3") || name_lower.contains("llama-3") {
         8192
+    } else if name_lower.contains("qwen2.5-coder") {
+        32768 // Coder variant typically has smaller context
     } else if name_lower.contains("qwen2.5") {
         128000
     } else if name_lower.contains("qwen") {
         32768
     } else if name_lower.contains("deepseek-r1") {
+        64000 // Latest reasoning model
+    } else if name_lower.contains("deepseek-v3") {
         64000
     } else if name_lower.contains("deepseek") {
         16384
+    } else if name_lower.contains("mixtral-8x22b") {
+        64000 // Larger mixtral variant
     } else if name_lower.contains("mixtral") {
         32768
+    } else if name_lower.contains("mistral-nemo") {
+        128000 // Latest mistral models
     } else if name_lower.contains("mistral") {
+        8192
+    } else if name_lower.contains("gemma2-27b") {
         8192
     } else if name_lower.contains("gemma2") {
         8192
+    } else if name_lower.contains("phi-3.5") {
+        128000
     } else if name_lower.contains("phi") {
+        128000
+    } else if name_lower.contains("yi-coder") {
         128000
     } else if name_lower.contains("yi") {
         200000
+    } else if name_lower.contains("command-r-plus") {
+        128000
     } else if name_lower.contains("command-r") {
         128000
+    } else if name_lower.contains("codestral") {
+        32768
+    } else if name_lower.contains("granite") {
+        8192
+    } else if name_lower.contains("solar") {
+        4096
+    } else if name_lower.contains("starcoder") {
+        8192
     } else {
         // Conservative default
         4096
@@ -592,13 +626,25 @@ impl ModelSelectionOverlay {
         model_items.extend(models.into_iter()
             .enumerate()
             .map(|(idx, model)| {
-                // Create capabilities list
+                // Create enhanced capabilities list with more detail
                 let mut capabilities = Vec::new();
                 if model.supports_tools {
                     capabilities.push("tools".to_string());
                 }
                 if model.supports_streaming {
                     capabilities.push("streaming".to_string());
+                }
+                
+                // Add model-specific capabilities based on name
+                let name_lower = model.name.to_lowercase();
+                if name_lower.contains("vision") || name_lower.contains("gpt-4o") {
+                    capabilities.push("vision".to_string());
+                }
+                if name_lower.contains("o1") || name_lower.contains("reasoning") {
+                    capabilities.push("reasoning".to_string());
+                }
+                if name_lower.contains("claude") || name_lower.contains("gpt-4") {
+                    capabilities.push("multimodal".to_string());
                 }
                 
                 // Create pricing metadata
@@ -623,7 +669,7 @@ impl ModelSelectionOverlay {
                 };
                 
                 TypeaheadItem::with_metadata(
-                    model.name.clone(), // Use clean model name (icons now handled by metadata display)
+                    model.name.clone(), // Clean model name - all visual enhancements handled by metadata
                     model.name.clone(),
                     format_model_description(&model),
                     true, // Models are available if provider is configured
@@ -901,13 +947,22 @@ impl ModelSelectionOverlay {
                                             128000 // Default for other providers
                                         };
                                         
-                                        ModelConfig {
-                                            name: name.clone(),
-                                            context_window,
-                                            input_cost_per_1m: 0.0,
-                                            output_cost_per_1m: 0.0,
-                                            supports_streaming: true,
-                                            supports_tools: false,
+                                        {
+                                            let name_lower = name.to_lowercase();
+                                            ModelConfig {
+                                                name: name.clone(),
+                                                context_window,
+                                                input_cost_per_1m: 0.0,
+                                                output_cost_per_1m: 0.0,
+                                                supports_streaming: true,
+                                                // Enhanced tool support detection for Ollama models
+                                                supports_tools: name_lower.contains("llama3") || 
+                                                               name_lower.contains("qwen") ||
+                                                               name_lower.contains("deepseek") ||
+                                                               name_lower.contains("mixtral") ||
+                                                               name_lower.contains("phi") ||
+                                                               name_lower.contains("command-r"),
+                                            }
                                         }
                                     })
                             })
@@ -1311,6 +1366,7 @@ fn format_provider_description(provider: &str) -> String {
 }
 
 /// Format icon columns for model capabilities with fixed width for alignment
+#[allow(dead_code)]
 fn format_model_icons(model: &ModelConfig, is_default: bool) -> String {
     let mut icons = Vec::new();
     

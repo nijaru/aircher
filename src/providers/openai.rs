@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use super::{
     ChatRequest, ChatResponse, FinishReason, LLMProvider, MessageRole, PricingInfo,
-    PricingModel, ResponseStream, StreamChunk, UsageInfo,
+    PricingModel, ResponseStream, StreamChunk, ToolCall, UsageInfo,
 };
 use crate::config::ProviderConfig;
 use crate::auth::AuthManager;
@@ -43,12 +43,30 @@ struct OpenAIRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct OpenAIMessage {
     role: String,
     content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<OpenAIToolCall>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OpenAIToolCall {
+    id: String,
+    #[serde(rename = "type")]
+    tool_type: String,
+    function: OpenAIFunction,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OpenAIFunction {
+    name: String,
+    arguments: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -154,6 +172,7 @@ impl OpenAIProvider {
             messages.push(OpenAIMessage {
                 role: role.to_string(),
                 content: msg.content.clone(),
+                tool_calls: None, // Tool calls are only in responses, not requests
             });
         }
 
@@ -163,6 +182,18 @@ impl OpenAIProvider {
             max_tokens: req.max_tokens,
             temperature: req.temperature,
             stream: req.stream,
+            tools: req.tools.as_ref().map(|tools| {
+                tools.iter().map(|tool| {
+                    serde_json::json!({
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.parameters,
+                        }
+                    })
+                }).collect()
+            }),
         }
     }
 
@@ -179,6 +210,18 @@ impl OpenAIProvider {
         };
 
 
+        // Parse tool calls if present
+        let tool_calls = choice.message.tool_calls.as_ref().map(|calls| {
+            calls.iter().map(|call| {
+                ToolCall {
+                    id: call.id.clone(),
+                    name: call.function.name.clone(),
+                    arguments: serde_json::from_str(&call.function.arguments)
+                        .unwrap_or_else(|_| serde_json::Value::Null),
+                }
+            }).collect()
+        });
+
         Ok(ChatResponse {
             id: resp.id,
             content: choice.message.content.clone(),
@@ -189,7 +232,7 @@ impl OpenAIProvider {
                 self.calculate_cost(u.prompt_tokens, u.completion_tokens)
             }),
             finish_reason,
-            tool_calls: None, // TODO: Implement tool calls when needed
+            tool_calls,
         })
     }
 
@@ -431,10 +474,12 @@ impl LLMProvider for OpenAIProvider {
             messages: vec![OpenAIMessage {
                 role: "user".to_string(),
                 content: "test".to_string(),
+                tool_calls: None,
             }],
             max_tokens: Some(1),
             temperature: Some(0.0),
             stream: false,
+            tools: None,
         };
 
         let response = self

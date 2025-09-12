@@ -108,36 +108,87 @@ impl TypeaheadItem {
         None
     }
 
-    /// Get capability icons (e.g., "🔧⚡")
+    /// Get capability icons with spacing for better readability
     pub fn get_capability_icons(&self) -> String {
         if let Some(metadata) = &self.metadata {
-            let mut icons = String::new();
+            let mut icons = Vec::new();
             for capability in &metadata.capabilities {
                 match capability.as_str() {
-                    "tools" | "function_calling" => icons.push('🔧'),
-                    "streaming" => icons.push('⚡'),
-                    "vision" => icons.push('👁'),
+                    "tools" | "function_calling" => icons.push("🔧"),
+                    "streaming" => icons.push("⚡"),
+                    "vision" => icons.push("👁"),
+                    "reasoning" => icons.push("🎯"),
+                    "multimodal" => icons.push("🖼"),
                     _ => {}
                 }
             }
-            return icons;
+            return if icons.is_empty() { String::new() } else { icons.join("") };
         }
         String::new()
     }
 
-    /// Get status icons (⭐ for default, 🧠 for large context)
+    /// Get status icons with spacing and priority ordering
     pub fn get_status_icons(&self) -> String {
         if let Some(metadata) = &self.metadata {
-            let mut icons = String::new();
+            let mut icons = Vec::new();
             if metadata.is_default {
-                icons.push('⭐');
+                icons.push("⭐");
             }
             if metadata.is_large_context {
-                icons.push('🧠');
+                icons.push("🧠");
             }
-            return icons;
+            return if icons.is_empty() { String::new() } else { icons.join("") };
         }
         String::new()
+    }
+    
+    /// Get enhanced model quality indicator based on model name and capabilities
+    pub fn get_quality_indicator(&self) -> Option<String> {
+        if let Some(_metadata) = &self.metadata {
+            let name_lower = self.value.to_lowercase();
+            
+            // Premium/flagship models
+            if name_lower.contains("claude-3-5-sonnet") || name_lower.contains("gpt-4o") || 
+               name_lower.contains("gemini-2.0-flash-exp") || name_lower.contains("o1-pro") {
+                return Some("🏆".to_string()); // Premium quality
+            }
+            
+            // High-quality models
+            if name_lower.contains("claude-3-opus") || name_lower.contains("gpt-4") || 
+               name_lower.contains("gemini-pro") || name_lower.contains("deepseek-r1") {
+                return Some("💎".to_string()); // High quality
+            }
+            
+            // Fast/efficient models
+            if name_lower.contains("haiku") || name_lower.contains("turbo") || 
+               name_lower.contains("flash") || name_lower.contains("mini") {
+                return Some("🚀".to_string()); // Fast/efficient
+            }
+            
+            // Local models
+            if name_lower.contains("llama") || name_lower.contains("qwen") || 
+               name_lower.contains("mistral") || name_lower.contains("phi") {
+                return Some("💾".to_string()); // Local/private
+            }
+        }
+        None
+    }
+    
+    /// Get cost efficiency rating (💰 for very efficient)
+    pub fn get_cost_efficiency(&self) -> Option<String> {
+        if let Some(metadata) = &self.metadata {
+            if let Some(pricing) = &metadata.pricing {
+                let avg_cost = (pricing.input_cost + pricing.output_cost) / 2.0;
+                
+                if avg_cost == 0.0 {
+                    return Some("🎉".to_string()); // Free (party emoji)
+                } else if avg_cost < 1.0 {
+                    return Some("💰".to_string()); // Very efficient
+                }
+                // Expensive models get no efficiency indicator
+            }
+        }
+        None
     }
 }
 
@@ -393,7 +444,12 @@ impl TypeaheadOverlay {
                 Style::default().fg(Color::DarkGray)
             };
             
-            // Add status icons before label (⭐ 🧠)
+            // Add quality indicator first (most important)
+            if let Some(quality) = item.get_quality_indicator() {
+                spans.push(Span::styled(format!("{} ", quality), Style::default()));
+            }
+            
+            // Add status icons (⭐ for default, 🧠 for large context)
             let status_icons = item.get_status_icons();
             if !status_icons.is_empty() {
                 spans.push(Span::styled(format!("{} ", status_icons), Style::default()));
@@ -401,26 +457,40 @@ impl TypeaheadOverlay {
             
             spans.push(Span::styled(&item.label, label_style));
             
-            // Add capability icons after label (🔧⚡)
+            // Add capability icons after label with enhanced styling
             let capability_icons = item.get_capability_icons();
             if !capability_icons.is_empty() {
                 spans.push(Span::styled(format!(" {}", capability_icons), Style::default().fg(Color::Yellow)));
             }
             
-            // Add context window info
+            // Add context window info with enhanced styling
             if let Some(context) = item.format_context_window() {
                 spans.push(Span::styled(
                     format!(" • {}", context), 
-                    Style::default().fg(Color::Blue)
+                    Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)
                 ));
             }
             
-            // Add pricing info
+            // Add pricing info with cost efficiency indicator
             if let Some(pricing) = item.format_pricing() {
+                let pricing_style = if pricing == "Free" {
+                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::Green)
+                };
+                
                 spans.push(Span::styled(
                     format!(" • {}", pricing), 
-                    Style::default().fg(Color::Green)
+                    pricing_style
                 ));
+                
+                // Add cost efficiency indicator for extra context
+                if let Some(efficiency) = item.get_cost_efficiency() {
+                    spans.push(Span::styled(
+                        format!(" {}", efficiency), 
+                        Style::default().fg(Color::Green)
+                    ));
+                }
             }
             
             // Add description if present (kept for backwards compatibility)

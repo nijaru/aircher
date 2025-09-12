@@ -5,6 +5,7 @@ pub mod parser;
 pub mod tool_formatter;
 pub mod streaming;
 pub mod unified;
+pub mod reasoning;
 
 pub use controller::AgentController;
 pub use conversation::{CodingConversation, ProjectContext};

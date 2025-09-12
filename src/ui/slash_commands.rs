@@ -52,8 +52,33 @@ pub const SLASH_COMMANDS: &[SlashCommand] = &[
         aliases: &[],
     },
     SlashCommand {
+        command: "/save",
+        description: "Save current conversation with optional name",
+        aliases: &[],
+    },
+    SlashCommand {
+        command: "/load",
+        description: "Load a saved conversation",
+        aliases: &["/open"],
+    },
+    SlashCommand {
+        command: "/share",
+        description: "Share current conversation (create shareable link)",
+        aliases: &[],
+    },
+    SlashCommand {
+        command: "/export",
+        description: "Export conversation to JSON file",
+        aliases: &[],
+    },
+    SlashCommand {
+        command: "/import",
+        description: "Import conversation from JSON file",
+        aliases: &[],
+    },
+    SlashCommand {
         command: "/compact",
-        description: "Summarize conversation to save context",
+        description: "Smart conversation compaction (auto-analyzes context)",
         aliases: &[],
     },
     SlashCommand {
