@@ -263,7 +263,7 @@ mod tests {
         let info = ModelInfo::default();
         assert_eq!(info.name, "SweRankEmbed-Small");
         assert_eq!(info.embedding_dim, 768);
-        assert_eq!(info.max_sequence_length, 512);
+        assert_eq!(info.max_sequence_length, 2048);
     }
 
     #[tokio::test]
