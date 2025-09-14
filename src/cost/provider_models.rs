@@ -556,9 +556,9 @@ mod tests {
     #[test]
     fn test_model_configuration() {
         let mut config = ModelConfiguration::default();
-        
+
         config.set_model("openai", ModelTier::Light, "gpt-4o-mini");
         let models = config.get_provider_models("openai").unwrap();
-        assert_eq!(models.light, "gpt-3.5-turbo");
+        assert_eq!(models.light, "gpt-4o-mini");
     }
 }
