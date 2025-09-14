@@ -25,7 +25,12 @@ impl MockProvider {
     }
 
     pub fn add_response(&self, response: String) {
-        self.responses.lock().unwrap().push(response);
+        let mut responses = self.responses.lock().unwrap();
+        if responses.is_empty() {
+            responses.push(response);
+        } else {
+            responses[0] = response;  // Replace the default response
+        }
     }
 
     pub fn get_call_count(&self) -> usize {
