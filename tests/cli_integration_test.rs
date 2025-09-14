@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use tempfile::TempDir;
 use aircher::commands::search::{SearchArgs, SearchCommand, handle_search_command};
 
@@ -85,6 +84,17 @@ pub fn handle_network_error(error: NetworkError) {
             query: "authentication function".to_string(),
             limit: 5,
             path: temp_dir.path().to_path_buf(),
+            file_types: None,
+            languages: None,
+            scope: None,
+            chunk_types: None,
+            min_similarity: None,
+            max_similarity: None,
+            exclude: None,
+            include: None,
+            debug_filters: false,
+            preset: None,
+            save_preset: None,
         },
     };
     
@@ -102,6 +112,17 @@ pub fn handle_network_error(error: NetworkError) {
             query: "database connection".to_string(),
             limit: 3,
             path: temp_dir.path().to_path_buf(),
+            file_types: None,
+            languages: None,
+            scope: None,
+            chunk_types: None,
+            min_similarity: None,
+            max_similarity: None,
+            exclude: None,
+            include: None,
+            debug_filters: false,
+            preset: None,
+            save_preset: None,
         },
     };
     
@@ -119,6 +140,17 @@ pub fn handle_network_error(error: NetworkError) {
             query: "error handling".to_string(),
             limit: 3,
             path: temp_dir.path().to_path_buf(),
+            file_types: None,
+            languages: None,
+            scope: None,
+            chunk_types: None,
+            min_similarity: None,
+            max_similarity: None,
+            exclude: None,
+            include: None,
+            debug_filters: false,
+            preset: None,
+            save_preset: None,
         },
     };
     
