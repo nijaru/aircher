@@ -1,8 +1,7 @@
 use anyhow::Result;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::collections::HashSet;
 use tracing::{debug, info};
 
 use crate::ui::{Message, MessageRole};
@@ -297,6 +296,7 @@ impl ConversationAnalyzer {
     
     /// Detect project type from files
     fn detect_project_type(&self, files: &[String]) -> Option<String> {
+        // First check for explicit project files
         for file in files {
             if file.contains("Cargo.toml") {
                 return Some("rust".to_string());
@@ -314,6 +314,25 @@ impl ConversationAnalyzer {
                 return Some("java".to_string());
             }
         }
+
+        // Fallback: infer from file extensions if no project files found
+        let languages = self.detect_languages(files);
+        if languages.contains("rust") {
+            return Some("rust".to_string());
+        }
+        if languages.contains("javascript") || languages.contains("typescript") {
+            return Some("node".to_string());
+        }
+        if languages.contains("go") {
+            return Some("go".to_string());
+        }
+        if languages.contains("python") {
+            return Some("python".to_string());
+        }
+        if languages.contains("java") {
+            return Some("java".to_string());
+        }
+
         None
     }
     
@@ -374,7 +393,7 @@ impl ConversationAnalyzer {
 
 impl CompactionContext {
     /// Generate smart compaction prompt based on analyzed context
-    pub fn generate_smart_prompt(&self, conversation: &str) -> String {
+    pub fn generate_smart_prompt(&self, _conversation: &str) -> String {
         let mut prompt = String::new();
         
         // Start with task-focused summary instruction

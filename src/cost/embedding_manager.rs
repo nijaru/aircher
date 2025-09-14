@@ -546,9 +546,9 @@ mod tests {
     #[test]
     fn test_config_defaults() {
         let config = EmbeddingConfig::default();
-        assert_eq!(config.preferred_model, "nomic-embed-text");
-        assert!(config.auto_download);
-        assert!(config.use_ollama_if_available);
+        assert_eq!(config.preferred_model, "swerank-embed-small");
+        assert!(!config.auto_download); // Explicit user choice required
+        assert!(!config.use_ollama_if_available); // Explicit user choice required
     }
 
     #[tokio::test]

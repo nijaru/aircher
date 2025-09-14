@@ -29,7 +29,7 @@ use crate::intelligence::tools::IntelligenceTools;
 use crate::intelligence::file_monitor;
 use crate::semantic_search::SemanticCodeSearch;
 use crate::agent::conversation::ProgrammingLanguage;
-// use crate::ui::agent_integration::AgentIntegration; // TODO: Implement AgentIntegration
+use crate::client::local::LocalClient;
 use crate::agent::streaming::{AgentStream, AgentUpdate};
 use crate::auth::AuthManager;
 
@@ -82,14 +82,13 @@ pub mod spinners;
 pub mod todo_panel;
 pub mod collapsible_tool;
 pub mod compaction_analyzer;
-pub mod agent_integration;
 
 use auth_wizard::AuthWizard;
 use selection::SelectionModal;
 use session_browser::SessionBrowser;
 use todo_panel::TodoPanel;
 use collapsible_tool::CollapsibleToolManager;
-use compaction_analyzer::{ConversationAnalyzer, CompactionContext};
+use compaction_analyzer::ConversationAnalyzer;
 use settings::SettingsModal;
 use help::HelpModal;
 use autocomplete::AutocompleteEngine;
@@ -137,7 +136,7 @@ pub struct TuiManager {
     // Semantic search
     semantic_search: SemanticCodeSearch,
     // AI Agent
-    agent_controller: Option<crate::agent::AgentController>,
+    agent_client: Option<LocalClient>,
     // Modals
     selection_modal: SelectionModal,
     settings_modal: SettingsModal,
@@ -317,7 +316,7 @@ impl TuiManager {
             // Semantic search
             semantic_search,
             // AI Agent
-            agent_controller: None, // Will be initialized when needed
+            agent_client: None, // Will be initialized when needed
             // Modals
             selection_modal: if let Some(ref providers) = providers {
                 SelectionModal::new(providers.as_ref(), config)
@@ -489,7 +488,7 @@ impl TuiManager {
             // Semantic search
             semantic_search,
             // AI Agent
-            agent_controller: None, // Will be initialized when needed
+            agent_client: None, // Will be initialized when needed
             // Initialize modals
             selection_modal: SelectionModal::new(providers, config),
             settings_modal: SettingsModal::new(config),
@@ -1492,15 +1491,50 @@ impl TuiManager {
             
             // Process queued messages if agent is not currently processing
             if !self.agent_processing && !self.message_queue.is_empty() {
-                if let Some(providers) = self.providers.clone() {
-                    let queued = self.message_queue.remove(0);
-                    debug!("Processing queued message from main loop: {}", queued.content);
-                    if let Err(e) = self.initiate_ai_stream(queued.content, &providers).await {
-                        tracing::error!("Failed to process queued message: {}", e);
-                        self.add_message(Message::new(
-                            MessageRole::System, 
-                            format!("❌ Failed to process queued message: {}", e)
-                        ));
+                let queued = self.message_queue.remove(0);
+                debug!("Processing queued message from main loop: {}", queued.content);
+
+                // Check if this is a special command
+                if queued.content.starts_with("!execute_command ") {
+                    // Execute command through agent
+                    if let Some(ref agent_client) = self.agent_client {
+                        let cmd = queued.content.strip_prefix("!execute_command ").unwrap_or("");
+                        let parts: Vec<&str> = cmd.split_whitespace().collect();
+                        let tool_params = serde_json::json!({
+                            "command": parts.get(0).unwrap_or(&""),
+                            "args": parts.iter().skip(1).map(|s| s.to_string()).collect::<Vec<_>>(),
+                        });
+
+                        // Execute directly (no spawn to avoid lifetime issues)
+                        let _ = agent_client.execute_tool("run_command", tool_params).await;
+                    }
+                } else if queued.content.starts_with("!write_file ") {
+                    // Write file through agent
+                    if let Some(ref agent_client) = self.agent_client {
+                        let args = queued.content.strip_prefix("!write_file ").unwrap_or("");
+                        let mut parts = args.splitn(2, ' ');
+                        if let (Some(path), Some(content_json)) = (parts.next(), parts.next()) {
+                            if let Ok(content) = serde_json::from_str::<String>(content_json) {
+                                let tool_params = serde_json::json!({
+                                    "path": path,
+                                    "content": content,
+                                });
+
+                                // Execute directly
+                                let _ = agent_client.execute_tool("write_file", tool_params).await;
+                            }
+                        }
+                    }
+                } else {
+                    // Regular message, send to AI
+                    if let Some(providers) = self.providers.clone() {
+                        if let Err(e) = self.initiate_ai_stream(queued.content, &providers).await {
+                            tracing::error!("Failed to process queued message: {}", e);
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("❌ Failed to process queued message: {}", e)
+                            ));
+                        }
                     }
                 }
             }
@@ -2559,7 +2593,18 @@ impl TuiManager {
                                 MessageRole::System,
                                 format!("✓ Approved command: {}", command),
                             ));
-                            // TODO: Actually execute the command
+                            // Mark that we'll execute the command
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("🔧 Command approved: {}", command),
+                            ));
+
+                            // Store the command for async execution in the next tick
+                            // This avoids lifetime issues with spawning tasks
+                            self.message_queue.push(QueuedMessage {
+                                content: format!("!execute_command {}", command),
+                                timestamp: Instant::now(),
+                            });
                         }
                         ApprovalChoice::YesForSession => {
                             // Approve this command and similar ones
@@ -2575,7 +2620,18 @@ impl TuiManager {
                                     format!("✓ Approved command pattern: {}*", pattern),
                                 ));
                             }
-                            // TODO: Actually execute the command
+                            // Mark that we'll execute the command
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("🔧 Command approved: {}", command),
+                            ));
+
+                            // Store the command for async execution in the next tick
+                            // This avoids lifetime issues with spawning tasks
+                            self.message_queue.push(QueuedMessage {
+                                content: format!("!execute_command {}", command),
+                                timestamp: Instant::now(),
+                            });
                         }
                         ApprovalChoice::EditFeedback => {
                             let feedback = self.command_approval.get_feedback();
@@ -2631,11 +2687,31 @@ impl TuiManager {
                 KeyCode::Enter => {
                     // Accept the diff - this would apply the changes
                     if let Some(diff) = self.diff_viewer.get_current_diff() {
-                        // TODO: Implement actual file writing
-                        self.add_message(Message::new(
-                            MessageRole::System,
-                            format!("Would apply changes to: {}", diff.filename),
-                        ));
+                        // Clone the data we need before mutating self
+                        let filename = diff.filename.clone();
+                        let new_content = diff.new_content.clone();
+
+                        // Store the diff application for async execution
+                        if self.agent_client.is_some() {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("✅ Applying changes to: {}", filename),
+                            ));
+
+                            // Queue the file write for next tick
+                            let write_command = format!("!write_file {} {}",
+                                filename,
+                                serde_json::to_string(&new_content).unwrap_or_default());
+                            self.message_queue.push(QueuedMessage {
+                                content: write_command,
+                                timestamp: Instant::now(),
+                            });
+                        } else {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("❌ Agent not available to apply changes to: {}", filename),
+                            ));
+                        }
                     }
                     self.diff_viewer.hide();
                     return Ok(true);
@@ -2829,40 +2905,42 @@ impl TuiManager {
         let input_tokens = (message.len() / 4) as u32;
         self.start_hustling(input_tokens);
         
-        // Ensure agent controller is initialized
+        // Ensure agent client is initialized
         self.ensure_agent_initialized(providers).await?;
         
-        // Try to use agent controller for enhanced functionality
+        // Try to use agent client for enhanced functionality
         // Switch to schlepping mode before agent processing
-        let should_use_agent = self.agent_controller.is_some();
+        let should_use_agent = self.agent_client.is_some();
         if should_use_agent {
             self.start_schlepping();
         }
         
-        if let Some(ref mut agent) = self.agent_controller {
-            // Use agent controller with tool calling fix
-            info!("Using agent controller for enhanced AI assistance");
+        if let Some(ref agent_client) = self.agent_client {
+            // Use agent client for enhanced AI assistance
+            info!("Using agent client for enhanced AI assistance");
             
-            // Get provider for agent
-            let provider = providers
-                .get_provider_or_host(&self.provider_name)
-                .ok_or_else(|| anyhow::anyhow!("Provider '{}' not found", self.provider_name))?;
-            
-            // Process message with agent controller (this has our tool calling fix)
-            match agent.process_message(&message, provider, &self.model).await {
-                Ok((response, tool_status)) => {
+            // Process message with agent client (uses Agent directly)
+            match agent_client.send_message(&message).await {
+                Ok(response) => {
                     // Add user message to display
                     let user_msg = Message::new(MessageRole::User, message.clone());
                     self.add_message(user_msg);
                     
-                    // Add tool status messages if any
-                    for status in tool_status {
-                        let status_msg = Message::new(MessageRole::System, status);
+                    // Add tool call status messages if any
+                    for tool_call in &response.tool_calls {
+                        let status_message = format!("Tool: {} - Status: {:?}", tool_call.name, tool_call.status);
+                        let status_msg = Message::new(MessageRole::System, status_message);
                         self.add_message(status_msg);
+                        
+                        // Add tool error if any
+                        if let Some(ref error) = tool_call.error {
+                            let error_msg = Message::new(MessageRole::System, format!("Tool Error: {}", error));
+                            self.add_message(error_msg);
+                        }
                     }
                     
                     // Add agent response
-                    let assistant_msg = Message::new(MessageRole::Assistant, response);
+                    let assistant_msg = Message::new(MessageRole::Assistant, response.content);
                     self.add_message(assistant_msg);
                     
                     self.stop_schlepping();
@@ -3154,34 +3232,25 @@ impl TuiManager {
         Ok(())
     }
     
-    /// Initialize agent controller for coding assistance  
+    /// Initialize agent client for coding assistance  
     async fn ensure_agent_initialized(&mut self, _providers: &ProviderManager) -> Result<()> {
-        if self.agent_controller.is_none() {
-            // Create database manager for intelligence engine
-            let database_manager = DatabaseManager::new(&self.config).await?;
+        if self.agent_client.is_none() {
+            // Get the Arc<ProviderManager> from the stored field
+            let provider_manager = self.providers.as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Provider manager not available"))?;
             
-            // Create intelligence engine
-            let intelligence = crate::intelligence::IntelligenceEngine::new(&self.config, &database_manager).await?;
-            
-            // Detect project language and create project context
-            let root_path = std::env::current_dir()?;
-            let language = detect_language(&root_path);
-            let project_context = crate::agent::conversation::ProjectContext {
-                root_path,
-                language,
-                framework: None,
-                recent_changes: Vec::new(),
-            };
-            
-            // Create agent controller with our tool calling fix
-            let agent_controller = crate::agent::AgentController::new(
-                intelligence,
+            // Create agent client using our simplified architecture
+            let mut agent_client = LocalClient::new(
+                &self.config,
                 self.auth_manager.clone(),
-                project_context,
-            )?;
+                provider_manager.clone(),
+            ).await?;
             
-            self.agent_controller = Some(agent_controller);
-            info!("Agent controller initialized successfully");
+            // Initialize a session for the TUI
+            agent_client.init_session().await?;
+            
+            self.agent_client = Some(agent_client);
+            info!("Agent client initialized successfully");
         }
         Ok(())
     }
@@ -3979,27 +4048,29 @@ function farewell(name) {
             }
         }
 
-        if false { // TODO: Implement agent integration
-            // Placeholder for agent integration
-            /*
-            match agent.send_message_streaming(message.clone(), Some(self.provider_name.clone()), Some(self.model.clone())).await {
-                Ok(stream) => {
-                    // Start streaming state and create placeholder assistant message
-                    self.start_streaming();
-                    let assistant_msg = Message::new(MessageRole::Assistant, String::new());
-                    self.add_message(assistant_msg);
-                    let idx = self.messages.len() - 1;
-                    self.agent_assistant_index = Some(idx);
-                    self.agent_stream = Some(stream);
-                    self.agent_processing = true;
-                    self.last_agent_update = Some(Instant::now());
-                    self.agent_first_chunk_received = false;
+        if self.agent_client.is_some() { // Use agent if available
+            // Use agent client for full tool calling capabilities
+            if let Some(agent_client) = &self.agent_client {
+                match agent_client.stream_message(&message).await {
+                    Ok(stream) => {
+                        // Start streaming state and create placeholder assistant message
+                        self.start_streaming();
+                        let assistant_msg = Message::new(MessageRole::Assistant, String::new());
+                        self.add_message(assistant_msg);
+                        let idx = self.messages.len() - 1;
+                        self.agent_assistant_index = Some(idx);
+                        self.agent_stream = Some(stream);
+                        self.agent_processing = true;
+                        self.last_agent_update = Some(Instant::now());
+                        self.agent_first_chunk_received = false;
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
                 }
-                Err(e) => {
-                    return Err(e);
-                }
+            } else {
+                return Err(anyhow::anyhow!("Agent client not initialized"));
             }
-            */
         } else {
             // Fallback if agent is not available
             self.queue_message(message);

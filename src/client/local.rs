@@ -1,29 +1,108 @@
-// TEMPORARY: Commented out until UnifiedAgent is implemented
-
-/*
-/// Local client implementation for direct access to UnifiedAgent
+// LocalClient implementation for direct access to Agent
+/// Local client implementation that provides high-performance TUI access to the Agent
 /// 
-/// This is used by the TUI for optimal performance - no serialization
-/// overhead, direct function calls to the agent.
+/// This client:
+/// - Creates and manages the core Agent instance
+/// - Handles session management
+/// - Provides direct function calls (no serialization overhead)
+/// - Implements the AgentClient trait for consistency
 
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
 use serde_json::Value;
 
-use super::{AgentClient, AgentInfo, AgentResponse, ToolCallInfo, ToolStatus};
-use crate::agent::unified::UnifiedAgent;
-use crate::agent::tools::ToolCall;
-use crate::agent::streaming::{AgentStream, create_agent_stream};
+use super::{AgentClient, AgentInfo, AgentResponse, ToolCallInfo};
+use crate::agent::core::Agent;
+use crate::agent::streaming::AgentStream;
+use crate::agent::conversation::{ProjectContext, ProgrammingLanguage};
+use crate::auth::AuthManager;
+use crate::config::ConfigManager;
+use crate::intelligence::IntelligenceEngine;
+use crate::providers::ProviderManager;
+use crate::storage::DatabaseManager;
 
-/// Local client that directly calls the UnifiedAgent
+/// Local client that directly calls the Agent with session management
 pub struct LocalClient {
-    agent: Arc<UnifiedAgent>,
+    agent: Arc<tokio::sync::Mutex<Agent>>,
+    session_id: Option<String>,
 }
 
 impl LocalClient {
-    pub fn new(agent: Arc<UnifiedAgent>) -> Self {
-        Self { agent }
+    /// Create a new LocalClient with full Agent setup
+    pub async fn new(
+        config: &ConfigManager,
+        auth_manager: Arc<AuthManager>,
+        _provider_manager: Arc<ProviderManager>,
+    ) -> Result<Self> {
+        // Create intelligence engine
+        let db_manager = DatabaseManager::new(config).await?;
+        let intelligence = IntelligenceEngine::new(config, &db_manager).await?;
+        
+        // Create project context
+        let project_context = ProjectContext {
+            root_path: std::env::current_dir()?,
+            language: ProgrammingLanguage::Rust, // This is a Rust project
+            framework: None,
+            recent_changes: Vec::new(),
+        };
+        
+        // Create the core agent
+        let agent = Arc::new(tokio::sync::Mutex::new(
+            Agent::new(intelligence, auth_manager, project_context).await?
+        ));
+        
+        Ok(Self {
+            agent,
+            session_id: None,
+        })
+    }
+    
+    /// Create LocalClient from existing agent (for testing)
+    pub fn from_agent(agent: Arc<tokio::sync::Mutex<Agent>>) -> Self {
+        Self { 
+            agent,
+            session_id: None,
+        }
+    }
+    
+    /// Initialize a session for this client
+    pub async fn init_session(&mut self) -> Result<String> {
+        let session_id = uuid::Uuid::new_v4().to_string();
+        self.session_id = Some(session_id.clone());
+        Ok(session_id)
+    }
+    
+    /// Send message using the current session
+    pub async fn send_message(&self, message: &str) -> Result<AgentResponse> {
+        let session_id = self.session_id.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("No active session - call create_session() first"))?;
+        
+        self.send_prompt(session_id, message.to_string(), None, None).await
+    }
+    
+    /// Send streaming message using the current session  
+    pub async fn stream_message(&self, message: &str) -> Result<AgentStream> {
+        let session_id = self.session_id.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("No active session - call create_session() first"))?;
+        
+        self.send_prompt_streaming(session_id, message.to_string(), None, None).await
+    }
+    
+    /// Get current session ID
+    pub fn session_id(&self) -> Option<&str> {
+        self.session_id.as_deref()
+    }
+
+    /// Execute a single tool directly
+    pub async fn execute_tool(&self, tool_name: &str, params: serde_json::Value) -> Result<serde_json::Value> {
+        let agent = self.agent.lock().await;
+        let result = agent.execute_single_tool(tool_name, params).await?;
+        Ok(serde_json::json!({
+            "status": result.status,
+            "result": result.result,
+            "error": result.error,
+        }))
     }
 }
 
@@ -31,7 +110,8 @@ impl LocalClient {
 impl AgentClient for LocalClient {
     async fn initialize(&self) -> Result<AgentInfo> {
         // Get agent capabilities directly
-        let tools = self.agent.list_available_tools().await?;
+        let agent = self.agent.lock().await;
+        let tools = agent.list_tools().await?;
         
         Ok(AgentInfo {
             name: "Aircher Agent".to_string(),
@@ -42,68 +122,70 @@ impl AgentClient for LocalClient {
     }
     
     async fn create_session(&self) -> Result<String> {
-        // For local client, we can create sessions directly
-        self.agent.create_session().await
+        // For AgentClient trait - just generate UUID
+        // The actual session is managed by the mutable methods above
+        Ok(uuid::Uuid::new_v4().to_string())
     }
     
-    async fn send_message(
+    async fn send_prompt(
         &self,
-        session_id: String,
+        session_id: &str,
         message: String,
+        provider: Option<String>,
+        model: Option<String>,
     ) -> Result<AgentResponse> {
-        // Direct call to agent, no serialization overhead
-        let response = self.agent.process_message(&session_id, &message).await?;
+        // Get default provider if none specified
+        let provider_name = provider.unwrap_or_else(|| "ollama".to_string());
+        let model_name = model.unwrap_or_else(|| "gpt-oss".to_string());
+        
+        // Direct call to agent
+        let mut agent = self.agent.lock().await;
+        let response = agent.send_message(session_id, &message, &provider_name, &model_name).await?;
         
         Ok(AgentResponse {
             content: response.content,
-            tool_calls: response.tool_calls.unwrap_or_default(),
-            session_id,
-            finish_reason: "completed".to_string(),
+            tool_calls: response.tool_calls,
+            session_id: session_id.to_string(),
         })
     }
     
-    async fn stream_message(
+    async fn send_prompt_streaming(
         &self,
-        session_id: String,
+        session_id: &str,
         message: String,
+        provider: Option<String>,
+        model: Option<String>,
     ) -> Result<AgentStream> {
+        // Get default provider if none specified
+        let provider_name = provider.unwrap_or_else(|| "ollama".to_string());
+        let model_name = model.unwrap_or_else(|| "gpt-oss".to_string());
+        
         // Create streaming response
-        let stream = self.agent.stream_process_message(&session_id, &message).await?;
+        let mut agent = self.agent.lock().await;
+        let stream = agent.send_message_streaming(session_id, &message, &provider_name, &model_name).await?;
         Ok(stream)
     }
     
     async fn execute_tool(
         &self,
-        session_id: String,
-        tool_call: ToolCall,
-    ) -> Result<Value> {
+        tool_name: String,
+        params: Value,
+    ) -> Result<ToolCallInfo> {
         // Direct tool execution
-        let result = self.agent.execute_tool(&session_id, tool_call).await?;
+        let agent = self.agent.lock().await;
+        let result = agent.execute_single_tool(&tool_name, params).await?;
         Ok(result)
     }
     
-    async fn get_tool_status(&self, session_id: String, tool_call_id: String) -> Result<ToolStatus> {
-        // Get tool execution status
-        let status = self.agent.get_tool_status(&session_id, &tool_call_id).await?;
-        Ok(status)
+    async fn get_session_history(&self, session_id: &str) -> Result<Vec<AgentResponse>> {
+        // Get session history
+        let agent = self.agent.lock().await;
+        agent.get_history(session_id).await
     }
     
-    async fn list_tools(&self) -> Result<Vec<ToolCallInfo>> {
-        // List available tools with their schemas
-        let tools = self.agent.list_available_tools().await?;
-        let tool_infos = tools.into_iter().map(|tool| {
-            // Map tool info to ToolCallInfo structure
-            let tcs: Option<Vec<_>> = None; // This causes the compilation error - need to fix
-            tcs.iter().map(|tc| ToolCallInfo {
-                id: tool.name.clone(),
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.parameters,
-                status: ToolStatus::Available,
-            }).collect::<Vec<_>>()
-        }).flatten().collect();
-        
-        Ok(tool_infos)
+    async fn end_session(&self, session_id: &str) -> Result<()> {
+        // End session
+        let agent = self.agent.lock().await;
+        agent.end_session(session_id).await
     }
 }
-*/

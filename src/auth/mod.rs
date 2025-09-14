@@ -342,8 +342,13 @@ impl AuthManager {
             }
         }
 
-        // Then try storage
-        match self.storage.read().unwrap().get_api_key(provider).await? {
+        // Then try storage - clone to avoid holding lock across await
+        let storage_clone = {
+            let storage_guard = self.storage.read().unwrap();
+            storage_guard.clone()
+        };
+        
+        match storage_clone.get_api_key(provider).await? {
             Some(key) => {
                 debug!("Found API key for {} in storage", provider);
                 Ok(Some(key))

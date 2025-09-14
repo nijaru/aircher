@@ -1,5 +1,3 @@
-#[cfg(feature = "acp")]
-pub mod acp;
 pub mod agent;
 pub mod app;
 pub mod auth;
@@ -8,6 +6,7 @@ pub mod cli;
 pub mod commands;
 pub mod config;
 pub mod context;
+pub mod conversation;
 pub mod cost;
 pub mod intelligence;
 pub mod permissions;
@@ -19,6 +18,7 @@ pub mod code_chunking;
 pub mod search_presets;
 pub mod search_display;
 pub mod query_intelligence;
+pub mod server;
 pub mod sessions;
 pub mod storage;
 pub mod ui;

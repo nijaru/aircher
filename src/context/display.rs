@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn test_progress_bar() {
         let bar = context_progress_bar(2000, 8000, 10);
-        assert_eq!(bar.len(), 10);
+        assert_eq!(bar.chars().count(), 10); // Use char count, not byte length
         // Should be about 25% filled
         assert!(bar.starts_with("▃▃"));
     }

@@ -164,8 +164,22 @@ impl AutocompleteEngine {
             return Ok(());
         }
         
-        // Only show autocomplete for slash commands, not regular text
-        self.is_visible = false;
+        // Handle regular text patterns
+        let current_word = self.get_current_word(input, safe_cursor_position);
+        if current_word.len() >= 2 {
+            let prefix = if safe_cursor_position > current_word.len() {
+                &input[..safe_cursor_position - current_word.len()]
+            } else {
+                ""
+            };
+            self.add_pattern_suggestions(prefix, &current_word);
+        }
+
+        // Sort by confidence and show if we have suggestions
+        self.suggestions.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
+        self.suggestions.truncate(8);
+        self.is_visible = !self.suggestions.is_empty();
+
         Ok(())
     }
     
@@ -679,13 +693,13 @@ mod tests {
     #[test]
     fn test_common_phrase_suggestions() {
         let mut engine = AutocompleteEngine::new();
-        
+
         // Test partial word matching
         let _ = engine.generate_suggestions("fi", 2);
-        
+
         // Should have suggestions for "fix"
-        assert!(engine.suggestions.iter().any(|s| 
-            s.text.starts_with("fix") && s.suggestion_type == SuggestionType::CommonPhrase
+        assert!(engine.suggestions.iter().any(|s|
+            s.completion.starts_with("fix") && s.suggestion_type == SuggestionType::CommonPhrase
         ));
     }
 
