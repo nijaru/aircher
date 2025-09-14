@@ -10,8 +10,14 @@ keywords = ["ai", "terminal", "assistant", "tui", "llm"]
 categories = ["command-line-utilities", "development-tools"]
 default-run = "aircher"
 
+[[bin]]
+name = "test_tools"
+path = "src/bin/test_tools.rs"
+
 [features]
-default = []
+default = ["search", "tui"]
+search = []
+tui = []
 testing = []
 benchmarks = ["testing"]
 mcp = ["rmcp", "rmcp-macros"]
@@ -26,6 +32,8 @@ agent-client-protocol = { version = "0.1.1", optional = true }
 
 # HTTP client for API calls
 reqwest = { version = "0.12", features = ["json", "stream"] }
+# HTML parsing for web browsing
+scraper = "0.20"
 
 # HuggingFace model downloads
 hf-hub = "0.3"

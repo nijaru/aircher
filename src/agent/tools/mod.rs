@@ -11,6 +11,8 @@ pub mod system_ops;
 pub mod permission_channel;
 pub mod lsp_tools;
 pub mod git_tools;
+pub mod web_tools;
+pub mod build_tools;
 
 #[cfg(test)]
 mod tests;
@@ -18,6 +20,8 @@ mod tests;
 pub use file_ops::{ReadFileTool, WriteFileTool, EditFileTool, ListFilesTool};
 pub use code_analysis::{SearchCodeTool, FindDefinitionTool};
 pub use system_ops::RunCommandTool;
+pub use web_tools::{WebBrowsingTool, WebSearchTool};
+pub use build_tools::BuildSystemTool;
 pub use permission_channel::{PermissionRequest, PermissionResponse, PermissionRequestSender, PermissionRequestReceiver, create_permission_channel};
 
 #[derive(Debug, Error)]
@@ -122,6 +126,15 @@ impl Default for ToolRegistry {
         
         // Register system operation tools
         registry.register(Box::new(RunCommandTool::new()));
+
+        // Register web browsing tools
+        registry.register(Box::new(WebBrowsingTool::new()));
+        registry.register(Box::new(WebSearchTool::new()));
+
+        // Register build system tool
+        if let Ok(workspace) = std::env::current_dir() {
+            registry.register(Box::new(BuildSystemTool::new(workspace)));
+        }
         
         // Register LSP tools if workspace is available
         if let Ok(workspace) = std::env::current_dir() {

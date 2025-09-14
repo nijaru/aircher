@@ -1,12 +1,9 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::process::Command as TokioCommand;
-use tracing::{debug, info, warn};
 
 use crate::agent::tools::{AgentTool, ToolError, ToolOutput};
 use crate::intelligence::IntelligenceEngine;
@@ -41,7 +38,7 @@ impl SmartCommitTool {
             .output()
             .await?;
         
-        let stats = String::from_utf8_lossy(&diff_output.stdout);
+        let _stats = String::from_utf8_lossy(&diff_output.stdout);
         
         // Get detailed changes
         let changes_output = TokioCommand::new("git")
@@ -708,6 +705,7 @@ impl AgentTool for TestRunnerTool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+    use std::process::Command;
     
     #[tokio::test]
     async fn test_smart_commit_message_generation() {

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
@@ -6,7 +6,7 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use crate::agent::tools::{ToolCall, ToolOutput, ToolRegistry};
-use crate::intelligence::{IntelligenceEngine, IntelligenceTools};
+use crate::intelligence::IntelligenceEngine;
 
 /// Represents a high-level task that can be decomposed into subtasks
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,8 +73,10 @@ pub struct LearnedPattern {
 
 /// Manages task planning and decomposition
 pub struct TaskPlanner {
+    #[allow(dead_code)]
     intelligence: Arc<IntelligenceEngine>,
     patterns: Arc<RwLock<HashMap<String, LearnedPattern>>>,
+    #[allow(dead_code)]
     max_decomposition_depth: usize,
 }
 
@@ -392,6 +394,7 @@ impl TaskPlanner {
 pub struct TaskExecutor {
     planner: Arc<TaskPlanner>,
     tools: Arc<ToolRegistry>,
+    #[allow(dead_code)]
     intelligence: Arc<IntelligenceEngine>,
     max_retries: u32,
 }
@@ -641,6 +644,7 @@ impl TaskExecutor {
 pub struct AgentReasoning {
     planner: Arc<TaskPlanner>,
     executor: Arc<TaskExecutor>,
+    #[allow(dead_code)]
     intelligence: Arc<IntelligenceEngine>,
     active_tasks: Arc<RwLock<VecDeque<Task>>>,
 }

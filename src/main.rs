@@ -78,12 +78,9 @@ async fn acp_main() -> Result<()> {
 
     tracing::info!("Starting Aircher in Agent Client Protocol mode");
 
-    // Initialize configuration and auth
-    let config = ConfigManager::new().await?;
-    let auth_manager = Arc::new(AuthManager::new(&config).await?);
-
-    // Run ACP agent
-    aircher::acp::acp_main(config, auth_manager).await?;
+    // Create and run ACP server
+    let server = aircher::server::AcpServer::new().await?;
+    server.run_stdio().await?;
 
     Ok(())
 }

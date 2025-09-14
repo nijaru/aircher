@@ -329,7 +329,7 @@ impl AgentController {
             debug!("LLM Response: {}", assistant_message);
             
             // Use tool calls from response if available, otherwise parse from content
-            let (clean_text, mut tool_calls) = if let Some(response_tool_calls) = response.tool_calls {
+            let (clean_text, tool_calls) = if let Some(response_tool_calls) = response.tool_calls {
                 // Modern providers (like Ollama with gpt-oss) return tool_calls directly
                 let tool_calls = response_tool_calls.into_iter().map(|tc| {
                     crate::agent::tools::ToolCall {
