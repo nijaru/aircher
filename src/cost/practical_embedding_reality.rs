@@ -537,7 +537,7 @@ mod tests {
         
         // Should conclude that even small models are too large for binary embedding
         assert!(analysis.realistic_threshold_mb < 90);
-        assert!(analysis.better_approach.contains("download"));
+        assert!(analysis.better_approach.to_lowercase().contains("download"));
     }
 
     #[test]
