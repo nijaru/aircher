@@ -5,11 +5,11 @@ use tokio;
 use aircher::intelligence::{IntelligenceEngine, IntelligenceTools};
 use aircher::config::ConfigManager;
 use aircher::storage::DatabaseManager;
-use aircher::agent::unified::UnifiedAgent;
+use aircher::agent::Agent;
 use aircher::agent::conversation::ProjectContext;
 use aircher::auth::AuthManager;
 
-/// Comprehensive test suite for Intelligence Engine integration with UnifiedAgent
+/// Comprehensive test suite for Intelligence Engine integration with Agent
 /// 
 /// Tests the full intelligence pipeline from user query to enhanced response
 
@@ -218,7 +218,7 @@ async fn create_test_intelligence() -> Result<IntelligenceEngine> {
     IntelligenceEngine::new(&config, &storage).await
 }
 
-async fn create_test_unified_agent() -> Result<(UnifiedAgent, IntelligenceEngine)> {
+async fn create_test_unified_agent() -> Result<(Agent, IntelligenceEngine)> {
     let intelligence = create_test_intelligence().await?;
     let auth_manager = std::sync::Arc::new(AuthManager::default());
     
@@ -229,7 +229,7 @@ async fn create_test_unified_agent() -> Result<(UnifiedAgent, IntelligenceEngine
         recent_changes: vec![],
     };
     
-    let agent = UnifiedAgent::new(intelligence, auth_manager, project_context).await?;
+    let agent = Agent::new(intelligence, auth_manager, project_context).await?;
     let intelligence_for_return = create_test_intelligence().await?;
     
     Ok((agent, intelligence_for_return))
