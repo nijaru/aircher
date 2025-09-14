@@ -45,13 +45,17 @@ pub struct ConversationStorage {
 impl ConversationStorage {
     pub fn new() -> Result<Self> {
         let storage_dir = AircherDirs::get_file_path(AircherFileType::Data, "conversations")?;
+        Self::with_storage_dir(storage_dir)
+    }
+
+    pub fn with_storage_dir(storage_dir: PathBuf) -> Result<Self> {
         let index_file = storage_dir.join("index.json");
-        
+
         // Create storage directory if it doesn't exist
         AircherDirs::ensure_dir_exists(&storage_dir)?;
-        
+
         let conversations = Self::load_index(&index_file)?;
-        
+
         Ok(Self {
             storage_dir,
             index_file,
@@ -326,8 +330,8 @@ mod tests {
     
     #[tokio::test]
     async fn test_conversation_storage() {
-        let _temp_dir = TempDir::new().unwrap();
-        let mut storage = ConversationStorage::new().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let mut storage = ConversationStorage::with_storage_dir(temp_dir.path().to_path_buf()).unwrap();
         
         let conversation = create_test_conversation();
         
@@ -362,7 +366,8 @@ mod tests {
     
     #[tokio::test]
     async fn test_search_conversations() {
-        let mut storage = ConversationStorage::new().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let mut storage = ConversationStorage::with_storage_dir(temp_dir.path().to_path_buf()).unwrap();
         
         let conversation = create_test_conversation();
         let _id = storage.save_conversation(
