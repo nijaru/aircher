@@ -269,15 +269,8 @@ impl IntelligentModelSelector {
     /// Infer task type from user message content
     fn infer_task_type(&self, message: &str) -> TaskType {
         let message_lower = message.to_lowercase();
-        
-        // Check for commit message patterns
-        if message_lower.contains("commit") || message_lower.starts_with("add") || 
-           message_lower.starts_with("fix") || message_lower.starts_with("update") ||
-           message_lower.len() < 100 {
-            return TaskType::CommitMessages;
-        }
 
-        // Check for question patterns
+        // Check for question patterns first (most specific)
         if message_lower.contains("?") || message_lower.starts_with("how") ||
            message_lower.starts_with("what") || message_lower.starts_with("why") ||
            message_lower.starts_with("where") || message_lower.starts_with("when") {
@@ -304,8 +297,8 @@ impl IntelligentModelSelector {
 
         // Check for debugging patterns
         if message_lower.contains("debug") || message_lower.contains("error") ||
-           message_lower.contains("fix") || message_lower.contains("problem") ||
-           message_lower.contains("issue") || message_lower.contains("troubleshoot") {
+           message_lower.contains("problem") || message_lower.contains("issue") ||
+           message_lower.contains("troubleshoot") {
             return TaskType::Debugging;
         }
 
@@ -326,6 +319,17 @@ impl IntelligentModelSelector {
         if message_lower.contains("architecture") || message_lower.contains("design") ||
            message_lower.contains("pattern") || message_lower.contains("structure") {
             return TaskType::ArchitectureReview;
+        }
+
+        // Check for commit message patterns
+        if message_lower.contains("commit") || message_lower.starts_with("add") ||
+           message_lower.starts_with("fix") || message_lower.starts_with("update") {
+            return TaskType::CommitMessages;
+        }
+
+        // Short messages without specific patterns might be commit messages
+        if message_lower.len() < 30 && !message_lower.contains("?") && !message_lower.contains("please") {
+            return TaskType::CommitMessages;
         }
 
         TaskType::General
