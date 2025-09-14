@@ -28,10 +28,10 @@ pub struct EmbeddingConfig {
 impl Default for EmbeddingConfig {
     fn default() -> Self {
         Self {
-            preferred_model: "swerank-embed-small".to_string(), // Bundled model (default)
-            fallback_model: None, // No automatic fallbacks
-            auto_download: false, // Explicit user choice required
-            use_ollama_if_available: false, // Explicit user choice required
+            preferred_model: "embeddinggemma".to_string(), // Google Gemma for best code understanding
+            fallback_model: Some("nomic-embed-text".to_string()), // Smaller fallback
+            auto_download: true, // Auto-download on first use
+            use_ollama_if_available: true, // Use Ollama by default
             max_model_size_mb: 1000, // 1GB limit
         }
     }
@@ -71,6 +71,19 @@ impl EmbeddingManager {
                     "zero_dependency".to_string(),
                 ],
                 download_url: Some("sentence-transformers/all-MiniLM-L6-v2".to_string()), // Placeholder URL
+            },
+            EmbeddingModel {
+                name: "embeddinggemma".to_string(),
+                provider: "ollama".to_string(),
+                size_mb: 621,
+                description: "Google Gemma embeddings optimized for code understanding".to_string(),
+                optimized_for: vec![
+                    "code_search".to_string(),
+                    "code_analysis".to_string(),
+                    "documentation".to_string(),
+                    "semantic_similarity".to_string(),
+                ],
+                download_url: None, // Ollama handles this
             },
             EmbeddingModel {
                 name: "nomic-embed-text".to_string(),
