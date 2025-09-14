@@ -223,7 +223,7 @@ pub fn calculate_message_importance(
     let mut score: f32 = 0.0;
 
     // Recency bonus (messages in last 5 minutes get full bonus)
-    let recency_bonus = if age_seconds < 300.0 {
+    let recency_bonus = if age_seconds <= 300.0 {
         1.0
     } else if age_seconds < 1800.0 {
         0.5
