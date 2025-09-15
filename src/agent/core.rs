@@ -15,6 +15,7 @@ use crate::agent::parser::ToolCallParser;
 use crate::agent::conversation::{CodingConversation, Message as ConvMessage, MessageRole as ConvRole, ProjectContext};
 use crate::agent::reasoning::{AgentReasoning, TaskStatus};
 use crate::agent::dynamic_context::DynamicContextManager;
+use crate::agent::task_orchestrator::TaskOrchestrator;
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -27,6 +28,9 @@ pub struct Agent {
     conversation: Arc<tokio::sync::Mutex<CodingConversation>>,
     reasoning: Arc<AgentReasoning>,
     context_manager: Arc<DynamicContextManager>,
+    orchestrator: Option<Arc<TaskOrchestrator>>,
+    /// Prevents infinite orchestration recursion
+    is_orchestration_agent: bool,
     #[allow(dead_code)]
     max_iterations: usize,
 }
@@ -69,6 +73,8 @@ impl Agent {
             })),
             reasoning,
             context_manager,
+            orchestrator: None, // Created on-demand to avoid circular dependency
+            is_orchestration_agent: false,
             max_iterations: 10, // Prevent infinite loops
         })
     }
@@ -106,6 +112,12 @@ impl Agent {
         }
 
         let mut tool_status_messages = Vec::new();
+
+        // Check if this task needs multi-turn orchestration
+        if self.needs_orchestration(user_message).await {
+            info!("Task requires orchestration - using TaskOrchestrator for complex workflow");
+            return self.process_with_orchestration(user_message, provider, model).await;
+        }
 
         // Use intelligent reasoning to plan and execute the task
         let result = match self.reasoning.process_request(user_message).await {
@@ -361,9 +373,94 @@ impl Agent {
         
         Ok((final_response, tool_status_messages))
     }
-    
+
+    /// Determine if a task needs multi-turn orchestration
+    async fn needs_orchestration(&self, user_message: &str) -> bool {
+        // Don't orchestrate if this is already an orchestration agent
+        if self.is_orchestration_agent {
+            return false;
+        }
+        let message_lower = user_message.to_lowercase();
+
+        // Tasks that clearly need orchestration
+        if message_lower.contains("implement feature")
+            || message_lower.contains("build application")
+            || message_lower.contains("create system")
+            || message_lower.contains("refactor codebase")
+            || message_lower.contains("add comprehensive")
+            || (message_lower.contains("create") && message_lower.contains("test"))
+            || (message_lower.contains("implement") && message_lower.len() > 100) // Long complex requests
+        {
+            return true;
+        }
+
+        // Check if reasoning suggests multiple subtasks
+        if let Ok(result) = self.reasoning.process_request(user_message).await {
+            if result.task.subtasks.len() > 3 {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Process a complex task using the TaskOrchestrator
+    async fn process_with_orchestration(
+        &self,
+        user_message: &str,
+        provider: &dyn LLMProvider,
+        model: &str
+    ) -> Result<(String, Vec<String>)> {
+        info!("Processing complex task with orchestration");
+
+        // Create orchestrator on-demand (avoiding circular dependency)
+        let orchestrator = TaskOrchestrator::new(
+            Arc::new(Agent {
+                tools: self.tools.clone(),
+                intelligence: self.intelligence.clone(),
+                auth_manager: self.auth_manager.clone(),
+                parser: ToolCallParser::new()?, // Create new parser (doesn't impl Clone)
+                conversation: self.conversation.clone(),
+                reasoning: self.reasoning.clone(),
+                context_manager: self.context_manager.clone(),
+                orchestrator: None, // Avoid infinite recursion
+                is_orchestration_agent: true, // Mark as orchestration agent to prevent recursion
+                max_iterations: self.max_iterations,
+            }),
+            self.reasoning.clone(),
+            self.context_manager.clone(),
+            self.intelligence.clone(),
+        );
+
+        // Execute the complex task
+        let task_result = orchestrator.execute_task(user_message, provider, model).await?;
+
+        // Convert orchestration result to standard response format
+        let mut tool_status_messages = Vec::new();
+
+        // Add summary of orchestration steps
+        tool_status_messages.push(format!("🎯 Orchestrated {} steps successfully", task_result.steps_completed));
+
+        if !task_result.files_modified.is_empty() {
+            tool_status_messages.push(format!("📝 Modified {} files", task_result.files_modified.len()));
+        }
+
+        // Add conversation message
+        {
+            let mut conversation = self.conversation.lock().await;
+            conversation.messages.push(ConvMessage {
+                role: ConvRole::Assistant,
+                content: task_result.summary.clone(),
+                tool_calls: None,
+                timestamp: chrono::Utc::now(),
+            });
+        }
+
+        Ok((task_result.summary, tool_status_messages))
+    }
+
     /// Direct message processing without reasoning engine (fallback)
-    async fn process_message_direct(&self, _user_message: &str, provider: &dyn LLMProvider, model: &str) -> Result<(String, Vec<String>)> {
+    pub async fn process_message_direct(&self, user_message: &str, provider: &dyn LLMProvider, model: &str) -> Result<(String, Vec<String>)> {
         let mut tool_status_messages = Vec::new();
         
         // Build chat request with intelligence-enhanced system prompt
