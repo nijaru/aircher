@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
@@ -15,8 +15,8 @@ use crate::semantic_search::SemanticCodeSearch;
 pub struct DynamicContextManager {
     /// Intelligence engine for understanding code relationships
     intelligence: Arc<IntelligenceEngine>,
-    /// Semantic search for finding relevant code
-    search: Arc<RwLock<SemanticCodeSearch>>,
+    /// Semantic search for finding relevant code (optional - may not be indexed)
+    search: Option<Arc<RwLock<SemanticCodeSearch>>>,
     /// Current working context
     working_context: RwLock<WorkingContext>,
     /// Context cache for quick retrieval
@@ -139,20 +139,19 @@ pub enum AccessAction {
 pub struct ContextCache {
     /// Recently evicted items that might be needed again
     evicted_items: VecDeque<ContextItem>,
-    /// Preloaded items likely to be needed
-    prefetch_queue: VecDeque<ContextItem>,
-    /// Relationship graph for finding related context
-    relationship_graph: HashMap<ContextItemId, HashSet<ContextItemId>>,
+    // Removed unused fields: prefetch_queue, relationship_graph
+    // These can be added back when we implement predictive loading and relationships
 }
 
 /// Predicts what context will be needed next
+/// TODO: Implement actual learning and prediction logic
 pub struct ContextPredictor {
-    /// Patterns learned from usage
-    learned_patterns: HashMap<String, Vec<PredictionPattern>>,
-    /// Current predictions
-    predictions: RwLock<Vec<ContextPrediction>>,
+    // Simplified for now - will add learning when implemented
+    _placeholder: std::marker::PhantomData<()>,
 }
 
+// TODO: Implement prediction patterns when adding learning functionality
+// Keeping structure for future use but not actively using it yet
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PredictionPattern {
     pub trigger: String,
@@ -200,7 +199,7 @@ impl Default for ContextConfig {
 impl DynamicContextManager {
     pub fn new(
         intelligence: Arc<IntelligenceEngine>,
-        search: Arc<RwLock<SemanticCodeSearch>>,
+        search: Option<Arc<RwLock<SemanticCodeSearch>>>,
     ) -> Self {
         Self {
             intelligence,
@@ -214,12 +213,9 @@ impl DynamicContextManager {
             }),
             context_cache: RwLock::new(ContextCache {
                 evicted_items: VecDeque::with_capacity(20),
-                prefetch_queue: VecDeque::with_capacity(10),
-                relationship_graph: HashMap::new(),
             }),
             predictor: ContextPredictor {
-                learned_patterns: HashMap::new(),
-                predictions: RwLock::new(Vec::new()),
+                _placeholder: std::marker::PhantomData,
             },
             config: ContextConfig::default(),
         }
@@ -409,35 +405,48 @@ impl DynamicContextManager {
             }
         }
 
-        // Search for relevant code using semantic search
-        for query in &needs.search_queries {
-            let mut search = self.search.write().await;
-            if let Ok((results, _metrics)) = search.search(query, 3).await {
-                for result in results {
-                    let id = ContextItemId(format!("search:{}:{}",
-                        result.file_path.display(), result.chunk.start_line));
+        // Search for relevant code using semantic search (if available)
+        if let Some(search_arc) = &self.search {
+            for query in &needs.search_queries {
+                let mut search = search_arc.write().await;
+                // Only attempt search if we have an index
+                // The search will fail if no index exists, so we gracefully handle that
+                match search.search(query, 3).await {
+                    Ok((results, _metrics)) => {
+                        for result in results {
+                            let id = ContextItemId(format!("search:{}:{}",
+                                result.file_path.display(), result.chunk.start_line));
 
-                    if !context.active_items.contains_key(&id) {
-                        let item = ContextItem {
-                            id: id.clone(),
-                            item_type: ContextItemType::FileContent {
-                                path: result.file_path.to_string_lossy().into_owned(),
-                                lines: Some((result.chunk.start_line, result.chunk.end_line)),
-                            },
-                            content: result.chunk.content.clone(),
-                            relevance_score: result.similarity_score,
-                            last_accessed: chrono::Utc::now(),
-                            access_count: 1,
-                            token_size: estimate_tokens(&result.chunk.content),
-                            relationships: Vec::new(),
-                        };
+                            if !context.active_items.contains_key(&id) {
+                                let item = ContextItem {
+                                    id: id.clone(),
+                                    item_type: ContextItemType::FileContent {
+                                        path: result.file_path.to_string_lossy().into_owned(),
+                                        lines: Some((result.chunk.start_line, result.chunk.end_line)),
+                                    },
+                                    content: result.chunk.content.clone(),
+                                    relevance_score: result.similarity_score,
+                                    last_accessed: chrono::Utc::now(),
+                                    access_count: 1,
+                                    token_size: estimate_tokens(&result.chunk.content),
+                                    relationships: Vec::new(),
+                                };
 
-                        context.token_usage += item.token_size;
-                        context.active_items.insert(id.clone(), item);
-                        added.push(id);
+                                context.token_usage += item.token_size;
+                                context.active_items.insert(id.clone(), item);
+                                added.push(id);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        // Search failed (likely no index), fallback to file-based context
+                        debug!("Semantic search unavailable: {}. Using file-based context.", e);
+                        // Could implement fallback logic here to search files directly
                     }
                 }
             }
+        } else {
+            debug!("Semantic search not configured, using file-based context only");
         }
 
         info!("Added {} relevant context items", added.len());

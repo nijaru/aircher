@@ -40,9 +40,9 @@ impl Agent {
         let tools = Arc::new(ToolRegistry::default());
         let intelligence = Arc::new(intelligence);
 
-        // Create semantic search for context management
-        let search = SemanticCodeSearch::new();
-        let search = Arc::new(tokio::sync::RwLock::new(search));
+        // Create semantic search for context management (optional - may not have index)
+        // Only create if we can, otherwise context manager works without it
+        let search = Some(Arc::new(tokio::sync::RwLock::new(SemanticCodeSearch::new())));
 
         // Create dynamic context manager for intelligent context management
         let context_manager = Arc::new(DynamicContextManager::new(

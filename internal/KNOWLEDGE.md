@@ -13,6 +13,37 @@
 - **Implementation**: Context pruning, prefetching, and relevance scoring
 - **Competitive advantage**: Better than Claude Code's sub-agents without the overhead
 
+### Critical Issues with Current Context Manager (Sep 14, 2025)
+**Design Issues:**
+- **SemanticCodeSearch fails without index**: Search returns "Index not built" error on empty index
+- **No actual indexing**: We create SemanticCodeSearch but never index the codebase
+- **Unused components**: prefetch_queue, relationship_graph, learned_patterns never used
+- **No learning mechanism**: ContextPredictor has structures but no actual learning logic
+- **Simplistic analysis**: analyze_context_needs just extracts keywords, no deep understanding
+
+**Functional Gaps:**
+- **Search will always fail**: Without indexed codebase, semantic search throws errors
+- **No relationship tracking**: Context items have relationship fields but never populated
+- **Basic token limits**: Just removes low-importance items, no smart compaction
+- **No predictive loading**: Config flag exists but no actual implementation
+- **Missing embeddings**: Can't do semantic search without embedding model loaded
+
+**What Actually Works:**
+- ✅ File content loading from disk when requested
+- ✅ Token counting and basic limit enforcement
+- ✅ Context item creation and storage
+- ✅ Integration with IntelligenceEngine
+- ✅ Cache eviction mechanism
+- ✅ Relevance scoring updates
+- ✅ File access tracking from tools
+
+**Required Fixes:**
+1. Either index codebase on startup OR handle empty index gracefully
+2. Remove or implement unused components (predictor, relationships)
+3. Implement actual learning from patterns
+4. Make search optional/fallback to file-based context
+5. Add proper error handling for search failures
+
 ### TUI Performance Optimization
 - **ratatui** is stable and proven vs React-based terminals
 - Rust startup time (<100ms) is key competitive advantage  
