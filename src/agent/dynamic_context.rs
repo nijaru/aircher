@@ -57,6 +57,48 @@ pub struct ContextItem {
     pub relationships: Vec<ContextItemId>,
 }
 
+impl ContextItem {
+    /// Generate a summary of this context item for display
+    pub fn summary(&self) -> String {
+        match &self.item_type {
+            ContextItemType::FileContent { path, lines } => {
+                if let Some((start, end)) = lines {
+                    format!("{}:{}-{}", path, start, end)
+                } else {
+                    path.clone()
+                }
+            }
+            ContextItemType::FunctionDefinition { name, file } => {
+                format!("Function {} in {}", name, file)
+            }
+            ContextItemType::ClassDefinition { name, file } => {
+                format!("Class {} in {}", name, file)
+            }
+            ContextItemType::Documentation { topic } => {
+                format!("Docs: {}", topic)
+            }
+            ContextItemType::ErrorContext { error, .. } => {
+                format!("Error: {}", error)
+            }
+            ContextItemType::TestCase { name, file } => {
+                format!("Test {} in {}", name, file)
+            }
+            ContextItemType::Dependency { package, version } => {
+                format!("{}@{}", package, version)
+            }
+            ContextItemType::GitHistory { file, .. } => {
+                format!("Git history for {}", file)
+            }
+            ContextItemType::Conversation { .. } => {
+                "Previous conversation context".to_string()
+            }
+            ContextItemType::TaskRequirement { requirement } => {
+                format!("Requirement: {}", requirement)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ContextItemType {
     FileContent { path: String, lines: Option<(usize, usize)> },
@@ -570,6 +612,55 @@ impl DynamicContextManager {
         }
 
         output
+    }
+
+    /// Get the most relevant context items up to a limit
+    pub async fn get_relevant_context(&self, limit: usize) -> Result<Vec<ContextItem>> {
+        let context = self.working_context.read().await;
+
+        // Sort by relevance and recency
+        let mut items: Vec<_> = context.active_items.values().cloned().collect();
+        items.sort_by(|a, b| {
+            // First by relevance, then by last accessed
+            match b.relevance_score.partial_cmp(&a.relevance_score).unwrap() {
+                std::cmp::Ordering::Equal => b.last_accessed.cmp(&a.last_accessed),
+                other => other,
+            }
+        });
+
+        // Take up to limit items
+        Ok(items.into_iter().take(limit).collect())
+    }
+
+    /// Track file access by path (helper for tool execution)
+    pub async fn track_file_access(&self, path: &str, action: AccessAction) {
+        // Create a context item ID from the path
+        let item_id = ContextItemId(format!("file:{}", path));
+
+        // Check if we have this file in context
+        let mut context = self.working_context.write().await;
+
+        // If not in context, add it
+        if !context.active_items.contains_key(&item_id) {
+            let item = ContextItem {
+                id: item_id.clone(),
+                item_type: ContextItemType::FileContent {
+                    path: path.to_string(),
+                    lines: None,
+                },
+                content: String::new(), // Content would be loaded when needed
+                relevance_score: 0.5,
+                last_accessed: chrono::Utc::now(),
+                access_count: 1,
+                token_size: 0,
+                relationships: Vec::new(),
+            };
+            context.active_items.insert(item_id.clone(), item);
+        }
+
+        // Now track the access
+        drop(context); // Release write lock
+        self.track_access(&item_id, action).await;
     }
 }
 
