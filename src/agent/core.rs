@@ -14,6 +14,8 @@ use crate::agent::tools::ToolRegistry;
 use crate::agent::parser::ToolCallParser;
 use crate::agent::conversation::{CodingConversation, Message as ConvMessage, MessageRole as ConvRole, ProjectContext};
 use crate::agent::reasoning::{AgentReasoning, TaskStatus};
+use crate::agent::dynamic_context::DynamicContextManager;
+use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
 pub struct Agent {
@@ -24,6 +26,7 @@ pub struct Agent {
     parser: ToolCallParser,
     conversation: Arc<tokio::sync::Mutex<CodingConversation>>,
     reasoning: Arc<AgentReasoning>,
+    context_manager: Arc<DynamicContextManager>,
     #[allow(dead_code)]
     max_iterations: usize,
 }
@@ -36,13 +39,23 @@ impl Agent {
     ) -> Result<Self> {
         let tools = Arc::new(ToolRegistry::default());
         let intelligence = Arc::new(intelligence);
-        
+
+        // Create semantic search for context management
+        let search = SemanticCodeSearch::new();
+        let search = Arc::new(tokio::sync::RwLock::new(search));
+
+        // Create dynamic context manager for intelligent context management
+        let context_manager = Arc::new(DynamicContextManager::new(
+            intelligence.clone(),
+            search,
+        ));
+
         // Create the reasoning engine with intelligent planning capabilities
         let reasoning = Arc::new(AgentReasoning::new(
             intelligence.clone(),
             tools.clone(),
         ));
-        
+
         Ok(Self {
             tools,
             intelligence,
@@ -55,6 +68,7 @@ impl Agent {
                 task_list: Vec::new(),
             })),
             reasoning,
+            context_manager,
             max_iterations: 10, // Prevent infinite loops
         })
     }
@@ -158,6 +172,23 @@ impl Agent {
                 system_prompt.push_str(&format!("\n\nContext from previous patterns:\n{}", suggestions));
             }
         }
+
+        // Update dynamic context based on current activity
+        if let Ok(context_update) = self.context_manager.update_context(user_message).await {
+            debug!("Context updated: {} items added, {} removed",
+                context_update.added.len(),
+                context_update.removed.len());
+
+            // Add relevant context to the system prompt
+            if let Ok(relevant_context) = self.context_manager.get_relevant_context(5).await {
+                if !relevant_context.is_empty() {
+                    system_prompt.push_str("\n\n## Relevant Context:\n");
+                    for item in relevant_context {
+                        system_prompt.push_str(&format!("- {}\n", item.summary()));
+                    }
+                }
+            }
+        }
         
         let mut messages = vec![
             Message {
@@ -241,10 +272,22 @@ impl Agent {
             let mut tool_results = Vec::new();
             for call in &tool_calls {
                 debug!("Executing tool: {} with params: {}", call.name, call.parameters);
-                
+
                 if let Some(tool) = self.tools.get(&call.name) {
                     match tool.execute(call.parameters.clone()).await {
                         Ok(output) => {
+                            // Track context access for file-related tools
+                            if call.name == "read_file" || call.name == "edit_file" || call.name == "write_file" {
+                                if let Some(path) = call.parameters.get("path").or(call.parameters.get("file_path")).and_then(|p| p.as_str()) {
+                                    let action = if call.name == "read_file" {
+                                        crate::agent::dynamic_context::AccessAction::Read
+                                    } else {
+                                        crate::agent::dynamic_context::AccessAction::Modified
+                                    };
+                                    let _ = self.context_manager.track_file_access(path, action).await;
+                                }
+                            }
+
                             if output.success {
                                 tool_results.push(format!("Tool {} succeeded: {:?}", call.name, output.result));
                             } else {
