@@ -2,6 +2,37 @@
 
 **Purpose**: Document WHY significant technical decisions were made.
 
+## 2025-09-14: Dynamic Context Management over Sub-Agents
+
+### Decision
+Implement Dynamic Context Management instead of autonomous sub-agents for handling complex tasks.
+
+### Context
+- Research shows sub-agents cause 19% performance degradation for experienced developers
+- Sub-agents suffer from tunnel vision and context pollution issues
+- Coordination overhead between multiple agents is problematic
+- Industry moving toward structured context engineering in 2025
+
+### Implementation
+- DynamicContextManager actively manages context during execution
+- Intelligent pruning and fetching of relevant context
+- Predictive context loading based on task analysis
+- Context importance scoring and token limit enforcement
+- No autonomous agents - single agent with smart context
+
+### Impact
+- Better performance without multi-agent overhead
+- Cleaner context management without pollution
+- More predictable behavior than autonomous agents
+- Maintains benefits of specialization through context templates
+
+### Alternative Considered
+- Sub-agents (Claude Code style): Too much overhead, tunnel vision issues
+- Static context windows: Not flexible enough for complex tasks
+- Multiple autonomous agents: Coordination problems, context pollution
+
+---
+
 ## 2025-08-25: Fix Ollama Provider Tool Support
 
 ### Decision

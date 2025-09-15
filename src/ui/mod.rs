@@ -29,7 +29,7 @@ use crate::intelligence::tools::IntelligenceTools;
 use crate::intelligence::file_monitor;
 use crate::semantic_search::SemanticCodeSearch;
 use crate::agent::conversation::ProgrammingLanguage;
-use crate::client::local::LocalClient;
+use crate::client::{local::LocalClient, AgentClient};
 use crate::agent::streaming::{AgentStream, AgentUpdate};
 use crate::auth::AuthManager;
 
@@ -82,13 +82,14 @@ pub mod spinners;
 pub mod todo_panel;
 pub mod collapsible_tool;
 pub mod compaction_analyzer;
+pub mod intelligent_compaction;
 
 use auth_wizard::AuthWizard;
 use selection::SelectionModal;
 use session_browser::SessionBrowser;
 use todo_panel::TodoPanel;
 use collapsible_tool::CollapsibleToolManager;
-use compaction_analyzer::ConversationAnalyzer;
+use intelligent_compaction::IntelligentCompactionAnalyzer;
 use settings::SettingsModal;
 use help::HelpModal;
 use autocomplete::AutocompleteEngine;
@@ -868,6 +869,11 @@ impl TuiManager {
                                                     self.cursor_position = 0;
                                                     self.session_browser.show();
                                                 }
+                                                "/tools" => {
+                                                    self.input.clear();
+                                                    self.cursor_position = 0;
+                                                    self.show_tool_discovery().await;
+                                                }
                                                 "/config" | "/settings" => {
                                                     self.input.clear();
                                                     self.cursor_position = 0;
@@ -931,6 +937,7 @@ impl TuiManager {
                                                         }
                                                     }
                                                     "/sessions" => { self.session_browser.show(); self.load_sessions().await; }
+                                                    "/tools" => { self.show_tool_discovery().await; }
                                                     "/compact" => {
                                                         self.add_message(Message::user(message.clone()));
                                                         if let Err(e) = self.handle_compact_command(args).await {
@@ -4549,20 +4556,45 @@ function farewell(name) {
             .collect::<Vec<_>>()
             .join("\n\n");
 
-        // Use smart compaction analysis to create context-aware prompt
-        let analyzer = ConversationAnalyzer::new()?;
-        let context = analyzer.analyze_conversation(&self.messages)?;
-        
+        // Use intelligent compaction analysis with optional intelligence enhancement
+        self.add_message(Message::new(
+            MessageRole::System,
+            "🧠 Analyzing conversation context for optimal compaction...".to_string(),
+        ));
+
+        let analyzer = if let Some(ref _agent_client) = self.agent_client {
+            // Try to extract intelligence engine from agent client
+            // Since LocalClient doesn't expose intelligence directly, create enhanced analyzer
+            info!("Using basic intelligent compaction analyzer");
+            IntelligentCompactionAnalyzer::new()?
+        } else {
+            info!("No agent client available, using basic intelligent analyzer");
+            IntelligentCompactionAnalyzer::new()?
+        };
+
+        let context = analyzer.analyze_conversation(&self.messages).await?;
+
+        // Show analysis results to user
+        self.add_message(Message::new(
+            MessageRole::System,
+            context.get_analysis_summary(),
+        ));
+
         let prompt = if !custom_instructions.is_empty() {
             // If user provided custom instructions, use those with enhanced context
             format!(
                 "{}\n\nAdditional instructions: {}",
-                context.generate_smart_prompt(&conversation_text),
+                context.generate_intelligent_prompt(&conversation_text),
                 custom_instructions
             )
         } else {
-            // Use smart context-aware prompt
-            context.generate_smart_prompt(&conversation_text)
+            // Use intelligent context-aware prompt
+            if context.has_intelligence_insights() {
+                context.generate_intelligent_prompt(&conversation_text)
+            } else {
+                // Fallback to base context if intelligence not available
+                context.base_context.generate_smart_prompt(&conversation_text)
+            }
         };
 
         // Create chat request for summarization
@@ -5016,6 +5048,241 @@ function farewell(name) {
         ));
 
         Ok(())
+    }
+
+    /// Show tool discovery interface with all available tools
+    async fn show_tool_discovery(&mut self) {
+        self.add_message(Message::new(
+            MessageRole::System,
+            "🔧 Aircher Tool Discovery".to_string(),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "=======================".to_string(),
+        ));
+
+        // Get all available tools from the agent client if available
+        if let Some(ref agent_client) = self.agent_client {
+            match agent_client.initialize().await {
+                Ok(agent_info) => {
+                    let tools = agent_info.available_tools;
+                    self.add_message(Message::new(
+                        MessageRole::System,
+                        format!("📊 Total tools available: {}", tools.len()),
+                    ));
+
+                    self.add_message(Message::new(
+                        MessageRole::System,
+                        "".to_string(), // Empty line
+                    ));
+
+                    // Group tools by category
+                    let mut file_ops = Vec::new();
+                    let mut code_analysis = Vec::new();
+                    let mut lsp_tools = Vec::new();
+                    let mut git_tools = Vec::new();
+                    let mut web_tools = Vec::new();
+                    let mut system_tools = Vec::new();
+                    let mut other_tools = Vec::new();
+
+                    for tool in tools {
+                        if tool.contains("File") || tool.contains("file") {
+                            file_ops.push(tool);
+                        } else if tool.contains("Search") || tool.contains("Definition") || tool.contains("search") {
+                            code_analysis.push(tool);
+                        } else if tool.contains("Completion") || tool.contains("Hover") || tool.contains("References") ||
+                                tool.contains("Rename") || tool.contains("Diagnostic") || tool.contains("Format") {
+                            lsp_tools.push(tool);
+                        } else if tool.contains("Commit") || tool.contains("PR") || tool.contains("Branch") || tool.contains("Git") {
+                            git_tools.push(tool);
+                        } else if tool.contains("Web") || tool.contains("Browse") {
+                            web_tools.push(tool);
+                        } else if tool.contains("Command") || tool.contains("System") || tool.contains("Build") {
+                            system_tools.push(tool);
+                        } else {
+                            other_tools.push(tool);
+                        }
+                    }
+
+                    // Display categorized tools
+                    if !file_ops.is_empty() {
+                        self.add_message(Message::new(
+                            MessageRole::System,
+                            "📁 File Operations:".to_string(),
+                        ));
+                        for tool in file_ops {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("  • {}", tool),
+                            ));
+                        }
+                        self.add_message(Message::new(MessageRole::System, "".to_string()));
+                    }
+
+                    if !code_analysis.is_empty() {
+                        self.add_message(Message::new(
+                            MessageRole::System,
+                            "🔍 Code Analysis:".to_string(),
+                        ));
+                        for tool in code_analysis {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("  • {}", tool),
+                            ));
+                        }
+                        self.add_message(Message::new(MessageRole::System, "".to_string()));
+                    }
+
+                    if !lsp_tools.is_empty() {
+                        self.add_message(Message::new(
+                            MessageRole::System,
+                            "🧠 Language Server Protocol (IDE features):".to_string(),
+                        ));
+                        for tool in lsp_tools {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("  • {}", tool),
+                            ));
+                        }
+                        self.add_message(Message::new(MessageRole::System, "".to_string()));
+                    }
+
+                    if !git_tools.is_empty() {
+                        self.add_message(Message::new(
+                            MessageRole::System,
+                            "📝 Git Workflow Automation:".to_string(),
+                        ));
+                        for tool in git_tools {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("  • {}", tool),
+                            ));
+                        }
+                        self.add_message(Message::new(MessageRole::System, "".to_string()));
+                    }
+
+                    if !web_tools.is_empty() {
+                        self.add_message(Message::new(
+                            MessageRole::System,
+                            "🌐 Web Access:".to_string(),
+                        ));
+                        for tool in web_tools {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("  • {}", tool),
+                            ));
+                        }
+                        self.add_message(Message::new(MessageRole::System, "".to_string()));
+                    }
+
+                    if !system_tools.is_empty() {
+                        self.add_message(Message::new(
+                            MessageRole::System,
+                            "💻 System Operations:".to_string(),
+                        ));
+                        for tool in system_tools {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("  • {}", tool),
+                            ));
+                        }
+                        self.add_message(Message::new(MessageRole::System, "".to_string()));
+                    }
+
+                    if !other_tools.is_empty() {
+                        self.add_message(Message::new(
+                            MessageRole::System,
+                            "🔧 Other Tools:".to_string(),
+                        ));
+                        for tool in other_tools {
+                            self.add_message(Message::new(
+                                MessageRole::System,
+                                format!("  • {}", tool),
+                            ));
+                        }
+                        self.add_message(Message::new(MessageRole::System, "".to_string()));
+                    }
+                }
+                Err(e) => {
+                    self.add_message(Message::new(
+                        MessageRole::System,
+                        format!("❌ Error listing tools: {}", e),
+                    ));
+                }
+            }
+        } else {
+            // Fallback - show static list of known tools
+            self.add_message(Message::new(
+                MessageRole::System,
+                "📊 Known tools (agent not initialized):".to_string(),
+            ));
+
+            let tool_categories = vec![
+                ("📁 File Operations (4)", vec!["ReadFileTool", "WriteFileTool", "EditFileTool", "ListFilesTool"]),
+                ("🔍 Code Analysis (2)", vec!["SearchCodeTool", "FindDefinitionTool"]),
+                ("🧠 LSP Integration (7)", vec!["CodeCompletionTool", "HoverTool", "GoToDefinitionTool", "FindReferencesTool", "RenameSymbolTool", "DiagnosticsTool", "FormatCodeTool"]),
+                ("📝 Git Workflow (4)", vec!["SmartCommitTool", "CreatePRTool", "BranchManagementTool", "TestRunnerTool"]),
+                ("🌐 Web Access (2)", vec!["WebBrowsingTool", "WebSearchTool"]),
+                ("💻 System Operations (3)", vec!["RunCommandTool", "GitStatusTool", "BuildSystemTool"]),
+            ];
+
+            for (category, tools) in tool_categories {
+                self.add_message(Message::new(MessageRole::System, category.to_string()));
+                for tool in tools {
+                    self.add_message(Message::new(
+                        MessageRole::System,
+                        format!("  • {}", tool),
+                    ));
+                }
+                self.add_message(Message::new(MessageRole::System, "".to_string()));
+            }
+        }
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "💡 Usage: Tools are automatically available to the AI agent.".to_string(),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "   Simply describe what you want to do, and the agent will use".to_string(),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "   the appropriate tools to accomplish the task.".to_string(),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "".to_string(),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "📚 Examples:".to_string(),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "  • \"Read the main.rs file and explain what it does\"".to_string(),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "  • \"Search for authentication patterns in the codebase\"".to_string(),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "  • \"Create a commit with an intelligent message\"".to_string(),
+        ));
+
+        self.add_message(Message::new(
+            MessageRole::System,
+            "  • \"List all files in the src directory\"".to_string(),
+        ));
     }
 }
 

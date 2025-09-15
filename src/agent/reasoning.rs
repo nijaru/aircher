@@ -6,7 +6,7 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use crate::agent::tools::{ToolCall, ToolOutput, ToolRegistry};
-use crate::intelligence::IntelligenceEngine;
+use crate::intelligence::{IntelligenceEngine, tools::IntelligenceTools};
 
 /// Represents a high-level task that can be decomposed into subtasks
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,10 +73,8 @@ pub struct LearnedPattern {
 
 /// Manages task planning and decomposition
 pub struct TaskPlanner {
-    #[allow(dead_code)]
     intelligence: Arc<IntelligenceEngine>,
     patterns: Arc<RwLock<HashMap<String, LearnedPattern>>>,
-    #[allow(dead_code)]
     max_decomposition_depth: usize,
 }
 
@@ -106,6 +104,14 @@ impl TaskPlanner {
             confidence: 0.0,
             retry_count: 0,
         };
+
+        // Get suggestions from intelligence engine before planning
+        let suggestions = self.intelligence.get_suggestions(request, None).await
+            .unwrap_or_else(|_| "No intelligent suggestions available".to_string());
+
+        if !suggestions.contains("not initialized") {
+            info!("Intelligence suggestions for task: {}", suggestions);
+        }
 
         // Check if we have a learned pattern for this type of request
         if let Some(pattern) = self.find_matching_pattern(request).await {
@@ -148,52 +154,6 @@ impl TaskPlanner {
         }
     }
 
-    /// Analyze the context needed for task execution
-    async fn analyze_context(&self, request: &str) -> Result<TaskContext> {
-        // Simplified context analysis - extract file mentions and common patterns
-        let lower = request.to_lowercase();
-        let mut files_involved = Vec::new();
-        let mut build_commands = Vec::new();
-        
-        // Extract file paths mentioned in the request
-        for word in request.split_whitespace() {
-            if word.contains('.') && (word.contains('/') || word.contains('\\')) {
-                files_involved.push(word.to_string());
-            }
-        }
-        
-        // Detect common build commands
-        if lower.contains("cargo") {
-            build_commands.push("cargo build".to_string());
-            build_commands.push("cargo test".to_string());
-        } else if lower.contains("npm") || lower.contains("node") {
-            build_commands.push("npm install".to_string());
-            build_commands.push("npm test".to_string());
-        } else if lower.contains("python") || lower.contains("pip") {
-            build_commands.push("python -m pytest".to_string());
-        }
-        
-        // Detect project type
-        let project_type = if lower.contains("rust") || lower.contains("cargo") {
-            Some("rust".to_string())
-        } else if lower.contains("javascript") || lower.contains("typescript") || lower.contains("node") {
-            Some("javascript".to_string())
-        } else if lower.contains("python") {
-            Some("python".to_string())
-        } else {
-            None
-        };
-        
-        Ok(TaskContext {
-            files_involved,
-            symbols_referenced: Vec::new(),
-            test_files: Vec::new(),
-            build_commands,
-            git_branch: None,
-            project_type,
-            constraints: Vec::new(),
-        })
-    }
 
     /// Find a matching learned pattern for the request
     async fn find_matching_pattern(&self, request: &str) -> Option<LearnedPattern> {
@@ -388,13 +348,64 @@ impl TaskPlanner {
             .join(" ")
             .to_lowercase()
     }
+
+    /// Analyze context for a request using intelligence engine
+    async fn analyze_context(&self, request: &str) -> Result<TaskContext> {
+        info!("Analyzing context with intelligence for request: {}", request);
+
+        // Get contextual insights from intelligence engine
+        let insight = self.intelligence.get_development_context(request).await;
+
+        // Extract files mentioned in the intelligence analysis
+        let files_involved: Vec<String> = insight.key_files.iter()
+            .map(|f| f.path.clone())
+            .collect();
+
+        // Use intelligence to predict related files
+        let predicted_files = if !files_involved.is_empty() {
+            self.intelligence.predict_file_changes(&files_involved[0]).await
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        // Combine files from intelligence analysis with predictions
+        let mut all_files = files_involved;
+        all_files.extend(predicted_files);
+        all_files.dedup();
+
+        // Extract project context from intelligence insights
+        let project_type = if insight.development_phase.contains("rust") || insight.development_phase.contains("cargo") {
+            Some("rust".to_string())
+        } else if insight.development_phase.contains("javascript") || insight.development_phase.contains("npm") {
+            Some("javascript".to_string())
+        } else if insight.development_phase.contains("python") {
+            Some("python".to_string())
+        } else {
+            None
+        };
+
+        // Use intelligence suggestions as constraints
+        let constraints: Vec<String> = insight.suggested_next_actions.iter()
+            .map(|action| action.description.clone())
+            .collect();
+
+        Ok(TaskContext {
+            files_involved: all_files,
+            symbols_referenced: Vec::new(), // TODO: Extract from intelligence analysis
+            test_files: Vec::new(), // TODO: Predict test files using intelligence
+            build_commands: Vec::new(), // TODO: Suggest build commands based on project type
+            git_branch: None, // TODO: Get current git branch
+            project_type,
+            constraints,
+        })
+    }
 }
 
 /// Manages task execution with intelligent orchestration
 pub struct TaskExecutor {
     planner: Arc<TaskPlanner>,
     tools: Arc<ToolRegistry>,
-    #[allow(dead_code)]
     intelligence: Arc<IntelligenceEngine>,
     max_retries: u32,
 }
@@ -422,7 +433,21 @@ impl TaskExecutor {
         }
 
         task.status = TaskStatus::Executing;
-        
+
+        // Use intelligence to predict additional files that might need changes
+        if !task.context.files_involved.is_empty() {
+            let current_file = &task.context.files_involved[0];
+            if let Ok(predicted_files) = self.intelligence.predict_file_changes(current_file).await {
+                if !predicted_files.is_empty() {
+                    info!("Intelligence predicts {} additional files may need changes: {:?}",
+                          predicted_files.len(), predicted_files);
+                    // Add predicted files to context for better planning
+                    task.context.files_involved.extend(predicted_files);
+                    task.context.files_involved.dedup();
+                }
+            }
+        }
+
         // Execute subtasks first (depth-first)
         if !task.subtasks.is_empty() {
             for i in 0..task.subtasks.len() {
@@ -644,7 +669,6 @@ impl TaskExecutor {
 pub struct AgentReasoning {
     planner: Arc<TaskPlanner>,
     executor: Arc<TaskExecutor>,
-    #[allow(dead_code)]
     intelligence: Arc<IntelligenceEngine>,
     active_tasks: Arc<RwLock<VecDeque<Task>>>,
 }
@@ -688,7 +712,44 @@ impl AgentReasoning {
         // Generate summary
         let summary = self.generate_execution_summary(&executed_task).await?;
         let success = executed_task.status == TaskStatus::Completed;
-        
+
+        // Record pattern learning if successful
+        if success {
+            if let Err(e) = self.planner.learn_from_execution(&executed_task, true).await {
+                warn!("Failed to learn from successful execution: {}", e);
+            }
+
+            // Also record pattern in intelligence engine for persistent memory
+            let actions: Vec<_> = executed_task.tool_calls.iter().map(|tc| {
+                crate::intelligence::duckdb_memory::AgentAction {
+                    tool: tc.name.clone(),
+                    params: tc.parameters.clone(),
+                    success: true,
+                    duration_ms: 0, // TODO: Track actual duration
+                    result_summary: format!("Successful execution of {}", tc.name),
+                }
+            }).collect();
+
+            let pattern = crate::intelligence::duckdb_memory::Pattern {
+                id: uuid::Uuid::new_v4().to_string(),
+                description: request.to_string(),
+                context: request.to_string(),
+                actions,
+                files_involved: executed_task.context.files_involved.clone(),
+                success: true,
+                timestamp: chrono::Utc::now(),
+                session_id: "current".to_string(), // TODO: Use proper session ID
+                embedding_text: request.to_string(),
+                embedding: vec![], // Will be populated by intelligence engine if needed
+            };
+
+            if let Err(e) = self.intelligence.record_pattern(pattern).await {
+                warn!("Failed to record pattern in persistent memory: {}", e);
+            } else {
+                info!("Successfully recorded pattern for future learning");
+            }
+        }
+
         Ok(TaskExecutionResult {
             task: executed_task,
             summary,

@@ -52,6 +52,11 @@ pub const SLASH_COMMANDS: &[SlashCommand] = &[
         aliases: &[],
     },
     SlashCommand {
+        command: "/tools",
+        description: "Show all 20 available tools (file ops, LSP, Git, etc.)",
+        aliases: &[],
+    },
+    SlashCommand {
         command: "/save",
         description: "Save current conversation with optional name",
         aliases: &[],
