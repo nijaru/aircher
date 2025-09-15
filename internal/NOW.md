@@ -96,6 +96,49 @@
 - 🎯 **Model selection transparency** (vs black box)
 - 🛠️ **Most build systems** (9 vs competitors' 3-4)
 
+## 🚀 NEW ARCHITECTURE DIRECTION: Dynamic Context Management
+
+### 🎯 MAJOR PIVOT (Sep 14, 2025)
+**Decision**: Abandoning sub-agents in favor of **Dynamic Context Management**
+
+**Why**: Research reveals sub-agents cause:
+- 19% performance degradation for experienced developers
+- Tunnel vision and context pollution issues
+- Multi-agent coordination overhead
+
+**Our Innovation**: **DynamicContextManager** - An intelligent agent that:
+- ✅ Actively manages context during execution
+- ✅ Pulls in and removes context pieces as needed
+- ✅ Predictively prefetches relevant context
+- ✅ Maintains optimal token window usage
+- ✅ No autonomous sub-agents = no coordination overhead
+
+**Implementation Status**:
+- ✅ `dynamic_context.rs` - Core implementation complete
+- ✅ `context_engine.rs` - Context engineering foundations
+- ⚠️ `sub_agents.rs` - DEPRECATED (keeping for reference only)
+- 📋 Integration with Agent needed
+
+### 🎯 Competitive Analysis Update (Sep 14, 2025)
+
+**Critical Findings from Live Codebase Analysis**:
+- **Zed**: Has Agent Client Protocol + MCP integration
+- **Claude Code**: Sub-agents system (but has problems!)
+- **Codex CLI**: Advanced tool system with plan/execute
+- **Amp**: Multi-threading and team collaboration
+
+**Our Differentiation Strategy**:
+- ✅ **Tool Count Leadership**: 20 tools (highest in market)
+- ✅ **Dynamic Context**: Better than sub-agents (our innovation)
+- ✅ **Multi-Provider**: Only us + OpenCode have this
+- ✅ **Local Models**: Superior Ollama integration
+
+**Gaps We Must Close**:
+- ❌ Agent Client Protocol support
+- ❌ Multi-turn task orchestration
+- ❌ Enterprise features (audit, compliance)
+- ❌ Full MCP client implementation
+
 ## 🔥 IMMEDIATE NEXT STEPS
 
 ### Priority 1: Add Critical Missing Tools

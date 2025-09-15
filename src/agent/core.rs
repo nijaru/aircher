@@ -92,7 +92,6 @@ impl Agent {
         }
 
         let mut tool_status_messages = Vec::new();
-        let mut final_response = String::new();
 
         // Use intelligent reasoning to plan and execute the task
         let result = match self.reasoning.process_request(user_message).await {
@@ -119,7 +118,7 @@ impl Agent {
             }
             
             // Generate response based on task results
-            final_response = if !result.summary.is_empty() {
+            let mut final_response = if !result.summary.is_empty() {
                 result.summary.clone()
             } else {
                 format!("Successfully completed: {}", result.task.description)
@@ -212,21 +211,23 @@ impl Agent {
         
         // Parse tool calls
         let (clean_text, tool_calls) = self.parser.parse_structured(&assistant_message)?;
-        
+
         if tool_calls.is_empty() {
-            // No tool calls, this is the final response
-            final_response = clean_text.clone();
-            
             // Add assistant message to conversation
             {
                 let mut conversation = self.conversation.lock().await;
                 conversation.messages.push(ConvMessage {
                     role: ConvRole::Assistant,
-                    content: clean_text,
+                    content: clean_text.clone(),
                     tool_calls: None,
                     timestamp: chrono::Utc::now(),
                 });
             }
+        }
+
+        let final_response = if tool_calls.is_empty() {
+            // No tool calls, this is the final response
+            clean_text.clone()
         } else {
             // Execute tool calls
             info!("Executing {} tool calls", tool_calls.len());
@@ -260,7 +261,7 @@ impl Agent {
                 }
             }
             
-            final_response = format!("Executed tools:\n{}", tool_results.join("\n"));
+            let response = format!("Executed tools:\n{}", tool_results.join("\n"));
             
             // Record patterns from tool execution for intelligence learning
             for (i, call) in tool_calls.iter().enumerate() {
@@ -306,12 +307,14 @@ impl Agent {
                 let mut conversation = self.conversation.lock().await;
                 conversation.messages.push(ConvMessage {
                     role: ConvRole::Assistant,
-                    content: final_response.clone(),
+                    content: response.clone(),
                     tool_calls: Some(conversation_tool_calls),
                     timestamp: chrono::Utc::now(),
                 });
             }
-        }
+
+            response
+        };
         
         Ok((final_response, tool_status_messages))
     }
@@ -319,7 +322,6 @@ impl Agent {
     /// Direct message processing without reasoning engine (fallback)
     async fn process_message_direct(&self, _user_message: &str, provider: &dyn LLMProvider, model: &str) -> Result<(String, Vec<String>)> {
         let mut tool_status_messages = Vec::new();
-        let mut final_response = String::new();
         
         // Build chat request with intelligence-enhanced system prompt
         let system_prompt = "You are Aircher, an AI coding assistant. Use the provided tools to help with coding tasks.".to_string();
@@ -378,17 +380,21 @@ impl Agent {
         let (clean_text, tool_calls) = self.parser.parse_structured(&assistant_message)?;
         
         if tool_calls.is_empty() {
-            final_response = clean_text.clone();
-            
+            // Add assistant message to conversation
             {
                 let mut conversation = self.conversation.lock().await;
                 conversation.messages.push(ConvMessage {
                     role: ConvRole::Assistant,
-                    content: clean_text,
+                    content: clean_text.clone(),
                     tool_calls: None,
                     timestamp: chrono::Utc::now(),
                 });
             }
+        }
+
+        let final_response = if tool_calls.is_empty() {
+            // No tool calls, this is the final response
+            clean_text.clone()
         } else {
             info!("Executing {} tool calls", tool_calls.len());
             
@@ -419,7 +425,7 @@ impl Agent {
                 }
             }
             
-            final_response = format!("Executed tools:\n{}", tool_results.join("\n"));
+            let response = format!("Executed tools:\n{}", tool_results.join("\n"));
             
             let conversation_tool_calls: Vec<crate::agent::conversation::ToolCall> = tool_calls.into_iter().map(|tc| {
                 crate::agent::conversation::ToolCall {
@@ -433,12 +439,14 @@ impl Agent {
                 let mut conversation = self.conversation.lock().await;
                 conversation.messages.push(ConvMessage {
                     role: ConvRole::Assistant,
-                    content: final_response.clone(),
+                    content: response.clone(),
                     tool_calls: Some(conversation_tool_calls),
                     timestamp: chrono::Utc::now(),
                 });
             }
-        }
+
+            response
+        };
         
         Ok((final_response, tool_status_messages))
     }

@@ -4,6 +4,15 @@
 
 ## Architectural Insights
 
+### Dynamic Context Management > Sub-Agents (Sep 14, 2025)
+- **Sub-agents cause 19% performance degradation** in experienced developers
+- **Tunnel vision problem**: Sub-agents get stuck in single reasoning paths
+- **Context pollution**: Multiple agents actually worsen context management
+- **Our innovation**: DynamicContextManager that actively manages context
+- **Key insight**: Single agent with smart context beats multiple autonomous agents
+- **Implementation**: Context pruning, prefetching, and relevance scoring
+- **Competitive advantage**: Better than Claude Code's sub-agents without the overhead
+
 ### TUI Performance Optimization
 - **ratatui** is stable and proven vs React-based terminals
 - Rust startup time (<100ms) is key competitive advantage  

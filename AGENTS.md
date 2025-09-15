@@ -62,6 +62,23 @@ Aircher is evolving into a **dual-mode AI coding agent** with both Terminal UI (
 
 ## Architectural Decisions
 
+### Dynamic Context Management over Sub-Agents (Sep 14, 2025)
+
+**Decision**: We use Dynamic Context Management instead of autonomous sub-agents.
+
+**Rationale**:
+- Research shows sub-agents cause **19% performance degradation**
+- Sub-agents suffer from **tunnel vision** and **context pollution**
+- Our DynamicContextManager provides better performance
+
+**Implementation**:
+- `src/agent/dynamic_context.rs` - Intelligent context management
+- `src/agent/context_engine.rs` - Context engineering foundations
+- Active pruning and prefetching of relevant context
+- Single agent with smart context beats multiple autonomous agents
+
+**Note**: `src/agent/sub_agents.rs` exists but is DEPRECATED - we pivoted away from this approach.
+
 ### Shell-First Approach for Language Tools
 
 **Decision**: Use shell commands for language tooling instead of native integrations.
