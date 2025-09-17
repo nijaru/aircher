@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 pub mod file_ops;
+pub mod safe_file_ops;
 pub mod code_analysis;
 pub mod system_ops;
 pub mod permission_channel;
@@ -13,11 +14,14 @@ pub mod lsp_tools;
 pub mod git_tools;
 pub mod web_tools;
 pub mod build_tools;
+pub mod approved_file_ops;
+pub mod approval_registry;
 
 #[cfg(test)]
 mod tests;
 
 pub use file_ops::{ReadFileTool, WriteFileTool, EditFileTool, ListFilesTool};
+pub use safe_file_ops::SafeWriteFileTool;
 pub use code_analysis::{SearchCodeTool, FindDefinitionTool};
 pub use system_ops::RunCommandTool;
 pub use web_tools::{WebBrowsingTool, WebSearchTool};
@@ -117,7 +121,9 @@ impl Default for ToolRegistry {
         
         // Register default file operation tools
         registry.register(Box::new(ReadFileTool::new()));
-        registry.register(Box::new(WriteFileTool::new()));
+        // Use SafeWriteFileTool to prevent overwriting critical files
+        let workspace = std::env::current_dir().ok();
+        registry.register(Box::new(SafeWriteFileTool::new(workspace.clone())));
         registry.register(Box::new(EditFileTool::new()));
         registry.register(Box::new(ListFilesTool::new()));
         

@@ -36,20 +36,20 @@ impl ContextualRelevanceEngine {
         // Try to open git repository
         let git_repo = Arc::new(Mutex::new(Repository::open(&project_root).ok()));
         
-        let mut engine = Self {
+        let engine = Self {
             _config: config.clone(),
             project_root,
             git_repo,
-            file_cache: HashMap::new(),
+            file_cache: HashMap::new(), // PERFORMANCE FIX: Don't scan on initialization
         };
-        
-        // Initialize file cache
-        engine.scan_project_files().await?;
-        
+
+        // PERFORMANCE FIX: Skip expensive project scan during initialization
+        // Files will be scanned lazily when first needed
+
         Ok(engine)
     }
 
-    /// Scan project files and build cache
+    /// Scan project files and build cache (lazy-loaded when first needed)
     async fn scan_project_files(&mut self) -> Result<()> {
         for entry in WalkDir::new(&self.project_root)
             .into_iter()

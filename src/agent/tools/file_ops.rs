@@ -28,7 +28,21 @@ impl ReadFileTool {
     }
     
     fn resolve_path(&self, path: &str) -> Result<PathBuf, ToolError> {
-        let path = Path::new(path);
+        // Handle paths that look like they should be absolute but are missing leading slash
+        let corrected_path = if path.starts_with("tmp/") || path.starts_with("var/") || path.starts_with("etc/") {
+            // Common Unix paths that should be absolute
+            format!("/{}", path)
+        } else if path.starts_with("Users/") && cfg!(target_os = "macos") {
+            // macOS user paths
+            format!("/{}", path)
+        } else if path.starts_with("home/") && cfg!(unix) {
+            // Unix home paths
+            format!("/{}", path)
+        } else {
+            path.to_string()
+        };
+
+        let path = Path::new(&corrected_path);
         let resolved = if path.is_absolute() {
             path.to_path_buf()
         } else if let Some(root) = &self.workspace_root {
@@ -36,11 +50,11 @@ impl ReadFileTool {
         } else {
             path.to_path_buf()
         };
-        
+
         if !resolved.exists() {
-            return Err(ToolError::NotFound(format!("File not found: {}", path.display())));
+            return Err(ToolError::NotFound(format!("File not found: {}", resolved.display())));
         }
-        
+
         Ok(resolved)
     }
 }
@@ -136,7 +150,21 @@ impl WriteFileTool {
     }
     
     fn resolve_path(&self, path: &str) -> PathBuf {
-        let path = Path::new(path);
+        // Handle paths that look like they should be absolute but are missing leading slash
+        let corrected_path = if path.starts_with("tmp/") || path.starts_with("var/") || path.starts_with("etc/") {
+            // Common Unix paths that should be absolute
+            format!("/{}", path)
+        } else if path.starts_with("Users/") && cfg!(target_os = "macos") {
+            // macOS user paths
+            format!("/{}", path)
+        } else if path.starts_with("home/") && cfg!(unix) {
+            // Unix home paths
+            format!("/{}", path)
+        } else {
+            path.to_string()
+        };
+
+        let path = Path::new(&corrected_path);
         if path.is_absolute() {
             path.to_path_buf()
         } else if let Some(root) = &self.workspace_root {

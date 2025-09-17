@@ -60,10 +60,43 @@ impl LocalClient {
     
     /// Create LocalClient from existing agent (for testing)
     pub fn from_agent(agent: Arc<tokio::sync::Mutex<Agent>>) -> Self {
-        Self { 
+        Self {
             agent,
             session_id: None,
         }
+    }
+
+    /// Create LocalClient with approval system enabled
+    pub async fn new_with_approval(
+        config: &ConfigManager,
+        auth_manager: Arc<AuthManager>,
+        _provider_manager: Arc<ProviderManager>,
+    ) -> Result<(Self, tokio::sync::mpsc::UnboundedReceiver<crate::agent::approval_modes::PendingChange>)> {
+        // Create database manager (needed for intelligence engine)
+        use crate::storage::DatabaseManager;
+        let storage = DatabaseManager::new(config).await?;
+
+        // Create intelligence engine
+        let intelligence = IntelligenceEngine::new(config, &storage).await?;
+
+        // Create project context
+        let project_context = ProjectContext {
+            root_path: std::env::current_dir().unwrap_or_default(),
+            language: crate::agent::conversation::ProgrammingLanguage::Other("Mixed".to_string()),
+            framework: None,
+            recent_changes: Vec::new(),
+        };
+
+        // Create the core agent with approval support
+        let (agent, approval_rx) = Agent::new_with_approval(intelligence, auth_manager, project_context).await?;
+        let agent = Arc::new(tokio::sync::Mutex::new(agent));
+
+        let client = Self {
+            agent,
+            session_id: None,
+        };
+
+        Ok((client, approval_rx))
     }
     
     /// Initialize a session for this client

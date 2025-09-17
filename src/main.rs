@@ -4,12 +4,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use aircher::cli::CliApp;
 
-#[cfg(feature = "acp")]
-use std::sync::Arc;
-#[cfg(feature = "acp")]
-use aircher::config::ConfigManager;
-#[cfg(feature = "acp")]
-use aircher::auth::AuthManager;
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -131,7 +131,7 @@ impl AcpServer {
         
         debug!("Handling ACP method: {}", method);
         
-        let mut agent = self.agent.lock().await;
+        let agent = self.agent.lock().await;
         
         let result = match method {
             "initialize" => {

@@ -23,6 +23,7 @@ pub struct TaskOrchestrator {
     /// Context manager for intelligent context switching
     context_manager: Arc<DynamicContextManager>,
     /// Intelligence engine for enhanced analysis
+    #[allow(dead_code)]
     intelligence: Arc<IntelligenceEngine>,
     /// Task execution history
     history: RwLock<Vec<OrchestrationStep>>,

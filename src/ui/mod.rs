@@ -28,7 +28,6 @@ use crate::intelligence::tui_tools::TuiIntelligenceTools;
 use crate::intelligence::tools::IntelligenceTools;
 use crate::intelligence::file_monitor;
 use crate::semantic_search::SemanticCodeSearch;
-use crate::agent::conversation::ProgrammingLanguage;
 use crate::client::{local::LocalClient, AgentClient};
 use crate::agent::streaming::{AgentStream, AgentUpdate};
 use crate::auth::AuthManager;
@@ -83,6 +82,8 @@ pub mod todo_panel;
 pub mod collapsible_tool;
 pub mod compaction_analyzer;
 pub mod intelligent_compaction;
+pub mod change_approval;
+pub mod plan_mode_integration;
 
 use auth_wizard::AuthWizard;
 use selection::SelectionModal;
@@ -94,6 +95,9 @@ use settings::SettingsModal;
 use help::HelpModal;
 use autocomplete::AutocompleteEngine;
 use command_approval::{CommandApprovalModal, ApprovalChoice};
+use change_approval::ChangeApprovalWidget;
+use plan_mode_integration::PlanDisplayWidget;
+use crate::agent::approval_modes::ApprovalMode;
 use model_selection::ModelSelectionOverlay;
 use diff_viewer::{DiffViewer, generate_diff};
 use slash_commands::{parse_slash_command, format_help};
@@ -138,6 +142,8 @@ pub struct TuiManager {
     semantic_search: SemanticCodeSearch,
     // AI Agent
     agent_client: Option<LocalClient>,
+    // Change approval system
+    approval_receiver: Option<tokio::sync::mpsc::UnboundedReceiver<crate::agent::approval_modes::PendingChange>>,
     // Modals
     selection_modal: SelectionModal,
     settings_modal: SettingsModal,
@@ -146,6 +152,8 @@ pub struct TuiManager {
     session_browser: SessionBrowser,
     diff_viewer: DiffViewer,
     command_approval: CommandApprovalModal,
+    change_approval: ChangeApprovalWidget,
+    plan_display: PlanDisplayWidget,
     auth_wizard: AuthWizard,
     todo_panel: todo_panel::TodoPanel,
     // Autocomplete
@@ -318,6 +326,8 @@ impl TuiManager {
             semantic_search,
             // AI Agent
             agent_client: None, // Will be initialized when needed
+            // Change approval system
+            approval_receiver: None, // Will be initialized with agent
             // Modals
             selection_modal: if let Some(ref providers) = providers {
                 SelectionModal::new(providers.as_ref(), config)
@@ -342,6 +352,8 @@ impl TuiManager {
             session_browser: SessionBrowser::new(),
             diff_viewer: DiffViewer::new(),
             command_approval: CommandApprovalModal::new(),
+            change_approval: ChangeApprovalWidget::new(ApprovalMode::Review),
+            plan_display: PlanDisplayWidget::new(),
             auth_wizard: AuthWizard::new(),
             todo_panel: TodoPanel::new(),
             // Autocomplete
@@ -490,6 +502,8 @@ impl TuiManager {
             semantic_search,
             // AI Agent
             agent_client: None, // Will be initialized when needed
+            // Change approval system
+            approval_receiver: None, // Will be initialized with agent
             // Initialize modals
             selection_modal: SelectionModal::new(providers, config),
             settings_modal: SettingsModal::new(config),
@@ -505,6 +519,8 @@ impl TuiManager {
             session_browser: SessionBrowser::new(),
             diff_viewer: DiffViewer::new(),
             command_approval: CommandApprovalModal::new(),
+            change_approval: ChangeApprovalWidget::new(ApprovalMode::Review),
+            plan_display: PlanDisplayWidget::new(),
             auth_wizard: AuthWizard::new(),
             todo_panel: TodoPanel::new(),
             // Initialize autocomplete
@@ -671,7 +687,10 @@ impl TuiManager {
             
             // Handle pending auto-compaction
             self.handle_pending_auto_compaction().await;
-            
+
+            // Check for pending change approvals
+            self.check_pending_approvals().await;
+
             // Draw the UI
             terminal.draw(|f| self.draw(f))?;
 
@@ -1847,6 +1866,8 @@ impl TuiManager {
         self.session_browser.render(f, f.area());
         self.diff_viewer.render(f, f.area());
         self.command_approval.render(f, f.area());
+        self.change_approval.render(f, f.area());
+        self.plan_display.render(f, f.area());
         self.auth_wizard.render(f, f.area());
 
         // Render autocomplete suggestions (on top of modals)
@@ -2867,6 +2888,17 @@ impl TuiManager {
             }
         }
 
+        // Change approval modal
+        if self.change_approval.is_visible() {
+            if let Some(_approval_result) = self.change_approval.handle_key(key) {
+                // Handle the approval result
+                // TODO: Apply or reject the change based on approval_result
+                // Widget automatically manages its visibility
+                return Ok(true);
+            }
+            return Ok(true); // Consume all events when change approval is visible
+        }
+
         Ok(false)
     }
 
@@ -3239,25 +3271,26 @@ impl TuiManager {
         Ok(())
     }
     
-    /// Initialize agent client for coding assistance  
+    /// Initialize agent client for coding assistance
     async fn ensure_agent_initialized(&mut self, _providers: &ProviderManager) -> Result<()> {
         if self.agent_client.is_none() {
             // Get the Arc<ProviderManager> from the stored field
             let provider_manager = self.providers.as_ref()
                 .ok_or_else(|| anyhow::anyhow!("Provider manager not available"))?;
-            
-            // Create agent client using our simplified architecture
-            let mut agent_client = LocalClient::new(
+
+            // Create agent client with approval system enabled
+            let (mut agent_client, approval_receiver) = LocalClient::new_with_approval(
                 &self.config,
                 self.auth_manager.clone(),
                 provider_manager.clone(),
             ).await?;
-            
+
             // Initialize a session for the TUI
             agent_client.init_session().await?;
-            
+
             self.agent_client = Some(agent_client);
-            info!("Agent client initialized successfully");
+            self.approval_receiver = Some(approval_receiver);
+            info!("Agent client with approval system initialized successfully");
         }
         Ok(())
     }
@@ -4341,6 +4374,17 @@ function farewell(name) {
         self.scroll_offset = 0; // Reset to bottom
     }
 
+    /// Check for pending change approvals
+    async fn check_pending_approvals(&mut self) {
+        if let Some(ref mut approval_receiver) = self.approval_receiver {
+            // Check if there's a pending change (non-blocking)
+            if let Ok(pending_change) = approval_receiver.try_recv() {
+                // Queue the change for approval
+                self.change_approval.queue_change(pending_change);
+            }
+        }
+    }
+
     /// Handle pending auto-compaction (called from main event loop)
     async fn handle_pending_auto_compaction(&mut self) {
         if self.pending_auto_compaction {
@@ -5286,26 +5330,6 @@ function farewell(name) {
     }
 }
 
-/// Detect programming language from project directory
-fn detect_language(root: &std::path::Path) -> ProgrammingLanguage {
-    if root.join("Cargo.toml").exists() {
-        ProgrammingLanguage::Rust
-    } else if root.join("package.json").exists() {
-        if root.join("tsconfig.json").exists() {
-            ProgrammingLanguage::TypeScript
-        } else {
-            ProgrammingLanguage::JavaScript
-        }
-    } else if root.join("requirements.txt").exists() || root.join("pyproject.toml").exists() {
-        ProgrammingLanguage::Python
-    } else if root.join("go.mod").exists() {
-        ProgrammingLanguage::Go
-    } else if root.join("pom.xml").exists() {
-        ProgrammingLanguage::Java
-    } else {
-        ProgrammingLanguage::Other("Unknown".to_string())
-    }
-}
 
 /// Search filters for TUI search commands
 #[derive(Default)]
