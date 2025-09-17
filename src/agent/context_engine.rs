@@ -15,6 +15,7 @@ pub struct ContextEngine {
     /// Intelligence engine for context analysis
     intelligence: Arc<IntelligenceEngine>,
     /// Tool registry
+    #[allow(dead_code)]
     tools: Arc<ToolRegistry>,
     /// Active context windows
     contexts: RwLock<HashMap<String, TaskContext>>,

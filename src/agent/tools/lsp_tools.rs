@@ -19,10 +19,12 @@ pub struct LspClient {
 }
 
 struct LanguageServer {
+    #[allow(dead_code)]
     process: Child,
     stdin: tokio::process::ChildStdin,
     stdout: BufReader<tokio::process::ChildStdout>,
     request_id: u64,
+    #[allow(dead_code)]
     capabilities: ServerCapabilities,
 }
 

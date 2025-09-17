@@ -140,7 +140,7 @@ struct OllamaError {
 impl OllamaProvider {
     pub async fn new(config: ProviderConfig, _auth_manager: Arc<AuthManager>) -> Result<Self> {
         let client = Client::builder()
-            .timeout(Duration::from_secs(5)) // Shorter timeout for discovery
+            .timeout(Duration::from_secs(30)) // Balance between model loading and responsiveness
             .build()
             .context("Failed to create HTTP client")?;
 
@@ -158,15 +158,15 @@ impl OllamaProvider {
 
         info!("Using Ollama at: {}", base_url);
 
-        let mut provider = Self {
+        let provider = Self {
             client,
             _config: config,
             base_url,
-            available_models: Vec::new(),
+            available_models: Vec::new(),  // Lazy load models when needed
         };
 
-        // Initialize available models
-        provider.refresh_models().await?;
+        // PERFORMANCE FIX: Don't refresh models during init - it's expensive!
+        // Models will be loaded on first access if needed
 
         Ok(provider)
     }

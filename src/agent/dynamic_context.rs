@@ -6,17 +6,21 @@ use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 // use crate::agent::conversation::{Message, MessageRole}; // For future integration
-use crate::intelligence::{IntelligenceEngine, tools::IntelligenceTools};
+use crate::intelligence::IntelligenceEngine;
 use crate::semantic_search::SemanticCodeSearch;
+use crate::agent::enhanced_context_analyzer::EnhancedContextAnalyzer;
 
 /// Dynamic Context Manager - An intelligent agent that actively manages context
 /// This is our innovation: instead of static context or sub-agents, we have a
 /// smart context manager that dynamically adjusts what's in the working memory
 pub struct DynamicContextManager {
     /// Intelligence engine for understanding code relationships
+    #[allow(dead_code)]
     intelligence: Arc<IntelligenceEngine>,
     /// Semantic search for finding relevant code (optional - may not be indexed)
     search: Option<Arc<RwLock<SemanticCodeSearch>>>,
+    /// Enhanced context analyzer for sophisticated activity analysis
+    enhanced_analyzer: EnhancedContextAnalyzer,
     /// Current working context
     working_context: RwLock<WorkingContext>,
     /// Context cache for quick retrieval
@@ -201,9 +205,15 @@ impl DynamicContextManager {
         intelligence: Arc<IntelligenceEngine>,
         search: Option<Arc<RwLock<SemanticCodeSearch>>>,
     ) -> Self {
+        let enhanced_analyzer = EnhancedContextAnalyzer::new(
+            intelligence.clone(),
+            search.clone(),
+        );
+
         Self {
             intelligence,
             search,
+            enhanced_analyzer,
             working_context: RwLock::new(WorkingContext {
                 current_task: String::new(),
                 active_items: HashMap::new(),
@@ -239,14 +249,21 @@ impl DynamicContextManager {
         update.removed = removed;
 
         // Step 3: Add newly relevant context
-        let added = self.fetch_relevant_context(&needed_context).await?;
+        // PERFORMANCE FIX: Skip expensive context fetching for empty queries
+        let added = if needed_context.search_queries.is_empty() && needed_context.required_files.is_empty() {
+            Vec::new()
+        } else {
+            self.fetch_relevant_context(&needed_context).await?
+        };
+        let has_new_context = !added.is_empty();
         update.added = added;
 
         // Step 4: Adjust relevance scores
         self.update_relevance_scores(activity).await?;
 
         // Step 5: Predictive prefetching
-        if self.config.predictive_loading {
+        // PERFORMANCE FIX: Skip expensive prefetching for simple activities
+        if self.config.predictive_loading && has_new_context {
             self.prefetch_predicted_context(activity).await?;
         }
 
@@ -256,8 +273,18 @@ impl DynamicContextManager {
         Ok(update)
     }
 
-    /// Analyze what context is needed for current activity
+    /// Analyze what context is needed for current activity using enhanced analysis
     async fn analyze_context_needs(&self, activity: &str) -> Result<ContextNeeds> {
+        info!("Analyzing context needs for: {}", activity);
+
+        // PERFORMANCE FIX: Use fast path for simple activities
+        if let Some(needs) = self.fast_analyze_simple_activity(activity) {
+            return Ok(needs);
+        }
+
+        // Only use expensive enhanced analyzer for complex activities
+        let analysis = self.enhanced_analyzer.analyze_activity(activity).await?;
+
         let mut needs = ContextNeeds {
             required_files: Vec::new(),
             required_symbols: Vec::new(),
@@ -265,43 +292,80 @@ impl DynamicContextManager {
             search_queries: Vec::new(),
         };
 
-        // Use intelligence to understand the activity
-        let insight = self.intelligence.get_development_context(activity).await;
-
-        // Extract file needs
-        needs.required_files = insight.key_files.iter()
+        // Convert enhanced analysis to context needs
+        needs.required_files = analysis.required_files.iter()
             .map(|f| f.path.clone())
             .collect();
 
-        // Determine needed context types based on activity
-        let activity_lower = activity.to_lowercase();
+        // Convert semantic queries to simple search queries
+        needs.search_queries = analysis.search_queries.iter()
+            .map(|q| q.query.clone())
+            .collect();
 
-        if activity_lower.contains("error") || activity_lower.contains("bug") {
-            needs.required_types.push(ContextItemType::ErrorContext {
-                error: String::new(),
-                stack_trace: Vec::new(),
-            });
+        // Add context types based on intent
+        match &analysis.intent {
+            crate::agent::enhanced_context_analyzer::ActivityIntent::Debugging { error_description, .. } => {
+                needs.required_types.push(ContextItemType::ErrorContext {
+                    error: error_description.clone(),
+                    stack_trace: Vec::new(),
+                });
+            }
+            crate::agent::enhanced_context_analyzer::ActivityIntent::Testing { .. } => {
+                needs.required_types.push(ContextItemType::TestCase {
+                    name: String::new(),
+                    file: String::new(),
+                });
+            }
+            crate::agent::enhanced_context_analyzer::ActivityIntent::Implementation { feature_description, .. } => {
+                needs.required_types.push(ContextItemType::TaskRequirement {
+                    requirement: feature_description.clone(),
+                });
+            }
+            _ => {
+                // For other intents, add general requirement
+                needs.required_types.push(ContextItemType::TaskRequirement {
+                    requirement: activity.to_string(),
+                });
+            }
         }
 
-        if activity_lower.contains("test") {
-            needs.required_types.push(ContextItemType::TestCase {
-                name: String::new(),
-                file: String::new(),
-            });
+        // Add predicted next activities as additional search queries
+        for predicted in &analysis.predicted_next {
+            needs.search_queries.push(format!("related to: {}", predicted));
         }
 
-        if activity_lower.contains("implement") || activity_lower.contains("create") {
-            needs.required_types.push(ContextItemType::TaskRequirement {
-                requirement: String::new(),
-            });
-        }
-
-        // Generate search queries for finding relevant code
-        if activity_lower.contains("function") || activity_lower.contains("method") {
-            needs.search_queries.push(format!("function {}", extract_identifier(activity)));
-        }
+        info!("Enhanced analysis found {} files, {} symbols, {} queries",
+              needs.required_files.len(),
+              needs.required_symbols.len(),
+              needs.search_queries.len());
 
         Ok(needs)
+    }
+
+    /// Fast analysis for simple activities - returns Some if we can handle it quickly
+    fn fast_analyze_simple_activity(&self, activity: &str) -> Option<ContextNeeds> {
+        // Handle common simple cases without expensive analysis
+        let activity_lower = activity.to_lowercase();
+
+        // Simple queries that don't need context
+        if activity_lower.len() < 20 && (
+            activity_lower.starts_with("what") ||
+            activity_lower.starts_with("how") ||
+            activity_lower.starts_with("explain") ||
+            activity_lower.contains("hello") ||
+            activity_lower.contains("test message")
+        ) {
+            return Some(ContextNeeds {
+                required_files: Vec::new(),
+                required_symbols: Vec::new(),
+                required_types: Vec::new(),
+                search_queries: Vec::new(),
+            });
+        }
+
+        // For now, only handle the simplest cases
+        // Complex activities still go through enhanced analyzer
+        None
     }
 
     /// Remove context that's no longer relevant
@@ -517,7 +581,7 @@ impl DynamicContextManager {
 
             if let Some(id) = least_relevant {
                 if let Some(item) = context.active_items.remove(&id) {
-                    context.token_usage -= item.token_size;
+                    context.token_usage = context.token_usage.saturating_sub(item.token_size);
                     warn!("Evicted {} to stay within token limit", id.0);
 
                     // Add to eviction cache
@@ -737,14 +801,6 @@ fn estimate_tokens(content: &str) -> usize {
     content.len() / 4
 }
 
-fn extract_identifier(text: &str) -> String {
-    // Extract likely identifier from text
-    // This is simplified - would use proper parsing in production
-    text.split_whitespace()
-        .find(|w| w.chars().all(|c| c.is_alphanumeric() || c == '_'))
-        .unwrap_or("unknown")
-        .to_string()
-}
 
 #[cfg(test)]
 mod tests {

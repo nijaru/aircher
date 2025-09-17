@@ -1,11 +1,9 @@
 use anyhow::Result;
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 #[cfg(feature = "acp")]
-use agent_client_protocol::{Agent as AcpAgent, InitializeRequest, InitializeResponse, NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse, ContentBlock, TextContent, StopReason, AgentCapabilities, PromptCapabilities, SessionId, ProtocolVersion, AuthenticateRequest, LoadSessionRequest, CancelNotification};
-#[cfg(feature = "acp")]
-use async_trait::async_trait;
+use agent_client_protocol::{Agent as AcpAgent, InitializeRequest, InitializeResponse, NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse, ContentBlock, StopReason, AgentCapabilities, PromptCapabilities, SessionId, AuthenticateRequest, LoadSessionRequest, CancelNotification};
 
 use crate::auth::AuthManager;
 use crate::intelligence::IntelligenceEngine;
@@ -16,6 +14,7 @@ use crate::agent::conversation::{CodingConversation, Message as ConvMessage, Mes
 use crate::agent::reasoning::{AgentReasoning, TaskStatus};
 use crate::agent::dynamic_context::DynamicContextManager;
 use crate::agent::task_orchestrator::TaskOrchestrator;
+use crate::agent::plan_mode::{PlanGenerator, PlanMode, PlanningContext};
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -28,7 +27,9 @@ pub struct Agent {
     conversation: Arc<tokio::sync::Mutex<CodingConversation>>,
     reasoning: Arc<AgentReasoning>,
     context_manager: Arc<DynamicContextManager>,
+    #[allow(dead_code)]
     orchestrator: Option<Arc<TaskOrchestrator>>,
+    plan_generator: Arc<tokio::sync::Mutex<PlanGenerator>>,
     /// Prevents infinite orchestration recursion
     is_orchestration_agent: bool,
     #[allow(dead_code)]
@@ -43,6 +44,38 @@ impl Agent {
     ) -> Result<Self> {
         let tools = Arc::new(ToolRegistry::default());
         let intelligence = Arc::new(intelligence);
+
+        Self::new_internal(intelligence, auth_manager, project_context, tools).await
+    }
+
+    /// Create agent with approval-enabled tools
+    pub async fn new_with_approval(
+        intelligence: IntelligenceEngine,
+        auth_manager: Arc<AuthManager>,
+        project_context: ProjectContext,
+    ) -> Result<(Self, tokio::sync::mpsc::UnboundedReceiver<crate::agent::approval_modes::PendingChange>)> {
+        use crate::agent::tools::approval_registry::create_agent_registry_with_approval;
+
+        let intelligence = Arc::new(intelligence);
+        let (tools, approval_rx) = create_agent_registry_with_approval();
+        let tools = Arc::new(tools);
+
+        let mut agent = Self::new_internal(intelligence, auth_manager, project_context, tools).await?;
+
+        // Set plan mode to Review by default for approval-enabled agents
+        {
+            let mut plan_gen = agent.plan_generator.lock().await;
+            plan_gen.set_mode(PlanMode::Normal); // Start in normal mode
+        }
+        Ok((agent, approval_rx))
+    }
+
+    async fn new_internal(
+        intelligence: Arc<IntelligenceEngine>,
+        auth_manager: Arc<AuthManager>,
+        project_context: ProjectContext,
+        tools: Arc<ToolRegistry>,
+    ) -> Result<Self> {
 
         // Create semantic search for context management (optional - may not have index)
         // Only create if we can, otherwise context manager works without it
@@ -74,6 +107,7 @@ impl Agent {
             reasoning,
             context_manager,
             orchestrator: None, // Created on-demand to avoid circular dependency
+            plan_generator: Arc::new(tokio::sync::Mutex::new(PlanGenerator::new())),
             is_orchestration_agent: false,
             max_iterations: 10, // Prevent infinite loops
         })
@@ -119,61 +153,38 @@ impl Agent {
             return self.process_with_orchestration(user_message, provider, model).await;
         }
 
-        // Use intelligent reasoning to plan and execute the task
-        let result = match self.reasoning.process_request(user_message).await {
-            Ok(result) => result,
+        // Use reasoning engine for task planning (NOT execution)
+        let reasoning_result = match self.reasoning.process_request(user_message).await {
+            Ok(result) => Some(result),
             Err(e) => {
-                debug!("Reasoning engine failed, falling back to direct processing: {}", e);
-                // Fall back to original direct processing if reasoning fails
-                return self.process_message_direct(user_message, provider, model).await;
+                debug!("Reasoning engine failed to plan: {}", e);
+                None
             }
         };
-        
-        // Check if task was successfully completed by reasoning engine
-        if result.success && result.task.status == TaskStatus::Completed {
-            info!("Task completed successfully by reasoning engine");
-            
-            // Add status messages for each subtask executed
-            for subtask in &result.task.subtasks {
-                if !subtask.tool_calls.is_empty() {
-                    tool_status_messages.push(format!("🎯 {} ({})", 
-                        subtask.description, 
-                        if subtask.status == TaskStatus::Completed { "✓" } else { "⚠" }
+
+        // Check if reasoning provided a plan to enhance our prompt
+        if let Some(result) = reasoning_result {
+            if result.task.status == TaskStatus::Planned && !result.task.tool_calls.is_empty() {
+                // Reasoning engine has planned tool calls - add them to prompt
+                info!("Using reasoning engine plan: {} tool calls planned", result.task.tool_calls.len());
+
+                // Add planned tasks to status messages for UI
+                for tool_call in &result.task.tool_calls {
+                    tool_status_messages.push(format!("📋 Planned: {} with {}",
+                        tool_call.name,
+                        tool_call.parameters
                     ));
                 }
+
+                // The LLM will execute these with proper content generation
+            } else if result.task.status == TaskStatus::Completed {
+                // If reasoning claims completion without tool calls, it's fake
+                warn!("Reasoning engine claims completion without execution - ignoring");
             }
-            
-            // Generate response based on task results
-            let mut final_response = if !result.summary.is_empty() {
-                result.summary.clone()
-            } else {
-                format!("Successfully completed: {}", result.task.description)
-            };
-            
-            // Add subtask summary if applicable
-            if !result.task.subtasks.is_empty() {
-                let completed_count = result.task.subtasks.iter()
-                    .filter(|t| t.status == TaskStatus::Completed)
-                    .count();
-                final_response.push_str(&format!("\n\nExecuted {} subtasks successfully.", completed_count));
-            }
-            
-            // Add assistant message to conversation
-            {
-                let mut conversation = self.conversation.lock().await;
-                conversation.messages.push(ConvMessage {
-                    role: ConvRole::Assistant,
-                    content: final_response.clone(),
-                    tool_calls: None,
-                    timestamp: chrono::Utc::now(),
-                });
-            }
-            
-            return Ok((final_response, tool_status_messages));
         }
-        
-        // If reasoning didn't complete the task, continue with LLM-based processing
-        debug!("Reasoning engine provided plan, continuing with LLM execution");
+
+        // Always proceed with LLM-based execution for actual work
+        debug!("Proceeding with LLM-based tool execution");
         
         // Build chat request with intelligence-enhanced system prompt
         let mut system_prompt = "You are Aircher, an AI coding assistant. Use the provided tools to help with coding tasks.".to_string();
@@ -248,12 +259,26 @@ impl Agent {
             stream: false,
             tools, // FIXED: Actually send tool schemas to LLM instead of None
         };
-        
+
         let response = provider.chat(&request).await?;
         let assistant_message = response.content;
-        
-        // Parse tool calls
-        let (clean_text, tool_calls) = self.parser.parse_structured(&assistant_message)?;
+
+        // Get tool calls - first check structured response, then parse from text
+        let (clean_text, tool_calls) = if let Some(structured_tool_calls) = &response.tool_calls {
+            // Convert from provider tool calls to agent tool calls
+            let agent_tool_calls: Vec<crate::agent::tools::ToolCall> = structured_tool_calls
+                .iter()
+                .map(|tc| crate::agent::tools::ToolCall {
+                    name: tc.name.clone(),
+                    parameters: tc.arguments.clone(),
+                })
+                .collect();
+
+            (assistant_message, agent_tool_calls)
+        } else {
+            // Fall back to parsing from text content
+            self.parser.parse_structured(&assistant_message)?
+        };
 
         if tool_calls.is_empty() {
             // Add assistant message to conversation
@@ -382,24 +407,21 @@ impl Agent {
         }
         let message_lower = user_message.to_lowercase();
 
-        // Tasks that clearly need orchestration
+        // Tasks that clearly need orchestration based on keywords
         if message_lower.contains("implement feature")
             || message_lower.contains("build application")
             || message_lower.contains("create system")
             || message_lower.contains("refactor codebase")
             || message_lower.contains("add comprehensive")
-            || (message_lower.contains("create") && message_lower.contains("test"))
+            || (message_lower.contains("create") && message_lower.contains("test suite"))
             || (message_lower.contains("implement") && message_lower.len() > 100) // Long complex requests
         {
             return true;
         }
 
-        // Check if reasoning suggests multiple subtasks
-        if let Ok(result) = self.reasoning.process_request(user_message).await {
-            if result.task.subtasks.len() > 3 {
-                return true;
-            }
-        }
+        // REMOVED: Reasoning check that causes infinite recursion and timeouts
+        // The reasoning.process_request call here would trigger another process_message
+        // which checks needs_orchestration again, creating a loop
 
         false
     }
@@ -424,6 +446,7 @@ impl Agent {
                 reasoning: self.reasoning.clone(),
                 context_manager: self.context_manager.clone(),
                 orchestrator: None, // Avoid infinite recursion
+                plan_generator: Arc::new(tokio::sync::Mutex::new(PlanGenerator::new())),
                 is_orchestration_agent: true, // Mark as orchestration agent to prevent recursion
                 max_iterations: self.max_iterations,
             }),
@@ -496,7 +519,17 @@ impl Agent {
                 });
             }
         }
-        
+
+        // Add current user message
+        messages.push(Message {
+            id: uuid::Uuid::new_v4().to_string(),
+            role: MessageRole::User,
+            content: user_message.to_string(),
+            timestamp: chrono::Utc::now(),
+            tokens_used: None,
+            cost: None,
+        });
+
         // Send with tools if provider supports them
         let tools = if provider.supports_tools() {
             Some(self.convert_tools_to_provider_format())
@@ -625,17 +658,26 @@ impl Agent {
         // Convert tool status messages to ToolCallInfo
         let tool_calls: Vec<crate::client::ToolCallInfo> = status_messages
             .into_iter()
-            .map(|msg| crate::client::ToolCallInfo {
-                name: "tool_execution".to_string(),
-                status: if msg.contains("✓") {
-                    crate::client::ToolStatus::Success
-                } else if msg.contains("🔧") {
-                    crate::client::ToolStatus::Running
+            .map(|msg| {
+                // Extract tool name from status messages like "🔧 Executing tool: write_file"
+                let tool_name = if let Some(colon_pos) = msg.find(": ") {
+                    msg[colon_pos + 2..].split_whitespace().next().unwrap_or("unknown_tool").to_string()
                 } else {
-                    crate::client::ToolStatus::Failed
-                },
-                result: Some(serde_json::Value::String(msg.clone())),
-                error: if msg.contains("error") { Some(msg) } else { None },
+                    "unknown_tool".to_string()
+                };
+
+                crate::client::ToolCallInfo {
+                    name: tool_name,
+                    status: if msg.contains("✓") {
+                        crate::client::ToolStatus::Success
+                    } else if msg.contains("🔧") {
+                        crate::client::ToolStatus::Running
+                    } else {
+                        crate::client::ToolStatus::Failed
+                    },
+                    result: Some(serde_json::Value::String(msg.clone())),
+                    error: if msg.contains("error") { Some(msg) } else { None },
+                }
             })
             .collect();
         
@@ -760,7 +802,7 @@ impl AcpAgent for Agent {
         // For ACP mode, we'll skip dynamic initialization to keep it simple
         
         // Get available tools for capabilities
-        let tool_names: Vec<String> = self.tools.list_tools().iter().map(|t| t.name.clone()).collect();
+        let _tool_names: Vec<String> = self.tools.list_tools().iter().map(|t| t.name.clone()).collect();
         
         Ok(InitializeResponse {
             protocol_version: request.protocol_version,
