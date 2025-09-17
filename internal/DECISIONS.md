@@ -191,6 +191,64 @@ Use tree-sitter for syntax highlighting and AST analysis.
 
 ---
 
+## 2025-09-17: Competitive Positioning Strategy Based on User Feedback
+
+### Context
+Analysis of HN discussions and user feedback revealed key frustrations with existing AI coding agents:
+- Rate limits causing workflow interruptions (Claude Code/Cursor both affected)
+- Lack of transparency in execution steps (Claude Code "flying blind")
+- Unpredictable costs for heavy usage ($100+/month required)
+- Complex UI with multiple "Accept" buttons (Cursor pain point)
+- Neither tool handles Jupyter notebooks well
+
+### Options Considered
+1. **Copy Market Leaders**
+   - Pros: Proven features, easier to build
+   - Cons: Commodity product, no differentiation
+
+2. **Focus on Single Workflow**
+   - Pros: Deep optimization, clear positioning
+   - Cons: Limited market, locks out use cases
+
+3. **Hybrid Approach - Best of Both Worlds**
+   - Pros: Unique positioning, addresses real pain points
+   - Cons: More complex to build, requires execution excellence
+
+### Decision
+**Chosen: Hybrid Approach - Autonomous Transparency**
+
+### Rationale
+- Users want Claude Code's autonomy BUT Cursor's visibility
+- Local models eliminate rate limit frustrations (major differentiator)
+- Our architecture already supports both modes (approval workflows)
+- Safety improvements (SafeWriteFileTool) exceed both competitors
+- Semantic search advantage provides better codebase understanding
+
+### Implementation
+1. **Multi-step autonomous execution** with visible progress
+2. **Transparent step-by-step display** of what agent is doing
+3. **Local model optimization** for rate-limit-free usage
+4. **Model switching mid-conversation** for flexibility
+5. **Predictable cost tracking** with local model fallbacks
+6. **Jupyter notebook support** as differentiator
+
+### Impact
+- **vs Cursor**: Better autonomy, no rate limits, lower cost
+- **vs Claude Code**: Better transparency, model flexibility, safety
+- **Market positioning**: "Autonomous coding with complete visibility"
+- **User value**: Unlimited usage + trust through transparency
+
+### Consequences
+- Need to deliver on both autonomy AND transparency (execution risk)
+- Must optimize local models to compete with API speed
+- Documentation/UX becomes critical differentiator
+- Success depends on execution quality over feature count
+
+### Review Date
+After 6 weeks of implementation - measure user adoption patterns
+
+---
+
 ## Template for Future Decisions
 
 ## YYYY-MM-DD: [Decision Title]

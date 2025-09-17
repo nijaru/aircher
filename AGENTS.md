@@ -8,6 +8,7 @@ Entry point for AI agents working with Aircher - the multi-modal AI coding agent
 @internal/NOW.md                   # Current tasks & sprint status
 @internal/DECISIONS.md             # Major decisions (append-only)
 @internal/KNOWLEDGE.md             # Patterns & learnings
+@internal/DISCOVERIES.md           # Competitive insights & breakthroughs
 @COMPETITIVE_ROADMAP.md            # Strategic development plan
 @IMPLEMENTATION_PLAN.md            # Agent-first architecture plan
 
@@ -22,10 +23,11 @@ Aircher is evolving into a **dual-mode AI coding agent** with both Terminal UI (
 
 **Architecture Principle**: Single UnifiedAgent implementation with multiple frontends (TUI uses LocalClient, editors use ACP).
 
-**Current Refactor Priority**: 
-- Implementing agent-first architecture to eliminate duplicate agent logic
-- TUI becomes a client to the ACP-compatible agent core
-- Ensures consistency across all interfaces
+**Current Strategic Priority**:
+- **Autonomous Transparency** - Combine Claude Code's autonomy with Cursor's visibility
+- **Rate Limit Independence** - Local models eliminate $100+/month API costs
+- **Safety Excellence** - SafeWriteFileTool prevents critical file overwrites
+- **Large Codebase Intelligence** - Leverage our semantic search advantage
 
 **What Works Today:**
 - Advanced semantic code search (production-ready)

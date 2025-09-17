@@ -77,22 +77,75 @@
 - TODO tracking essential for multi-step implementations
 - External pattern references improve code consistency
 
-## Competitive Intelligence  
+## Competitive Intelligence
 
-### vs Amp
-- **Their strength**: Curated "always best" models
-- **Our advantage**: Model choice transparency + multi-provider
-- **Must match**: TODO panel, conversation UX, tool reliability
+### User Frustrations (HN Research - Sept 2025)
 
-### vs Claude Code/Electron TUIs
-- **Their weakness**: Performance with long conversations
-- **Our advantage**: Rust native performance
-- **Key differentiator**: Fast startup + efficient rendering
+#### **Rate Limits & API Dependencies**
+- **Major Pain Point**: Both Claude Code and Cursor hit rate limits during serious development
+- **User Quote**: "Rate limits impact serious development workflows"
+- **Our Advantage**: Local models (Ollama) = unlimited usage
+- **Impact**: Users paying $100+/month for adequate rate limits
 
-### vs Cursor/IDE Integration
-- **Their strength**: Editor integration
-- **Our advantage**: Terminal-first workflow efficiency
-- **Target users**: CLI-heavy developers, remote work
+#### **Trust vs Control Dilemma**
+- **Claude Code**: "Flying blind" - hides decision process, asks for trust
+- **Cursor**: "Decision fatigue" - too many choices, complex UI (4 Accept buttons)
+- **User Need**: Want autonomy BUT with visibility into what's happening
+- **Our Solution**: Autonomous execution with transparent step-by-step display
+
+#### **Inconsistent Performance**
+- **Claude Code**: "50 incidents in July, 40 in August, 21 in September"
+- **Quality drops**: Users notice degradation "around 12 ET (9AM pacific)"
+- **Our Advantage**: Local models = consistent performance, no infrastructure issues
+
+### Competitive Positioning (Updated Sept 2025)
+
+#### **vs Claude Code**
+- **Their strength**: Sophisticated autonomy, large context windows
+- **Their weakness**: No transparency, rate limits, flying blind experience
+- **Our advantage**: Autonomous + transparent, unlimited local usage, better safety
+- **Target**: Users who want Claude Code's power with Cursor's visibility
+
+#### **vs Cursor**
+- **Their strength**: Model flexibility, step-by-step control, IDE integration
+- **Their weakness**: Rate limits, complex UI, decision fatigue
+- **Our advantage**: Same model flexibility without rate limits, cleaner UX
+- **Target**: Users who want Cursor's control without the complexity
+
+#### **vs Both (Unique Positioning)**
+- **Shared weakness**: Neither handles Jupyter notebooks well
+- **Our opportunity**: Add Jupyter support as differentiator
+- **Market gap**: "Autonomous coding with complete visibility"
+- **Value prop**: Unlimited usage + trust through transparency
+
+### User Workflow Insights
+
+#### **What Users Actually Want**
+1. **Multi-step autonomous execution**: "Tell the AI what to accomplish rather than what changes to make"
+2. **Large codebase analysis**: "Analyze entire codebase before generating anything"
+3. **Execution transparency**: Want to see progress without managing every step
+4. **Cost predictability**: Frustrated by surprise API bills
+5. **Reliable performance**: Consistent quality without degradation
+
+#### **Usage Patterns**
+- **Deep coding sessions**: Cursor's autocomplete for quick fixes
+- **Architecture work**: Claude Code for complex thinking/planning
+- **Many use both**: Cursor for typing, Claude Code for thinking
+- **Switching triggers**: Rate limits, quality drops, specific task types
+
+### Technical Lessons
+
+#### **Model Performance Insights**
+- **Token sampling matters**: "top-k" and temperature significantly impact quality
+- **Infrastructure complexity**: Multiple hardware platforms create bugs
+- **Evaluation needs**: More sensitive continuous evaluation on production
+- **User perception**: Quality inconsistency more noticeable than absolute performance
+
+#### **UX Design Patterns**
+- **Transparency wins trust**: Users prefer seeing steps over blind execution
+- **Single decision points**: Multiple "Accept" buttons create confusion
+- **Cost visibility**: Hidden usage costs create user anxiety
+- **Consistent interfaces**: Complexity should be optional, not required
 
 ## Technical Discoveries
 
