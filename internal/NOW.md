@@ -160,17 +160,23 @@
 - ❌ Enterprise features (audit, compliance)
 - ❌ Full MCP client implementation
 
-## 🔥 IMMEDIATE NEXT STEPS
+## 🔥 IMMEDIATE NEXT STEPS (Updated Based on User Feedback)
 
-### Priority 1: Add Critical Missing Tools
-- [ ] **Web Browsing** - All competitors have this
-- [ ] **Test Runner** - pytest, cargo test, jest integration
-- [ ] **Build System** - make, cargo build, npm build
+### Priority 1: Autonomous Transparency (Competitive Differentiator)
+- [ ] **Multi-step task orchestration** - "Tell the AI what to accomplish" not what changes to make
+- [ ] **Transparent execution display** - Show progress without complexity (vs Claude Code "flying blind")
+- [ ] **Large codebase analysis integration** - Use our semantic search advantage for whole-project context
+- [ ] **Model switching mid-conversation** - Flexibility without decision fatigue
 
-### Priority 2: Validate Agent Functionality
-- [ ] **Multi-turn conversations** - Test tool execution chains
-- [ ] **Error recovery** - Handle tool failures gracefully
-- [ ] **Context management** - Ensure history works
+### Priority 2: Rate Limit Independence (Major User Pain Point)
+- [ ] **Local model optimization** - Make Ollama competitive with API speed
+- [ ] **Intelligent model routing** - Auto-select best model for task type
+- [ ] **Cost tracking transparency** - Show actual usage costs vs predictions
+
+### Priority 3: Safety & UX Excellence
+- [ ] **Approval workflow polish** - Single, clear decision points (vs Cursor's 4 Accept buttons)
+- [ ] **Jupyter notebook support** - Differentiator neither competitor has
+- [ ] **Error recovery chains** - Handle tool failures gracefully with user visibility
 
 ## 🔧 CRITICAL UX INSIGHT: Smart Compaction
 
