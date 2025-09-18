@@ -8,6 +8,7 @@ use crate::agent::tools::ToolCall;
 pub struct ToolCallParser {
     xml_regex: Regex,
     json_regex: Regex,
+    openai_json_regex: Regex,
     function_regex: Regex,
 }
 
@@ -16,10 +17,14 @@ impl ToolCallParser {
         Ok(Self {
             // XML-style: <tool>read_file</tool><params>{"path": "src/main.rs"}</params>
             xml_regex: Regex::new(r"<tool>([^<]+)</tool>\s*<params>([^<]+)</params>")?,
-            
+
             // JSON-style: {"tool": "read_file", "params": {"path": "src/main.rs"}}
             json_regex: Regex::new(r#"\{[^}]*"tool"\s*:\s*"([^"]+)"[^}]*"params"\s*:\s*(\{[^}]+\})[^}]*\}"#)?,
-            
+
+            // OpenAI-style JSON: {"name": "tool_name", "parameters": {...}} or {"name": "tool_name", "arguments": {...}}
+            // Simple pattern to catch JSON anywhere in content
+            openai_json_regex: Regex::new(r#"\{\s*"name"\s*:\s*"([^"]+)"\s*,\s*"(?:parameters|arguments)"\s*:\s*(\{[^}]*\})\s*\}"#)?,
+
             // Function-style: read_file({"path": "src/main.rs"})
             function_regex: Regex::new(r"(\w+)\s*\((\{[^}]+\})\)")?,
         })
@@ -27,7 +32,7 @@ impl ToolCallParser {
     
     pub fn parse(&self, content: &str) -> Vec<ToolCall> {
         let mut tool_calls = Vec::new();
-        
+
         // Try XML-style first (most explicit)
         for cap in self.xml_regex.captures_iter(content) {
             if let (Some(name), Some(params)) = (cap.get(1), cap.get(2)) {
@@ -39,8 +44,22 @@ impl ToolCallParser {
                 }
             }
         }
-        
-        // If no XML-style found, try JSON-style
+
+        // If no XML-style found, try OpenAI-style JSON (most common from models)
+        if tool_calls.is_empty() {
+            for cap in self.openai_json_regex.captures_iter(content) {
+                if let (Some(name), Some(params)) = (cap.get(1), cap.get(2)) {
+                    if let Ok(params_json) = serde_json::from_str::<Value>(params.as_str()) {
+                        tool_calls.push(ToolCall {
+                            name: name.as_str().to_string(),
+                            parameters: params_json,
+                        });
+                    }
+                }
+            }
+        }
+
+        // If no OpenAI-style found, try our legacy JSON-style
         if tool_calls.is_empty() {
             for cap in self.json_regex.captures_iter(content) {
                 if let (Some(name), Some(params)) = (cap.get(1), cap.get(2)) {
@@ -53,7 +72,7 @@ impl ToolCallParser {
                 }
             }
         }
-        
+
         // If still no calls found, try function-style
         if tool_calls.is_empty() {
             for cap in self.function_regex.captures_iter(content) {
@@ -67,7 +86,7 @@ impl ToolCallParser {
                 }
             }
         }
-        
+
         tool_calls
     }
     
@@ -76,24 +95,29 @@ impl ToolCallParser {
         let mut tool_calls = Vec::new();
         let mut text_parts = Vec::new();
         let mut last_end = 0;
-        
-        // Look for tool use blocks
+
+        // Look for tool use blocks first
         let tool_block_regex = Regex::new(r"(?s)<tool_use>\s*(.+?)\s*</tool_use>")?;
-        
+
         for mat in tool_block_regex.find_iter(content) {
             // Add text before this tool block
             text_parts.push(&content[last_end..mat.start()]);
             last_end = mat.end();
-            
+
             // Parse the tool block
             let block_content = &content[mat.start()+10..mat.end()-11]; // Skip tags
             let calls = self.parse(block_content);
             tool_calls.extend(calls);
         }
-        
+
+        // If no tool use blocks found, try parsing the entire content for tool calls
+        if tool_calls.is_empty() {
+            tool_calls = self.parse(content);
+        }
+
         // Add remaining text
         text_parts.push(&content[last_end..]);
-        
+
         let clean_text = text_parts.join("").trim().to_string();
         Ok((clean_text, tool_calls))
     }
@@ -180,11 +204,32 @@ list_files({"path": "/home/user/project"})
 And read the README:
 
 read_file({"path": "README.md"})"#;
-        
+
         let calls = parser.parse(content);
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[0].name, "list_files");
         assert_eq!(calls[1].name, "read_file");
+    }
+
+    #[test]
+    fn test_openai_style_parsing() {
+        let parser = ToolCallParser::new().unwrap();
+
+        // Test with "parameters" field (llama3.1 style)
+        let content1 = r#"{"name": "list_files", "parameters": {"path": "src/providers/", "recursive": true}}"#;
+        let calls1 = parser.parse(content1);
+        assert_eq!(calls1.len(), 1);
+        assert_eq!(calls1[0].name, "list_files");
+        assert_eq!(calls1[0].parameters["path"], "src/providers/");
+        assert_eq!(calls1[0].parameters["recursive"], true);
+
+        // Test with "arguments" field (qwen2.5-coder style)
+        let content2 = r#"{"name": "read_file", "arguments": {"path": "src/main.rs", "start_line": 1}}"#;
+        let calls2 = parser.parse(content2);
+        assert_eq!(calls2.len(), 1);
+        assert_eq!(calls2[0].name, "read_file");
+        assert_eq!(calls2[0].parameters["path"], "src/main.rs");
+        assert_eq!(calls2[0].parameters["start_line"], 1);
     }
     
     #[test]

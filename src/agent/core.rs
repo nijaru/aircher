@@ -6,7 +6,7 @@ use tracing::{debug, info, warn};
 use agent_client_protocol::{Agent as AcpAgent, InitializeRequest, InitializeResponse, NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse, ContentBlock, StopReason, AgentCapabilities, PromptCapabilities, SessionId, AuthenticateRequest, LoadSessionRequest, CancelNotification};
 
 use crate::auth::AuthManager;
-use crate::intelligence::IntelligenceEngine;
+use crate::intelligence::{IntelligenceEngine, UnifiedIntelligenceEngine};
 use crate::providers::{LLMProvider, ChatRequest, Message, MessageRole, PricingModel};
 use crate::agent::tools::ToolRegistry;
 use crate::agent::parser::ToolCallParser;
@@ -15,12 +15,14 @@ use crate::agent::reasoning::{AgentReasoning, TaskStatus};
 use crate::agent::dynamic_context::DynamicContextManager;
 use crate::agent::task_orchestrator::TaskOrchestrator;
 use crate::agent::plan_mode::{PlanGenerator, PlanMode, PlanningContext};
+use crate::agent::multi_turn_reasoning::{MultiTurnReasoningEngine, ActionResult};
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
 pub struct Agent {
     tools: Arc<ToolRegistry>,
     intelligence: Arc<IntelligenceEngine>,
+    unified_intelligence: Arc<UnifiedIntelligenceEngine>,
     #[allow(dead_code)]
     auth_manager: Arc<AuthManager>,
     parser: ToolCallParser,
@@ -30,6 +32,8 @@ pub struct Agent {
     #[allow(dead_code)]
     orchestrator: Option<Arc<TaskOrchestrator>>,
     plan_generator: Arc<tokio::sync::Mutex<PlanGenerator>>,
+    /// Multi-turn reasoning engine for systematic problem solving
+    multi_turn_reasoning: Arc<tokio::sync::Mutex<MultiTurnReasoningEngine>>,
     /// Prevents infinite orchestration recursion
     is_orchestration_agent: bool,
     #[allow(dead_code)]
@@ -93,9 +97,23 @@ impl Agent {
             tools.clone(),
         ));
 
+        // Create unified intelligence engine for automatic middleware
+        // Note: We need to clone the intelligence engine for the unified wrapper
+        let intelligence_for_unified = IntelligenceEngine::new(
+            &crate::config::ConfigManager::load().await?,
+            &crate::storage::DatabaseManager::new(&crate::config::ConfigManager::load().await?).await?
+        ).await?;
+        let unified_intelligence = Arc::new(UnifiedIntelligenceEngine::new(intelligence_for_unified));
+
+        // Create multi-turn reasoning engine for systematic problem solving
+        let multi_turn_reasoning = Arc::new(tokio::sync::Mutex::new(
+            MultiTurnReasoningEngine::new(tools.clone(), intelligence.clone())?
+        ));
+
         Ok(Self {
             tools,
             intelligence,
+            unified_intelligence,
             auth_manager,
             parser: ToolCallParser::new()?,
             conversation: Arc::new(tokio::sync::Mutex::new(CodingConversation {
@@ -108,6 +126,7 @@ impl Agent {
             context_manager,
             orchestrator: None, // Created on-demand to avoid circular dependency
             plan_generator: Arc::new(tokio::sync::Mutex::new(PlanGenerator::new())),
+            multi_turn_reasoning,
             is_orchestration_agent: false,
             max_iterations: 10, // Prevent infinite loops
         })
@@ -128,7 +147,29 @@ impl Agent {
     /// Process a user message and return the assistant's response with tool status
     pub async fn process_message(&self, user_message: &str, provider: &dyn LLMProvider, model: &str) -> Result<(String, Vec<String>)> {
         info!("Processing user message with intelligent reasoning: {}", user_message);
-        
+
+        // === AUTOMATIC INTELLIGENCE MIDDLEWARE ===
+        // 1. Automatically enhance request understanding (FIRST, before any other processing)
+        let enhanced_context = match self.unified_intelligence.enhance_request_understanding(user_message).await {
+            Ok(context) => {
+                debug!("Intelligence automatically enhanced request with intent: {:?}", context.detected_intent);
+                context
+            },
+            Err(e) => {
+                warn!("Intelligence enhancement failed: {}, proceeding without", e);
+                // Create minimal context for fallback
+                use crate::intelligence::{EnhancedContext, UserIntent, ExplorationScope};
+                EnhancedContext {
+                    original_request: user_message.to_string(),
+                    detected_intent: UserIntent::ProjectExploration { scope: ExplorationScope::SingleFile },
+                    relevant_context: Vec::new(),
+                    intelligence_insights: Vec::new(),
+                    suggested_approach: "Proceed with standard processing".to_string(),
+                    confidence: 0.5,
+                }
+            }
+        };
+
         // Validate authentication before making LLM calls
         if !matches!(provider.pricing_model(), PricingModel::Free) && !provider.name().eq_ignore_ascii_case("ollama") {
             debug!("Auth validated for provider: {}", provider.name());
@@ -146,6 +187,12 @@ impl Agent {
         }
 
         let mut tool_status_messages = Vec::new();
+
+        // Check if this task needs multi-turn reasoning (systematic problem solving)
+        if self.needs_multi_turn_reasoning(user_message).await {
+            info!("Task requires systematic multi-turn reasoning - using MultiTurnReasoningEngine");
+            return self.process_with_multi_turn_reasoning(user_message, provider, model).await;
+        }
 
         // Check if this task needs multi-turn orchestration
         if self.needs_orchestration(user_message).await {
@@ -185,16 +232,19 @@ impl Agent {
 
         // Always proceed with LLM-based execution for actual work
         debug!("Proceeding with LLM-based tool execution");
-        
-        // Build chat request with intelligence-enhanced system prompt
-        let mut system_prompt = self.build_context_aware_system_prompt(user_message);
-        
-        // Enhance prompt with intelligence suggestions
-        if let Ok(suggestions) = self.intelligence.get_suggestions(user_message, None).await {
-            if !suggestions.trim().is_empty() && suggestions != "Intelligence memory not initialized" {
-                system_prompt.push_str(&format!("\n\nContext from previous patterns:\n{}", suggestions));
+
+        // 2. Build chat request with intelligence-enhanced system prompt
+        let base_prompt = self.build_context_aware_system_prompt(user_message);
+        let mut system_prompt = match self.unified_intelligence.enhance_system_prompt(&base_prompt, &enhanced_context).await {
+            Ok(enhanced_prompt) => {
+                debug!("System prompt automatically enhanced with intelligence");
+                enhanced_prompt
+            },
+            Err(e) => {
+                warn!("System prompt enhancement failed: {}, using base prompt", e);
+                base_prompt
             }
-        }
+        };
 
         // Update dynamic context based on current activity
         if let Ok(context_update) = self.context_manager.update_context(user_message).await {
@@ -245,14 +295,17 @@ impl Agent {
         }
         
         // SMART TOOL PROVISION: Only provide tools when the task actually needs them
-        let tools = if provider.supports_tools() && self.task_needs_tools(user_message) {
+        let needs_tools = self.task_needs_tools(user_message);
+        debug!("Task needs tools: {} (provider supports: {})", needs_tools, provider.supports_tools());
+
+        let tools = if provider.supports_tools() && needs_tools {
             Some(self.convert_tools_to_provider_format())
         } else {
             None
         };
         
         let request = ChatRequest {
-            messages,
+            messages: messages.clone(),
             model: model.to_string(),
             temperature: Some(0.7),
             max_tokens: Some(2000),
@@ -262,6 +315,17 @@ impl Agent {
 
         let response = provider.chat(&request).await?;
         let assistant_message = response.content;
+
+        debug!("Raw response from provider: {} chars", assistant_message.len());
+        debug!("Response tool_calls: {:?}", response.tool_calls);
+        debug!("Response content first 500 chars: {}", assistant_message.chars().take(500).collect::<String>());
+
+        // Log if LLM is trying to call multiple tools
+        if let Some(ref tool_calls) = response.tool_calls {
+            if tool_calls.len() > 1 {
+                info!("LLM requested {} tools in single response", tool_calls.len());
+            }
+        }
 
         // Get tool calls - first check structured response, then parse from text
         let (clean_text, tool_calls) = if let Some(structured_tool_calls) = &response.tool_calls {
@@ -277,8 +341,14 @@ impl Agent {
             (assistant_message, agent_tool_calls)
         } else {
             // Fall back to parsing from text content
-            self.parser.parse_structured(&assistant_message)?
+            debug!("No structured tool calls, parsing from text");
+            let parsed = self.parser.parse_structured(&assistant_message)?;
+            debug!("Parsed clean_text: {} chars, tool_calls: {}", parsed.0.len(), parsed.1.len());
+            debug!("Parsed clean_text first 200 chars: {}", parsed.0.chars().take(200).collect::<String>());
+            parsed
         };
+
+        debug!("Final clean_text: {} chars, tool_calls: {}", clean_text.len(), tool_calls.len());
 
         if tool_calls.is_empty() {
             // Add assistant message to conversation
@@ -297,8 +367,8 @@ impl Agent {
             // No tool calls, this is the final response
             clean_text.clone()
         } else {
-            // Execute tool calls
-            info!("Executing {} tool calls", tool_calls.len());
+            // Start multi-turn execution loop
+            info!("Starting multi-turn execution with {} tool calls", tool_calls.len());
 
             // Add tool status messages for UI
             for call in &tool_calls {
@@ -326,7 +396,13 @@ impl Agent {
                             }
 
                             if output.success {
-                                tool_results.push(format!("Tool {} succeeded: {:?}", call.name, output.result));
+                                // Format the result more clearly
+                                let result_str = if output.result.is_object() || output.result.is_array() {
+                                    serde_json::to_string_pretty(&output.result).unwrap_or_else(|_| format!("{:?}", output.result))
+                                } else {
+                                    output.result.to_string()
+                                };
+                                tool_results.push(format!("Tool {} completed successfully. Result:\n{}", call.name, result_str));
                             } else {
                                 let error = output.error.unwrap_or_else(|| "Unknown error".to_string());
                                 tool_results.push(format!("Tool {} failed: {}", call.name, error));
@@ -341,8 +417,181 @@ impl Agent {
                 }
             }
             
-            let response = format!("Executed tools:\n{}", tool_results.join("\n"));
-            
+            // Format tool results for the conversation
+            let tool_results_text = tool_results.join("\n");
+
+            // Add tool results to conversation for multi-turn processing
+            {
+                let mut conversation = self.conversation.lock().await;
+                conversation.messages.push(ConvMessage {
+                    role: ConvRole::Tool,
+                    content: tool_results_text.clone(),
+                    tool_calls: None,
+                    timestamp: chrono::Utc::now(),
+                });
+            }
+
+            // MULTI-TURN LOOP: Send results back to LLM for interpretation and next steps
+            debug!("Sending tool results back to LLM for interpretation");
+
+            // Build new request with tool results included
+            let mut messages_with_results = messages.clone();
+
+            // Add the assistant's tool call message
+            messages_with_results.push(Message {
+                id: uuid::Uuid::new_v4().to_string(),
+                role: MessageRole::Assistant,
+                content: clean_text.clone(),
+                timestamp: chrono::Utc::now(),
+                tokens_used: None,
+                cost: None,
+            });
+
+            // Add tool results as user message with continuation prompt
+            // Check if original message implies more work is needed
+            let message_lower = user_message.to_lowercase();
+            let needs_continuation = message_lower.contains("then") ||
+                                    message_lower.contains("and then") ||
+                                    message_lower.contains(", then");
+
+            let tool_result_message = if needs_continuation {
+                format!(
+                    "Tool execution results:\n{}\n\nBased on these results, continue with the next step of the task: {}",
+                    tool_results_text,
+                    user_message
+                )
+            } else {
+                format!("Tool execution results:\n{}", tool_results_text)
+            };
+
+            messages_with_results.push(Message {
+                id: uuid::Uuid::new_v4().to_string(),
+                role: MessageRole::User,
+                content: tool_result_message,
+                timestamp: chrono::Utc::now(),
+                tokens_used: None,
+                cost: None,
+            });
+
+            // Request interpretation and next steps from LLM
+            let interpret_request = ChatRequest {
+                messages: messages_with_results.clone(),
+                model: model.to_string(),
+                temperature: Some(0.7),
+                max_tokens: Some(2000),
+                stream: false,
+                tools: if provider.supports_tools() && needs_tools {
+                    Some(self.convert_tools_to_provider_format())
+                } else {
+                    None
+                },
+            };
+
+            // Get LLM's interpretation and potential next steps
+            let interpretation_response = provider.chat(&interpret_request).await?;
+            debug!("LLM interpretation: {} chars", interpretation_response.content.len());
+
+            // Check if LLM wants to execute more tools
+            let (final_text, next_tool_calls) = if let Some(next_calls) = &interpretation_response.tool_calls {
+                // Convert to agent tool calls
+                let agent_tool_calls: Vec<crate::agent::tools::ToolCall> = next_calls
+                    .iter()
+                    .map(|tc| crate::agent::tools::ToolCall {
+                        name: tc.name.clone(),
+                        parameters: tc.arguments.clone(),
+                    })
+                    .collect();
+                debug!("Interpretation response has {} structured tool calls", next_calls.len());
+                (interpretation_response.content.clone(), agent_tool_calls)
+            } else {
+                // Try parsing from text
+                debug!("No structured tool calls in interpretation, parsing from text");
+                self.parser.parse_structured(&interpretation_response.content)?
+            };
+
+            println!("🔍 After interpretation: final_text={} chars, next_tool_calls={}", final_text.len(), next_tool_calls.len());
+            for (i, call) in next_tool_calls.iter().enumerate() {
+                println!("🔍 Next tool call {}: {} with params: {}", i, call.name, call.parameters);
+            }
+
+            // Check if task appears incomplete and force continuation
+            let task_seems_incomplete = self.check_task_completion(user_message, &final_text, &tool_results_text);
+            println!("🔍 Task completion check: user_message='{}', incomplete={}", user_message, task_seems_incomplete);
+            println!("🔍 Tool results: {}", tool_results_text);
+            println!("🔍 Next tool calls: {} (empty: {})", next_tool_calls.len(), next_tool_calls.is_empty());
+
+            let multi_turn_response = if !next_tool_calls.is_empty() {
+                println!("🔧 LLM requested {} more tool calls - continuing multi-turn execution", next_tool_calls.len());
+
+                // Use the multi-turn execution loop for remaining tools
+                self.execute_multi_turn_loop(
+                    next_tool_calls,
+                    messages_with_results,
+                    provider,
+                    model,
+                    5, // Max 5 turns to prevent infinite loops
+                ).await?
+            } else if task_seems_incomplete {
+                println!("🔧 Task appears incomplete - forcing continuation");
+
+                // Force the LLM to continue by explicitly asking what's next
+                let continuation_prompt = format!(
+                    "You have completed: {}\n\nOriginal task: {}\n\nWhat is the next step to complete this task? Call the appropriate tool.",
+                    tool_results_text, user_message
+                );
+
+                let mut force_messages = messages_with_results.clone();
+                force_messages.push(Message {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    role: MessageRole::User,
+                    content: continuation_prompt,
+                    timestamp: chrono::Utc::now(),
+                    tokens_used: None,
+                    cost: None,
+                });
+
+                let force_request = ChatRequest {
+                    messages: force_messages.clone(),
+                    model: model.to_string(),
+                    temperature: Some(0.7),
+                    max_tokens: Some(2000),
+                    stream: false,
+                    tools: Some(self.convert_tools_to_provider_format()),
+                };
+
+                match provider.chat(&force_request).await {
+                    Ok(force_response) => {
+                        if let Some(forced_tools) = &force_response.tool_calls {
+                            let forced_tool_calls: Vec<crate::agent::tools::ToolCall> = forced_tools
+                                .iter()
+                                .map(|tc| crate::agent::tools::ToolCall {
+                                    name: tc.name.clone(),
+                                    parameters: tc.arguments.clone(),
+                                })
+                                .collect();
+
+                            if !forced_tool_calls.is_empty() {
+                                // Execute the forced tools
+                                self.execute_multi_turn_loop(
+                                    forced_tool_calls,
+                                    force_messages,
+                                    provider,
+                                    model,
+                                    3, // Limit forced continuation
+                                ).await?
+                            } else {
+                                format!("{}\n\n{}", final_text, force_response.content)
+                            }
+                        } else {
+                            format!("{}\n\n{}", final_text, force_response.content)
+                        }
+                    }
+                    Err(_) => final_text
+                }
+            } else {
+                final_text
+            };
+
             // Record patterns from tool execution for intelligence learning
             for (i, call) in tool_calls.iter().enumerate() {
                 if let Ok(embedding) = self.intelligence.get_embedding(&call.parameters.to_string()).await {
@@ -387,13 +636,13 @@ impl Agent {
                 let mut conversation = self.conversation.lock().await;
                 conversation.messages.push(ConvMessage {
                     role: ConvRole::Assistant,
-                    content: response.clone(),
+                    content: multi_turn_response.clone(),
                     tool_calls: Some(conversation_tool_calls),
                     timestamp: chrono::Utc::now(),
                 });
             }
 
-            response
+            multi_turn_response
         };
         
         Ok((final_response, tool_status_messages))
@@ -451,7 +700,16 @@ impl Agent {
             || message_lower.contains("find") || message_lower.contains("search")
             || message_lower.contains("fix") || message_lower.contains("debug")
             || message_lower.contains("modify") || message_lower.contains("update")
+            || message_lower.contains("list") || message_lower.contains("read")
         {
+            // Check if this is a multi-step task
+            let is_multi_step = message_lower.contains("then") || message_lower.contains("and then") ||
+                                message_lower.contains(", then") || message_lower.contains("after that");
+
+            if is_multi_step {
+                return "You are Aircher, an AI coding assistant. CRITICAL: This is a multi-step task. You MUST:\n1. Call ONE tool at a time\n2. Wait for tool results before proceeding\n3. Call the next tool based on actual results\n4. NEVER hallucinate or make up file contents\n5. If asked to read a file after listing, you MUST call read_file, not guess the contents\n\nComplete each step sequentially. Do not try to answer everything at once.".to_string();
+            }
+
             return "You are Aircher, an AI coding assistant. Use the provided tools to examine code, understand the codebase, and make informed modifications. Always read relevant files before making changes.".to_string();
         }
 
@@ -485,6 +743,167 @@ impl Agent {
         false
     }
 
+    /// Determine if a task needs systematic multi-turn reasoning
+    async fn needs_multi_turn_reasoning(&self, user_message: &str) -> bool {
+        // Don't use multi-turn reasoning if this is already an orchestration agent
+        if self.is_orchestration_agent {
+            return false;
+        }
+
+        let message_lower = user_message.to_lowercase();
+
+        // Tasks that benefit from systematic exploration and planning
+        if message_lower.contains("fix bug") || message_lower.contains("debug")
+            || message_lower.contains("error") || message_lower.contains("failing test")
+            || message_lower.contains("not working") || message_lower.contains("issue")
+            || message_lower.contains("problem") || message_lower.contains("broken")
+        {
+            return true;
+        }
+
+        // Complex code analysis or modification tasks
+        if message_lower.contains("refactor") || message_lower.contains("optimize")
+            || message_lower.contains("improve") || message_lower.contains("modify")
+            || message_lower.contains("update") || message_lower.contains("change")
+        {
+            return true;
+        }
+
+        // Tasks requiring codebase exploration
+        if message_lower.contains("understand") || message_lower.contains("analyze")
+            || message_lower.contains("explore") || message_lower.contains("investigate")
+            || message_lower.contains("find") || message_lower.contains("locate")
+        {
+            return true;
+        }
+
+        // Implementation tasks that mention existing code
+        if (message_lower.contains("implement") || message_lower.contains("add"))
+            && (message_lower.contains("existing") || message_lower.contains("current")
+                || message_lower.contains("codebase") || message_lower.contains("project"))
+        {
+            return true;
+        }
+
+        false
+    }
+
+    /// Process a task using systematic multi-turn reasoning
+    async fn process_with_multi_turn_reasoning(
+        &self,
+        user_message: &str,
+        provider: &dyn LLMProvider,
+        model: &str
+    ) -> Result<(String, Vec<String>)> {
+        info!("Processing task with systematic multi-turn reasoning");
+
+        let mut tool_status_messages = Vec::new();
+
+        // Create a reasoning plan for this task
+        {
+            let mut reasoning_engine = self.multi_turn_reasoning.lock().await;
+            let plan_id = reasoning_engine.create_reasoning_plan(user_message, provider, model).await?;
+
+            info!("Created reasoning plan: {}", plan_id);
+            tool_status_messages.push(format!("🧠 Created systematic reasoning plan: {}", plan_id));
+
+            // Execute the plan step by step
+            let mut steps_completed = 0;
+            let max_steps = 50; // Prevent infinite loops
+
+            while reasoning_engine.has_queued_actions() && steps_completed < max_steps {
+                match reasoning_engine.execute_next_action(provider, model).await? {
+                    Some(action_result) => {
+                        steps_completed += 1;
+
+                        if action_result.success {
+                            tool_status_messages.push(format!(
+                                "✅ Step {}: {} - {}",
+                                steps_completed,
+                                action_result.action.description,
+                                action_result.action.expected_outcome
+                            ));
+
+                            info!("Multi-turn reasoning step {} completed: {}",
+                                  steps_completed, action_result.action.description);
+                        } else {
+                            tool_status_messages.push(format!(
+                                "❌ Step {}: {} - {}",
+                                steps_completed,
+                                action_result.action.description,
+                                action_result.error.unwrap_or_else(|| "Unknown error".to_string())
+                            ));
+
+                            warn!("Multi-turn reasoning step {} failed: {}",
+                                  steps_completed, action_result.action.description);
+                        }
+                    }
+                    None => {
+                        // No more actions to execute
+                        break;
+                    }
+                }
+            }
+
+            // Get the final plan status
+            if let Some(plan) = reasoning_engine.get_plan_status(&plan_id) {
+                let completion_message = match plan.state {
+                    crate::agent::multi_turn_reasoning::PlanState::Complete => {
+                        format!("🎉 Multi-turn reasoning completed successfully after {} steps", steps_completed)
+                    }
+                    crate::agent::multi_turn_reasoning::PlanState::Failed => {
+                        format!("⚠️ Multi-turn reasoning failed after {} steps", steps_completed)
+                    }
+                    _ => {
+                        format!("🔄 Multi-turn reasoning in progress: {} steps completed", steps_completed)
+                    }
+                };
+
+                tool_status_messages.push(completion_message.clone());
+
+                // Build summary response based on learnings
+                let mut response = String::new();
+                response.push_str("## Multi-Turn Reasoning Results\n\n");
+
+                if !plan.learned_context.is_empty() {
+                    response.push_str("### Key Discoveries:\n");
+                    for (_, learning) in plan.learned_context.iter().take(10) {
+                        response.push_str(&format!("- {}\n", learning));
+                    }
+                    response.push('\n');
+                }
+
+                if !plan.failed_attempts.is_empty() {
+                    response.push_str("### Challenges Encountered:\n");
+                    for attempt in plan.failed_attempts.iter().take(5) {
+                        response.push_str(&format!("- {}: {} (Learning: {})\n",
+                                                  attempt.action, attempt.error, attempt.learning));
+                    }
+                    response.push('\n');
+                }
+
+                response.push_str(&format!("### Summary:\n{}\n", completion_message));
+                response.push_str(&format!("Completed {} phases with {} total steps.",
+                                          plan.current_phase + 1, steps_completed));
+
+                // Add to conversation
+                {
+                    let mut conversation = self.conversation.lock().await;
+                    conversation.messages.push(ConvMessage {
+                        role: ConvRole::Assistant,
+                        content: response.clone(),
+                        tool_calls: None,
+                        timestamp: chrono::Utc::now(),
+                    });
+                }
+
+                Ok((response, tool_status_messages))
+            } else {
+                Err(anyhow::anyhow!("Failed to retrieve plan status for {}", plan_id))
+            }
+        }
+    }
+
     /// Process a complex task using the TaskOrchestrator
     async fn process_with_orchestration(
         &self,
@@ -499,6 +918,7 @@ impl Agent {
             Arc::new(Agent {
                 tools: self.tools.clone(),
                 intelligence: self.intelligence.clone(),
+                unified_intelligence: self.unified_intelligence.clone(),
                 auth_manager: self.auth_manager.clone(),
                 parser: ToolCallParser::new()?, // Create new parser (doesn't impl Clone)
                 conversation: self.conversation.clone(),
@@ -506,6 +926,9 @@ impl Agent {
                 context_manager: self.context_manager.clone(),
                 orchestrator: None, // Avoid infinite recursion
                 plan_generator: Arc::new(tokio::sync::Mutex::new(PlanGenerator::new())),
+                multi_turn_reasoning: Arc::new(tokio::sync::Mutex::new(
+                    MultiTurnReasoningEngine::new(self.tools.clone(), self.intelligence.clone())?
+                )),
                 is_orchestration_agent: true, // Mark as orchestration agent to prevent recursion
                 max_iterations: self.max_iterations,
             }),
@@ -642,7 +1065,13 @@ impl Agent {
                     match tool.execute(call.parameters.clone()).await {
                         Ok(output) => {
                             if output.success {
-                                tool_results.push(format!("Tool {} succeeded: {:?}", call.name, output.result));
+                                // Format the result more clearly
+                                let result_str = if output.result.is_object() || output.result.is_array() {
+                                    serde_json::to_string_pretty(&output.result).unwrap_or_else(|_| format!("{:?}", output.result))
+                                } else {
+                                    output.result.to_string()
+                                };
+                                tool_results.push(format!("Tool {} completed successfully. Result:\n{}", call.name, result_str));
                             } else {
                                 let error = output.error.unwrap_or_else(|| "Unknown error".to_string());
                                 tool_results.push(format!("Tool {} failed: {}", call.name, error));
@@ -679,7 +1108,7 @@ impl Agent {
 
             response
         };
-        
+
         Ok((final_response, tool_status_messages))
     }
     
@@ -838,6 +1267,161 @@ impl Agent {
         Ok(responses)
     }
     
+    /// Check if a task appears incomplete based on user request and executed tools
+    fn check_task_completion(&self, user_message: &str, response_text: &str, tool_results: &str) -> bool {
+        let message_lower = user_message.to_lowercase();
+
+        // Check for multi-step indicators
+        let has_then = message_lower.contains("then") || message_lower.contains("and then") || message_lower.contains(", then");
+
+        if !has_then {
+            return false; // Single step task
+        }
+
+        // Check if only first part was completed
+        if message_lower.contains("list") && message_lower.contains("read") {
+            let did_list = tool_results.contains("list_files");
+            let did_read = tool_results.contains("read_file") || response_text.contains("use anyhow::Result") || response_text.contains("impl");
+
+            // If we listed but didn't read, task is incomplete
+            if did_list && !did_read {
+                debug!("Task incomplete: listed files but didn't read");
+                return true;
+            }
+        }
+
+        // Check for other multi-step patterns
+        if message_lower.contains("find") && message_lower.contains("create") {
+            let did_find = tool_results.contains("search_code") || tool_results.contains("list_files");
+            let did_create = tool_results.contains("write_file") || tool_results.contains("edit_file");
+
+            if did_find && !did_create {
+                debug!("Task incomplete: found content but didn't create");
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Execute a multi-turn conversation with tool calling loop
+    async fn execute_multi_turn_loop(
+        &self,
+        initial_tool_calls: Vec<crate::agent::tools::ToolCall>,
+        messages: Vec<Message>,
+        provider: &dyn LLMProvider,
+        model: &str,
+        max_turns: usize,
+    ) -> Result<String> {
+        let mut current_messages = messages;
+        let mut all_results = Vec::new();
+        let mut current_tool_calls = initial_tool_calls;
+        let mut turn_count = 0;
+
+        while !current_tool_calls.is_empty() && turn_count < max_turns {
+            turn_count += 1;
+            println!("🔄 Multi-turn execution - turn {}, executing {} tools", turn_count, current_tool_calls.len());
+            for (i, call) in current_tool_calls.iter().enumerate() {
+                println!("🔄 Turn {} tool {}: {} with params: {}", turn_count, i, call.name, call.parameters);
+            }
+
+            // Execute the current batch of tools
+            let mut tool_results = Vec::new();
+            for call in &current_tool_calls {
+                println!("🔄 Executing tool in multi-turn: {} with params: {}", call.name, call.parameters);
+
+                if let Some(tool) = self.tools.get(&call.name) {
+                    match tool.execute(call.parameters.clone()).await {
+                        Ok(output) => {
+                            if output.success {
+                                // Format the result more clearly
+                                let result_str = if output.result.is_object() || output.result.is_array() {
+                                    serde_json::to_string_pretty(&output.result).unwrap_or_else(|_| format!("{:?}", output.result))
+                                } else {
+                                    output.result.to_string()
+                                };
+                                tool_results.push(format!("Tool {} completed successfully. Result:\n{}", call.name, result_str));
+                            } else {
+                                let error = output.error.unwrap_or_else(|| "Unknown error".to_string());
+                                tool_results.push(format!("Tool {} failed: {}", call.name, error));
+                            }
+                        }
+                        Err(e) => {
+                            tool_results.push(format!("Tool {} error: {}", call.name, e));
+                        }
+                    }
+                } else {
+                    tool_results.push(format!("Tool {} not found", call.name));
+                }
+            }
+
+            all_results.extend(tool_results.clone());
+
+            // Add tool results to the message history
+            current_messages.push(Message {
+                id: uuid::Uuid::new_v4().to_string(),
+                role: MessageRole::User,
+                content: format!("Tool execution results:\n{}", tool_results.join("\n")),
+                timestamp: chrono::Utc::now(),
+                tokens_used: None,
+                cost: None,
+            });
+
+            // Ask the LLM what to do next
+            let next_request = ChatRequest {
+                messages: current_messages.clone(),
+                model: model.to_string(),
+                temperature: Some(0.7),
+                max_tokens: Some(2000),
+                stream: false,
+                tools: if provider.supports_tools() {
+                    Some(self.convert_tools_to_provider_format())
+                } else {
+                    None
+                },
+            };
+
+            let next_response = provider.chat(&next_request).await?;
+
+            // Check for more tool calls
+            if let Some(next_calls) = &next_response.tool_calls {
+                current_tool_calls = next_calls
+                    .iter()
+                    .map(|tc| crate::agent::tools::ToolCall {
+                        name: tc.name.clone(),
+                        parameters: tc.arguments.clone(),
+                    })
+                    .collect();
+            } else {
+                // Try parsing from text
+                let (final_text, parsed_calls) = self.parser.parse_structured(&next_response.content)?;
+                if parsed_calls.is_empty() {
+                    // No more tools to execute, return the final response
+                    return Ok(final_text);
+                }
+                current_tool_calls = parsed_calls;
+            }
+
+            // Add the assistant's response to history
+            current_messages.push(Message {
+                id: uuid::Uuid::new_v4().to_string(),
+                role: MessageRole::Assistant,
+                content: next_response.content.clone(),
+                timestamp: chrono::Utc::now(),
+                tokens_used: None,
+                cost: None,
+            });
+        }
+
+        // Reached max turns or no more tools
+        if turn_count >= max_turns {
+            Ok(format!("Completed {} turns of tool execution. Results:\n{}",
+                       turn_count, all_results.join("\n")))
+        } else {
+            Ok(format!("Task completed. Results:\n{}", all_results.join("\n")))
+        }
+    }
+
     /// End session (placeholder implementation)
     pub async fn end_session(&self, _session_id: &str) -> Result<()> {
         // Clear conversation for this session
