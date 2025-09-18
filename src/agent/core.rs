@@ -187,7 +187,7 @@ impl Agent {
         debug!("Proceeding with LLM-based tool execution");
         
         // Build chat request with intelligence-enhanced system prompt
-        let mut system_prompt = "You are Aircher, an AI coding assistant. Use the provided tools to help with coding tasks.".to_string();
+        let mut system_prompt = self.build_context_aware_system_prompt(user_message);
         
         // Enhance prompt with intelligence suggestions
         if let Ok(suggestions) = self.intelligence.get_suggestions(user_message, None).await {
@@ -400,6 +400,30 @@ impl Agent {
     }
 
     /// Determine if a task needs multi-turn orchestration
+    fn build_context_aware_system_prompt(&self, user_message: &str) -> String {
+        let message_lower = user_message.to_lowercase();
+
+        // For pure code generation requests, emphasize direct generation
+        if message_lower.contains("create") && (message_lower.contains("function") || message_lower.contains("class"))
+            || message_lower.contains("implement") && !message_lower.contains("feature")
+            || message_lower.contains("write") && (message_lower.contains("code") || message_lower.contains("function"))
+        {
+            return "You are Aircher, an AI coding assistant. Generate high-quality, production-ready code directly. Only use tools if you need to examine existing code or perform file operations. For standalone code generation, provide complete implementations with proper error handling, documentation, and tests.".to_string();
+        }
+
+        // For tasks that need workspace interaction
+        if message_lower.contains("refactor") || message_lower.contains("analyze")
+            || message_lower.contains("find") || message_lower.contains("search")
+            || message_lower.contains("fix") || message_lower.contains("debug")
+            || message_lower.contains("modify") || message_lower.contains("update")
+        {
+            return "You are Aircher, an AI coding assistant. Use the provided tools to examine code, understand the codebase, and make informed modifications. Always read relevant files before making changes.".to_string();
+        }
+
+        // Default: balanced approach
+        "You are Aircher, an AI coding assistant. Use tools when you need to examine or modify existing code, but generate new code directly when creating standalone functions or classes.".to_string()
+    }
+
     async fn needs_orchestration(&self, user_message: &str) -> bool {
         // Don't orchestrate if this is already an orchestration agent
         if self.is_orchestration_agent {
