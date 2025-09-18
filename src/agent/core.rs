@@ -244,8 +244,8 @@ impl Agent {
             }
         }
         
-        // CRITICAL FIX: Send actual tool schemas instead of None
-        let tools = if provider.supports_tools() {
+        // SMART TOOL PROVISION: Only provide tools when the task actually needs them
+        let tools = if provider.supports_tools() && self.task_needs_tools(user_message) {
             Some(self.convert_tools_to_provider_format())
         } else {
             None
@@ -400,8 +400,43 @@ impl Agent {
     }
 
     /// Determine if a task needs multi-turn orchestration
+    fn task_needs_tools(&self, user_message: &str) -> bool {
+        let message_lower = user_message.to_lowercase();
+
+        // Pure code generation tasks don't need tools
+        if (message_lower.contains("create") || message_lower.contains("write") || message_lower.contains("implement"))
+            && (message_lower.contains("function") || message_lower.contains("class") || message_lower.contains("module"))
+            && !message_lower.contains("in the codebase")
+            && !message_lower.contains("in this project")
+            && !message_lower.contains("existing")
+        {
+            return false;
+        }
+
+        // Tasks that explicitly need file operations
+        if message_lower.contains("refactor") || message_lower.contains("modify")
+            || message_lower.contains("update") || message_lower.contains("fix")
+            || message_lower.contains("analyze") || message_lower.contains("find")
+            || message_lower.contains("search") || message_lower.contains("explore")
+            || message_lower.contains("in the codebase") || message_lower.contains("existing file")
+        {
+            return true;
+        }
+
+        // Default: provide tools for safety
+        true
+    }
+
     fn build_context_aware_system_prompt(&self, user_message: &str) -> String {
         let message_lower = user_message.to_lowercase();
+
+        // For code generation that mentions patterns/style - use semantic context but generate directly
+        if (message_lower.contains("create") || message_lower.contains("write") || message_lower.contains("implement"))
+            && (message_lower.contains("function") || message_lower.contains("class") || message_lower.contains("module"))
+            && (message_lower.contains("pattern") || message_lower.contains("style") || message_lower.contains("like") || message_lower.contains("follows"))
+        {
+            return "You are Aircher, an AI coding assistant with semantic understanding of this codebase. Generate high-quality code that follows the established patterns in the project. Use your semantic knowledge of the codebase to match existing styles, error handling patterns, and architectural decisions. Generate code directly - do not use tools to explore unless you need to modify existing files.".to_string();
+        }
 
         // For pure code generation requests, emphasize direct generation
         if message_lower.contains("create") && (message_lower.contains("function") || message_lower.contains("class"))
