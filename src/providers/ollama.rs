@@ -141,7 +141,7 @@ struct OllamaError {
 impl OllamaProvider {
     pub async fn new(config: ProviderConfig, _auth_manager: Arc<AuthManager>) -> Result<Self> {
         let client = Client::builder()
-            .timeout(Duration::from_secs(30)) // Balance between model loading and responsiveness
+            .timeout(Duration::from_secs(120)) // Allow time for large models like gpt-oss (13GB)
             .build()
             .context("Failed to create HTTP client")?;
 
@@ -175,7 +175,7 @@ impl OllamaProvider {
     /// Create a stub provider for UI availability when Ollama is not running
     pub fn new_stub(config: crate::config::ProviderConfig) -> Result<Self> {
         let client = Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(120))
             .build()
             .context("Failed to create HTTP client")?;
             
