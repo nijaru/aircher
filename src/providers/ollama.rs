@@ -69,6 +69,7 @@ struct OllamaResponse {
     created_at: String,
     message: OllamaMessage,
     done: bool,
+    done_reason: String,  // CRITICAL FIX: Missing field causing deserialization failure
     #[serde(default)]
     total_duration: Option<u64>,
     #[serde(default)]
