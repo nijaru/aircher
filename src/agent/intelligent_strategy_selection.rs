@@ -69,7 +69,7 @@ impl IntelligentStrategySelector {
     ) -> Result<AdaptedStrategy> {
         // Step 1: Intelligence analyzes the task
         let analysis = self.intelligence.analyze_task(task, context).await?;
-        let intent = analysis.intent;
+        let intent = analysis.intent.clone();
         let complexity = analysis.complexity_score;
         let confidence = analysis.confidence_score;
 
@@ -128,22 +128,20 @@ impl IntelligentStrategySelector {
                 }
             },
 
-            // Improvement tasks benefit from reflection
-            (UserIntent::Refactor, _) | (UserIntent::Optimize, _) => "reflexion",
+            // Project fixing needs systematic debugging
+            (UserIntent::ProjectFixing { .. }, _) => "swe_bench_strategy",
 
-            // Debugging needs systematic exploration
-            (UserIntent::Debug, _) | (UserIntent::Fix, _) => "swe_bench_strategy",
+            // Code writing benefits from planning
+            (UserIntent::CodeWriting { .. }, c) if c > 0.5 => "interactive_planning",
+            (UserIntent::CodeWriting { .. }, _) => "react",
 
-            // Understanding tasks use ReAct
-            (UserIntent::Explain, _) | (UserIntent::Analyze, _) => "react",
+            // Code reading and exploration use ReAct
+            (UserIntent::CodeReading { .. }, _) | (UserIntent::ProjectExploration { .. }, _) => "react",
 
-            // Code generation with planning
-            (UserIntent::Generate, c) if c > 0.5 => "interactive_planning",
+            // Mixed intents need flexible approach
+            (UserIntent::Mixed { .. }, _) => "reflexion", // Reflection helps with complex mixed tasks
 
-            // Workflow for well-defined tasks
-            (UserIntent::Execute, _) => "workflow_orchestration",
-
-            // Default to ReAct
+            // Default to ReAct for unknown or simple cases
             _ => "react",
         };
 
@@ -341,30 +339,57 @@ impl IntelligentStrategySelector {
     fn classify_intent(&self, task: &str) -> UserIntent {
         let task_lower = task.to_lowercase();
 
-        if task_lower.contains("fix") || task_lower.contains("bug") {
-            UserIntent::Fix
-        } else if task_lower.contains("debug") {
-            UserIntent::Debug
-        } else if task_lower.contains("refactor") || task_lower.contains("improve") {
-            UserIntent::Refactor
-        } else if task_lower.contains("generate") || task_lower.contains("create") {
-            UserIntent::Generate
-        } else if task_lower.contains("explain") || task_lower.contains("understand") {
-            UserIntent::Explain
+        if task_lower.contains("fix") || task_lower.contains("bug") || task_lower.contains("error") {
+            UserIntent::ProjectFixing {
+                error_indicators: vec![task.to_string()],
+                urgency_level: crate::intelligence::UrgencyLevel::Medium,
+            }
+        } else if task_lower.contains("generate") || task_lower.contains("create") || task_lower.contains("write") {
+            UserIntent::CodeWriting {
+                target_files: vec![],
+                code_type: crate::intelligence::CodeType::NewFeature,
+            }
+        } else if task_lower.contains("explain") || task_lower.contains("understand") || task_lower.contains("read") {
+            UserIntent::CodeReading {
+                files_mentioned: vec![],
+                analysis_depth: crate::intelligence::AnalysisDepth::Surface,
+            }
+        } else if task_lower.contains("explore") || task_lower.contains("search") {
+            UserIntent::ProjectExploration {
+                scope: crate::intelligence::ExplorationScope::FullProject,
+            }
         } else {
-            UserIntent::Unknown
+            // Default to code reading for unknown tasks
+            UserIntent::CodeReading {
+                files_mentioned: vec![],
+                analysis_depth: crate::intelligence::AnalysisDepth::Surface,
+            }
         }
     }
 
     /// Check if intents are similar
     fn intents_similar(&self, intent1: &UserIntent, intent2: &UserIntent) -> bool {
-        use UserIntent::*;
+        use crate::intelligence::UserIntent::*;
 
         match (intent1, intent2) {
-            (Fix, Fix) | (Fix, Debug) | (Debug, Fix) | (Debug, Debug) => true,
-            (Refactor, Refactor) | (Refactor, Optimize) | (Optimize, Refactor) => true,
-            (Generate, Generate) | (Generate, Create) | (Create, Generate) => true,
-            (Explain, Explain) | (Explain, Analyze) | (Analyze, Explain) => true,
+            // Project fixing intents are similar
+            (ProjectFixing { .. }, ProjectFixing { .. }) => true,
+
+            // Code writing intents are similar
+            (CodeWriting { .. }, CodeWriting { .. }) => true,
+
+            // Code reading intents are similar
+            (CodeReading { .. }, CodeReading { .. }) => true,
+
+            // Project exploration intents are similar
+            (ProjectExploration { .. }, ProjectExploration { .. }) => true,
+
+            // Mixed intents can be similar to their primary intent
+            (Mixed { primary_intent, .. }, other) | (other, Mixed { primary_intent, .. }) => {
+                self.intents_similar(primary_intent, other)
+            }
+
+            // Different intent types are not similar
             _ => false,
         }
     }

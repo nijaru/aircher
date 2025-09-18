@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::{RwLock, Mutex};
-use tracing::warn;
+use tracing::{warn, info};
 
 pub mod context;
 pub mod narrative;
@@ -21,6 +21,10 @@ pub mod file_monitor;
 pub mod mcp_integration;
 pub mod mcp_examples;
 pub mod ast_analysis;
+pub mod purpose_analysis;
+pub mod pattern_aware_generation;
+pub mod intelligent_debugging;
+pub mod unified_intelligence;
 
 pub use context::*;
 pub use narrative::*;
@@ -32,6 +36,23 @@ pub use duckdb_memory::*;
 pub use tools::*;
 pub use mcp_integration::*;
 pub use ast_analysis::*;
+pub use purpose_analysis::*;
+pub use pattern_aware_generation::*;
+pub use intelligent_debugging::*;
+pub use unified_intelligence::{
+    UnifiedIntelligenceEngine,
+    EnhancedContext,
+    UserIntent,
+    AnalysisDepth,
+    CodeType,
+    UrgencyLevel,
+    ExplorationScope,
+    ContextItem,
+    ContextSource,
+    IntelligenceInsight,
+    TaskAnalysis,
+    TaskComplexity,
+};
 
 /// Intelligence Engine - Context-aware development assistant for AI agents
 pub struct IntelligenceEngine {
@@ -43,6 +64,9 @@ pub struct IntelligenceEngine {
     duckdb_memory: Option<Arc<Mutex<DuckDBMemory>>>,
     semantic_search: Option<Arc<RwLock<SemanticCodeSearch>>>,
     ast_analyzer: Arc<RwLock<ASTAnalyzer>>,
+    purpose_analyzer: PurposeAnalysisEngine,
+    pattern_generator: PatternAwareGenerationEngine,
+    debugging_engine: IntelligentDebuggingEngine,
 }
 
 impl IntelligenceEngine {
@@ -51,6 +75,17 @@ impl IntelligenceEngine {
         let narrative_tracker = DevelopmentNarrativeTracker::new(config).await?;
         let memory_system = ConversationalMemorySystem::new(storage).await?;
         let ast_analyzer = Arc::new(RwLock::new(ASTAnalyzer::new()?));
+        let purpose_analyzer = PurposeAnalysisEngine::new(ast_analyzer.clone(), None);
+        let pattern_generator = PatternAwareGenerationEngine::new(
+            Arc::new(purpose_analyzer.clone()),
+            ast_analyzer.clone(),
+            None,
+        );
+        let debugging_engine = IntelligentDebuggingEngine::new(
+            ast_analyzer.clone(),
+            None,
+            Arc::new(purpose_analyzer.clone()),
+        );
 
         Ok(Self {
             _config: config.clone(),
@@ -61,12 +96,15 @@ impl IntelligenceEngine {
             duckdb_memory: None,
             semantic_search: None,
             ast_analyzer,
+            purpose_analyzer,
+            pattern_generator,
+            debugging_engine,
         })
     }
     
     /// Create intelligence engine with semantic search integration
     pub async fn with_semantic_search(
-        config: &ConfigManager, 
+        config: &ConfigManager,
         storage: &DatabaseManager,
         semantic_search: SemanticCodeSearch,
     ) -> Result<Self> {
@@ -74,6 +112,18 @@ impl IntelligenceEngine {
         let narrative_tracker = DevelopmentNarrativeTracker::new(config).await?;
         let memory_system = ConversationalMemorySystem::new(storage).await?;
         let ast_analyzer = Arc::new(RwLock::new(ASTAnalyzer::new()?));
+        let semantic_search_arc = Arc::new(RwLock::new(semantic_search));
+        let purpose_analyzer = PurposeAnalysisEngine::new(ast_analyzer.clone(), Some(semantic_search_arc.clone()));
+        let pattern_generator = PatternAwareGenerationEngine::new(
+            Arc::new(purpose_analyzer.clone()),
+            ast_analyzer.clone(),
+            Some(semantic_search_arc.clone()),
+        );
+        let debugging_engine = IntelligentDebuggingEngine::new(
+            ast_analyzer.clone(),
+            Some(semantic_search_arc.clone()),
+            Arc::new(purpose_analyzer.clone()),
+        );
 
         Ok(Self {
             _config: config.clone(),
@@ -82,14 +132,26 @@ impl IntelligenceEngine {
             narrative_tracker,
             memory_system,
             duckdb_memory: None,
-            semantic_search: Some(Arc::new(RwLock::new(semantic_search))),
+            semantic_search: Some(semantic_search_arc),
             ast_analyzer,
+            purpose_analyzer,
+            pattern_generator,
+            debugging_engine,
         })
     }
     
     /// Add semantic search to existing intelligence engine
     pub fn set_semantic_search(&mut self, semantic_search: SemanticCodeSearch) {
-        self.semantic_search = Some(Arc::new(RwLock::new(semantic_search)));
+        let semantic_search_arc = Arc::new(RwLock::new(semantic_search));
+        self.semantic_search = Some(semantic_search_arc.clone());
+        // Update purpose analyzer with semantic search
+        self.purpose_analyzer = PurposeAnalysisEngine::new(self.ast_analyzer.clone(), Some(semantic_search_arc.clone()));
+        // Update pattern generator with semantic search
+        self.pattern_generator = PatternAwareGenerationEngine::new(
+            Arc::new(self.purpose_analyzer.clone()),
+            self.ast_analyzer.clone(),
+            Some(semantic_search_arc),
+        );
     }
     
     /// Create an MCP-enhanced version of this intelligence engine
@@ -157,6 +219,342 @@ impl IntelligenceEngine {
         } else {
             Ok(Vec::new())
         }
+    }
+
+    /// Analyze code purpose and business context (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn analyze_code_purpose(
+        &self,
+        file_path: &str,
+        code_content: &str,
+    ) -> Result<CodePurposeAnalysis> {
+        self.purpose_analyzer.analyze_code_purpose(file_path, code_content).await
+    }
+
+    /// Get business context summary for quick understanding (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn get_business_context_summary(
+        &self,
+        file_path: &str,
+        code_content: &str,
+    ) -> Result<String> {
+        self.purpose_analyzer.get_business_context_summary(file_path, code_content).await
+    }
+
+    /// Learn patterns from project files (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn learn_project_patterns(&self, project_files: Vec<String>) -> Result<()> {
+        self.pattern_generator.learn_project_patterns(project_files).await
+    }
+
+    /// Generate code that follows project patterns (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn generate_contextual_code(&self, request: CodeGenerationRequest) -> Result<GeneratedCode> {
+        self.pattern_generator.generate_contextual_code(request).await
+    }
+
+    /// Get a summary of learned patterns (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn get_pattern_summary(&self) -> Result<String> {
+        self.pattern_generator.get_pattern_summary().await
+    }
+
+    // === INTELLIGENT DEBUGGING METHODS (internal use only - automatic via UnifiedIntelligenceEngine) ===
+
+    /// Perform comprehensive error analysis (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn analyze_error(&self, request: ErrorAnalysisRequest) -> Result<ErrorAnalysis> {
+        self.debugging_engine.analyze_error(request).await
+    }
+
+    /// Generate multiple fix strategies for an error (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn generate_fix_strategies(&self, analysis: &ErrorAnalysis) -> Result<Vec<FixStrategy>> {
+        self.debugging_engine.generate_fix_strategies(analysis).await
+    }
+
+    /// Generate comprehensive fix with code changes, tests, and validation plan (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn generate_comprehensive_fix(&self, request: ErrorAnalysisRequest) -> Result<FixResult> {
+        self.debugging_engine.generate_comprehensive_fix(request).await
+    }
+
+    /// Quick error analysis for simple cases (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn quick_analyze_error(&self, error_message: &str, file_path: &str) -> Result<ErrorAnalysis> {
+        self.debugging_engine.quick_analyze(error_message, file_path).await
+    }
+
+    /// Get quick fix recommendations based on error pattern matching (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn get_quick_fix_recommendations(&self, error_message: &str) -> Result<Vec<String>> {
+        self.debugging_engine.get_quick_fix_recommendations(error_message).await
+    }
+
+    /// Analyze project-wide error patterns (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn analyze_project_error_patterns(&self, project_files: Vec<String>) -> Result<std::collections::HashMap<String, Vec<String>>> {
+        self.debugging_engine.analyze_project_error_patterns(project_files).await
+    }
+
+    /// Learn from fix results to improve future debugging (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn learn_from_fix(&self, fix_result: &FixResult, success: bool, feedback: Option<String>) -> Result<()> {
+        self.debugging_engine.learn_from_fix(fix_result, success, feedback).await
+    }
+
+    /// Analyze task for intelligence-enhanced strategy selection
+    pub async fn analyze_task(&self, task: &str, context: &[ContextItem]) -> Result<TaskAnalysis> {
+        // Classify user intent
+        let intent = self.classify_user_intent(task).await;
+
+        // Calculate complexity based on task description and context
+        let complexity_score = self.calculate_task_complexity(task, context).await;
+
+        // Calculate confidence based on available context and patterns
+        let confidence_score = self.calculate_confidence(task, context).await;
+
+        // Analyze task characteristics
+        let has_multiple_solution_paths = task.contains("optimize") || task.contains("improve") ||
+                                         task.contains("refactor") || complexity_score > 0.7;
+
+        let is_critical = task.contains("fix") && (task.contains("critical") || task.contains("production") ||
+                         task.contains("urgent")) || complexity_score > 0.9;
+
+        let requires_codebase_search = task.contains("find") || task.contains("search") ||
+                                      task.contains("where") || task.contains("how") ||
+                                      complexity_score > 0.5;
+
+        Ok(TaskAnalysis {
+            intent,
+            complexity_score,
+            confidence_score,
+            has_multiple_solution_paths,
+            is_critical,
+            requires_codebase_search,
+        })
+    }
+
+    /// Classify user intent from task description
+    async fn classify_user_intent(&self, task: &str) -> UserIntent {
+        let task_lower = task.to_lowercase();
+
+        if task_lower.contains("fix") || task_lower.contains("bug") || task_lower.contains("error") {
+            let urgency = if task_lower.contains("critical") || task_lower.contains("urgent") {
+                UrgencyLevel::Critical
+            } else if task_lower.contains("important") {
+                UrgencyLevel::High
+            } else {
+                UrgencyLevel::Medium
+            };
+
+            UserIntent::ProjectFixing {
+                error_indicators: vec![task.to_string()],
+                urgency_level: urgency,
+            }
+        } else if task_lower.contains("generate") || task_lower.contains("create") || task_lower.contains("write") {
+            let code_type = if task_lower.contains("test") {
+                CodeType::Test
+            } else if task_lower.contains("doc") {
+                CodeType::Documentation
+            } else if task_lower.contains("config") {
+                CodeType::Configuration
+            } else if task_lower.contains("fix") {
+                CodeType::BugFix
+            } else if task_lower.contains("refactor") {
+                CodeType::Refactoring
+            } else {
+                CodeType::NewFeature
+            };
+
+            UserIntent::CodeWriting {
+                target_files: vec![],
+                code_type,
+            }
+        } else if task_lower.contains("explain") || task_lower.contains("understand") || task_lower.contains("read") {
+            let depth = if task_lower.contains("deep") || task_lower.contains("detail") {
+                AnalysisDepth::Detailed
+            } else if task_lower.contains("architecture") || task_lower.contains("design") {
+                AnalysisDepth::Architectural
+            } else {
+                AnalysisDepth::Surface
+            };
+
+            UserIntent::CodeReading {
+                files_mentioned: vec![],
+                analysis_depth: depth,
+            }
+        } else if task_lower.contains("explore") || task_lower.contains("search") {
+            let scope = if task_lower.contains("file") {
+                ExplorationScope::SingleFile
+            } else if task_lower.contains("module") {
+                ExplorationScope::Module
+            } else if task_lower.contains("architecture") {
+                ExplorationScope::Architecture
+            } else {
+                ExplorationScope::FullProject
+            };
+
+            UserIntent::ProjectExploration {
+                scope,
+            }
+        } else {
+            // Default to code reading for unknown tasks
+            UserIntent::CodeReading {
+                files_mentioned: vec![],
+                analysis_depth: AnalysisDepth::Surface,
+            }
+        }
+    }
+
+    /// Calculate task complexity score (0.0 to 1.0)
+    async fn calculate_task_complexity(&self, task: &str, context: &[ContextItem]) -> f32 {
+        let mut complexity = 0.0;
+
+        let task_lower = task.to_lowercase();
+
+        // Base complexity from task type
+        if task_lower.contains("refactor") || task_lower.contains("architecture") {
+            complexity += 0.4;
+        } else if task_lower.contains("optimize") || task_lower.contains("performance") {
+            complexity += 0.3;
+        } else if task_lower.contains("fix") || task_lower.contains("bug") {
+            complexity += 0.2;
+        } else if task_lower.contains("create") || task_lower.contains("implement") {
+            complexity += 0.3;
+        }
+
+        // Add complexity based on scope indicators
+        if task_lower.contains("system") || task_lower.contains("codebase") {
+            complexity += 0.3;
+        } else if task_lower.contains("module") || task_lower.contains("component") {
+            complexity += 0.2;
+        }
+
+        // Add complexity based on context size
+        complexity += (context.len() as f32 * 0.1).min(0.3);
+
+        // Add complexity for multi-step tasks
+        if task_lower.contains(" and ") || task_lower.contains(", ") {
+            complexity += 0.2;
+        }
+
+        // Cap at 1.0
+        complexity.min(1.0)
+    }
+
+    /// Calculate confidence score based on available context (0.0 to 1.0)
+    async fn calculate_confidence(&self, task: &str, context: &[ContextItem]) -> f32 {
+        let mut confidence = 0.5; // Base confidence
+
+        // Increase confidence with more context
+        confidence += (context.len() as f32 * 0.1).min(0.3);
+
+        // Increase confidence for specific, well-defined tasks
+        let task_lower = task.to_lowercase();
+        if task_lower.contains("specific") || task_lower.contains("exactly") {
+            confidence += 0.2;
+        }
+
+        // Decrease confidence for vague tasks
+        if task_lower.contains("somehow") || task_lower.contains("maybe") || task_lower.contains("might") {
+            confidence -= 0.3;
+        }
+
+        // Increase confidence if semantic search is available
+        if self.semantic_search.is_some() {
+            confidence += 0.1;
+        }
+
+        // Cap between 0.0 and 1.0
+        confidence.max(0.0).min(1.0)
+    }
+
+    /// Method for learning from strategy execution outcomes
+    pub async fn learn_from_execution(
+        &self,
+        task: &str,
+        strategy_name: &str,
+        success: bool,
+        learned_patterns: Vec<String>,
+    ) -> Result<()> {
+        // Record learning in DuckDB memory if available
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+
+            let pattern = duckdb_memory::Pattern {
+                id: uuid::Uuid::new_v4().to_string(),
+                description: format!("Strategy: {} for task: {}", strategy_name, task),
+                context: task.to_string(),
+                actions: vec![duckdb_memory::AgentAction {
+                    tool: "strategy_execution".to_string(),
+                    params: serde_json::json!({"strategy": strategy_name}),
+                    success,
+                    duration_ms: 0,
+                    result_summary: format!("Strategy {} execution {}", strategy_name, if success { "succeeded" } else { "failed" }),
+                }],
+                files_involved: vec![],
+                success,
+                timestamp: chrono::Utc::now(),
+                session_id: "strategy_learning".to_string(),
+                embedding_text: format!("{} {}", strategy_name, task),
+                embedding: vec![],
+            };
+
+            memory_guard.record_pattern(pattern).await?;
+        }
+
+        info!(
+            "Recorded strategy learning: strategy='{}', task='{}', success={}, patterns={}",
+            strategy_name, task, success, learned_patterns.len()
+        );
+
+        Ok(())
+    }
+
+    /// Get enhanced context that includes purpose analysis (internal use only - automatic via UnifiedIntelligenceEngine)
+    pub(crate) async fn get_enhanced_development_context(&self, query: &str, file_path: Option<&str>) -> Result<String> {
+        let mut context = String::new();
+
+        // Get base development context
+        let base_context = self.get_development_context(query).await;
+        context.push_str(&format!("**Development Phase**: {}\n", base_context.development_phase));
+        context.push_str(&format!("**Confidence**: {:.1}%\n\n", base_context.confidence * 100.0));
+
+        // Add purpose analysis if file path provided
+        if let Some(path) = file_path {
+            if let Ok(file_content) = tokio::fs::read_to_string(path).await {
+                match self.get_business_context_summary(path, &file_content).await {
+                    Ok(purpose_summary) => {
+                        context.push_str("**Code Purpose Analysis**:\n");
+                        context.push_str(&purpose_summary);
+                        context.push_str("\n");
+                    }
+                    Err(e) => {
+                        context.push_str(&format!("**Purpose Analysis Error**: {}\n", e));
+                    }
+                }
+            }
+        }
+
+        // Add key files
+        if !base_context.key_files.is_empty() {
+            context.push_str("**Key Files**:\n");
+            for file in &base_context.key_files {
+                context.push_str(&format!("- {} ({})\n", file.path, file.relationship_to_current_work));
+            }
+            context.push_str("\n");
+        }
+
+        // Add architectural context
+        if !base_context.architectural_context.is_empty() {
+            context.push_str("**Architectural Context**:\n");
+            for arch in &base_context.architectural_context {
+                context.push_str(&format!("- {}\n", arch.decision));
+                if !arch.rationale.is_empty() {
+                    context.push_str(&format!("  Rationale: {}\n", arch.rationale));
+                }
+            }
+            context.push_str("\n");
+        }
+
+        // Add suggested actions
+        if !base_context.suggested_next_actions.is_empty() {
+            context.push_str("**Suggested Actions**:\n");
+            for action in base_context.suggested_next_actions.iter().take(3) {
+                context.push_str(&format!("- {} ({})\n", action.description, action.action_type));
+            }
+        }
+
+        Ok(context)
     }
 }
 

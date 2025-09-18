@@ -287,13 +287,15 @@ Critical fixes for model selection reliability and user experience:
 
 **REALITY CHECK (Aug 2025)**: Agent system IS connected to TUI and partially functional. See `TOOL_CALLING_REALITY_CHECK.md` for empirical testing results.
 
-### Current Focus: Tool Calling Reliability & UX
-1. ✅ **COMPLETED**: AgentController connected to TuiManager (`src/ui/mod.rs:3797-3815`)
-2. ✅ **COMPLETED**: Tool call parsing (XML + JSON formats via `ToolCallParser`)
-3. ✅ **COMPLETED**: Tool execution through `ToolRegistry` (6+ functional tools)
-4. ✅ **COMPLETED**: Ollama provider tool support (fixed hardcoded `false` issue)
-5. 🔧 **IN PROGRESS**: End-to-end tool calling reliability testing
-6. 📋 **NEXT**: Tool result display and conversation flow UX
+### Current Focus: Intelligence-Driven Software Development
+1. ✅ **COMPLETED**: Universal tool calling system (gpt-oss, llama3.1, qwen2.5-coder all working)
+2. ✅ **COMPLETED**: Advanced tool orchestration with 4-turn Git workflow validation
+3. ✅ **COMPLETED**: Multi-step execution with smart retry and fallback strategies
+4. 🚀 **NEW STRATEGIC FOCUS**: Enhanced intelligence for smarter code reading, writing, and project fixing
+5. 🔧 **IN PROGRESS**: Intelligence architecture review and enhancement planning
+6. 📋 **NEXT**: Implement pattern-aware code comprehension and generation
+
+**Intelligence Enhancement Plan**: `docs/intelligence/INTELLIGENCE_ENHANCEMENT_PLAN.md`
 
 See `docs/architecture/roadmap.md` for the complete development plan and `TECH_SPEC.md` for technical details.
 

@@ -18,6 +18,8 @@ use uuid::Uuid;
 use crate::agent::tools::ToolRegistry;
 use crate::providers::LLMProvider;
 use crate::agent::strategies::{StrategySelector, strategy_to_reasoning_phases};
+use crate::agent::intelligent_strategy_selection::{IntelligentStrategySelector, StrategyExecution};
+use crate::intelligence::{IntelligenceEngine, ContextItem};
 
 /// Represents a systematic plan for solving a coding problem
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,7 +100,7 @@ pub struct MultiTurnReasoningEngine {
     active_plans: HashMap<String, ReasoningPlan>,
     execution_queue: VecDeque<(String, usize)>, // (plan_id, action_index)
     memory: ReasoningMemory,
-    strategy_selector: StrategySelector,
+    intelligent_selector: IntelligentStrategySelector,
 }
 
 #[derive(Debug, Clone)]
@@ -155,15 +157,14 @@ pub struct FailurePattern {
 }
 
 impl MultiTurnReasoningEngine {
-    pub fn new(tools: Arc<ToolRegistry>) -> Self {
-        let strategy_selector = StrategySelector::default()
+    pub fn new(tools: Arc<ToolRegistry>, intelligence: Arc<IntelligenceEngine>) -> Result<Self> {
+        let intelligent_selector = IntelligentStrategySelector::new(intelligence)
             .unwrap_or_else(|e| {
-                warn!("Failed to load strategies, using hardcoded fallback: {}", e);
-                // This shouldn't fail with embedded YAML, but handle gracefully
-                panic!("Failed to load default strategies: {}", e);
+                warn!("Failed to create intelligent strategy selector: {}", e);
+                panic!("Failed to create intelligent strategy selector: {}", e);
             });
 
-        Self {
+        Ok(Self {
             tools,
             active_plans: HashMap::new(),
             execution_queue: VecDeque::new(),
@@ -173,8 +174,8 @@ impl MultiTurnReasoningEngine {
                 successful_patterns: Vec::new(),
                 failure_patterns: Vec::new(),
             },
-            strategy_selector,
-        }
+            intelligent_selector,
+        })
     }
 
     /// Create a systematic plan for solving a coding problem
@@ -184,25 +185,36 @@ impl MultiTurnReasoningEngine {
         _provider: &dyn LLMProvider,
         _model: &str
     ) -> Result<String> {
-        info!("Creating systematic reasoning plan for: {}", objective);
+        info!("Creating intelligent reasoning plan for: {}", objective);
 
         let task_id = Uuid::new_v4().to_string();
 
-        // Select the best strategy based on the task
-        let strategy = self.strategy_selector.select_strategy(objective);
-        info!("Selected strategy: {} - {}", strategy.name, strategy.description);
+        // Gather context for intelligence analysis
+        let context = self.gather_context_for_task(objective).await?;
+
+        // Use intelligent strategy selection
+        let adapted_strategy = self.intelligent_selector
+            .select_intelligent_strategy(objective, &context)
+            .await?;
+
+        info!(
+            "Selected strategy: {} with adaptations: confidence={:.2}, depth={}, reflection={}, tree_search={}",
+            adapted_strategy.base_strategy.name,
+            adapted_strategy.confidence_threshold,
+            adapted_strategy.max_exploration_depth,
+            adapted_strategy.should_use_reflection,
+            adapted_strategy.should_use_tree_search
+        );
 
         // Convert strategy phases to our reasoning phases
-        let mut phases = strategy_to_reasoning_phases(strategy);
+        let mut phases = strategy_to_reasoning_phases(&adapted_strategy.base_strategy);
+
+        // Apply intelligence adaptations to phases
+        self.apply_intelligence_adaptations(&mut phases, &adapted_strategy);
 
         // For exploration phase, add specific actions based on objective
         if let Some(exploration) = phases.iter_mut().find(|p| p.name.contains("Exploration") || p.name.contains("Research")) {
             exploration.actions = self.plan_exploration_actions(objective);
-        }
-
-        // Log benchmark data if available
-        if let Some(benchmarks) = self.strategy_selector.get_benchmarks(&strategy.name.to_lowercase().replace(" ", "_").replace("-", "_")) {
-            info!("Strategy benchmarks: {:?}", benchmarks);
         }
 
         let plan = ReasoningPlan {
@@ -213,7 +225,7 @@ impl MultiTurnReasoningEngine {
             state: PlanState::Planning,
             learned_context: HashMap::new(),
             failed_attempts: Vec::new(),
-            max_iterations: strategy.max_iterations.max(3),
+            max_iterations: adapted_strategy.base_strategy.max_iterations.max(3),
             current_iteration: 0,
         };
 
@@ -223,6 +235,128 @@ impl MultiTurnReasoningEngine {
         self.queue_phase_execution(&task_id, 0)?;
 
         Ok(task_id)
+    }
+
+    /// Gather context for task analysis
+    async fn gather_context_for_task(&self, objective: &str) -> Result<Vec<ContextItem>> {
+        let mut context = Vec::new();
+
+        // Add project context from memory
+        for (path, info) in &self.memory.codebase_structure {
+            context.push(ContextItem {
+                content: format!("File: {}, Language: {}", path, info.language),
+                source: crate::intelligence::ContextSource::FileAnalysis(path.clone()),
+                relevance_score: 0.5, // Base relevance
+                metadata: HashMap::new(),
+            });
+        }
+
+        // Add test results context
+        for (test, result) in &self.memory.test_results {
+            context.push(ContextItem {
+                content: format!("Test: {}, Exit Code: {}", test, result.exit_code),
+                source: crate::intelligence::ContextSource::PreviousInteraction(format!("test:{}", test)),
+                relevance_score: if result.exit_code != 0 { 0.9 } else { 0.3 }, // Failed tests more relevant
+                metadata: HashMap::new(),
+            });
+        }
+
+        // Add successful patterns
+        for pattern in &self.memory.successful_patterns {
+            context.push(ContextItem {
+                content: format!("Successful Pattern: {} - {}", pattern.problem_type, pattern.approach),
+                source: crate::intelligence::ContextSource::PatternLearning("successful_patterns".to_string()),
+                relevance_score: 0.7,
+                metadata: HashMap::new(),
+            });
+        }
+
+        Ok(context)
+    }
+
+    /// Apply intelligence adaptations to phases
+    fn apply_intelligence_adaptations(
+        &self,
+        phases: &mut Vec<ReasoningPhase>,
+        adapted_strategy: &crate::agent::intelligent_strategy_selection::AdaptedStrategy,
+    ) {
+        // Add reflection phase if enabled
+        if adapted_strategy.should_use_reflection {
+            let reflection_phase = ReasoningPhase {
+                name: "Self-Reflection".to_string(),
+                description: "Analyze progress and adapt approach based on results".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Analyze,
+                        description: "Review current progress and identify issues".to_string(),
+                        tool: "reflect".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Clear understanding of what's working and what isn't".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    "Identified what's working well".to_string(),
+                    "Identified what needs improvement".to_string(),
+                    "Generated actionable insights".to_string(),
+                ],
+                completed: false,
+                results: None,
+            };
+
+            // Insert reflection phase between analysis and implementation
+            if phases.len() >= 2 {
+                phases.insert(2, reflection_phase);
+            } else {
+                phases.push(reflection_phase);
+            }
+        }
+
+        // Modify exploration depth based on intelligence
+        for phase in phases.iter_mut() {
+            if phase.name.contains("Exploration") || phase.name.contains("Research") {
+                // Adjust number of exploration actions based on max_exploration_depth
+                let target_actions = adapted_strategy.max_exploration_depth.min(8);
+                if phase.actions.len() < target_actions {
+                    // Add more exploration actions for complex tasks
+                    for i in phase.actions.len()..target_actions {
+                        phase.actions.push(PlannedAction {
+                            action_type: ActionType::Explore,
+                            description: format!("Deep exploration step {}", i + 1),
+                            tool: "search_code".to_string(),
+                            parameters: serde_json::json!({"query": "related patterns"}),
+                            expected_outcome: "Additional relevant code discovered".to_string(),
+                            retry_count: 0,
+                            max_retries: 2,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Add tree search capabilities if enabled
+        if adapted_strategy.should_use_tree_search {
+            for phase in phases.iter_mut() {
+                if phase.name.contains("Analysis") || phase.name.contains("Implementation") {
+                    phase.description = format!("{} (with multi-path exploration)", phase.description);
+
+                    // Add backtracking action
+                    phase.actions.push(PlannedAction {
+                        action_type: ActionType::Analyze,
+                        description: "Evaluate multiple solution paths and backtrack if needed".to_string(),
+                        tool: "tree_search".to_string(),
+                        parameters: serde_json::json!({
+                            "beam_width": 3,
+                            "max_depth": adapted_strategy.max_exploration_depth
+                        }),
+                        expected_outcome: "Best solution path identified".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    });
+                }
+            }
+        }
     }
 
     /// Plan exploration actions based on the objective
