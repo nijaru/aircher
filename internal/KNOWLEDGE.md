@@ -2,6 +2,28 @@
 
 *Patterns, learnings, and insights from development*
 
+## Research-Based Agent Strategy Insights (2024-2025)
+
+### Industry State of the Art
+- **ReAct (Google, 2022)**: Interleaving reasoning and acting beats pure CoT by 25% on complex tasks
+- **Reflexion (Shinn et al, 2023)**: Self-reflection achieves 88% pass@1 on HumanEval (vs 67% GPT-4)
+- **Tree of Thoughts (Princeton, 2023)**: Multi-path exploration improves reasoning by 70%
+- **Devin (Cognition, 2024)**: Interactive planning + parallel execution achieved 13.86% SWE-bench
+- **Claude Opus 4 (2025)**: Reached 72.5% on SWE-bench with systematic exploration
+
+### Key Success Patterns from Research
+1. **Simplicity Over Complexity**: Anthropic found simple, composable patterns beat complex frameworks
+2. **Tool Design Matters More Than Prompts**: SWE-bench winners spent more time on tools than prompts
+3. **Dynamic Strategy Selection**: Different task types need fundamentally different approaches
+4. **Self-Reflection Critical**: Reflexion's verbal feedback loop enables rapid improvement
+5. **Context Management**: All successful agents have sophisticated context pruning/management
+
+### What Actually Works
+- **For Bug Fixing**: Systematic exploration → reproduction → analysis → fix → validation (SWE-bench pattern)
+- **For Exploration**: ReAct's thought-action-observation loop with tool integration
+- **For Complex Problems**: Tree of Thoughts with backtracking and multi-path evaluation
+- **For Iterative Tasks**: Reflexion's self-reflection and episodic memory
+
 ## Architectural Insights
 
 ### Dynamic Context Management > Sub-Agents (Sep 14, 2025)
