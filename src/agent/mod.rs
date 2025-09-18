@@ -12,6 +12,8 @@ pub mod task_orchestrator; // NEW: Context-engineered orchestrator
 pub mod enhanced_context_analyzer; // NEW: Enhanced semantic context analysis
 pub mod approval_modes; // NEW: Approval modes and change management system
 pub mod plan_mode; // NEW: Plan Mode for safe code exploration
+pub mod multi_turn_reasoning; // NEW: Real multi-turn reasoning engine for systematic problem solving
+pub mod strategies; // NEW: Research-based reasoning strategies (ReAct, Reflexion, ToT, etc.)
 // pub mod background_tasks; // NEW: Background task execution system (disabled due to compilation errors)
 // pub mod runtime_validation; // NEW: Runtime validation and testing system (disabled due to compilation errors)
 // pub mod orchestrator; // DEPRECATED - used sub-agents, replaced by task_orchestrator

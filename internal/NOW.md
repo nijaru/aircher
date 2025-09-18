@@ -160,23 +160,29 @@
 - ❌ Enterprise features (audit, compliance)
 - ❌ Full MCP client implementation
 
-## 🔥 IMMEDIATE NEXT STEPS (Updated Based on User Feedback)
+## 🧠 IMMEDIATE NEXT STEPS: Intelligence-Driven Software Development
 
-### Priority 1: Autonomous Transparency (Competitive Differentiator)
-- [ ] **Multi-step task orchestration** - "Tell the AI what to accomplish" not what changes to make
-- [ ] **Transparent execution display** - Show progress without complexity (vs Claude Code "flying blind")
-- [ ] **Large codebase analysis integration** - Use our semantic search advantage for whole-project context
-- [ ] **Model switching mid-conversation** - Flexibility without decision fatigue
+**Strategic Focus**: Our **intelligence engine is our core competitive advantage**. Focus on making the agent dramatically smarter about software development rather than simple automation.
 
-### Priority 2: Rate Limit Independence (Major User Pain Point)
-- [ ] **Local model optimization** - Make Ollama competitive with API speed
-- [ ] **Intelligent model routing** - Auto-select best model for task type
-- [ ] **Cost tracking transparency** - Show actual usage costs vs predictions
+### Priority 1: Enhanced Code Comprehension Engine
+- [ ] **Purpose Analysis Engine** - Extract business logic and intent from code
+- [ ] **Architecture Pattern Detection** - Identify MVC, Repository, Observer patterns automatically
+- [ ] **Code Quality Intelligence** - Automated smell detection with actionable improvement suggestions
+- [ ] **Dependency Mapping** - Understand system-wide relationships and impacts
 
-### Priority 3: Safety & UX Excellence
-- [ ] **Approval workflow polish** - Single, clear decision points (vs Cursor's 4 Accept buttons)
-- [ ] **Jupyter notebook support** - Differentiator neither competitor has
-- [ ] **Error recovery chains** - Handle tool failures gracefully with user visibility
+### Priority 2: Pattern-Aware Code Generation
+- [ ] **Project Style Learning** - Automatically extract and apply coding conventions
+- [ ] **Context-Aware Generation** - Code that fits seamlessly into existing architecture
+- [ ] **Architectural Compliance** - Ensure generated code respects project boundaries
+- [ ] **Integration Intelligence** - Generate code that works with existing systems
+
+### Priority 3: Intelligent Debugging Engine
+- [ ] **Root Cause Analysis** - Trace errors through system dependencies and data flows
+- [ ] **Fix Strategy Generation** - Multiple approaches with risk assessment and validation
+- [ ] **System Impact Assessment** - Understand how changes affect the entire project
+- [ ] **Automated Validation** - Test fixes before application with rollback strategies
+
+**See**: `docs/intelligence/INTELLIGENCE_ENHANCEMENT_PLAN.md` for detailed implementation roadmap
 
 ## 🔧 CRITICAL UX INSIGHT: Smart Compaction
 
