@@ -13,6 +13,7 @@ pub mod enhanced_context_analyzer; // NEW: Enhanced semantic context analysis
 pub mod approval_modes; // NEW: Approval modes and change management system
 pub mod plan_mode; // NEW: Plan Mode for safe code exploration
 pub mod multi_turn_reasoning; // NEW: Real multi-turn reasoning engine for systematic problem solving
+pub mod enhanced_prompting; // NEW: Research-based enhanced prompting (replaces complex orchestration)
 pub mod strategies; // NEW: Research-based reasoning strategies (ReAct, Reflexion, ToT, etc.)
 pub mod intelligent_strategy_selection; // NEW: Intelligence-enhanced strategy selection and adaptation
 // pub mod background_tasks; // NEW: Background task execution system (disabled due to compilation errors)
