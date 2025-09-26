@@ -26,6 +26,14 @@
 
 ## Architectural Insights
 
+### Models are Reasoning Engines, Agents are Execution Engines (Sep 19, 2025)
+- **Critical Discovery**: We over-engineered 1685-line MultiTurnReasoningEngine
+- **Models already do internally**: Chain-of-thought, reflection, multi-path reasoning
+- **Research validated**: ReAct/Reflexion improvements from prompts, not orchestration
+- **Correct approach**: Enhanced prompting patterns, not external reasoning management
+- **Agent focus**: Tool execution, validation, persistence, safety
+- **Key learning**: Don't externalize what models optimize for internally
+
 ### Dynamic Context Management > Sub-Agents (Sep 14, 2025)
 - **Sub-agents cause 19% performance degradation** in experienced developers
 - **Tunnel vision problem**: Sub-agents get stuck in single reasoning paths

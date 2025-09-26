@@ -249,6 +249,36 @@ After 6 weeks of implementation - measure user adoption patterns
 
 ---
 
+## 2025-09-19: Enhanced Prompting over Complex Orchestration
+
+### Decision
+Replace 1685-line MultiTurnReasoningEngine with 300-line enhanced prompting system.
+
+### Context
+- Discovered we were externalizing reasoning that models do internally
+- Research shows 25-70% improvements come from better prompts, not orchestration
+- MultiTurnReasoningEngine tried to manage external reasoning phases
+- Models already optimize for chain-of-thought, reflection, multi-path reasoning
+
+### Implementation
+- Created EnhancedPromptingSystem with research-based patterns
+- ReAct prompts for multi-step tasks (Think→Act→Observe)
+- Reflexion prompts for debugging (systematic reflection)
+- Tree-of-Thoughts prompts for complex analysis (multi-path)
+- Direct prompting leverages model's internal reasoning
+
+### Impact
+- **-1685 lines** of complex orchestration code
+- **Faster execution** without plan generation overhead
+- **Better reasoning** by leveraging model optimization
+- **Simpler architecture** with clear separation of concerns
+
+### Alternative Considered
+- Keep MultiTurnReasoningEngine and improve it
+- Rejected: Fundamentally wrong approach, models already do this better
+
+---
+
 ## Template for Future Decisions
 
 ## YYYY-MM-DD: [Decision Title]
