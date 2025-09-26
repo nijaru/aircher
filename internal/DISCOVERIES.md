@@ -245,3 +245,42 @@ Neither agent can actually run cells or understand visual outputs like graphs an
 Competitive analysis and user workflow research
 
 ---
+
+## 2025-09-19 | Critical Architecture Insight: Model vs Agent Responsibilities
+
+### Discovery
+We've been over-engineering the agent to externalize reasoning that models already do internally.
+
+### Evidence from Code Analysis
+```
+1685-line MultiTurnReasoningEngine trying to manage:
+- External reasoning phases ("Think", "Act", "Observe")
+- Complex strategy orchestration
+- Multi-phase planning systems
+
+When models already do this internally with proper prompts!
+```
+
+### Research Evidence
+- **ReAct (Google, 2022)**: 25% improvement from PROMPT PATTERNS, not external orchestration
+- **Reflexion (Shinn et al, 2023)**: 88% success from asking model to reflect, not external reflection framework
+- **Anthropic's Finding**: "Simple, composable patterns beat complex frameworks"
+- **Tree of Thoughts**: Multi-path reasoning happens IN the model with right prompts
+
+### Impact
+- **Architecture Simplification**: Can remove 1685+ lines of complex orchestration
+- **Performance Improvement**: No plan generation overhead, direct model reasoning
+- **Alignment with Research**: Leverages what models optimize for internally
+- **Clear Separation**: Models = reasoning engines, Agents = execution engines
+
+### Solution Implemented
+Created enhanced prompting system (300 lines) that:
+- Uses ReAct pattern prompts for multi-step tasks
+- Uses Reflexion pattern prompts for debugging
+- Uses Tree-of-Thoughts prompts for complex analysis
+- Replaces entire MultiTurnReasoningEngine complexity
+
+### Source/Reference
+Analysis of our multi_turn_reasoning.rs vs research papers on ReAct, Reflexion, and Tree of Thoughts
+
+---

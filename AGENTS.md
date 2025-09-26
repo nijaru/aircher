@@ -5,6 +5,7 @@ Entry point for AI agents working with Aircher - the multi-modal AI coding agent
 @external/agent-contexts/AI_AGENT_INDEX.md
 
 ## Key Files (Always Check/Update)
+@PROJECT_STATUS.md                 # **READ FIRST**: Current capabilities & limitations
 @internal/NOW.md                   # Current tasks & sprint status
 @internal/DECISIONS.md             # Major decisions (append-only)
 @internal/KNOWLEDGE.md             # Patterns & learnings
@@ -19,29 +20,41 @@ Entry point for AI agents working with Aircher - the multi-modal AI coding agent
 
 ## Project Overview
 
-Aircher is evolving into a **dual-mode AI coding agent** with both Terminal UI (TUI) and Agent Client Protocol (ACP) support.
+Aircher is developing into a **dual-mode AI coding agent** with Terminal UI and Agent Client Protocol support.
+
+**⚠️ CURRENT STATUS**: Stable infrastructure with limited functionality. Most AI tools are stubs returning fake responses. **See `PROJECT_STATUS.md` for detailed current capabilities.**
 
 **Architecture Principle**: Single UnifiedAgent implementation with multiple frontends (TUI uses LocalClient, editors use ACP).
 
-**Current Strategic Priority**:
-- **Autonomous Transparency** - Combine Claude Code's autonomy with Cursor's visibility
-- **Rate Limit Independence** - Local models eliminate $100+/month API costs
-- **Safety Excellence** - SafeWriteFileTool prevents critical file overwrites
-- **Large Codebase Intelligence** - Leverage our semantic search advantage
+**What Actually Works Today:**
+- ✅ **Semantic code search** (production-ready)
+- ✅ **TUI interface** with model selection and auth flow
+- ✅ **Multi-provider auth** (Claude, OpenAI, Gemini, Ollama)
+- ⚠️ **Tool calling framework** (executes without crashing, but tools are stubs)
 
-**What Works Today:**
-- Advanced semantic code search (production-ready)
-- TUI interface with model selection and auth flow
-- Multi-provider support (Claude, OpenAI, Gemini, Ollama)
-- Tool calling system (6 core tools functional)
+**What Doesn't Work Yet:**
+- ❌ **Intelligent tools** (all return fake JSON responses)
+- ❌ **Real problem solving** (no actual coding assistance)
+- ❌ **Competitive functionality** (not ready for real use)
+
+## Architecture Breakthrough (Sep 19, 2025)
+
+**Critical Discovery**: We over-engineered the agent with a 1685-line MultiTurnReasoningEngine trying to externalize reasoning that models already do internally.
+
+**Key Insight**: Models are reasoning engines, agents are execution engines.
+- Research shows 25-70% improvements come from better prompts, not external orchestration
+- Enhanced prompting system (300 lines) ready to replace complex orchestration
+- See `docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md` for details
 
 ## Current Status
+
+**⚠️ For complete status details, see `PROJECT_STATUS.md`**
 
 - ✅ **Production-ready** semantic search system (99.9% faster subsequent searches)
 - ✅ **TUI with demo mode** - full interface available without API keys
 - ✅ **Clean codebase** - eliminated ~190 compiler warnings
 - ✅ **19+ language support** with tree-sitter parsing
-- ✅ **AI chat with tools** - agent connected to TUI; Phase 2 reliability in progress
+- ⚠️ **Tool calling infrastructure** - framework works, but tools return fake responses
 
 ## Key Features Completed
 

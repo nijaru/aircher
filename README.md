@@ -1,45 +1,54 @@
 # Aircher
 
-**AI-powered terminal assistant built with Rust** - Chat with Claude, Gemini, OpenAI, and OpenRouter from your command line.
+**AI coding agent framework built with Rust** - Stable infrastructure for terminal-based AI assistance.
 
-> 🚀 **Production Ready**: Lightning-fast semantic search with 99.9% speed improvement! Index persistence, batch processing, and zero system dependencies make Aircher a professional-grade development assistant.
+> ⚠️ **Current Status**: Functional infrastructure with limited AI capabilities. Most "intelligent" tools are stubs. See `PROJECT_STATUS.md` for complete details.
 
-## ✅ What Works Now - Validated Performance
+## 📊 What Actually Works Today
 
-**Production-Ready AI Coding Agent** (Verified 2025-09-13)
+**Stable Framework, Limited AI Functionality** (Updated 2025-09-18)
 
-**⚡ Performance Benchmarks:**
-- **20 Tools**: All functional and integration tested ✅
-- **Web Browsing**: 753ms average response time ✅
-- **Web Search**: 259ms for 3 results ✅
-- **File Operations**: 15,385 operations/second sustained ✅
-- **Multi-turn Execution**: Write → Edit → Read chains working ✅
-- **Semantic Search**: Sub-second with 6,468 vectors indexed ✅
-- **Integration Tests**: 7/8 passing (87.5% success rate) ✅
-- **Competitive Parity**: 75-80% feature parity with Claude Code/Cursor ✅
+**✅ Production-Ready Components:**
+- **Semantic Search**: Lightning-fast code search across 19+ languages
+- **TUI Interface**: Complete terminal interface with model selection
+- **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama support
+- **Tool Calling Framework**: Infrastructure executes without crashes
 
-**Full-featured AI development assistant with semantic code search:**
+**⚠️ Limited/Stub Components:**
+- **AI Tools**: 9/10 strategy tools are stubs (only analyze_errors is real)
+- **Over-Engineered**: 1685-line reasoning orchestration when models reason internally
+- **Problem Solving**: Limited help capability (only error analysis works)
+
+**🚨 Honest Assessment**: ~16-20% competitive parity. Major architecture simplification ready.
+
+**Best Use Cases Right Now:**
+- Testing semantic search functionality
+- Exploring multi-provider authentication
+- Developing tool implementations
+- Framework development and experimentation
 
 ```bash
-# Launch intelligent TUI (primary mode) - works immediately without API keys!
-aircher
-# Auto-detects project, creates .aircher/ directory, starts in demo mode
-# Use semantic search, configure API keys later for full AI chat
+# What Actually Works:
 
-# Semantic code search with 20x performance improvement!
-aircher search query "error handling patterns"    # Finds conceptually similar code
-aircher search query "database connection logic"  # Works across languages  
-aircher search index                              # Index current directory
-aircher search stats                              # Show index statistics
+# 1. Semantic search (production ready)
+aircher search query "error handling patterns"    # ✅ Works: finds similar code
+aircher search index                              # ✅ Works: indexes codebase
+aircher search stats                              # ✅ Works: shows statistics
 
-# One-shot conversations with project context
-aircher "How do I refactor this function?"
-aircher "Explain the architecture of this project"
+# 2. TUI with basic chat (limited functionality)
+aircher                                           # ✅ Works: launches interface
+# In TUI: Can chat with LLMs, but agent tools return stub responses
 
-# Interactive chat with session persistence
-aircher
-> hello world  
-🤖 Hello! I can see you're working on the Aircher project...
+# What Provides Limited Value:
+
+# Agent strategies (execute but return fake responses)
+cargo run --bin test_react_strategy              # Runs without crashing, returns stubs
+
+# What Doesn't Work Yet:
+
+# Real coding assistance - these will disappoint:
+# aircher "How do I refactor this function?"     # ❌ Would return generic responses
+# aircher "Explain the architecture"             # ❌ No real analysis capability
 > what files are most important?
 🤖 Based on your project structure, here are the key files:
    - src/main.rs: Application entry point
