@@ -5,24 +5,31 @@ Entry point for AI agents working with Aircher - the multi-modal AI coding agent
 @external/agent-contexts/AI_AGENT_INDEX.md
 
 ## Key Files (Always Check/Update)
+
+### 📊 Project Status & Reality
 @PROJECT_STATUS.md                 # **READ FIRST**: Current capabilities & limitations
+@internal/PROJECT_REALITY.md       # **HONEST ASSESSMENT**: Real vs claimed functionality
 @internal/NOW.md                   # Current tasks & sprint status
+
+### 🏗️ Architecture & Decisions
+@docs/architecture/agent-first-architecture.md  # CRITICAL: New unified agent design
+@docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md  # Key insight: Model vs agent responsibilities
 @internal/DECISIONS.md             # Major decisions (append-only)
+@internal/TECH_SPEC.md             # Technical specifications
+
+### 🔬 Research & Intelligence
 @internal/KNOWLEDGE.md             # Patterns & learnings
 @internal/DISCOVERIES.md           # Competitive insights & breakthroughs
-@COMPETITIVE_ROADMAP.md            # Strategic development plan
-@IMPLEMENTATION_PLAN.md            # Agent-first architecture plan
 
-## Current Architecture Direction
-@docs/architecture/agent-first-architecture.md  # CRITICAL: New unified agent design
-@internal/STATUS.md                             # Development phase tracking
-@internal/TECH_SPEC.md                          # Technical specifications
+### 📚 Development Reference
+@internal/STATUS.md                # Development phase tracking
+@external/agent-contexts/standards/AI_CODE_PATTERNS.md  # Universal coding patterns
 
 ## Project Overview
 
 Aircher is developing into a **dual-mode AI coding agent** with Terminal UI and Agent Client Protocol support.
 
-**⚠️ CURRENT STATUS**: Stable infrastructure with limited functionality. Most AI tools are stubs returning fake responses. **See `PROJECT_STATUS.md` for detailed current capabilities.**
+**⚠️ CURRENT STATUS**: Stable infrastructure with limited functionality. Most AI tools are stubs returning fake responses. **See `PROJECT_STATUS.md` for detailed capabilities and `internal/PROJECT_REALITY.md` for honest competitive assessment.**
 
 **Architecture Principle**: Single UnifiedAgent implementation with multiple frontends (TUI uses LocalClient, editors use ACP).
 
