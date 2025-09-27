@@ -1,6 +1,8 @@
 # Code Standards & AI Agent Guidelines
 *Quick Reference for Development & Documentation*
 
+> **📚 Primary Reference**: See `external/agent-contexts/standards/AI_CODE_PATTERNS.md` for comprehensive coding patterns and decision trees.
+
 ## Quick Start for AI Agents
 
 1. **Check Context**: Read project AGENTS.md if exists
@@ -8,6 +10,12 @@
 3. **Core Rule**: Edit existing files, never create without explicit request
 4. **Test Everything**: Performance claims need benchmarks
 5. **Clean Up**: Delete all test files before finishing
+
+## Aircher-Specific Guidelines
+
+This file contains project-specific guidelines. For universal patterns, see:
+- `external/agent-contexts/standards/AI_CODE_PATTERNS.md` - Universal coding patterns
+- `external/agent-contexts/AI_AGENT_INDEX.md` - Navigation and decision trees
 
 ## Priority Levels
 - **MUST** = Always required, no exceptions
