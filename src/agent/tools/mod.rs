@@ -16,6 +16,8 @@ pub mod web_tools;
 pub mod build_tools;
 pub mod approved_file_ops;
 pub mod approval_registry;
+pub mod strategy_tools;
+pub mod real_analyze_errors;
 
 #[cfg(test)]
 mod tests;
@@ -158,7 +160,10 @@ impl Default for ToolRegistry {
             registry.register(Box::new(git_tools::BranchManagementTool::new(workspace.clone())));
             registry.register(Box::new(git_tools::TestRunnerTool::new(workspace)));
         }
-        
+
+        // Register strategy support tools (fallback implementations)
+        strategy_tools::register_strategy_tools(&mut registry);
+
         registry
     }
 }

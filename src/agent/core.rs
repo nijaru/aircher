@@ -14,8 +14,8 @@ use crate::agent::conversation::{CodingConversation, Message as ConvMessage, Mes
 use crate::agent::reasoning::{AgentReasoning, TaskStatus};
 use crate::agent::dynamic_context::DynamicContextManager;
 use crate::agent::task_orchestrator::TaskOrchestrator;
-use crate::agent::plan_mode::{PlanGenerator, PlanMode, PlanningContext};
-use crate::agent::multi_turn_reasoning::{MultiTurnReasoningEngine, ActionResult};
+use crate::agent::plan_mode::{PlanGenerator, PlanMode};
+use crate::agent::multi_turn_reasoning::MultiTurnReasoningEngine;
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -64,7 +64,7 @@ impl Agent {
         let (tools, approval_rx) = create_agent_registry_with_approval();
         let tools = Arc::new(tools);
 
-        let mut agent = Self::new_internal(intelligence, auth_manager, project_context, tools).await?;
+        let agent = Self::new_internal(intelligence, auth_manager, project_context, tools).await?;
 
         // Set plan mode to Review by default for approval-enabled agents
         {

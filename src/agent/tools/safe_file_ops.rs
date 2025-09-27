@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
-use super::{AgentTool, ToolOutput, ToolError, TokenUsage};
+use super::{AgentTool, ToolOutput, ToolError};
 
 /// Safe file writing tool that prevents overwriting critical files
 pub struct SafeWriteFileTool {

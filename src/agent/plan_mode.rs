@@ -84,7 +84,7 @@ pub enum TaskEffort {
     ExtraLarge, // > 4 hours
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TaskSafety {
     /// No risk - read operations only
     Safe,

@@ -2,18 +2,10 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use tracing::{info, debug};
+use tracing::debug;
 use anyhow::Result;
 
-use crate::intelligence::{
-    IntelligenceEngine,
-    PurposeAnalysisEngine,
-    PatternAwareGenerationEngine,
-    IntelligentDebuggingEngine,
-    CodePurposeAnalysis,
-    GeneratedCode,
-    ErrorAnalysis
-};
+use crate::intelligence::IntelligenceEngine;
 
 /// Enhanced context for intelligent processing
 #[derive(Debug, Clone, Serialize, Deserialize)]

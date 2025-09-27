@@ -2,11 +2,19 @@
 
 **Last Updated**: 2025-09-13
 
-## 🎉 Current State: Fully Functional AI Agent
+## ⚠️ Current State: Stable Framework, Limited Functionality
 
-Aircher is now a **fully functional AI coding agent** with working tool calling, semantic search, and multi-provider support.
+Aircher has **stable tool calling infrastructure** with semantic search and multi-provider support, but most tools are stubs providing no real value to users.
 
 ### ✅ Major Achievements
+
+#### 🚀 CRITICAL STABILITY FIX: Crashes Prevented (2025-09-18)
+- **Runtime crashes fixed**: Strategies no longer crash due to missing tools
+- **Stub tools implemented**: 10 basic fallback tools return fake responses
+- **Test infrastructure**: MockProvider enables deterministic testing
+- **Basic execution**: ReAct can create plans and execute without failing
+- **Critical limitation**: Tools are stubs returning hardcoded JSON, not real functionality
+- **Status**: Moved from "will crash at runtime" to "executes without crashing (but provides no value)"
 
 #### 🚨 CRITICAL BREAKTHROUGH: Tool Calling Fixed (2025-09-11)
 - **Tool calling now works**: Fixed fundamental bug where `tools: None` was sent to LLMs

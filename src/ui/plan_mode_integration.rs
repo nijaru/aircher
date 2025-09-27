@@ -1,9 +1,3 @@
-/// Plan Mode integration for TUI
-///
-/// Provides UI components for displaying and managing execution plans
-/// in Plan Mode, similar to Claude Code's planning interface
-
-use anyhow::Result;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
