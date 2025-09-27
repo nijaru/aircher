@@ -12,13 +12,12 @@ use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::agent::tools::ToolRegistry;
 use crate::providers::LLMProvider;
-use crate::agent::strategies::{StrategySelector, strategy_to_reasoning_phases};
-use crate::agent::intelligent_strategy_selection::{IntelligentStrategySelector, StrategyExecution};
+use crate::agent::intelligent_strategy_selection::IntelligentStrategySelector;
 use crate::intelligence::{IntelligenceEngine, ContextItem};
 
 /// Represents a systematic plan for solving a coding problem
@@ -206,8 +205,12 @@ impl MultiTurnReasoningEngine {
             adapted_strategy.should_use_tree_search
         );
 
-        // Convert strategy phases to our reasoning phases
-        let mut phases = strategy_to_reasoning_phases(&adapted_strategy.base_strategy);
+        // Generate strategy-specific phases based on the selected strategy
+        let mut phases = self.create_strategy_specific_phases(
+            &adapted_strategy.base_strategy.name,
+            objective,
+            &adapted_strategy
+        )?;
 
         // Apply intelligence adaptations to phases
         self.apply_intelligence_adaptations(&mut phases, &adapted_strategy);
@@ -272,6 +275,721 @@ impl MultiTurnReasoningEngine {
         }
 
         Ok(context)
+    }
+
+    /// Create strategy-specific phases based on the selected strategy type
+    fn create_strategy_specific_phases(
+        &self,
+        strategy_name: &str,
+        objective: &str,
+        adapted_strategy: &crate::agent::intelligent_strategy_selection::AdaptedStrategy,
+    ) -> Result<Vec<ReasoningPhase>> {
+        match strategy_name.to_lowercase().as_str() {
+            "react" => self.create_react_phases(objective, adapted_strategy),
+            "reflexion" => self.create_reflexion_phases(objective, adapted_strategy),
+            "tree_of_thoughts" | "tree of thoughts" => self.create_tree_of_thoughts_phases(objective, adapted_strategy),
+            "interactive_planning" | "interactive planning" => self.create_interactive_planning_phases(objective, adapted_strategy),
+            "swe_bench_strategy" | "swe-bench strategy" => self.create_swe_bench_phases(objective, adapted_strategy),
+            "workflow_orchestration" | "workflow orchestration" => self.create_workflow_phases(objective, adapted_strategy),
+            _ => {
+                warn!("Unknown strategy '{}', falling back to default phases", strategy_name);
+                self.create_default_phases(objective)
+            }
+        }
+    }
+
+    /// Create ReAct strategy phases (Think-Act-Observe loop)
+    fn create_react_phases(&self, objective: &str, adapted_strategy: &crate::agent::intelligent_strategy_selection::AdaptedStrategy) -> Result<Vec<ReasoningPhase>> {
+        let mut phases = Vec::new();
+
+        // ReAct uses iterative Think-Act-Observe cycles
+        let iterations = adapted_strategy.max_exploration_depth.min(5);
+
+        for i in 0..iterations {
+            // Think phase
+            phases.push(ReasoningPhase {
+                name: format!("Think_{}", i + 1),
+                description: format!("Reason about the current state and plan next action (iteration {})", i + 1),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Analyze,
+                        description: "Analyze current context and determine next step".to_string(),
+                        tool: "reflect".to_string(),
+                        parameters: serde_json::json!({"iteration": i + 1}),
+                        expected_outcome: "Clear reasoning about next action".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    "Identified what needs to be done next".to_string(),
+                    "Generated hypothesis or plan".to_string(),
+                ],
+                completed: false,
+                results: None,
+            });
+
+            // Act phase
+            phases.push(ReasoningPhase {
+                name: format!("Act_{}", i + 1),
+                description: format!("Execute the planned action (iteration {})", i + 1),
+                actions: vec![
+                    PlannedAction {
+                        action_type: if i == 0 { ActionType::Explore } else { ActionType::Implement },
+                        description: "Execute planned action based on thinking".to_string(),
+                        tool: if i == 0 { "search_code".to_string() } else { "edit_file".to_string() },
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Action executed successfully".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "Action completed".to_string(),
+                    "Results available for observation".to_string(),
+                ],
+                completed: false,
+                results: None,
+            });
+
+            // Observe phase
+            phases.push(ReasoningPhase {
+                name: format!("Observe_{}", i + 1),
+                description: format!("Observe results and update understanding (iteration {})", i + 1),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Validate,
+                        description: "Observe and validate action results".to_string(),
+                        tool: "run_command".to_string(),
+                        parameters: serde_json::json!({"command": "echo 'Observing results'"}),
+                        expected_outcome: "Results understood and integrated".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    "Results observed and understood".to_string(),
+                    "Learning extracted from observation".to_string(),
+                ],
+                completed: false,
+                results: None,
+            });
+        }
+
+        Ok(phases)
+    }
+
+    /// Create Reflexion strategy phases (with explicit reflection)
+    fn create_reflexion_phases(&self, objective: &str, _adapted_strategy: &crate::agent::intelligent_strategy_selection::AdaptedStrategy) -> Result<Vec<ReasoningPhase>> {
+        Ok(vec![
+            // Initial attempt phase
+            ReasoningPhase {
+                name: "Initial_Attempt".to_string(),
+                description: "Make initial attempt to solve the problem".to_string(),
+                actions: self.plan_exploration_actions(objective),
+                success_criteria: vec![
+                    "Initial approach attempted".to_string(),
+                    "Results available for reflection".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Reflection phase
+            ReasoningPhase {
+                name: "Reflection".to_string(),
+                description: "Reflect on the attempt and identify improvements".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Analyze,
+                        description: "Analyze what worked and what didn't".to_string(),
+                        tool: "reflect".to_string(),
+                        parameters: serde_json::json!({"deep_analysis": true}),
+                        expected_outcome: "Clear understanding of successes and failures".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    },
+                    PlannedAction {
+                        action_type: ActionType::Debug,
+                        description: "Identify root causes of any issues".to_string(),
+                        tool: "analyze_errors".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Root causes identified".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "Reflection complete".to_string(),
+                    "Improvements identified".to_string(),
+                    "New approach formulated".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Refined attempt phase
+            ReasoningPhase {
+                name: "Refined_Attempt".to_string(),
+                description: "Apply learnings from reflection to solve the problem".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Implement,
+                        description: "Implement solution with reflection insights".to_string(),
+                        tool: "edit_file".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Improved solution implemented".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "Solution implemented with improvements".to_string(),
+                    "Previous issues addressed".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Validation phase
+            ReasoningPhase {
+                name: "Validation".to_string(),
+                description: "Validate the refined solution".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Test,
+                        description: "Run tests to validate solution".to_string(),
+                        tool: "run_command".to_string(),
+                        parameters: serde_json::json!({"command": "cargo test"}),
+                        expected_outcome: "Tests pass".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "Solution validated".to_string(),
+                    "All tests pass".to_string(),
+                ],
+                completed: false,
+                results: None,
+            }
+        ])
+    }
+
+    /// Create Tree of Thoughts phases (exploring multiple solution paths)
+    fn create_tree_of_thoughts_phases(&self, objective: &str, adapted_strategy: &crate::agent::intelligent_strategy_selection::AdaptedStrategy) -> Result<Vec<ReasoningPhase>> {
+        let beam_width = 3; // Number of parallel paths to explore
+        let mut phases = Vec::new();
+
+        // Initial exploration phase
+        phases.push(ReasoningPhase {
+            name: "Generate_Solution_Paths".to_string(),
+            description: "Generate multiple possible solution approaches".to_string(),
+            actions: vec![
+                PlannedAction {
+                    action_type: ActionType::Analyze,
+                    description: format!("Generate {} different approaches", beam_width),
+                    tool: "brainstorm".to_string(),
+                    parameters: serde_json::json!({"count": beam_width}),
+                    expected_outcome: "Multiple solution paths identified".to_string(),
+                    retry_count: 0,
+                    max_retries: 1,
+                }
+            ],
+            success_criteria: vec![
+                format!("At least {} solution paths generated", beam_width),
+                "Each path is distinct and viable".to_string(),
+            ],
+            completed: false,
+            results: None,
+        });
+
+        // Explore each path in parallel
+        for i in 0..beam_width {
+            phases.push(ReasoningPhase {
+                name: format!("Explore_Path_{}", i + 1),
+                description: format!("Explore solution path {} in detail", i + 1),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Explore,
+                        description: format!("Deep dive into approach {}", i + 1),
+                        tool: "search_code".to_string(),
+                        parameters: serde_json::json!({"path_id": i + 1}),
+                        expected_outcome: format!("Path {} fully explored", i + 1),
+                        retry_count: 0,
+                        max_retries: 2,
+                    },
+                    PlannedAction {
+                        action_type: ActionType::Analyze,
+                        description: format!("Evaluate viability of path {}", i + 1),
+                        tool: "evaluate".to_string(),
+                        parameters: serde_json::json!({"path_id": i + 1}),
+                        expected_outcome: "Path viability assessed".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    format!("Path {} explored", i + 1),
+                    "Pros and cons identified".to_string(),
+                    "Feasibility assessed".to_string(),
+                ],
+                completed: false,
+                results: None,
+            });
+        }
+
+        // Selection phase
+        phases.push(ReasoningPhase {
+            name: "Select_Best_Path".to_string(),
+            description: "Compare paths and select the most promising one".to_string(),
+            actions: vec![
+                PlannedAction {
+                    action_type: ActionType::Analyze,
+                    description: "Compare all explored paths".to_string(),
+                    tool: "compare_solutions".to_string(),
+                    parameters: serde_json::json!({"paths": beam_width}),
+                    expected_outcome: "Best path selected".to_string(),
+                    retry_count: 0,
+                    max_retries: 1,
+                }
+            ],
+            success_criteria: vec![
+                "All paths compared".to_string(),
+                "Best path selected with justification".to_string(),
+            ],
+            completed: false,
+            results: None,
+        });
+
+        // Implementation phase
+        phases.push(ReasoningPhase {
+            name: "Implement_Selected_Path".to_string(),
+            description: "Implement the selected solution path".to_string(),
+            actions: vec![
+                PlannedAction {
+                    action_type: ActionType::Implement,
+                    description: "Implement the chosen solution".to_string(),
+                    tool: "edit_file".to_string(),
+                    parameters: serde_json::json!({}),
+                    expected_outcome: "Solution implemented".to_string(),
+                    retry_count: 0,
+                    max_retries: 3,
+                }
+            ],
+            success_criteria: vec![
+                "Solution fully implemented".to_string(),
+                "Code compiles/runs".to_string(),
+            ],
+            completed: false,
+            results: None,
+        });
+
+        Ok(phases)
+    }
+
+    /// Create Interactive Planning phases (with checkpoints)
+    fn create_interactive_planning_phases(&self, objective: &str, _adapted_strategy: &crate::agent::intelligent_strategy_selection::AdaptedStrategy) -> Result<Vec<ReasoningPhase>> {
+        Ok(vec![
+            // Planning phase
+            ReasoningPhase {
+                name: "Create_Plan".to_string(),
+                description: "Create detailed plan with user checkpoints".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Analyze,
+                        description: "Analyze requirements and create plan".to_string(),
+                        tool: "plan".to_string(),
+                        parameters: serde_json::json!({"interactive": true}),
+                        expected_outcome: "Detailed plan created".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    "Plan created with clear steps".to_string(),
+                    "Checkpoints identified".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // First implementation checkpoint
+            ReasoningPhase {
+                name: "Implementation_Phase_1".to_string(),
+                description: "Implement first part of the plan".to_string(),
+                actions: self.plan_exploration_actions(objective),
+                success_criteria: vec![
+                    "First phase implemented".to_string(),
+                    "Ready for review".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Review checkpoint
+            ReasoningPhase {
+                name: "Review_Checkpoint_1".to_string(),
+                description: "Review progress and adjust plan if needed".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Validate,
+                        description: "Review implementation so far".to_string(),
+                        tool: "review".to_string(),
+                        parameters: serde_json::json!({"checkpoint": 1}),
+                        expected_outcome: "Progress reviewed".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    "Progress reviewed".to_string(),
+                    "Adjustments identified if needed".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Second implementation phase
+            ReasoningPhase {
+                name: "Implementation_Phase_2".to_string(),
+                description: "Complete implementation based on feedback".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Implement,
+                        description: "Complete remaining implementation".to_string(),
+                        tool: "edit_file".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Implementation complete".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "Implementation complete".to_string(),
+                    "All requirements met".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Final validation
+            ReasoningPhase {
+                name: "Final_Validation".to_string(),
+                description: "Validate complete implementation".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Test,
+                        description: "Run comprehensive tests".to_string(),
+                        tool: "run_command".to_string(),
+                        parameters: serde_json::json!({"command": "cargo test"}),
+                        expected_outcome: "All tests pass".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "All tests pass".to_string(),
+                    "Solution validated".to_string(),
+                ],
+                completed: false,
+                results: None,
+            }
+        ])
+    }
+
+    /// Create SWE-bench strategy phases (systematic bug fixing)
+    fn create_swe_bench_phases(&self, objective: &str, _adapted_strategy: &crate::agent::intelligent_strategy_selection::AdaptedStrategy) -> Result<Vec<ReasoningPhase>> {
+        Ok(vec![
+            // Bug reproduction phase
+            ReasoningPhase {
+                name: "Reproduce_Bug".to_string(),
+                description: "Reproduce the reported bug or issue".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Test,
+                        description: "Run existing tests to see failures".to_string(),
+                        tool: "run_command".to_string(),
+                        parameters: serde_json::json!({"command": "cargo test"}),
+                        expected_outcome: "Bug reproduced".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    },
+                    PlannedAction {
+                        action_type: ActionType::Analyze,
+                        description: "Analyze test output and error messages".to_string(),
+                        tool: "analyze_errors".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Error patterns identified".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    "Bug successfully reproduced".to_string(),
+                    "Failure conditions understood".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Localization phase
+            ReasoningPhase {
+                name: "Localize_Bug".to_string(),
+                description: "Locate the source of the bug in the codebase".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Explore,
+                        description: "Search for error-related code".to_string(),
+                        tool: "search_code".to_string(),
+                        parameters: serde_json::json!({"query": "error"}),
+                        expected_outcome: "Relevant code found".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    },
+                    PlannedAction {
+                        action_type: ActionType::Analyze,
+                        description: "Trace error through call stack".to_string(),
+                        tool: "trace_error".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Bug location identified".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    },
+                    PlannedAction {
+                        action_type: ActionType::Debug,
+                        description: "Analyze root cause".to_string(),
+                        tool: "debug_analyze".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Root cause understood".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    "Bug location identified".to_string(),
+                    "Root cause understood".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Fix generation phase
+            ReasoningPhase {
+                name: "Generate_Fix".to_string(),
+                description: "Generate and apply fix for the bug".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Implement,
+                        description: "Implement bug fix".to_string(),
+                        tool: "edit_file".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Fix implemented".to_string(),
+                        retry_count: 0,
+                        max_retries: 3,
+                    },
+                    PlannedAction {
+                        action_type: ActionType::Test,
+                        description: "Test the fix locally".to_string(),
+                        tool: "run_command".to_string(),
+                        parameters: serde_json::json!({"command": "cargo test"}),
+                        expected_outcome: "Local tests pass".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "Fix implemented".to_string(),
+                    "Bug no longer reproduces".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Validation phase
+            ReasoningPhase {
+                name: "Validate_Fix".to_string(),
+                description: "Validate fix doesn't break other functionality".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Test,
+                        description: "Run full test suite".to_string(),
+                        tool: "run_command".to_string(),
+                        parameters: serde_json::json!({"command": "cargo test --all"}),
+                        expected_outcome: "All tests pass".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    },
+                    PlannedAction {
+                        action_type: ActionType::Validate,
+                        description: "Check for regressions".to_string(),
+                        tool: "check_regressions".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "No regressions found".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    "All tests pass".to_string(),
+                    "No regressions introduced".to_string(),
+                ],
+                completed: false,
+                results: None,
+            }
+        ])
+    }
+
+    /// Create Workflow Orchestration phases
+    fn create_workflow_phases(&self, objective: &str, _adapted_strategy: &crate::agent::intelligent_strategy_selection::AdaptedStrategy) -> Result<Vec<ReasoningPhase>> {
+        Ok(vec![
+            // Setup phase
+            ReasoningPhase {
+                name: "Setup_Workflow".to_string(),
+                description: "Set up workflow dependencies and environment".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Explore,
+                        description: "Check environment and dependencies".to_string(),
+                        tool: "check_environment".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Environment ready".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "Environment configured".to_string(),
+                    "Dependencies available".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Parallel execution phase
+            ReasoningPhase {
+                name: "Parallel_Tasks".to_string(),
+                description: "Execute independent tasks in parallel".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Implement,
+                        description: "Execute task 1".to_string(),
+                        tool: "execute_task".to_string(),
+                        parameters: serde_json::json!({"task_id": 1, "parallel": true}),
+                        expected_outcome: "Task 1 complete".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    },
+                    PlannedAction {
+                        action_type: ActionType::Implement,
+                        description: "Execute task 2".to_string(),
+                        tool: "execute_task".to_string(),
+                        parameters: serde_json::json!({"task_id": 2, "parallel": true}),
+                        expected_outcome: "Task 2 complete".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    },
+                    PlannedAction {
+                        action_type: ActionType::Implement,
+                        description: "Execute task 3".to_string(),
+                        tool: "execute_task".to_string(),
+                        parameters: serde_json::json!({"task_id": 3, "parallel": true}),
+                        expected_outcome: "Task 3 complete".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "All parallel tasks complete".to_string(),
+                    "Results collected".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Integration phase
+            ReasoningPhase {
+                name: "Integrate_Results".to_string(),
+                description: "Integrate results from parallel tasks".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Implement,
+                        description: "Merge task results".to_string(),
+                        tool: "merge_results".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Results integrated".to_string(),
+                        retry_count: 0,
+                        max_retries: 2,
+                    }
+                ],
+                success_criteria: vec![
+                    "All results integrated".to_string(),
+                    "Final output generated".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            // Verification phase
+            ReasoningPhase {
+                name: "Verify_Workflow".to_string(),
+                description: "Verify complete workflow execution".to_string(),
+                actions: vec![
+                    PlannedAction {
+                        action_type: ActionType::Validate,
+                        description: "Verify workflow output".to_string(),
+                        tool: "verify_output".to_string(),
+                        parameters: serde_json::json!({}),
+                        expected_outcome: "Output verified".to_string(),
+                        retry_count: 0,
+                        max_retries: 1,
+                    }
+                ],
+                success_criteria: vec![
+                    "Workflow complete".to_string(),
+                    "Output meets requirements".to_string(),
+                ],
+                completed: false,
+                results: None,
+            }
+        ])
+    }
+
+    /// Create default phases for unknown strategies
+    fn create_default_phases(&self, objective: &str) -> Result<Vec<ReasoningPhase>> {
+        Ok(vec![
+            ReasoningPhase {
+                name: "Exploration".to_string(),
+                description: "Explore and understand the problem space".to_string(),
+                actions: self.plan_exploration_actions(objective),
+                success_criteria: vec![
+                    "Problem space understood".to_string(),
+                    "Key files and patterns identified".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            ReasoningPhase {
+                name: "Analysis".to_string(),
+                description: "Analyze findings and plan approach".to_string(),
+                actions: vec![],
+                success_criteria: vec![
+                    "Root cause identified".to_string(),
+                    "Solution approach planned".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            ReasoningPhase {
+                name: "Implementation".to_string(),
+                description: "Implement the solution".to_string(),
+                actions: vec![],
+                success_criteria: vec![
+                    "Solution implemented".to_string(),
+                    "Code compiles/runs".to_string(),
+                ],
+                completed: false,
+                results: None,
+            },
+            ReasoningPhase {
+                name: "Validation".to_string(),
+                description: "Validate the solution works correctly".to_string(),
+                actions: vec![],
+                success_criteria: vec![
+                    "Tests pass".to_string(),
+                    "Solution validated".to_string(),
+                ],
+                completed: false,
+                results: None,
+            }
+        ])
     }
 
     /// Apply intelligence adaptations to phases

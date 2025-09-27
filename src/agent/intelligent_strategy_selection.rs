@@ -6,7 +6,7 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{info, debug};
+use tracing::info;
 
 use crate::agent::strategies::{ReasoningStrategy, StrategySelector};
 use crate::intelligence::{IntelligenceEngine, UserIntent, ContextItem};

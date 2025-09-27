@@ -773,7 +773,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_purpose_analysis_engine_creation() {
-        let ast_analyzer = Arc::new(tokio::sync::RwLock::new(ASTAnalyzer::new()));
+        let ast_analyzer = Arc::new(tokio::sync::RwLock::new(ASTAnalyzer::new().unwrap()));
         let engine = PurposeAnalysisEngine::new(ast_analyzer, None);
 
         // Basic functionality test
@@ -789,7 +789,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_test_file_detection() {
-        let ast_analyzer = Arc::new(tokio::sync::RwLock::new(ASTAnalyzer::new()));
+        let ast_analyzer = Arc::new(tokio::sync::RwLock::new(ASTAnalyzer::new().unwrap()));
         let engine = PurposeAnalysisEngine::new(ast_analyzer, None);
 
         let analysis = engine.analyze_code_purpose(

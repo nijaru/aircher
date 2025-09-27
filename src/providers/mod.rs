@@ -9,6 +9,7 @@ use uuid::Uuid;
 pub mod claude_api;
 pub mod gemini;
 pub mod hosts;
+pub mod mock_provider;
 pub mod ollama;
 pub mod openai;
 

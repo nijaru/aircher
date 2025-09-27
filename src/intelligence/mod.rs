@@ -257,37 +257,37 @@ impl IntelligenceEngine {
     // === INTELLIGENT DEBUGGING METHODS (internal use only - automatic via UnifiedIntelligenceEngine) ===
 
     /// Perform comprehensive error analysis (internal use only - automatic via UnifiedIntelligenceEngine)
-    pub(crate) async fn analyze_error(&self, request: ErrorAnalysisRequest) -> Result<ErrorAnalysis> {
+    pub async fn analyze_error(&self, request: ErrorAnalysisRequest) -> Result<ErrorAnalysis> {
         self.debugging_engine.analyze_error(request).await
     }
 
     /// Generate multiple fix strategies for an error (internal use only - automatic via UnifiedIntelligenceEngine)
-    pub(crate) async fn generate_fix_strategies(&self, analysis: &ErrorAnalysis) -> Result<Vec<FixStrategy>> {
+    pub async fn generate_fix_strategies(&self, analysis: &ErrorAnalysis) -> Result<Vec<FixStrategy>> {
         self.debugging_engine.generate_fix_strategies(analysis).await
     }
 
     /// Generate comprehensive fix with code changes, tests, and validation plan (internal use only - automatic via UnifiedIntelligenceEngine)
-    pub(crate) async fn generate_comprehensive_fix(&self, request: ErrorAnalysisRequest) -> Result<FixResult> {
+    pub async fn generate_comprehensive_fix(&self, request: ErrorAnalysisRequest) -> Result<FixResult> {
         self.debugging_engine.generate_comprehensive_fix(request).await
     }
 
     /// Quick error analysis for simple cases (internal use only - automatic via UnifiedIntelligenceEngine)
-    pub(crate) async fn quick_analyze_error(&self, error_message: &str, file_path: &str) -> Result<ErrorAnalysis> {
+    pub async fn quick_analyze_error(&self, error_message: &str, file_path: &str) -> Result<ErrorAnalysis> {
         self.debugging_engine.quick_analyze(error_message, file_path).await
     }
 
     /// Get quick fix recommendations based on error pattern matching (internal use only - automatic via UnifiedIntelligenceEngine)
-    pub(crate) async fn get_quick_fix_recommendations(&self, error_message: &str) -> Result<Vec<String>> {
+    pub async fn get_quick_fix_recommendations(&self, error_message: &str) -> Result<Vec<String>> {
         self.debugging_engine.get_quick_fix_recommendations(error_message).await
     }
 
     /// Analyze project-wide error patterns (internal use only - automatic via UnifiedIntelligenceEngine)
-    pub(crate) async fn analyze_project_error_patterns(&self, project_files: Vec<String>) -> Result<std::collections::HashMap<String, Vec<String>>> {
+    pub async fn analyze_project_error_patterns(&self, project_files: Vec<String>) -> Result<std::collections::HashMap<String, Vec<String>>> {
         self.debugging_engine.analyze_project_error_patterns(project_files).await
     }
 
     /// Learn from fix results to improve future debugging (internal use only - automatic via UnifiedIntelligenceEngine)
-    pub(crate) async fn learn_from_fix(&self, fix_result: &FixResult, success: bool, feedback: Option<String>) -> Result<()> {
+    pub async fn learn_from_fix(&self, fix_result: &FixResult, success: bool, feedback: Option<String>) -> Result<()> {
         self.debugging_engine.learn_from_fix(fix_result, success, feedback).await
     }
 

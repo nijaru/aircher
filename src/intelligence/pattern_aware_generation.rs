@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::info;
 use regex::Regex;
 
 use crate::intelligence::purpose_analysis::PurposeAnalysisEngine;

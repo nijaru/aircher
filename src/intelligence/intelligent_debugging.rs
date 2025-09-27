@@ -1,14 +1,13 @@
 /// Intelligent Debugging Engine - Advanced error analysis and fix generation
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use tracing::{info, debug, warn};
-use anyhow::{Result, anyhow, Context};
+use tracing::info;
+use anyhow::Result;
 
 use crate::intelligence::ast_analysis::ASTAnalyzer;
 use crate::semantic_search::SemanticCodeSearch;
-use super::purpose_analysis::{PurposeAnalysisEngine, BusinessPurpose, DomainConcept};
+use super::purpose_analysis::PurposeAnalysisEngine;
 
 /// Central debugging engine for intelligent error analysis and fix generation
 #[derive(Clone)]
