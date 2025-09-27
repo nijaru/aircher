@@ -245,28 +245,191 @@
 - **Market Position**: Lightweight CLI alternative
 - **Pricing**: Free (bring your own API keys)
 
+#### Browser-Based Autonomous Agent Platforms
+
+A new category of fully automated, browser-based coding agents has emerged, focusing on complete task automation rather than developer assistance:
+
+##### **Google Jules (Labs)**
+- **Type**: Browser-based, fully autonomous coding agent
+- **Strengths**:
+  - Complete task automation with minimal human intervention
+  - Creates comprehensive plans before execution
+  - Handles entire GitHub workflows (issues → PRs)
+  - Multi-file modifications with context awareness
+  - Integrated with Google's AI infrastructure
+- **Weaknesses**:
+  - Limited to browser environment
+  - No local development environment access
+  - Black box execution model
+  - Limited customization/control
+  - GitHub-centric workflow
+- **Market Position**: Experimental autonomous agent for GitHub
+- **Access**: Limited preview (Labs product)
+
+##### **Replit Agent**
+- **Type**: Cloud IDE with autonomous agent capabilities
+- **Strengths**:
+  - Full application generation from prompts
+  - Integrated deployment pipeline
+  - Real-time collaboration features
+  - Handles frontend + backend + database
+  - One-click deployment
+- **Weaknesses**:
+  - Locked to Replit ecosystem
+  - Limited to web applications
+  - No local development option
+  - Subscription required for advanced features
+- **Market Position**: Full-stack app generator for rapid prototyping
+- **Pricing**: $20-25/month for agent features
+
+##### **GitHub Copilot Workspace**
+- **Type**: Cloud-based task planning and execution system
+- **Strengths**:
+  - Deep GitHub integration
+  - Task decomposition and planning
+  - Multi-file coordinated changes
+  - Natural language task descriptions
+  - Preview changes before applying
+- **Weaknesses**:
+  - GitHub-only workflow
+  - Limited to web interface
+  - No terminal/CLI access
+  - Requires Copilot subscription
+- **Market Position**: GitHub-native development environment
+- **Pricing**: Part of GitHub Copilot ($10-19/month)
+
+##### **Vercel v0**
+- **Type**: AI-powered UI generation platform
+- **Strengths**:
+  - Generates complete React components from descriptions
+  - Instant deployment to Vercel
+  - Shadcn/UI integration
+  - Iterative refinement through chat
+- **Weaknesses**:
+  - Frontend-only focus
+  - Limited to React/Next.js ecosystem
+  - No backend logic generation
+  - Requires manual integration
+- **Market Position**: UI/UX rapid prototyping tool
+- **Pricing**: Credits-based system
+
+#### Terminal/CLI vs Browser-Based Agents
+
+| Aspect | Terminal/CLI Agents | Browser-Based Agents |
+|--------|-------------------|---------------------|
+| **Environment** | Local development | Cloud/browser only |
+| **Control** | Fine-grained, step-by-step | Fully automated, less control |
+| **Transparency** | Can show exact operations | Often black-box execution |
+| **Integration** | Works with any local tools | Limited to platform ecosystem |
+| **Offline Work** | Fully supported (with local models) | Requires internet connection |
+| **Data Privacy** | Code stays local | Code processed in cloud |
+| **Customization** | Highly configurable | Platform-defined workflows |
+| **Target Users** | Professional developers | Rapid prototypers, beginners |
+
 #### Competitive Analysis Matrix
 
-| Feature | Claude Code | Cursor | Factory AI | Cody | Aider | Aircher (Us) |
-|---------|------------|--------|------------|------|-------|--------------|
-| Autonomy | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
-| Transparency | ⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Local Models | ❌ | ⭐⭐⭐ | ❌ | ❌ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Rate Limits | ⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | N/A | ⭐⭐⭐⭐⭐ |
-| Setup Speed | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Enterprise | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐ |
-| Open Source | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Feature | Claude Code | Cursor | Jules | Replit Agent | Copilot WS | Aider | Aircher (Us) |
+|---------|------------|--------|-------|--------------|------------|-------|--------------|
+| **Agent Autonomy** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Task Planning** | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐ |
+| **Multi-Step Execution** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
+| **Transparency** | ⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Local Development** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ❌ | ❌ | ❌ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Customization** | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Local Models** | ❌ | ⭐⭐⭐ | ❌ | ❌ | ❌ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Rate Limits** | ⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | N/A | ⭐⭐⭐⭐⭐ |
+| **Open Source** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
 
-#### Our Unique Positioning
+#### Our Unique Positioning: Agent-First Terminal Development
 
-**"Autonomous coding with complete visibility"**
+**Core Value Proposition: "Professional agent autonomy with complete transparency and control"**
 
-1. **vs Claude Code**: We provide transparency + local models (no rate limits)
-2. **vs Cursor**: Terminal-native simplicity without decision fatigue
-3. **vs FactoryAI**: Open architecture with customization options
-4. **vs Cody**: Individual developer focus, not enterprise complexity
-5. **vs Aider**: Advanced features (semantic search) + better UX
-6. **vs Continue**: Standalone CLI, not IDE-dependent
+We occupy a unique position in the market by combining:
+- **Agent-level autonomy** (matching Jules/Replit Agent capabilities)
+- **Terminal-native performance** (instant startup, low resources)
+- **Complete transparency** (see every decision and action)
+- **Local-first architecture** (privacy, no rate limits with Ollama)
+
+##### Agent Capability Advantages
+
+**What Sets Our Agent Apart:**
+
+1. **Hybrid Autonomy Model**
+   - Can run fully autonomous (like Jules) OR step-by-step (like Cursor)
+   - User chooses level of control per task
+   - Smart approval workflows for safety
+
+2. **Terminal-Native Agent Power**
+   - Direct access to ALL local development tools
+   - No browser limitations or sandbox restrictions
+   - Works with existing developer workflows
+
+3. **Transparent Agent Reasoning**
+   - Shows planning phase (unlike Claude Code's black box)
+   - Displays tool selection rationale
+   - Explains multi-step execution strategy
+   - Learn from agent's decision-making
+
+4. **Unlimited Local Agent Execution**
+   - Ollama integration = infinite agent runs
+   - No rate limits on complex multi-step tasks
+   - Consistent performance (no cloud variability)
+
+5. **Agent Memory & Learning**
+   - Remembers project patterns and preferences
+   - Learns from successful task completions
+   - Improves suggestions over time (unlike stateless browser agents)
+
+##### Competitive Agent Positioning
+
+**vs Browser-Based Agents (Jules, Replit, Copilot Workspace):**
+- ✅ **We win on**: Local control, privacy, customization, professional tools
+- ❌ **They win on**: Zero setup, beginner-friendly, instant deployment
+- **Our target**: Professional developers who need control + autonomy
+
+**vs Terminal/CLI Tools (Claude Code, Aider):**
+- ✅ **We win on**: Transparency, local models, agent learning, safety
+- ❌ **They win on**: Market maturity, enterprise features
+- **Our target**: Developers frustrated with rate limits and black-box execution
+
+**vs IDE Extensions (Cursor, Continue):**
+- ✅ **We win on**: Terminal performance, agent autonomy, resource efficiency
+- ❌ **They win on**: IDE integration, inline editing
+- **Our target**: Terminal-first developers who want agent capabilities
+
+##### Strategic Agent Features (Competitive Differentiation)
+
+1. **Task Orchestration Engine**
+   - Decomposes complex tasks like Jules
+   - But shows the plan and allows modification
+   - Can pause/resume multi-step executions
+
+2. **Intelligent Tool Selection**
+   - Agent chooses optimal tools for each step
+   - Explains why each tool was selected
+   - User can override or suggest alternatives
+
+3. **Adaptive Execution Strategies**
+   - Multiple approaches for same task
+   - Agent selects based on project context
+   - Falls back gracefully on failures
+
+4. **Project-Aware Intelligence**
+   - Understands your codebase structure
+   - Respects existing patterns and conventions
+   - Suggests improvements based on project history
+
+##### Market Opportunity
+
+The market is splitting into two segments:
+1. **Fully Automated** (Jules, Replit) - for rapid prototyping
+2. **Developer Assistance** (Cursor, Copilot) - for professional coding
+
+**We target the gap**: Professional developers who want agent-level automation but need transparency, control, and local execution. This is especially valuable for:
+- Security-conscious organizations (code stays local)
+- Developers hitting API rate limits
+- Teams needing customizable agent behavior
+- Projects requiring specific tool integrations
 
 ### User Workflow Insights
 
@@ -341,5 +504,6 @@
 
 ---
 
-*Updated: 2025-01-27 - Enhanced competitive intelligence with detailed competitor analysis*
+*Updated: 2025-01-27 - Added browser-based agents (Jules, Replit) and agent-first positioning*
+*Previous: 2025-01-27 - Enhanced competitive intelligence with detailed competitor analysis*
 *Previous: 2025-09-10 - Initial knowledge base from competitive analysis*
