@@ -128,25 +128,145 @@
 - **Quality drops**: Users notice degradation "around 12 ET (9AM pacific)"
 - **Our Advantage**: Local models = consistent performance, no infrastructure issues
 
-### Competitive Positioning (Updated Sept 2025)
+### Competitive Positioning (Updated Jan 2025)
 
-#### **vs Claude Code**
-- **Their strength**: Sophisticated autonomy, large context windows
-- **Their weakness**: No transparency, rate limits, flying blind experience
-- **Our advantage**: Autonomous + transparent, unlimited local usage, better safety
-- **Target**: Users who want Claude Code's power with Cursor's visibility
+#### CLI/TUI Agent Market Landscape
 
-#### **vs Cursor**
-- **Their strength**: Model flexibility, step-by-step control, IDE integration
-- **Their weakness**: Rate limits, complex UI, decision fatigue
-- **Our advantage**: Same model flexibility without rate limits, cleaner UX
-- **Target**: Users who want Cursor's control without the complexity
+##### **Claude Code (Anthropic)**
+- **Type**: Official Anthropic terminal client, closed-source
+- **Strengths**:
+  - Deep integration with Claude models (Opus 4.1, Sonnet 4, Haiku)
+  - Sophisticated multi-step autonomous execution
+  - 200K+ context windows with intelligent compaction
+  - Strong adoption among enterprise users
+  - Excellent at architectural planning and complex refactoring
+- **Weaknesses**:
+  - "Flying blind" experience - hides reasoning/decision process
+  - Aggressive rate limits (50+ incidents/month reported)
+  - No local model support
+  - Limited model flexibility (Anthropic models only)
+  - Performance degradation during peak hours (9AM PST)
+- **Market Position**: Premium tool for enterprise teams
+- **Pricing**: $25-100+/month depending on usage
 
-#### **vs Both (Unique Positioning)**
-- **Shared weakness**: Neither handles Jupyter notebooks well
-- **Our opportunity**: Add Jupyter support as differentiator
-- **Market gap**: "Autonomous coding with complete visibility"
-- **Value prop**: Unlimited usage + trust through transparency
+##### **Cursor (Anysphere)**
+- **Type**: IDE with integrated AI (not pure CLI)
+- **Strengths**:
+  - Deep IDE integration (VSCode fork)
+  - Model flexibility (OpenAI, Anthropic, local)
+  - Inline autocomplete + chat modes
+  - Composer mode for multi-file editing
+  - Step-by-step transparency
+- **Weaknesses**:
+  - Complex UI (4+ different Accept buttons)
+  - Decision fatigue from too many options
+  - Rate limits still apply for API models
+  - Heavy resource usage (Electron-based)
+  - Not terminal-native
+- **Market Position**: IDE-first for developers who want control
+- **Pricing**: $20/month + API costs
+
+##### **FactoryAI Droid**
+- **Type**: Benchmark-focused CLI tool, closed-source
+- **Strengths**:
+  - Best SWE-bench scores (35%+ on verified)
+  - Optimized for autonomous task completion
+  - Strong test generation capabilities
+  - Minimal setup required
+- **Weaknesses**:
+  - Black box approach - no visibility into operations
+  - Limited customization options
+  - Closed ecosystem, no extensibility
+  - Single provider lock-in
+  - No local model support
+- **Market Position**: Performance-focused for benchmark tasks
+- **Pricing**: Not publicly disclosed
+
+##### **Sourcegraph Cody CLI**
+- **Type**: Enterprise codebase intelligence tool
+- **Strengths**:
+  - Excellent large codebase navigation
+  - Enterprise SSO and compliance features
+  - Code search across entire organizations
+  - Context from multiple repositories
+  - Strong security/audit features
+- **Weaknesses**:
+  - Heavy enterprise focus (overkill for individuals)
+  - Requires Sourcegraph server deployment
+  - Limited autonomous capabilities
+  - Complex setup and configuration
+- **Market Position**: Enterprise code intelligence platform
+- **Pricing**: Enterprise contracts ($$$)
+
+##### **Aider (Open Source)**
+- **Type**: Terminal-based pair programming tool
+- **Strengths**:
+  - True open source (Apache 2.0)
+  - Git-aware with automatic commits
+  - Multiple model support (OpenAI, Anthropic, local)
+  - Map of whole repository context
+  - Strong community (15K+ stars)
+- **Weaknesses**:
+  - Limited autonomous capabilities
+  - Basic UI (pure terminal output)
+  - No advanced features (no semantic search)
+  - Requires manual file selection
+- **Market Position**: Open source alternative for individuals
+- **Pricing**: Free (bring your own API keys)
+
+##### **Continue.dev (Open Source)**
+- **Type**: IDE extension with CLI capabilities
+- **Strengths**:
+  - Open source with active development
+  - Supports multiple IDEs (VSCode, JetBrains)
+  - Local model support via Ollama
+  - Customizable with TypeScript
+  - Tab autocomplete + chat modes
+- **Weaknesses**:
+  - IDE-dependent (not standalone CLI)
+  - Limited autonomous execution
+  - Setup complexity for advanced features
+  - Performance varies by configuration
+- **Market Position**: Open source IDE assistant
+- **Pricing**: Free (self-hosted) or $10/month (cloud)
+
+##### **Mentat (Open Source)**
+- **Type**: Terminal-based AI coding assistant
+- **Strengths**:
+  - Clean terminal interface
+  - Automatic context detection
+  - Interactive editing mode
+  - Git integration
+- **Weaknesses**:
+  - Limited model support (OpenAI primarily)
+  - No semantic search capabilities
+  - Basic tool set
+  - Small community
+- **Market Position**: Lightweight CLI alternative
+- **Pricing**: Free (bring your own API keys)
+
+#### Competitive Analysis Matrix
+
+| Feature | Claude Code | Cursor | Factory AI | Cody | Aider | Aircher (Us) |
+|---------|------------|--------|------------|------|-------|--------------|
+| Autonomy | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
+| Transparency | ⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| Local Models | ❌ | ⭐⭐⭐ | ❌ | ❌ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| Rate Limits | ⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | N/A | ⭐⭐⭐⭐⭐ |
+| Setup Speed | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| Enterprise | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐ |
+| Open Source | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+
+#### Our Unique Positioning
+
+**"Autonomous coding with complete visibility"**
+
+1. **vs Claude Code**: We provide transparency + local models (no rate limits)
+2. **vs Cursor**: Terminal-native simplicity without decision fatigue
+3. **vs FactoryAI**: Open architecture with customization options
+4. **vs Cody**: Individual developer focus, not enterprise complexity
+5. **vs Aider**: Advanced features (semantic search) + better UX
+6. **vs Continue**: Standalone CLI, not IDE-dependent
 
 ### User Workflow Insights
 
@@ -221,4 +341,5 @@
 
 ---
 
-*Updated: 2025-09-10 - Initial knowledge base from competitive analysis*
+*Updated: 2025-01-27 - Enhanced competitive intelligence with detailed competitor analysis*
+*Previous: 2025-09-10 - Initial knowledge base from competitive analysis*
