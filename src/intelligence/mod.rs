@@ -36,9 +36,16 @@ pub use duckdb_memory::*;
 pub use tools::*;
 pub use mcp_integration::*;
 pub use ast_analysis::*;
+// Use wildcard imports but rename conflicting types to avoid ambiguity
 pub use purpose_analysis::*;
 pub use pattern_aware_generation::*;
-pub use intelligent_debugging::*;
+pub use intelligent_debugging::{
+    IntelligentDebuggingEngine,
+    // Rename conflicting types from intelligent_debugging to avoid conflicts with purpose_analysis
+    DependencyType as DebuggingDependencyType,
+    CouplingStrength as DebuggingCouplingStrength,
+    EstimatedEffort as DebuggingEstimatedEffort,
+};
 pub use unified_intelligence::{
     UnifiedIntelligenceEngine,
     EnhancedContext,
