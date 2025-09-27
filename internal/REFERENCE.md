@@ -6,28 +6,43 @@
 
 | Topic | Location | Description |
 |-------|----------|-------------|
-| **Project Overview** | `AGENTS.md` | AI agent context and quick reference |
-| **Current Status** | `STATUS.md` | Development state, metrics, issues |
-| **Technical Spec** | `TECH_SPEC.md` | Architecture and implementation details |
-| **Active Tasks** | `TODO.md` | Current priorities and upcoming work |
-| **Decision History** | `DECISIONS.md` | Why technical choices were made |
-| **Tool Calling Status** | `TOOL_CALLING_REALITY_CHECK.md` | Empirical test results (Aug 2025) |
+| **Project Overview** | `CLAUDE.md` / `AGENTS.md` | AI agent context and quick reference |
+| **Project Status** | `PROJECT_STATUS.md` | Current capabilities & limitations |
+| **Reality Check** | `internal/PROJECT_REALITY.md` | Honest competitive assessment |
+| **Current Tasks** | `internal/NOW.md` | Active priorities and sprint status |
+| **Technical Spec** | `internal/TECH_SPEC.md` | Architecture and implementation details |
+| **Decision History** | `internal/DECISIONS.md` | Why technical choices were made |
+| **Development Status** | `internal/STATUS.md` | Development phase tracking |
 
 ## Architecture & Design
 
 | Topic | Location | Description |
 |-------|----------|-------------|
-| **Development Roadmap** | `docs/architecture/roadmap.md` | Phased development plan |
+| **Agent Architecture** | `docs/architecture/agent-first-architecture.md` | Unified agent design |
+| **Model vs Agent** | `docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md` | Critical architectural insight |
 | **Turbo Mode Design** | `docs/architecture/turbo-mode.md` | Task orchestration architecture |
 | **Intelligence Engine** | `docs/architecture/intelligence-engine.md` | AI capabilities design |
+
+## Research & Intelligence
+
+| Topic | Location | Description |
+|-------|----------|-------------|
+| **Knowledge Base** | `internal/KNOWLEDGE.md` | Patterns & learnings |
+| **Discoveries** | `internal/DISCOVERIES.md` | Competitive insights & breakthroughs |
 
 ## Standards & Guidelines
 
 | Topic | Location | Description |
 |-------|----------|-------------|
+| **Code Patterns** | `external/agent-contexts/standards/AI_CODE_PATTERNS.md` | Universal coding patterns |
 | **Documentation Standards** | `docs/DOC_STANDARDS.md` | How to organize docs |
-| **Code Standards** | `docs/CODE_STANDARDS.md` | Coding conventions |
 | **Auth System** | `docs/AUTH.md` | Authentication implementation |
+
+## Archive
+
+| Topic | Location | Description |
+|-------|----------|-------------|
+| **Old Assessments** | `docs/archive/` | Historical status files and completed plans |
 | **Quick Start** | `docs/QUICK_START_DEV.md` | Developer setup guide |
 
 ## Key Code Locations
