@@ -27,77 +27,22 @@ Entry point for AI agents working with Aircher - the multi-modal AI coding agent
 
 ## Project Overview
 
-Aircher is developing into a **dual-mode AI coding agent** with Terminal UI and Agent Client Protocol support.
+**Dual-mode AI coding agent**: Terminal UI + Agent Client Protocol support
 
-**⚠️ CURRENT STATUS**: Stable infrastructure with limited functionality. Most AI tools are stubs returning fake responses. **See `PROJECT_STATUS.md` for detailed capabilities and `internal/PROJECT_REALITY.md` for honest competitive assessment.**
+**⚠️ CRITICAL**: See @PROJECT_STATUS.md and @internal/PROJECT_REALITY.md for honest assessment
+- Status: ~16-20% feature parity with Claude Code (stable infrastructure, limited functionality)
+- Architecture: Single UnifiedAgent with multiple frontends (LocalClient for TUI, ACP for editors)
 
-**Architecture Principle**: Single UnifiedAgent implementation with multiple frontends (TUI uses LocalClient, editors use ACP).
+**What Works**: Semantic search (production-ready), TUI interface, multi-provider auth
+**What Doesn't**: Most tools are stubs returning fake JSON
 
-**What Actually Works Today:**
-- ✅ **Semantic code search** (production-ready)
-- ✅ **TUI interface** with model selection and auth flow
-- ✅ **Multi-provider auth** (Claude, OpenAI, Gemini, Ollama)
-- ⚠️ **Tool calling framework** (executes without crashing, but tools are stubs)
+## Key Architecture Insight (Sep 19, 2025)
 
-**What Doesn't Work Yet:**
-- ❌ **Intelligent tools** (all return fake JSON responses)
-- ❌ **Real problem solving** (no actual coding assistance)
-- ❌ **Competitive functionality** (not ready for real use)
-
-## Architecture Breakthrough (Sep 19, 2025)
-
-**Critical Discovery**: We over-engineered the agent with a 1685-line MultiTurnReasoningEngine trying to externalize reasoning that models already do internally.
-
-**Key Insight**: Models are reasoning engines, agents are execution engines.
-- Research shows 25-70% improvements come from better prompts, not external orchestration
-- Enhanced prompting system (300 lines) ready to replace complex orchestration
-- See `docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md` for details
-
-## Current Status
-
-**⚠️ For complete status details, see `PROJECT_STATUS.md`**
-
-- ✅ **Production-ready** semantic search system (99.9% faster subsequent searches)
-- ✅ **TUI with demo mode** - full interface available without API keys
-- ✅ **Clean codebase** - eliminated ~190 compiler warnings
-- ✅ **19+ language support** with tree-sitter parsing
-- ⚠️ **Tool calling infrastructure** - framework works, but tools return fake responses
-
-## Key Features Completed
-
-### 1. Semantic Code Search (Production Ready)
-- Sub-second search with index persistence  
-- Advanced filtering, query expansion, typo correction
-- 19+ programming languages supported
-- Real-time file monitoring
-
-### 2. TUI Interface (Fully Functional)
-- Demo mode works immediately without setup
-- Interactive auth wizard for provider setup
-- Model selection and provider switching
-- Graceful fallback when API keys unavailable
-
-### 3. Multi-Provider Support (Authentication Only)
-- OpenAI, Anthropic, Gemini, Ollama integration
-- OAuth2 support for Anthropic Pro/Max
-- Dynamic model fetching from provider APIs
-
-## Architectural Decisions
-
-### Dynamic Context Management over Sub-Agents (Sep 14, 2025)
-
-**Decision**: We use Dynamic Context Management instead of autonomous sub-agents.
-
-**Rationale**:
-- Research shows sub-agents cause **19% performance degradation**
-- Sub-agents suffer from **tunnel vision** and **context pollution**
-- Our DynamicContextManager provides better performance
-
-**Implementation**:
-- `src/agent/dynamic_context.rs` - Intelligent context management
-- `src/agent/context_engine.rs` - Context engineering foundations
-- Active pruning and prefetching of relevant context
-- Single agent with smart context beats multiple autonomous agents
+**Models are reasoning engines, agents are execution engines**
+- Over-engineered: 1685-line MultiTurnReasoningEngine externalized what models do internally
+- Research validated: 25-70% improvements from prompts, not orchestration
+- Solution: Enhanced prompting system (300 lines) replaces complex orchestration
+- Details: @docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md
 
 **Note**: `src/agent/sub_agents.rs` exists but is DEPRECATED - we pivoted away from this approach.
 
@@ -152,283 +97,42 @@ Aircher is developing into a **dual-mode AI coding agent** with Terminal UI and 
 - Don't add language-specific dependencies
 - Don't hide what commands are being run
 
-## Tool Philosophy
+## Development Philosophy
 
-The agent should be a power user of existing CLI tools rather than reimplementing functionality. This makes the agent's actions:
-- Understandable to users
-- Reproducible outside the agent
-- Maintainable without language-specific knowledge
-- Immediately compatible with new tools
+**Tool Approach**: Shell-first (power user of CLI tools vs reimplementation)
+**Code Standards**: @external/agent-contexts/standards/AI_CODE_PATTERNS.md
+**Development Flow**: Demo mode must work, performance critical, zero warnings tolerance
 
-## Code Standards
+## TUI Features
 
-@external/agent-contexts/standards/AI_CODE_PATTERNS.md  # Universal naming and structure patterns
+**Notification System**: Operations line (above input), toast notifications (3s fade), status bar, inline system messages
+**UX**: Fast Rust startup, smart defaults, stable input position
+**Keyboard**: Enter (submit), Shift+Enter (newline), Tab (autocomplete/indent), Esc (close/interrupt), Ctrl+M (/model), Double Esc (history)
 
-- Add newlines at end of files
-- Follow existing code patterns
-- Check for existing dependencies before adding new ones
-- Prefer editing existing files over creating new ones
+**Dynamic Features**: Streaming progress, predictive compaction (85% threshold), real-time model discovery from provider APIs
+**Model Selection**: Rich metadata (context, pricing, capabilities), fuzzy autocomplete, smart caching
 
-## Recent UI Improvements
+## Development Status
 
-### Notification System (Implemented)
-A layered notification system provides appropriate feedback for different types of information:
-
-1. **Operations Line** (above input) - Active work with progress:
-   - `🔄 Loading Ollama models... [████░░░░] 67%`
-   - `🔍 Searching for "auth" in src/...`
-   - Only appears when operations are active
-
-2. **Toast Notifications** (top-right) - Temporary alerts (3s fade):
-   - `✓ Authentication successful`
-   - `⚠️ Rate limit warning`
-   - Auto-expire after 3 seconds
-
-3. **Status Bar** (bottom) - Persistent context:
-   - Model/provider info
-   - Context usage percentage
-   - Cost tracking
-
-4. **Inline System Messages** - Important history:
-   - Model changes
-   - Authentication status updates
-
-### Key UX Decisions
-
-1. **Fast Startup**: Rust-based TUI starts instantly, differentiating from Electron-based alternatives
-2. **Smart Defaults**: `/model` command starts with provider selection if not authenticated
-3. **Stable Input Position**: Operations line appears above input so typing area never moves
-4. **Clean Interface**: Notifications only appear when relevant
-
-### Keyboard Shortcuts
-
-- Enter: submit message
-- Shift+Enter or Ctrl+Enter: newline
-- Tab: accept autocomplete suggestion (if visible); otherwise insert 4 spaces (indent)
-- Esc: close autocomplete or interrupt streaming
-- Ctrl+M: open model selection overlay (/model also supported)
-- Ctrl+C: clear input if text exists, quit if empty (single press)
-- Double Escape (within 400ms): Show conversation history modal
-- PgUp/PgDown: Scroll chat history (planned)
-
-### Streaming & Operations Line (Implemented)
-- Streaming progress renders inside the chat area in a one-line operations bar directly above the input.
-- Shows rotating status like “Retrieving content… (Xs · tokens · esc to interrupt)”.
-
-### Predictive Compaction (Implemented)
-- Before sending long messages, the TUI checks projected context usage against the current model’s window.
-- If auto-compaction is enabled, we compact proactively at ~85% headroom; otherwise, we show a warning.
-
-### Dynamic Model Fetching (Fully Implemented)
-
-Real-time model discovery from provider APIs for always-current model lists:
-
-1. **Zero-latency selection** - Models prefetch as users navigate providers:
-   - Hover/arrow through providers → models load in background
-   - Fast internet users see models before hitting Enter
-   - Smart caching prevents redundant API calls
-
-2. **Progressive enhancement approach**:
-   - Start with configured models for immediate response
-   - Enhance with real API data when available
-   - Fallback to config if API calls fail
-
-3. **Provider-specific implementations**:
-   - **OpenAI**: `/v1/models` API with intelligent filtering and sorting
-   - **Anthropic**: Config-based (no public models API yet)
-   - **Gemini**: Config-based with planned API integration
-   - **Ollama**: Dynamic local model discovery via `/api/tags` (fixed parsing)
-   - **OpenRouter**: Gateway models API for full catalog
-
-4. **UX optimizations**:
-   - Loading states with clear "Loading models..." feedback
-   - No duplicate fetches per provider per session
-   - Models prioritized by recency/capability
-
-5. **Technical implementation**:
-   - Async background tasks fetch models without blocking UI
-   - Channel-based communication between async tasks and TUI event loop
-   - Automatic model updates processed each render cycle
-
-### Enhanced Model Selection UX (Implemented)
-
-Rich metadata display for informed model selection:
-
-1. **Smart formatting**:
-   - Context window: `200k ctx`, `2M ctx` (auto-scales units)
-   - Pricing: `$3.00⇄$15.00` (input⇄output), `Free` for local models
-   - Capabilities: 🔧 (tools/functions), ⚡ (streaming support)
-
-2. **Visual indicators**:
-   - ⭐ Default/recommended model (first in list)
-   - 🧠 Large context models (1M+ tokens)
-
-3. **Fuzzy autocomplete**:
-   - Typo tolerance: `/mdl` → `/model`
-   - Case insensitive: `/M` → `/model`
-   - Alias support: `/m` → `/model`
-
-### Provider Manager and Model Selection Fixes (Latest)
-
-Critical fixes for model selection reliability and user experience:
-
-1. **Provider Manager Initialization**:
-   - Fixed race condition where model selection opened before provider manager was available
-   - Added graceful loading states (`🔄 Loading models...`) instead of error messages
-   - Implemented automatic retry when provider manager becomes available
-   - Enhanced debug logging for troubleshooting initialization issues
-
-2. **Model Selection UX Improvements**:
-   - Loading states replace harsh error messages during initialization
-   - Models automatically refresh when provider manager is set
-   - Multiple initialization paths now properly handle provider manager setup
-   - Removed "Provider manager not initialized" errors in favor of smooth loading experience
-
-3. **Robust Error Handling**:
-   - `update_model_items()` gracefully handles missing provider manager
-   - Smart detection of loading states for automatic refresh
-   - Enhanced debug output for tracing initialization flow
-   - Provider manager setup happens in multiple strategic locations
-
-4. **Technical Implementation**:
-   - `set_provider_manager()` now triggers model refresh if needed
-   - `show_model_selection_with_auth_check()` includes double-check mechanism
-   - Loading state detection prevents users from seeing internal errors
-   - Provider manager availability checked before dynamic model fetching
-
-### Planned Features
-
-- Progress bars for operations that support percentage tracking
-- Mouse scroll support for chat history
-- Intelligent prompting for auth when no providers configured
-- Session branching and message indexing for conversation management
-
-## Development Priorities
-
-**REALITY CHECK (Aug 2025)**: Agent system IS connected to TUI and partially functional. See `TOOL_CALLING_REALITY_CHECK.md` for empirical testing results.
-
-### Current Focus: Intelligence-Driven Software Development
-1. ✅ **COMPLETED**: Universal tool calling system (gpt-oss, llama3.1, qwen2.5-coder all working)
-2. ✅ **COMPLETED**: Advanced tool orchestration with 4-turn Git workflow validation
-3. ✅ **COMPLETED**: Multi-step execution with smart retry and fallback strategies
-4. 🚀 **NEW STRATEGIC FOCUS**: Enhanced intelligence for smarter code reading, writing, and project fixing
-5. 🔧 **IN PROGRESS**: Intelligence architecture review and enhancement planning
-6. 📋 **NEXT**: Implement pattern-aware code comprehension and generation
-
-**Intelligence Enhancement Plan**: `docs/intelligence/INTELLIGENCE_ENHANCEMENT_PLAN.md`
-
-See `docs/architecture/roadmap.md` for the complete development plan and `TECH_SPEC.md` for technical details.
-
-### Future: Turbo Mode (Phase 6)
-After basic tool calling works, turbo mode will add task orchestration with two-tier model configuration (high/low). Design available in `docs/architecture/turbo-mode.md` but this is NOT the current priority.
-
-## Working With This Codebase
+**Current Focus**: Intelligence-driven software development (pattern-aware comprehension/generation)
+**Roadmap**: @docs/architecture/roadmap.md | @internal/TECH_SPEC.md | @docs/intelligence/INTELLIGENCE_ENHANCEMENT_PLAN.md
 
 ### Key Directories
-- `src/ui/` - TUI implementation with auth flow and model selection
-- `src/semantic_search.rs` - Production-ready search functionality  
-- `src/intelligence/` - Context-aware assistance engine
-- `src/providers/` - Multi-provider authentication and API integration
-- `src/agent/` - Tool system (exists but not connected to TUI)
-- `tests/` - Comprehensive test suite
+- `src/ui/` - TUI (auth, model selection)
+- `src/semantic_search.rs` - Production search
+- `src/intelligence/` - Context engine
+- `src/providers/` - Multi-provider APIs
+- `src/agent/` - Tool system
 
-### Development Flow
-1. **Maintain user experience** - demo mode must work without API keys
-2. **Performance is critical** - search must remain sub-second
-3. **Zero tolerance for warnings** - fix immediately
-4. **Test before committing** - run `cargo test` and manual TUI testing
+## Quick Reference
 
-### What Actually Works vs Documentation
-- ✅ **Semantic search**: `/search` command works perfectly in TUI
-- ✅ **Provider auth**: `/auth` and `/model` commands work
-- ✅ **Demo mode**: Launch `aircher` without any setup
-- ✅ **AI chat with tools**: Agent system IS connected to TUI and partially functional
-- ❌ **Tool calling reliability**: End-to-end tool execution needs polish
-- ❌ **TODO system**: Missing task tracking UI component
+**Build**: `cargo check` (zero warnings required), `cargo test`, `cargo run --release` (demo mode)
+**Code Style**: @external/agent-contexts/standards/AI_CODE_PATTERNS.md
 
-## Build & Test Commands
+## Tool Format
 
-```bash
-# Core development commands
-cargo check          # Type checking and warnings (MUST be zero warnings)
-cargo test           # Run all tests
-cargo test -- test_name  # Run single test by name
-cargo run --release  # Start TUI (demo mode works without API keys)
+**XML**: `<tool_use><tool>read_file</tool><params>{"path": "Cargo.toml"}</params></tool_use>`
+**JSON**: `{"tool": "list_files", "params": {"path": "src/agent/tools"}}`
 
-# Linting and formatting
-cargo clippy --all-targets --all-features  # Linting
-cargo fmt            # Code formatting
-make check           # Run fmt + lint + test
-
-# Manual testing scenarios
-cargo run --release  # Test demo mode
-# In TUI: /search error handling (semantic search)
-ANTHROPIC_API_KEY=sk-ant-... cargo run --release  # Test with API keys
-```
-
-## Code Style Guidelines
-
-- **Error Handling**: Use `anyhow::Result` for functions, `thiserror::Error` for custom error types
-- **Imports**: Group by std, external crates, internal modules with empty lines between
-- **Naming**: snake_case for functions/variables, PascalCase for types, SCREAMING_SNAKE for constants
-- **Documentation**: Use `///` for public items, focus on behavior not implementation
-- **Async**: Use `async_trait` for trait methods, prefer `tokio` ecosystem
-- **Newlines**: Always end files with newlines, follow existing patterns exactly
-
-## Critical Architecture Gaps
-
-**The Big Issue**: AgentController exists in `src/agent/controller.rs` but is never instantiated or connected to the TUI. This means:
-
-- Users can chat with LLMs through the TUI
-- LLMs receive messages but cannot execute any tools
-- Tools like `read_file`, `write_file`, `run_command` are implemented but unreachable
-- No tool calling loop, no file operations, no command execution
-
-**Phase 1 Fix Required**: Connect `AgentController` to `TuiManager` in `src/ui/mod.rs`
-
-## Tool Use Guide (Claude/GPT)
-
-Preferred tool call format (parser-friendly across providers):
-
-```
-<tool_use>
-<tool>read_file</tool><params>{"path": "Cargo.toml", "line_start": 1, "line_end": 120}</params>
-</tool_use>
-```
-
-Also accepted (OpenAI-style JSON):
-
-```
-{"tool": "list_files", "params": {"path": "src/agent/tools", "recursive": false}}
-```
-
-Guidelines:
-- Read before editing; use `search_code` to locate targets.
-- Keep params minimal and precise; avoid dumping large content.
-- Chain tools over multiple turns where helpful.
-
-TUI tool status lines (single-line summaries):
-- Running: `🔧 read_file Cargo.toml — running…`
-- Success: `✓ read_file Cargo.toml — 120 lines (48ms)`
-- Error: `✗ run_command cargo test — exit 101`
-- Batch: `🔧 Executing 3 tools…`
-
-Notes:
-- Tool lines include durations when available.
-- `run_command` supports a `timeout_seconds` parameter (default 30s).
-
-## TUI Keybindings
-
-- Enter: submit message
-- Shift+Enter or Ctrl+Enter: insert newline
-- Tab: accept autocomplete suggestion (if visible)
-- Esc: close autocomplete or interrupt streaming
-- Ctrl+M: open model selection overlay
-- /model: open model selection via slash command
-
-Future option (planned): configurable Enter behavior.
-- Proposal: `ui.submit_on_enter` boolean in config to switch default between submit vs newline, and a list of newline shortcuts (e.g., `["shift+enter", "ctrl+enter"]`).
-
-## Predictive Compaction
-
-Before sending long messages or tool-heavy turns, the TUI checks projected context usage against the model’s window and will compact proactively when auto-compaction is enabled. A brief system notice is shown when this happens.
+**Guidelines**: Read before editing, use `search_code` to locate targets, keep params minimal, chain tools over turns
+**Status Display**: Running (🔧), Success (✓ with duration), Error (✗ with code), Batch (🔧 count)
