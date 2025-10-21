@@ -7,6 +7,7 @@ use thiserror::Error;
 
 pub mod file_ops;
 pub mod enhanced_read_file;
+pub mod enhanced_write_file;
 pub mod safe_file_ops;
 pub mod code_analysis;
 pub mod system_ops;
@@ -25,6 +26,7 @@ mod tests;
 
 pub use file_ops::{ReadFileTool, WriteFileTool, EditFileTool, ListFilesTool};
 pub use enhanced_read_file::EnhancedReadFileTool;
+pub use enhanced_write_file::EnhancedWriteFileTool;
 pub use safe_file_ops::SafeWriteFileTool;
 pub use code_analysis::{SearchCodeTool, FindDefinitionTool};
 pub use system_ops::RunCommandTool;
