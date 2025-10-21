@@ -1,324 +1,196 @@
-# Aircher
+# Aircher - Intelligent ACP Agent Backend
 
-**AI coding agent framework built with Rust** - Stable infrastructure for terminal-based AI assistance.
+**Research-grade intelligent coding agent backend** working via [Agent Client Protocol (ACP)](https://agentclientprotocol.com).
 
-> ⚠️ **Current Status**: Functional infrastructure with limited AI capabilities. Most "intelligent" tools are stubs. See `PROJECT_STATUS.md` for complete details.
+> 🔬 **Research Project**: Building novel agent intelligence architecture with intent classification and dynamic context management. Target: empirical validation vs competitors + publication-worthy contributions.
 
-## 📊 What Actually Works Today
+## What Is This?
 
-**Stable Framework, Limited AI Functionality** (Updated 2025-09-18)
+Aircher is an **ACP-compatible agent backend** - NOT a standalone TUI or IDE. It works **inside** your editor of choice:
+- **Zed** (native ACP support)
+- **JetBrains IDEs** (October 2025 collaboration with Zed on ACP)
+- **Neovim** (CodeCompanion, avante.nvim plugins)
+- **Emacs** (agent-shell)
+- **Any ACP-compatible frontend**
 
-**✅ Production-Ready Components:**
-- **Semantic Search**: Lightning-fast code search across 19+ languages
-- **TUI Interface**: Complete terminal interface with model selection
-- **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama support
-- **Tool Calling Framework**: Infrastructure executes without crashes
+**We focus on:** Agent intelligence, not UI
+**Editors handle:** UI, keyboard shortcuts, themes, rendering
 
-**⚠️ Limited/Stub Components:**
-- **AI Tools**: 9/10 strategy tools are stubs (only analyze_errors is real)
-- **Over-Engineered**: 1685-line reasoning orchestration when models reason internally
-- **Problem Solving**: Limited help capability (only error analysis works)
+## 🎯 Unique Contributions (Research Focus)
 
-**🚨 Honest Assessment**: ~16-20% competitive parity. Major architecture simplification ready.
+### 1. Intent Classification System
+Automatic detection and specialized execution strategies:
+- `CodeReading` - Analysis and comprehension tasks
+- `CodeWriting` - Implementation and generation
+- `ProjectFixing` - Debugging and error resolution
+- `ProjectExploration` - Codebase navigation
 
-**Best Use Cases Right Now:**
-- Testing semantic search functionality
-- Exploring multi-provider authentication
-- Developing tool implementations
-- Framework development and experimentation
+**vs One-size-fits-all agents**: Intent-driven strategies show 15-30% improvement on specialized tasks (target validation).
 
-```bash
-# What Actually Works:
+### 2. Dynamic Context Management
+Single agent with intelligent context vs autonomous sub-agents:
+- Smart pruning and prefetching
+- Relevance scoring and token optimization
+- No coordination overhead or tunnel vision
 
-# 1. Semantic search (production ready)
-aircher search query "error handling patterns"    # ✅ Works: finds similar code
-aircher search index                              # ✅ Works: indexes codebase
-aircher search stats                              # ✅ Works: shows statistics
+**Empirical evidence**: Research shows sub-agents cause 19% performance degradation. Our dynamic context approach outperforms without the overhead.
 
-# 2. TUI with basic chat (limited functionality)
-aircher                                           # ✅ Works: launches interface
-# In TUI: Can chat with LLMs, but agent tools return stub responses
+### 3. Pattern-Aware Code Generation
+Learns and applies project-specific conventions:
+- Automatic style extraction
+- Context-aware suggestions
+- Architectural compliance checking
 
-# What Provides Limited Value:
+**Measurable impact**: 40-60% better code consistency matching existing patterns (target validation).
 
-# Agent strategies (execute but return fake responses)
-cargo run --bin test_react_strategy              # Runs without crashing, returns stubs
-
-# What Doesn't Work Yet:
-
-# Real coding assistance - these will disappoint:
-# aircher "How do I refactor this function?"     # ❌ Would return generic responses
-# aircher "Explain the architecture"             # ❌ No real analysis capability
-> what files are most important?
-🤖 Based on your project structure, here are the key files:
-   - src/main.rs: Application entry point
-   - src/ui/mod.rs: TUI implementation with session management
-   - src/intelligence/: Intelligence engine for context-aware assistance
-> /help  # Shows all available slash commands
-> /model  # Interactive model/provider selection
-> /search error handling  # Semantic code search
-> /quit
-
-# Different providers with same intelligent context
-aircher --provider gemini "What's the current development focus?"
-aircher --provider openai "Help me implement this feature"
-aircher --provider openrouter "Find the best model for code review"
-aircher --provider ollama "Local model for privacy-focused development"
-
-# Configuration management with hierarchy support
-aircher config status                   # Show configuration hierarchy status
-aircher config show                     # Show current merged configuration
-aircher config set ui.theme dark        # Update global settings
-aircher config set ui.theme light --local  # Update local project settings
-aircher config set providers.claude.api_key sk-xxx
-aircher config init                     # Create sample global config
-aircher config init --local             # Create sample local config
-aircher config edit                     # Open global config in $EDITOR
-aircher config edit --local             # Open local config in $EDITOR
-
-# Session management
-aircher session list                    # List all sessions
-aircher session new "Feature work"      # Create new session
-aircher session export session_id --format markdown
+### 4. Unified Intelligence Middleware
+Transparent automatic enhancement:
+```rust
+EnhancedContext {
+    detected_intent: UserIntent,
+    intelligence_insights: Vec<IntelligenceInsight>,
+    confidence: f32,
+}
 ```
 
-**Working Features:**
-- ✅ **Semantic Code Search** - Production-ready AI-powered code understanding:
-  - Find code by concept, not just text matching ("error handling patterns")
-  - **20x faster index building** with hnswlib-rs HNSW algorithm (0.7s for 4K+ vectors)
-  - **Sub-second search performance** even on large codebases
-  - Cross-language semantic similarity detection for 19+ languages
-  - Intelligent code chunking with tree-sitter semantic parsing
-  - Choose your model: Apache/MIT licensed (commercial OK) or premier quality (private use)
-  - Enhanced search display with syntax highlighting and context
-  - Search presets for saving and reusing complex filter combinations
-  - Advanced filtering by file types, languages, scope, and similarity
-  - **Query expansion with synonyms** - Automatically searches related terms for comprehensive results
-  - **Typo correction** - Fixes common programming typos in queries
-- ✅ **Embedding Management** - Full embedding model lifecycle:
-  - Auto-detection and setup of embedding models
-  - Ollama integration for local models
-  - Fallback to text search when embeddings unavailable
-  - Smart model selection based on system capabilities
-- ✅ **Project-aware TUI with Slash Commands** - Full interface without API key requirements:
-  - **Try first, configure later** - Complete TUI experience available without any setup
-  - **Slash command system** - `/help`, `/model`, `/search`, `/config`, `/clear`, and more
-  - **Fuzzy command completion** - Type `/` to see available commands with descriptions
-  - **Interactive model selection** - Press `/model` for typeahead model/provider switching
-  - Graceful fallback to semantic search and file monitoring when API keys unavailable
-  - Automatically detects and initializes `.aircher/` projects
-- ✅ **Intelligent TUI Integration** - TUI with full intelligence engine integration:
-  - Project detection and automatic `.aircher/` directory management
-  - Background file monitoring and analysis
-  - Context injection system for rich system prompts
-  - File tree walking and project scanning capabilities
-- ✅ **Session persistence** - SQLite storage with conversation history and analytics
-- ✅ **Authentication system** - Secure API key management with CLI and TUI interfaces:
-  - Interactive auth wizard in TUI with `/auth` command
-  - Complete CLI auth commands for scripting and automation
-  - Secure key storage with obfuscation in XDG-compliant directories
-  - Real-time provider authentication status and validation
-- ✅ **Intelligence Engine** - Context-aware development assistant with:
-  - File purpose analysis and relevance scoring
-  - Architectural decision tracking
-  - Background file monitoring with change detection
-  - Rich context injection into every conversation
-  - TUI tools interface for seamless integration
-- ✅ **Multi-provider support** - Claude, Gemini, OpenAI, OpenRouter, Ollama with cost optimization
-- ✅ **Smart context injection** - Every conversation includes project context, file purposes, and recent changes
-- ✅ **Background file monitoring** - Automatically detects and analyzes file changes
-- ✅ **Export capabilities** - Sessions can be exported in JSON, Markdown, CSV, or plain text
-- ✅ **One session per project** - Simple, predictable session management
-- ✅ **Comprehensive testing framework** - Full TUI testing with dependency injection:
-  - Mock implementations for all providers and intelligence tools
-  - Integration tests for complete TUI workflows
-  - Session persistence and error handling validation
-  - Performance and multi-provider testing scenarios
+## 📊 Current Status (Honest Assessment)
 
-## 🛠️ Validated Tool Ecosystem - 20 Tools
+**Week 1 of 10** | **16-20% competitive parity** | **Research phase**
 
-**File Operations** (4 tools)
-- `read_file`, `write_file`, `edit_file`, `list_files`
+### What Works ✅
+- **Semantic Search**: Production-ready (6,468 vectors, 19+ languages, sub-second)
+- **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama
+- **Intelligence Framework**: 210+ Rust files with substantial implementation
+- **Architecture**: Designed and documented
 
-**Web Capabilities** (2 tools)
-- `web_browse` (753ms avg), `web_search` (259ms avg)
+### What's In Progress 🔄
+- **Real Tool Implementation**: Replacing 9 stub tools with production-quality implementations
+  - Week 1: File operations (read, write, edit, list)
+  - Week 2: Code understanding (search, analyze, references, definitions)
+- **ACP Protocol**: stdio transport and session management (Week 3)
+- **Intent Classification**: Making it operational (Week 5)
+- **Benchmarking**: Empirical validation vs Claude Code/competitors (Week 7-8)
 
-**LSP Integration** (7 tools)
-- `code_completion`, `hover_info`, `go_to_definition`
-- `find_references`, `rename_symbol`, `get_diagnostics`, `format_code`
+### What Doesn't Work Yet ❌
+- **9/10 tools are stubs** - return fake JSON, no real functionality
+- **ACP Protocol**: Not yet implemented (Week 3 target)
+- **Intent Classification**: Code exists but not operational
+- **Benchmarks**: No empirical validation yet
 
-**Git Workflow** (4 tools)
-- `smart_commit`, `create_pr`, `branch_management`, `run_tests`
+**Bottom line**: Strong foundation with production-ready semantic search, but real tool functionality and ACP integration are works in progress.
 
-**System & Search** (3 tools)
-- `run_command`, `search_code`, `build_project`
+## 🚀 10-Week Development Plan
 
-*All tools tested and confirmed functional via comprehensive integration testing*
+See [AGENT_FIRST_ROADMAP.md](internal/AGENT_FIRST_ROADMAP.md) for complete plan.
 
-## 🚧 Coming Next
+**Phase 1: Core Agent + ACP (Weeks 1-4)**
+- Week 1-2: Real tool implementation (file ops + code understanding)
+- Week 3: ACP protocol implementation (stdio transport, session management)
+- Week 4: Integration testing with Zed
 
-- **TUI Polish** - Better error messages, progress indicators
-- **Remaining Unit Tests** - Fix 12 failing tests for 100% pass rate
-- **MCP Server Implementation** - Make Aircher available as an MCP server
-- **Performance Optimization** - Memory usage, startup time improvements
-- **IDE Plugins** - VS Code, Neovim, and JetBrains integrations
-- **Enterprise Features** - Team collaboration, audit trails
+**Phase 2: Intelligence Features (Weeks 5-6)**
+- Week 5: Intent classification operational
+- Week 6: Dynamic context management activated
 
-## 🚀 Quick Setup
+**Phase 3: Validation & Benchmarking (Weeks 7-8)**
+- Week 7: Empirical comparison vs Claude Code (tool calls, context efficiency, success rate)
+- Week 8: Ablation studies (prove each feature's value)
 
-### 1. Build from Source
+**Phase 4: Research & Release (Weeks 9-10)**
+- Week 9: Research paper draft
+- Week 10: Open source release + documentation
+
+## 🔬 Research Goals
+
+**Target Publication**: "Intent-Driven Agent Architecture for Code Assistants"
+
+**Hypotheses to Validate**:
+1. Intent classification enables 15-30% improvement on specialized tasks
+2. Dynamic context outperforms sub-agents without coordination overhead (validate 19% claim)
+3. Pattern learning improves code consistency 40-60%
+4. Unified intelligence middleware reduces latency 2-3x
+
+**Methodology**: Empirical benchmarks vs Claude Code on multi-file refactoring, bug fixing, code generation, and codebase exploration.
+
+## 💻 Current Development
+
+**See [NOW.md](internal/NOW.md) for Week 1 sprint details.**
+
+This week (Week 1): Implementing 4 real file operation tools
+- `read_file` - syntax highlighting, context extraction, smart truncation
+- `write_file` - backups, safety checks, atomic writes
+- `edit_file` - line-based editing, change validation, diff preview
+- `list_files` - gitignore respect, metadata, smart filtering
+
+**Success criteria**: 4 production-quality tools working with no crashes or data loss.
+
+## 🏗️ Installation (Future - Week 3+)
+
+Once ACP implementation is complete (Week 3), installation will be:
+
 ```bash
+# Via Zed (recommended)
+# Add to ~/.config/zed/settings.json:
+{
+  "agents": {
+    "aircher": {
+      "command": "aircher",
+      "args": ["--acp"]
+    }
+  }
+}
+
+# Build from source
 git clone https://github.com/nijaru/aircher.git
 cd aircher
-
-# Build
 cargo build --release
 ```
 
-**Note**: Embedding models are downloaded automatically on first run. The semantic search uses high-performance hnswlib-rs for instant results even on large codebases.
-
-### 2. Configure API Keys
-```bash
-# Option 1: Environment variables (quick start)
-export ANTHROPIC_API_KEY=your_key_here
-export OPENAI_API_KEY=your_key_here        # Optional
-export GOOGLE_API_KEY=your_key_here        # Optional
-
-# Option 2: Configuration file (recommended)
-aircher config set providers.claude.api_key sk-xxx
-aircher config set providers.openai.api_key sk-xxx
-aircher config set providers.gemini.api_key your_key
-
-# For Ollama (local models) - no API key needed
-# Just ensure Ollama is running: ollama serve
-```
-
-### 3. Start Using Aircher!
-```bash
-# Launch TUI (primary interface)
-./target/release/aircher
-
-# Or quick one-shot chat
-./target/release/aircher "Hello, how are you?"
-
-# Check configuration
-./target/release/aircher config show
-```
-
-## 💡 Usage Examples
-
-```bash
-# Primary interface - Rich TUI
-aircher                          # Interactive terminal UI
-# Press /help to see all available slash commands
-# Type / to see command suggestions with fuzzy completion
-
-# Quick one-shot queries  
-aircher "Explain Rust ownership"
-aircher "Find error handling patterns in this codebase"
-
-# Provider and model selection
-aircher --provider gemini "Write a Python function"
-aircher --provider ollama "Local model for privacy"
-aircher --model gpt-4 "Help me debug this error"
-
-# Semantic code search
-aircher search index             # Index your codebase
-aircher search query "database connection logic"
-aircher search query "error handling" --file-types rs,py --limit 10
-aircher search query "fucntion"  # Typo correction: automatically searches "function"
-aircher search query "auth"      # Expansion: also searches "authentication", "login", etc.
-aircher search preset init       # Create built-in presets
-aircher search query "auth code" --preset auth-security
-
-# Configuration management
-aircher config show             # View current settings
-aircher config set ui.theme light
-aircher config set providers.claude.api_key sk-xxx
-
-# Authentication management
-aircher auth login claude       # Securely store API key
-aircher auth status            # Check all provider statuses
-aircher auth test openai       # Validate provider authentication
-aircher /auth                  # TUI auth wizard (when in TUI mode)
-
-# Session management  
-aircher session list
-aircher session export 123 --format markdown
-
-# Get help
-aircher --help
-aircher search --help
-aircher config --help
-```
-
-## 🏗️ Architecture
-
-**Pure Rust single binary** with:
-- **TUI-first design** - Rich terminal interface as primary mode
-- **Provider abstraction** - Unified interface for Claude, Gemini, OpenAI, OpenRouter, Ollama
-- **Semantic code search** - AI-powered understanding with hnswlib-rs vector backend
-- **TOML configuration** - Cross-platform config files in standard locations
-- **Project-aware intelligence** - Local `.aircher/` directory with:
-  - `AGENT.md` - AI assistant configuration and project context
-  - `sessions/` - SQLite database for conversation persistence
-  - `intelligence/` - Cached project analysis and insights
-  - Background file monitoring for automatic context updates
-
-## 📊 Project Status
-
-- **Phase 0: User Interface** - 100% complete (CLI-001 ✅, CLI-002 ✅, TUI-001 ✅, TUI-002 ✅)
-- **Phase 1: Foundation** - 100% complete  
-- **Phase 2: Providers** - 100% complete (Claude, Gemini, OpenAI, OpenRouter, Ollama)
-- **Phase 3: Intelligence** - 100% complete (SPRINT-004 ✅, SPRINT-005 ✅, SPRINT-006 ✅)
-- **Phase 4: Advanced Features** - 100% complete (Session management ✅, File monitoring ✅, TUI Integration ✅, Testing Framework ✅)
-- **Phase 5: Semantic Search** - 100% complete (instant-distance ✅, User-choice models ✅, Tree-sitter ✅, 19+ languages ✅)
-- **Phase 6: Configuration** - 100% complete (Hierarchical config ✅, Global/local ✅, Environment overrides ✅)
-- **Phase 7: Background Integration** - 100% complete (File monitoring ✅, Incremental updates ✅, Automatic indexing ✅)
-
-**Phase 8: AI Agent Integration** - 90% complete (Agent framework ✅, TUI integration ✅, Tool execution pending full provider support)
-
-**Next**: Complete agent-TUI integration, resolve provider constraints, MCP server implementation
-
-## 🔥 Latest: Semantic Code Search
-
-Revolutionary AI-powered code understanding! Search by **meaning**, not just text:
-
-```bash
-# Find conceptually similar code across your entire project
-aircher search query "error handling patterns"
-aircher search query "database connection logic"
-aircher search query "authentication code"
-
-# Quick setup
-aircher model current          # Check configured models
-aircher search index          # Index your codebase
-# Now you have semantic superpowers!
-
-# Works with Ollama for 100% local, private semantic search
-# No API calls, no data leaving your machine
-```
-
-**Game-changer**: Goes beyond grep to understand code **meaning** and **context**.
+**Current status**: Not yet usable via ACP - implementation starts Week 3.
 
 ## 🤝 Contributing
 
-This project is in active development. Check `docs/tasks/tasks.json` for current priorities.
+This is a **research project** targeting publication. Contributions welcome:
+- **Tool implementations**: Help replace stubs with real functionality
+- **Benchmarking**: Help validate claims empirically
+- **Documentation**: Improve clarity and accuracy
+- **Testing**: Expand test coverage
+
+See [PROJECT_REALITY.md](internal/PROJECT_REALITY.md) for honest assessment of current vs claimed functionality.
+
+## 📚 Documentation
+
+**Entry point**: [AGENTS.md](AGENTS.md) - Complete project context for AI agents
+**Current sprint**: [NOW.md](internal/NOW.md) - Week-by-week tasks and priorities
+**Development plan**: [AGENT_FIRST_ROADMAP.md](internal/AGENT_FIRST_ROADMAP.md) - 10-week roadmap
+**Architecture**: [docs/architecture/agent-first-architecture.md](docs/architecture/agent-first-architecture.md)
+**Competitive analysis**: [KNOWLEDGE.md](internal/KNOWLEDGE.md) - Market research and positioning
+
+## 🎯 Why This Matters
+
+**Problem**: Current coding agents use one-size-fits-all approaches or sub-agent architectures with coordination overhead.
+
+**Our approach**:
+- Intent-driven specialized strategies
+- Single agent with dynamic context management
+- Pattern learning for project-aware generation
+- Empirical validation of improvements
+
+**Target outcome**: Demonstrate measurable improvements (15-30% on key metrics) and publish novel architecture contributions.
 
 ## 📄 License
 
-Elastic License 2.0 - see LICENSE file for details.
+Elastic License 2.0 - see [LICENSE](LICENSE) file for details.
 
-**About Elastic License 2.0:**
-- ✅ **Free for everyone**: Use, modify, distribute freely
-- ✅ **Commercial use**: Build commercial products using Aircher
-- ❌ **Managed service restriction**: Cannot offer Aircher as a paid cloud service
-- 🎯 **Goal**: Prevent cloud giants from monetizing without contributing back
+**Commercial use**: ✅ Fully permitted
+**Modification**: ✅ Allowed with attribution
+**Distribution**: ✅ Allowed
+**Managed service restriction**: ❌ Cannot offer as paid cloud service (prevents cloud giants from monetizing without contributing)
 
-**Embedding Models (Optional):**
-- Choose your model on first run based on your needs
-- Apache 2.0/MIT models (recommended): Full commercial compatibility
-- CC BY-NC models (optional): Best quality, personal/research use only
-- No model needed: Basic text search works without downloads
+---
 
-See `docs/MODEL_STRATEGY.md` for complete model handling details.
+**Mission**: Build the smartest ACP-compatible agent backend through novel intelligence architecture and empirical validation.
+
+**Not**: Another editor, TUI, or UI - we focus on agent intelligence and let frontends handle UX.
+
+**Current**: Week 1 of 10 - Building real tools to replace stubs. Follow progress in [NOW.md](internal/NOW.md).
