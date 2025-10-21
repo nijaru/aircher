@@ -1,31 +1,43 @@
 # 🚨 Project Reality: Honest Assessment
 
-**Last Updated**: 2025-09-19
+**Last Updated**: 2025-10-27
 **Purpose**: Brutally honest assessment of actual vs claimed functionality
+**Repository**: Public at https://github.com/nijaru/aircher
 
 ## 📊 Current Competitive Position
 
-**Reality**: ~16-20% feature parity with Claude Code (NOT 90%+ as previously claimed)
+**Reality**: ~17-21% feature parity with Claude Code (up from 16-20%)
 
 ### What Actually Works ✅
 - **Semantic Search**: Production-ready, 19+ languages, sub-second performance
-- **TUI Interface**: Complete terminal UI with model selection and auth flow
 - **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama authentication
+- **Real read_file Tool**: Production-quality with syntax highlighting, AST context extraction ✨ NEW
+  - 430+ lines of actual implementation (not stubs)
+  - Tree-sitter syntax highlighting for 19+ languages
+  - AST-based context extraction (surrounding functions/classes)
+  - Smart truncation for large files
+  - File metadata (size, permissions, modified time)
+- **Real analyze_errors Tool**: Pattern matching, actionable suggestions (378 lines)
 - **Basic Tool Framework**: Framework exists and executes without crashing
-- **First Real Tool**: `analyze_errors` provides actual error pattern matching
+
+### What's In Progress (Week 1) 🔄
+- **write_file Tool**: Next implementation (Days 2-3)
+- **edit_file Tool**: Following (Days 3-4)
+- **list_files Tool**: Final Week 1 tool (Days 4-5)
 
 ### What's Still Broken/Missing ❌
-- **9 out of 10 strategy tools are stubs** returning hardcoded JSON
-- **No real intelligence**: Tools don't provide actual user value
-- **No competitive functionality**: Users would get minimal benefit
-- **Missing core features**: Multi-file edits, debugging, test execution, project understanding
+- **8 out of 10 tools are stubs** returning hardcoded JSON (down from 9)
+- **ACP Protocol**: Not implemented (Week 3)
+- **No TUI**: Removed - focusing on ACP agent backend only
+- **Missing core features**: Multi-file operations, code understanding tools
 
-## 🎯 The Real Problem We Solved
+## 🎯 The Real Problem We're Solving
 
-**Before**: Strategies would crash at runtime because they referenced tools that didn't exist.
-**After**: Strategies execute without crashing because we created stub tools that return fake responses.
+**Before**: 9/10 tools were stubs returning fake JSON - no actual value
+**Now**: 2/10 tools are real, implementing Week 1-2 of 10-week plan
+**Target (Week 10)**: 8+ real tools + ACP protocol + empirical validation vs Claude Code
 
-**Critical Insight**: We built crash prevention infrastructure, not user features.
+**Current Strategy**: 10-week research project targeting publication with empirical benchmarks
 
 ## 🔍 What We Actually Built
 
@@ -34,32 +46,57 @@
 - **MockProvider** enables deterministic testing
 - **Strategy execution framework** functions end-to-end
 - **Test infrastructure** ready for real tool development
+- **Public repository** at https://github.com/nijaru/aircher
 
-### ✅ First Real Tool Success (Sep 19, 2025)
-- **RealAnalyzeErrorsTool**: 378 lines of actual error analysis
+### ✅ Real Tools Implemented (2 total)
+
+#### 1. RealAnalyzeErrorsTool (Sep 19, 2025)
+- **378 lines** of actual error analysis
 - **Pattern matching** for Rust errors (borrow checker, type mismatches, imports)
 - **Location extraction** from error messages (file:line:column)
 - **Actionable suggestions** based on error patterns
 - **Confidence scoring** (90% for pattern matches)
 
-**Stub Output**: `{"errors": ["Error 1"], "suggestions": ["Fix error 1"]}`
+#### 2. EnhancedReadFileTool (Oct 27, 2025) ✨ NEW
+- **430+ lines** of production-quality implementation
+- **Syntax highlighting**: Tree-sitter for 19+ languages (rust, python, js, go, etc.)
+- **Context extraction**: AST-based analysis of surrounding functions/classes
+- **Smart truncation**: Configurable max_lines with first/last portions
+- **File metadata**: Size, permissions, modified time, language detection
+- **Comprehensive tests**: File reading, line ranges, error handling
+
+**Stub Output**: `{"path": "file.txt", "content": "fake content"}`
 
 **Real Tool Output**:
 ```json
 {
-  "error_type": "Rust Error E0502",
-  "category": "BorrowChecker",
-  "location": {"file": "src/main.rs", "line": 10},
-  "suggested_fixes": ["Use RefCell for interior mutability"],
-  "confidence": 0.9
+  "metadata": {
+    "path": "/path/to/file.rs",
+    "size_bytes": 4523,
+    "modified": "2025-10-27 14:30:00",
+    "permissions": "644",
+    "language": "rust",
+    "total_lines": 120,
+    "displayed_lines": [1, 120]
+  },
+  "content": "   1 │ use std::path::Path;\n   2 │ ...",
+  "truncated": false,
+  "context": [
+    {
+      "context_type": "function",
+      "name": "read_file",
+      "start_line": 5,
+      "end_line": 25
+    }
+  ]
 }
 ```
 
 ## 🚨 Honest Competitive Analysis
 
-### vs Claude Code (~16-20% parity)
+### vs Claude Code (~17-21% parity, up from 16-20%)
 **Their advantages**:
-- Actually works end-to-end
+- Actually works end-to-end via ACP
 - Thousands of hours of testing
 - Real multi-file understanding
 - Proven autonomous execution
@@ -68,7 +105,9 @@
 - Local model support (Ollama)
 - Faster semantic search
 - Open source
-- Better terminal integration
+- Production-quality read_file tool ✨
+
+**Gap**: Still missing ACP protocol, most tools, multi-turn execution
 
 ### vs Cursor (~10-15% parity)
 **Their advantages**:
@@ -78,79 +117,103 @@
 - Stable and reliable
 
 **Our advantages**:
-- Terminal-native workflow
+- Terminal-native workflow potential
 - Multi-provider flexibility
 - Better codebase search
 
-## 🔧 What Still Needs to Be Built
+## 🔧 What Still Needs to Be Built (10-Week Plan)
 
-### Critical Path to Real Value
-1. **Implement 3-5 more real tools** (not stubs)
-   - Make `reflect`, `brainstorm`, `debug` actually analyze code
-   - Focus on quality over quantity
+### Week 1 (Current - File Operations)
+- [x] read_file (Day 1-2) ✅ COMPLETE
+- [ ] write_file (Day 2-3)
+- [ ] edit_file (Day 3-4)
+- [ ] list_files (Day 4-5)
 
-2. **End-to-end validation**
-   - Test with real development workflows
-   - Measure actual user value vs competitors
+### Week 2 (Code Understanding)
+- [ ] search_code
+- [ ] analyze_code
+- [ ] find_references
+- [ ] get_definition
 
-3. **Core missing features**
-   - Multi-file understanding and editing
-   - Project-wide refactoring capabilities
-   - Test execution and debugging integration
+### Week 3 (ACP Protocol)
+- [ ] stdio transport (JSON-RPC)
+- [ ] Session management
+- [ ] Tool execution via ACP
+- [ ] Zed integration
+
+### Weeks 4-10
+- Week 4: Integration & testing
+- Week 5-6: Intelligence features (intent classification, dynamic context)
+- Week 7-8: Benchmarking vs Claude Code
+- Week 9-10: Research paper + documentation
 
 ## 📈 Realistic Timeline
 
-### To 30% parity: 1-2 months
-- 5+ real tools providing value
-- Basic multi-file operations
-- Stable tool execution
+### Week 1 Progress (Current - Oct 27, 2025)
+- **Target**: 4 real file operation tools
+- **Achieved**: 1/4 tools complete (read_file ✅)
+- **Next**: write_file, edit_file, list_files
+- **Expected parity**: 25-30% by end of Week 1
 
-### To 50% parity: 3-6 months
+### To 30% parity: Week 1-2 (Nov 2025)
+- 8+ real tools providing value
+- File operations + code understanding tools
+- ACP protocol foundation started
+
+### To 50% parity: Week 1-6 (Dec 2025)
 - Full core tool ecosystem
-- Reliable multi-turn execution
-- Project understanding capabilities
+- ACP protocol working with Zed
+- Intent classification operational
+- Dynamic context management activated
 
-### To 80% parity: 12-18 months
-- Advanced intelligence features
-- Conversation management
-- Polish and reliability matching competitors
+### To 80% parity: 10 weeks + refinement (Jan-Feb 2026)
+- Advanced intelligence features tested
+- Empirical benchmarks vs Claude Code
+- Research paper draft complete
+- Polish and reliability competitive
 
 ## 💡 Key Insights
 
 ### What This Work Accomplished
 - **Stable foundation** for building real tools
-- **Crash prevention** enables development velocity
+- **First production tool** (read_file) with full feature set
 - **Test infrastructure** allows iterative improvement
 - **Proof of concept** that real tools can be built
+- **Public repository** ready for collaboration
 
-### What This Work Didn't Accomplish
-- **No user value increase** (stubs don't help users)
-- **No competitive advancement** (still far behind)
-- **No real intelligence** (hardcoded responses aren't smart)
+### What This Work Didn't Accomplish Yet
+- **Limited user value** (only 2/10 tools real)
+- **No ACP integration** (still Week 3 target)
+- **No competitive testing** (benchmarks Week 7-8)
 
-### Strategic Recommendations
-1. **Stop claiming high parity** until tools provide real value
-2. **Focus on quality over quantity** - make tools actually work
-3. **Build on proven strengths** - semantic search is genuinely good
-4. **Find our niche** - don't try to match every Claude Code feature
+### Strategic Direction
+1. **10-week research project** targeting publication
+2. **Focus on quality** - production tools, not stubs
+3. **Empirical validation** - benchmark vs Claude Code
+4. **ACP-first** - work in Zed/JetBrains, not building TUI
 
 ## 🎯 Success Criteria Going Forward
 
-### Week-level Success
-- [ ] Second real tool implemented and providing value
-- [ ] User testing validates tool usefulness
-- [ ] Competitive gap measurement updated
+### Week-level Success (Week 1 - Oct 2025)
+- [x] Repository made public ✅
+- [x] First real tool implemented (read_file) ✅
+- [ ] write_file tool implemented
+- [ ] edit_file tool implemented
+- [ ] list_files tool implemented
+- [ ] Week 1 success criteria: 4/4 tools working
 
-### Month-level Success
-- [ ] 5+ real tools working
-- [ ] 25-30% competitive parity achieved
-- [ ] Users choosing Aircher for specific workflows
+### Month-level Success (Week 1-4 - Oct-Nov 2025)
+- [ ] 8+ real tools working (file ops + code understanding)
+- [ ] ACP protocol implemented
+- [ ] Zed integration working
+- [ ] 30-40% competitive parity achieved
 
-### Quarter-level Success
-- [ ] Meaningful competitive position (40%+ parity)
-- [ ] Unique advantages over competitors
-- [ ] Growing user adoption
+### Quarter-level Success (10 weeks - Oct-Dec 2025)
+- [ ] Meaningful competitive position (50%+ parity)
+- [ ] Intent classification + dynamic context operational
+- [ ] Empirical benchmarks complete
+- [ ] Research paper draft ready
 
 ---
 
-**Bottom Line**: We have a promising foundation with excellent semantic search and stable infrastructure, but claims of high competitive parity are premature. The real work of building valuable tools is just beginning.
+**Bottom Line**: We have a promising foundation with excellent semantic search and stable infrastructure. Week 1 Day 1-2 complete with first production-quality tool (read_file). On track for 10-week research publication timeline.
