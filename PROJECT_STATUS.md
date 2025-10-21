@@ -1,38 +1,44 @@
 # Aircher Project Status
 
-**Last Updated**: September 18, 2025
+**Last Updated**: October 27, 2025
 **Current Version**: Development (pre-alpha)
+**Repository**: Public at https://github.com/nijaru/aircher
 
 ## 📊 Executive Summary
 
-Aircher is an AI coding agent with **stable infrastructure** but **limited functionality**. The core framework works without crashes, but most "intelligent" tools are stubs returning fake responses.
+Aircher is an **ACP-compatible agent backend** (not TUI) in Week 1 of 10-week development plan. Focus is research-grade agent intelligence for publication.
 
-**Bottom Line**: Not ready for production use. Suitable for development and testing the framework.
+**Current Status**: 2 production-quality tools (read_file, analyze_errors), 8 stubs. Building toward ACP integration with Zed/JetBrains.
+
+**Bottom Line**: Research project targeting 10-week timeline for empirical benchmarks vs Claude Code + publication.
 
 ## 🎯 What Actually Works Today
 
-### ✅ FULLY FUNCTIONAL
-- **Semantic Code Search**: Production-ready search across 19+ languages
-- **TUI Interface**: Complete terminal interface with model selection
+### ✅ FULLY FUNCTIONAL (Production-Ready)
+- **Semantic Code Search**: Production-ready search across 19+ languages (6,468 vectors)
 - **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama authentication
-- **Basic Tool Calling**: LLMs can call tools and receive responses
-
-### ⚠️ PARTIALLY WORKING
-- **Strategy Framework**: Creates plans and executes without crashing, but tools are stubs
-- **Agent System**: Connected to TUI, executes tool calls, but provides no real value
-- **MockProvider**: Works for testing, but highlights that real tools don't exist
-
-### ⚠️ PARTIALLY WORKING (1 Real Tool!)
-- **analyze_errors Tool**: ✅ REAL implementation with actual error pattern matching
+- **Enhanced read_file Tool**: ✨ NEW - Production-quality with:
+  - Tree-sitter syntax highlighting (19+ languages)
+  - AST-based context extraction (surrounding functions/classes)
+  - Smart truncation for large files
+  - File metadata (size, permissions, modified time)
+  - Comprehensive tests (430+ lines of real code)
+- **analyze_errors Tool**: Real error pattern matching
   - Extracts file locations from error messages
   - Categorizes errors (Borrow, Type, Import, etc.)
-  - Provides actionable fixes based on error type
-  - Returns confidence scores
-- **Other Strategy Tools**: ❌ Still stubs (reflect, brainstorm, etc.) returning fake JSON
+  - Provides actionable fixes
+  - Confidence scoring (378 lines)
+
+### 🔄 IN PROGRESS (Week 1)
+- **write_file Tool**: Next (Days 2-3)
+- **edit_file Tool**: Following (Days 3-4)
+- **list_files Tool**: Final Week 1 tool (Days 4-5)
 
 ### ❌ NOT WORKING / MISSING
-- **Real Problem Solving**: Agent has limited help capability (only error analysis works)
-- **Competitive Features**: Missing most functionality that makes Claude Code/Cursor useful
+- **8 out of 10 tools are stubs** (down from 9)
+- **ACP Protocol**: Not implemented (Week 3 target)
+- **TUI**: Removed - focusing on ACP agent backend only
+- **Code Understanding Tools**: Week 2 target (search_code, analyze_code, etc.)
 
 ## 🔍 Detailed Feature Matrix
 

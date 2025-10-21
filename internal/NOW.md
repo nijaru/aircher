@@ -3,6 +3,7 @@
 **Last Updated**: 2025-10-27
 **Current Sprint**: Week 1 of 10 - Real Tool Implementation (File Operations)
 **Next Sprint**: Week 2 - Real Tool Implementation (Code Understanding)
+**Repository**: Public at https://github.com/nijaru/aircher
 
 See `AGENT_FIRST_ROADMAP.md` for complete 10-week plan.
 
@@ -26,20 +27,28 @@ Build an intelligent ACP-compatible agent backend. NOT building UI - using Zed/J
 
 ## ✅ Week 1 Tasks (Day-by-Day)
 
-### Day 1-2: Real `read_file` Tool
-**Location**: `src/agent/tools/file_tools.rs` or new file
+### Day 1-2: Real `read_file` Tool ✅ COMPLETED
+**Location**: `src/agent/tools/enhanced_read_file.rs`
 
 **Requirements**:
-- [ ] Read file from disk with error handling
-- [ ] Syntax highlighting via tree-sitter (already have 19+ languages)
-- [ ] Context extraction (surrounding lines for functions/classes)
-- [ ] Smart truncation for large files (configurable limit)
-- [ ] Proper permissions checking
-- [ ] Return structured output (content + metadata)
+- [x] Read file from disk with error handling
+- [x] Syntax highlighting via tree-sitter (already have 19+ languages)
+- [x] Context extraction (surrounding lines for functions/classes)
+- [x] Smart truncation for large files (configurable limit)
+- [x] Proper permissions checking
+- [x] Return structured output (content + metadata)
+
+**Implementation Details**:
+- 430+ lines of production-quality code
+- Uses SyntaxHighlighter (19+ languages) and ASTAnalyzer
+- FileMetadata: path, size, modified, permissions, language, line counts
+- ContextInfo: extract surrounding function/class context via AST
+- Smart truncation: first/last portions for large files
+- Comprehensive error handling and validation
 
 **Testing**:
-- [ ] Unit tests (various file types, edge cases)
-- [ ] Integration test with agent
+- [x] Unit tests (file reading, line ranges, not found, metadata)
+- [ ] Integration test with agent (pending ACP implementation)
 
 ### Day 2-3: Real `write_file` Tool
 **Location**: Same as `read_file`
@@ -104,17 +113,23 @@ Build an intelligent ACP-compatible agent backend. NOT building UI - using Zed/J
 - **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama
 - **Tree-sitter Parsing**: 19+ languages for syntax highlighting
 - **Architecture**: Designed and documented
+- **Real read_file Tool**: Production-quality with syntax highlighting, AST context extraction ✨ NEW
 
-### What Doesn't Work ❌
-- **9/10 tools are stubs** - this week fixes 4 of them
+### What's In Progress 🔄
+- **write_file Tool**: Next (Days 2-3)
+- **edit_file Tool**: Following (Days 3-4)
+- **list_files Tool**: Final Week 1 tool (Days 4-5)
+
+### What Doesn't Work Yet ❌
+- **8/10 tools are stubs** - Week 1 targeting 4 real tools
 - **ACP Protocol**: Not implemented (Week 3)
 - **Intent Classification**: Code exists but not operational (Week 5)
 - **Dynamic Context**: Implemented but not tested (Week 6)
 
 ### Current Competitive Position
-- **16-20% feature parity** with Claude Code
-- **Strong foundation** but minimal user value
-- **This week**: Move to 25-30% parity (4 real tools working)
+- **~17-21% feature parity** with Claude Code (up from 16-20%)
+- **1 real tool complete**: read_file with full feature set
+- **Week 1 target**: Move to 25-30% parity (4 real tools working)
 
 ## 🔬 Research Context
 
@@ -196,8 +211,17 @@ Build an intelligent ACP-compatible agent backend. NOT building UI - using Zed/J
 
 ---
 
-**Today's Focus**: [Update daily - which tool are you working on?]
+## 📅 Daily Status
 
-**Blocker Status**: [Update if blocked on anything]
+**Today's Focus** (2025-10-27):
+- ✅ Repository made public
+- ✅ README rewritten for ACP agent backend focus
+- ✅ Enhanced read_file tool implemented (430+ lines, production-ready)
+- ✅ All internal docs updated
 
-**Tomorrow's Plan**: [What's next?]
+**Blocker Status**: None - clean path forward
+
+**Tomorrow's Plan**:
+- Implement write_file tool (Day 2-3 requirements)
+- Backup mechanism, atomic writes, protected file detection
+- Test coverage for new files, overwrites, rollback functionality

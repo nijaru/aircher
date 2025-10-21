@@ -2,6 +2,48 @@
 
 **Purpose**: Document WHY significant technical decisions were made.
 
+## 2025-10-27: Make Repository Public
+
+### Decision
+Made Aircher repository public at https://github.com/nijaru/aircher during Week 1 of development.
+
+### Context
+- Pivoted from TUI-focused project to ACP agent backend research project
+- 10-week timeline targeting publication with empirical validation
+- Repository contained no sensitive information (API keys, credentials)
+- README rewritten to clearly position as research project (Week 1 of 10, 17-21% parity)
+- First production-quality tool (read_file) implemented and committed
+
+### Rationale
+**For Research**:
+- Open source from day 1 enables community contributions
+- Transparent development builds trust and credibility
+- Early feedback helps validate approach
+- Publication requires open source implementation
+
+**For Development**:
+- No reason to stay private - all infrastructure is standard
+- Clear honest positioning (Week 1 of 10) sets expectations
+- Public commits create accountability and momentum
+
+**Risk Mitigation**:
+- Comprehensive .gitignore (target/, private/, .env files)
+- No sensitive data in repository
+- Honest README about current status (not overpromising)
+- Clear it's research project, not production tool
+
+### Impact
+- **Positive**: Community can contribute, track progress, validate claims
+- **Accountability**: Public commits create pressure to deliver on 10-week plan
+- **Positioning**: Early research project, not failed product
+- **Collaboration**: Easier to work with others on tool implementations
+
+### Alternative Considered
+- Keep private until Week 10 (research paper ready)
+- Rejected: No benefit to privacy, misses collaboration opportunities
+
+---
+
 ## 2025-09-14: Dynamic Context Management over Sub-Agents
 
 ### Decision
