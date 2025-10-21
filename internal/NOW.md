@@ -1,182 +1,203 @@
-# NOW - Current Sprint & Priorities
+# NOW - Current Sprint
 
-**Last Updated**: 2025-01-27
-**Current Focus**: Phase 1 - Core Agent Intelligence (Week 1)
+**Last Updated**: 2025-10-27
+**Current Sprint**: Week 1 of 10 - Real Tool Implementation (File Operations)
+**Next Sprint**: Week 2 - Real Tool Implementation (Code Understanding)
 
-## 🎯 Strategic Direction
+See `AGENT_FIRST_ROADMAP.md` for complete 10-week plan.
 
-**Agent-First Philosophy**: Building the best autonomous agent with complete transparency - skipping enterprise features
+## 🎯 Mission (Reminder)
 
-See `AGENT_FIRST_ROADMAP.md` for complete 18-week plan.
+Build an intelligent ACP-compatible agent backend. NOT building UI - using Zed/JetBrains/Neovim for frontend.
 
-## 🚀 Current Sprint: Real Tool Implementation (Week 1-2)
+**Focus**: Agent intelligence research and implementation
+**Output**: Research paper + working agent backend via ACP
 
-### This Week's Focus: Replace Stubs with Real Tools
+## 📊 Week 1 Goals (File Operations)
 
-**Problem**: 9 out of 10 strategy tools are stubs returning fake JSON - no user value
-**Solution**: Implement real, production-quality tools that provide actual functionality
+### **Problem**: 9/10 tools are stubs returning fake JSON
+### **Solution**: Implement 4 real file operation tools this week
 
-### Week 1 Tasks (File Operations)
+**Success Criteria**:
+- [ ] 4 production-quality file tools working
+- [ ] Can read/write/edit/list files with real value
+- [ ] No crashes or data loss
+- [ ] Test coverage for each tool
 
-#### 1. Real `read_file` Tool
-- [ ] Syntax highlighting integration (tree-sitter)
-- [ ] Context extraction (surrounding code)
-- [ ] Smart truncation for large files
-- [ ] Error handling and permissions
+## ✅ Week 1 Tasks (Day-by-Day)
 
-#### 2. Real `write_file` Tool
+### Day 1-2: Real `read_file` Tool
+**Location**: `src/agent/tools/file_tools.rs` or new file
+
+**Requirements**:
+- [ ] Read file from disk with error handling
+- [ ] Syntax highlighting via tree-sitter (already have 19+ languages)
+- [ ] Context extraction (surrounding lines for functions/classes)
+- [ ] Smart truncation for large files (configurable limit)
+- [ ] Proper permissions checking
+- [ ] Return structured output (content + metadata)
+
+**Testing**:
+- [ ] Unit tests (various file types, edge cases)
+- [ ] Integration test with agent
+
+### Day 2-3: Real `write_file` Tool
+**Location**: Same as `read_file`
+
+**Requirements**:
 - [ ] Automatic backup before write
-- [ ] Directory creation if needed
-- [ ] Protected file detection (no overwriting lib.rs, main.rs, etc.)
-- [ ] Atomic writes with rollback
+- [ ] Create parent directories if needed
+- [ ] Protected file detection (no overwriting lib.rs, main.rs, Cargo.toml without explicit confirmation)
+- [ ] Atomic writes with rollback on failure
+- [ ] Verify write succeeded
+- [ ] Return success/failure with details
 
-#### 3. Real `edit_file` Tool
-- [ ] Precise line-based editing
-- [ ] Context-aware changes
-- [ ] Change validation
+**Testing**:
+- [ ] Unit tests (new files, overwrites, protected files)
+- [ ] Test rollback functionality
+- [ ] Integration test
+
+### Day 3-4: Real `edit_file` Tool
+**Location**: Same
+
+**Requirements**:
+- [ ] Line-based editing (insert, replace, delete lines)
+- [ ] Context-aware changes (understand surrounding code)
+- [ ] Change validation (syntax check if possible)
 - [ ] Diff preview before applying
+- [ ] Support multiple edits in one operation
+- [ ] Backup + rollback
 
-#### 4. Real `list_files` Tool
-- [ ] Intelligent filtering (gitignore respect)
-- [ ] File metadata (size, modified, type)
-- [ ] Directory tree visualization
-- [ ] Smart sorting
+**Testing**:
+- [ ] Unit tests (various edit patterns)
+- [ ] Test validation logic
+- [ ] Integration test
 
-**Success Criteria**: Can complete basic file manipulation tasks with real user value
+### Day 4-5: Real `list_files` Tool
+**Location**: Same
 
-### Week 2 Tasks (Code Understanding)
+**Requirements**:
+- [ ] Respect .gitignore patterns
+- [ ] File metadata (size, modified time, type)
+- [ ] Smart sorting (directories first, then by relevance)
+- [ ] Configurable depth limit
+- [ ] Filter options (by extension, name pattern)
+- [ ] Readable output format
 
-#### 1. Real `search_code` Tool
-- [ ] Leverage existing semantic search (production-ready)
-- [ ] Intelligent query expansion
-- [ ] Context extraction around matches
-- [ ] Relevance ranking
+**Testing**:
+- [ ] Unit tests (various directory structures)
+- [ ] Test gitignore respect
+- [ ] Integration test
 
-#### 2. Real `analyze_code` Tool
-- [ ] AST-based code analysis
-- [ ] Complexity metrics
-- [ ] Pattern detection
-- [ ] Quality suggestions
+### Day 5-7: Integration & Polish
+- [ ] End-to-end testing of all 4 tools
+- [ ] Performance optimization
+- [ ] Documentation (doc comments)
+- [ ] Fix bugs found during testing
+- [ ] Code review and cleanup
 
-#### 3. Real `find_references` Tool
-- [ ] Cross-file reference finding
-- [ ] Symbol usage tracking
-- [ ] Import/export analysis
-- [ ] Relationship mapping
-
-#### 4. Real `get_definition` Tool
-- [ ] Symbol definition lookup
-- [ ] Context inclusion
-- [ ] Multiple definition handling
-- [ ] Type information
-
-**Success Criteria**: Agent can understand and navigate codebases effectively
-
-## 📊 Current Status (Reality Check)
+## 📈 Current Status (Honest Assessment)
 
 ### What Works ✅
 - **Semantic Search**: Production-ready (6,468 vectors, 19+ languages)
-- **TUI Interface**: Complete terminal UI
-- **Multi-Provider**: OpenAI, Anthropic, Gemini, Ollama
-- **Tool Framework**: Executes without crashing
-- **Dynamic Context Architecture**: Implemented (ahead of competitors)
+- **Intelligence Framework**: 210+ Rust files implemented
+- **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama
+- **Tree-sitter Parsing**: 19+ languages for syntax highlighting
+- **Architecture**: Designed and documented
 
 ### What Doesn't Work ❌
-- **9/10 tools are stubs** - return fake JSON, no real value
-- **No autonomous capabilities** - can't solve real problems
-- **Limited agent intelligence** - tools exist but don't function
-- **16-20% competitive parity** - massive gap to close
+- **9/10 tools are stubs** - this week fixes 4 of them
+- **ACP Protocol**: Not implemented (Week 3)
+- **Intent Classification**: Code exists but not operational (Week 5)
+- **Dynamic Context**: Implemented but not tested (Week 6)
 
-### Recent Competitive Intelligence
-- **Amp Analysis**: Sourcegraph Amp analyzed our old subagent plans, unaware we pivoted to Dynamic Context
-- **Browser Agents**: Jules, Replit, Copilot Workspace emerging as full automation platforms
-- **Our Advantage**: Dynamic Context > Sub-agents/Threads (19% performance gain proven)
-- **Market Gap**: Professional developers want autonomy + transparency + local execution
+### Current Competitive Position
+- **16-20% feature parity** with Claude Code
+- **Strong foundation** but minimal user value
+- **This week**: Move to 25-30% parity (4 real tools working)
 
-## 🎯 Success Metrics (This Sprint)
+## 🔬 Research Context
 
-### Week 1 Success
-- [ ] 4 real file operation tools working
-- [ ] Can successfully read/write/edit/list files
-- [ ] No crashes or data loss
-- [ ] User testing confirms value
+### Why These Tools Matter
+**For Research Paper**:
+- Need working tools to test intent classification
+- Tools are baseline for benchmarking vs Claude Code
+- Must work reliably before testing intelligence features
 
-### Week 2 Success
-- [ ] 4 real code understanding tools working
-- [ ] Can navigate and analyze codebases
-- [ ] Semantic search integrated
-- [ ] 8/10 tools now real (vs 1/10 currently)
+**For Validation**:
+- Can't measure agent quality without real tool execution
+- Benchmarks require actual task completion
+- User studies need functional tools
 
-### Phase 1 Success (6 weeks)
-- [ ] All 10 strategy tools are real
-- [ ] Multi-step task execution working
-- [ ] Project-aware intelligence functional
-- [ ] 40-50% competitive parity achieved
+## 🚫 NOT Doing This Week
 
-## 🚫 What We're NOT Doing
+- ❌ TUI development or polish
+- ❌ ACP protocol implementation (that's Week 3)
+- ❌ Intelligence features (Week 5-6)
+- ❌ Benchmarking (Week 7-8)
+- ❌ Any UI work whatsoever
 
-### Enterprise Features (Explicitly Out of Scope)
-- ❌ Team collaboration
-- ❌ Enterprise SSO
-- ❌ Multi-user workflows
-- ❌ Audit trails
-- ❌ Cloud deployment
+**Focus**: Just get 4 file tools working correctly.
 
-### Focus: Best Agent, Not Enterprise Platform
-- ✅ Autonomous capabilities
-- ✅ Transparent reasoning
-- ✅ Local-first architecture
-- ✅ Individual developer productivity
+## 📋 Daily Checklist
 
-## 📋 Immediate Next Actions (This Week)
+### Every Day
+- [ ] Work on assigned tool(s) for that day
+- [ ] Write tests as you go
+- [ ] Document with doc comments
+- [ ] Keep zero compiler warnings
+- [ ] Update this file with progress
 
-1. **Start with `read_file`** (Day 1-2)
-   - Integrate syntax highlighting
-   - Add context extraction
-   - Test with various file types
+### End of Week
+- [ ] All 4 tools working
+- [ ] Tests passing
+- [ ] Update PROJECT_REALITY.md with new parity estimate
+- [ ] Document any decisions in DECISIONS.md
+- [ ] Update KNOWLEDGE.md with learnings
 
-2. **Implement `write_file`** (Day 2-3)
-   - Safety checks and backups
-   - Protected file detection
-   - Atomic write operations
+## 🎯 Success Metrics (Week 1)
 
-3. **Build `edit_file`** (Day 3-4)
-   - Line-based editing logic
-   - Context-aware changes
-   - Preview and validation
+### Minimum Success
+- [ ] 4 tools implemented and working
+- [ ] No crashes or data loss in testing
+- [ ] Basic functionality validated
 
-4. **Complete `list_files`** (Day 4-5)
-   - Gitignore respect
-   - Smart filtering
-   - Useful metadata
+### Good Success
+- [ ] Above + comprehensive tests
+- [ ] Above + good documentation
+- [ ] Above + clean code (zero warnings)
 
-5. **Testing & Integration** (Day 5-7)
-   - End-to-end testing
-   - User acceptance testing
-   - Bug fixes and polish
+### Excellent Success
+- [ ] Above + performance optimized
+- [ ] Above + edge cases handled
+- [ ] Above + integration tests passing
+- [ ] Ready for Week 2 (code tools)
 
-## 🔄 Documentation Updates
+## 🔄 Next Week Preview (Week 2)
 
-### This Week
-- [ ] Update `PROJECT_REALITY.md` with new tool implementations
-- [ ] Add tool implementation patterns to `KNOWLEDGE.md`
-- [ ] Document decisions in `DECISIONS.md`
-- [ ] Keep `NOW.md` current (daily updates)
+**Code Understanding Tools:**
+- `search_code` - Leverage existing semantic search
+- `analyze_code` - AST-based analysis
+- `find_references` - Symbol tracking
+- `get_definition` - Definition lookup
 
-### When Tools Complete
-- [ ] Update competitive parity estimate in `PROJECT_REALITY.md`
-- [ ] Document lessons learned in `DISCOVERIES.md`
-- [ ] Update `STATUS.md` with actual working features
+**Week 2 Success**: 8/10 tools real (vs 1/10 currently)
 
-## 🎯 Phase 1 Roadmap Preview
+## 📝 Notes & Blockers
 
-**Week 1-2**: Real Tool Implementation (CURRENT)
-**Week 3-4**: Autonomous Execution (task planning, tool selection)
-**Week 5-6**: Project Intelligence (pattern learning, context-aware actions)
+### Current Blockers
+- None yet
 
-**End Goal**: Agent that autonomously completes multi-step tasks with full transparency
+### Questions
+- None yet
+
+### Decisions Needed
+- None yet
 
 ---
 
-**Next Update**: End of Week 1 (after file operations complete)
-**See Also**: `AGENT_FIRST_ROADMAP.md` for complete 18-week plan
+**Today's Focus**: [Update daily - which tool are you working on?]
+
+**Blocker Status**: [Update if blocked on anything]
+
+**Tomorrow's Plan**: [What's next?]

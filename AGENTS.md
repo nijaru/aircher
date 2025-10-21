@@ -1,138 +1,213 @@
 # Aircher Agent Instructions
 
-Entry point for AI agents working with Aircher - the multi-modal AI coding agent.
+Entry point for AI agents working with Aircher - an intelligent ACP-compatible coding agent backend.
 
 @external/agent-contexts/AI_AGENT_INDEX.md
+
+## Project Overview
+
+**Intelligent Agent Backend** via Agent Client Protocol (ACP)
+
+**Core Value Proposition:**
+- Novel agent intelligence with intent classification and dynamic context management
+- Works in Zed, JetBrains IDEs (coming), Neovim, Emacs, or any ACP-compatible frontend
+- Focus: Agent intelligence, not UI - let editors handle the interface
+
+**⚠️ CRITICAL**: See @PROJECT_STATUS.md and @internal/PROJECT_REALITY.md for honest assessment
+- Status: Strong architecture, infrastructure complete, tools need implementation
+- Current: 16-20% feature parity (infrastructure vs actual capabilities)
+- Focus: Agent intelligence research and implementation
 
 ## Key Files (Always Check/Update)
 
 ### 📊 Project Status & Reality
 @PROJECT_STATUS.md                 # **READ FIRST**: Current capabilities & limitations
 @internal/PROJECT_REALITY.md       # **HONEST ASSESSMENT**: Real vs claimed functionality
-@internal/NOW.md                   # Current tasks & sprint status
+@internal/NOW.md                   # Current sprint & priorities
 
 ### 🏗️ Architecture & Decisions
-@docs/architecture/agent-first-architecture.md  # CRITICAL: New unified agent design
-@docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md  # Key insight: Model vs agent responsibilities
+@docs/architecture/agent-first-architecture.md  # ACP-compatible agent design
+@docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md  # Model vs agent responsibilities
 @internal/DECISIONS.md             # Major decisions (append-only)
 @internal/TECH_SPEC.md             # Technical specifications
 
 ### 🔬 Research & Intelligence
-@internal/KNOWLEDGE.md             # Patterns & learnings
-@internal/DISCOVERIES.md           # Competitive insights & breakthroughs
+@internal/KNOWLEDGE.md             # Competitive intelligence & patterns
+@internal/DISCOVERIES.md           # Research insights & breakthroughs
+@internal/AGENT_FIRST_ROADMAP.md   # Development plan (agent intelligence focus)
 
-### 📚 Development Reference
-@internal/STATUS.md                # Development phase tracking
-@external/agent-contexts/standards/AI_CODE_PATTERNS.md  # Universal coding patterns
+## What Makes Aircher Unique
 
-## Project Overview
+### 1. **Intent Classification System**
+Automatic detection and routing based on user intent:
+- `CodeReading` - Analysis and comprehension tasks
+- `CodeWriting` - Implementation and generation
+- `ProjectFixing` - Debugging and error resolution
+- `ProjectExploration` - Codebase navigation and discovery
 
-**Dual-mode AI coding agent**: Terminal UI + Agent Client Protocol support
+**Research Contribution**: Intent-driven execution strategies vs one-size-fits-all
 
-**⚠️ CRITICAL**: See @PROJECT_STATUS.md and @internal/PROJECT_REALITY.md for honest assessment
-- Status: ~16-20% feature parity with Claude Code (stable infrastructure, limited functionality)
-- Architecture: Single UnifiedAgent with multiple frontends (LocalClient for TUI, ACP for editors)
+### 2. **Dynamic Context Management**
+Single agent with intelligent context vs sub-agents:
+- Smart pruning and prefetching
+- Relevance scoring and token optimization
+- No coordination overhead or tunnel vision
 
-**What Works**: Semantic search (production-ready), TUI interface, multi-provider auth
-**What Doesn't**: Most tools are stubs returning fake JSON
+**Empirical Evidence**: 19% performance advantage over sub-agent architectures
 
-## Key Architecture Insight (Sep 19, 2025)
+### 3. **Pattern-Aware Code Generation**
+Learns project-specific conventions:
+- Automatic style extraction
+- Context-aware suggestions
+- Architectural compliance checking
 
-**Models are reasoning engines, agents are execution engines**
-- Over-engineered: 1685-line MultiTurnReasoningEngine externalized what models do internally
-- Research validated: 25-70% improvements from prompts, not orchestration
-- Solution: Enhanced prompting system (300 lines) replaces complex orchestration
-- Details: @docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md
+**Measurable Impact**: Code consistency matching existing codebase patterns
 
-**Note**: `src/agent/sub_agents.rs` exists but is DEPRECATED - we pivoted away from this approach.
+### 4. **Intelligent Debugging**
+Root cause analysis with system awareness:
+- Cross-file dependency tracking
+- Multiple fix strategies with risk assessment
+- Impact analysis before changes
 
-### Shell-First Approach for Language Tools
+### 5. **Unified Intelligence Middleware**
+Transparent automatic enhancement:
+```rust
+EnhancedContext {
+    detected_intent: UserIntent,
+    intelligence_insights: Vec<IntelligenceInsight>,
+    confidence: f32,
+}
+```
 
-**Decision**: Use shell commands for language tooling instead of native integrations.
+## Architecture: ACP-Compatible Agent Backend
 
-**Rationale**:
-- **Simplicity**: No complex integrations to maintain
-- **Transparency**: Users can see and reproduce exactly what the agent does
-- **Flexibility**: Works with any tool immediately without integration work
-- **Reliability**: Shell commands are stable interfaces
+```
+Frontends (choose any)
+├── Zed (native ACP support)
+├── JetBrains IDEs (October 2025 collaboration)
+├── Neovim (CodeCompanion, avante.nvim plugins)
+├── Emacs (agent-shell)
+└── VSCode (via ACP adapter)
+    ↓ (Agent Client Protocol - JSON-RPC over stdio)
+    ↓
+Aircher Agent Backend
+├── Intent Classification
+├── Dynamic Context Management
+├── Pattern Learning
+├── Intelligent Tool Execution
+└── Result Validation
+```
 
-**Implementation Guidelines**:
+**You work on**: Agent intelligence
+**Frontend handles**: UI, keyboard shortcuts, themes, etc.
 
-1. **Prefer structured output when available**:
-   ```bash
-   # Good - use JSON output for parsing
-   cargo test --format json
-   pytest --json-report
-   npm test --json
-   
-   # Parse with jq when needed
-   cargo metadata --format-version 1 | jq '.packages'
-   ```
+## Key Architecture Insights
 
-2. **Use language servers over stdio**:
-   ```bash
-   # Instead of integrating LSP client libraries
-   echo '{"method":"textDocument/definition"...}' | rust-analyzer
-   ```
+### Models are Reasoning Engines, Agents are Execution Engines (Sep 19, 2025)
+- **Discovery**: Over-engineered 1685-line MultiTurnReasoningEngine externalized what models do internally
+- **Research validated**: 25-70% improvements from prompts, not orchestration
+- **Solution**: Enhanced prompting system (300 lines) replaces complex orchestration
+- **Details**: @docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md
 
-3. **Smart command detection**:
-   ```bash
-   # Check for features before using them
-   if cargo test --help | grep -q "format json"; then
-       cargo test --format json
-   else
-       cargo test  # fallback to text parsing
-   fi
-   ```
-
-4. **Common patterns to remember**:
-   - `rustc --error-format json` - structured compiler errors
-   - `cargo clippy --message-format json` - linting with JSON
-   - `rg --json` - ripgrep with structured output
-   - `git log --format=json` - when available
-   - Language servers (rust-analyzer, pyright, etc.) work over stdio
-
-**What NOT to do**:
-- Don't build native integrations for each tool
-- Don't add language-specific dependencies
-- Don't hide what commands are being run
+### Dynamic Context > Sub-Agents (Sep 14, 2025)
+- **Research finding**: Sub-agents cause 19% performance degradation
+- **Problems**: Tunnel vision, context pollution, coordination overhead
+- **Our innovation**: Single agent with intelligent context management
+- **Competitive advantage**: Better than Claude Code's sub-agents without overhead
 
 ## Development Philosophy
 
-**Tool Approach**: Shell-first (power user of CLI tools vs reimplementation)
-**Code Standards**: @external/agent-contexts/standards/AI_CODE_PATTERNS.md
-**Development Flow**: Demo mode must work, performance critical, zero warnings tolerance
+**Focus: Research-Grade Agent Intelligence**
+- Novel architectural contributions
+- Empirical validation vs competitors
+- Open source for community benefit
+- Publication-worthy results
 
-## TUI Features
+**Not Building:**
+- ❌ Custom TUI or IDE
+- ❌ UI themes and customization
+- ❌ Enterprise features (SSO, audit, team collab)
 
-**Notification System**: Operations line (above input), toast notifications (3s fade), status bar, inline system messages
-**UX**: Fast Rust startup, smart defaults, stable input position
-**Keyboard**: Enter (submit), Shift+Enter (newline), Tab (autocomplete/indent), Esc (close/interrupt), Ctrl+M (/model), Double Esc (history)
+**Building:**
+- ✅ Intelligent agent backend
+- ✅ ACP protocol implementation
+- ✅ Real tool implementations
+- ✅ Empirical benchmarks
+- ✅ Research paper contributions
 
-**Dynamic Features**: Streaming progress, predictive compaction (85% threshold), real-time model discovery from provider APIs
-**Model Selection**: Rich metadata (context, pricing, capabilities), fuzzy autocomplete, smart caching
+## Current Development Status
 
-## Development Status
+### What Works ✅
+- **Semantic Search**: Production-ready, 19+ languages, 6,468 vectors indexed
+- **ACP Architecture**: Designed and ready for implementation
+- **Intelligence Framework**: 210+ Rust files, substantial implementation
+- **Multi-Provider**: OpenAI, Anthropic, Gemini, Ollama
+- **Dynamic Context**: Architecture implemented
 
-**Current Focus**: Intelligence-driven software development (pattern-aware comprehension/generation)
-**Roadmap**: @docs/architecture/roadmap.md | @internal/TECH_SPEC.md | @docs/intelligence/INTELLIGENCE_ENHANCEMENT_PLAN.md
+### What's In Progress 🔄
+- **Tool Implementation**: Replacing stubs with real functionality
+- **ACP Protocol**: stdio transport and session management
+- **Intent Classification**: Making it operational
+- **Benchmarking**: Validation vs Claude Code/competitors
 
-### Key Directories
-- `src/ui/` - TUI (auth, model selection)
-- `src/semantic_search.rs` - Production search
-- `src/intelligence/` - Context engine
-- `src/providers/` - Multi-provider APIs
-- `src/agent/` - Tool system
+### Current Priority (Week 1-2)
+**Real Tool Implementation**: Replace 9 stub tools with production-quality implementations
+- File operations (read, write, edit, list)
+- Code understanding (search, analyze, references, definitions)
+- **Target**: 8/10 tools real vs 1/10 currently
+
+See @internal/NOW.md for current sprint details.
 
 ## Quick Reference
 
-**Build**: `cargo check` (zero warnings required), `cargo test`, `cargo run --release` (demo mode)
-**Code Style**: @external/agent-contexts/standards/AI_CODE_PATTERNS.md
+### For Development
+- **Entry point**: This file (AGENTS.md)
+- **Current tasks**: @internal/NOW.md
+- **Roadmap**: @internal/AGENT_FIRST_ROADMAP.md (10-week agent intelligence plan)
+- **Architecture**: @docs/architecture/
+
+### For Research
+- **Novel contributions**: Intent classification, dynamic context, pattern learning
+- **Benchmarks needed**: vs Claude Code, sub-agents, static context
+- **Target publication**: Agent intelligence architecture paper
+
+### For Integration
+- **Protocol**: Agent Client Protocol (ACP)
+- **Transport**: JSON-RPC over stdio
+- **Frontends**: Zed (best), JetBrains (coming), Neovim, Emacs
+- **Installation**: Via frontend's agent management (not standalone)
 
 ## Tool Format
 
-**XML**: `<tool_use><tool>read_file</tool><params>{"path": "Cargo.toml"}</params></tool_use>`
-**JSON**: `{"tool": "list_files", "params": {"path": "src/agent/tools"}}`
+**ACP Standard**: JSON-RPC over stdio
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "agent/prompt",
+  "params": {
+    "session_id": "...",
+    "content": [...]
+  }
+}
+```
 
-**Guidelines**: Read before editing, use `search_code` to locate targets, keep params minimal, chain tools over turns
-**Status Display**: Running (🔧), Success (✓ with duration), Error (✗ with code), Batch (🔧 count)
+**Internal**: Rust async trait-based
+```rust
+#[async_trait]
+pub trait Tool: Send + Sync {
+    async fn execute(&self, params: Value) -> Result<ToolOutput>;
+}
+```
+
+## Code Standards
+
+- Follow @external/agent-contexts/standards/AI_CODE_PATTERNS.md
+- Zero warnings policy (competitive quality)
+- Document decisions in @internal/DECISIONS.md
+- Honest assessment in @internal/PROJECT_REALITY.md
+
+---
+
+**Mission**: Build the smartest ACP-compatible agent backend through novel intelligence architecture and empirical validation.
+
+**Not**: Another editor or UI - focus on agent intelligence, let frontends handle UX.
