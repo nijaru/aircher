@@ -1,346 +1,354 @@
-# Agent-First Development Roadmap
+# Agent Intelligence Roadmap
 
-**Last Updated**: 2025-01-27
-**Philosophy**: Build the best autonomous agent with complete transparency and control - skip enterprise features
+**Last Updated**: 2025-10-27
+**Focus**: Intelligent ACP-compatible agent backend - NO UI development
 
-## 🎯 Strategic Focus: Agent Capabilities Over Enterprise Features
+## 🎯 Mission
 
-Based on comprehensive competitive analysis (see `KNOWLEDGE.md`), we have clear advantages:
+Build a research-grade intelligent agent backend that works via Agent Client Protocol (ACP) in any compatible frontend (Zed, JetBrains IDEs, Neovim, Emacs, VSCode).
 
-### Our Unique Position
-1. **Agent-Level Autonomy** - Match Jules/Replit/Claude Code autonomous capabilities
-2. **Complete Transparency** - Show every decision and action (unlike Claude Code's "flying blind")
-3. **Dynamic Context Management** - Superior to competitors' Sub-agents/Threads architecture (19% performance advantage)
-4. **Unlimited Local Execution** - Ollama integration = no rate limits, consistent performance
-5. **Hybrid Control Model** - Can run fully autonomous OR step-by-step (user choice)
+**What we're building:**
+- ✅ Novel agent intelligence architecture
+- ✅ Intent classification and dynamic context management
+- ✅ Pattern-aware code generation
+- ✅ Empirical validation vs competitors
+- ✅ Publication-worthy research contributions
 
-### What We're NOT Building (Enterprise Creep)
-- ❌ Team collaboration features
-- ❌ Enterprise SSO/compliance
-- ❌ Multi-user workflows
-- ❌ Audit trails and governance
-- ❌ Cloud-based execution
+**What we're NOT building:**
+- ❌ Custom TUI, IDE, or editor
+- ❌ UI themes, keyboard shortcuts, terminal rendering
+- ❌ Enterprise features (SSO, audit trails, team collaboration)
 
-### What We ARE Building (Best Agent)
-- ✅ Autonomous multi-step task execution
-- ✅ Transparent agent reasoning and decision-making
-- ✅ Project-aware intelligence (learns patterns, remembers context)
-- ✅ Adaptive execution strategies
-- ✅ Local-first architecture with privacy
+## 📊 Current Reality (October 2025)
 
-## 📊 Current Reality (Honest Assessment)
+### ACP Frontend Landscape ✅
+- **Zed**: Native ACP support (best starting point)
+- **JetBrains**: October 2025 collaboration announced (huge opportunity)
+- **Neovim**: 2 plugins already (CodeCompanion, avante.nvim)
+- **Emacs**: agent-shell plugin
+- **1k+ GitHub stars** on ACP protocol repo
 
-### What Actually Works ✅
-- **Semantic Search**: Production-ready, 19+ languages, sub-second performance
-- **TUI Interface**: Complete terminal UI with model selection
-- **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama
-- **Basic Tool Framework**: Executes without crashing
-- **Dynamic Context Management**: Architecture implemented (ahead of competitors)
+**Validation**: Strong ecosystem adoption confirms ACP-first strategy is correct
 
-### What Doesn't Work ❌
-- **9/10 strategy tools are stubs** returning fake JSON
-- **No real autonomous capabilities** - tools don't provide value
-- **Limited agent intelligence** - can't actually solve problems yet
-- **Missing core tools** - file operations, git, testing, debugging
+### What Actually Works
+- **Semantic Search**: Production-ready (6,468 vectors, 19+ languages, sub-second)
+- **Intelligence Framework**: 210+ Rust files with substantial implementation
+- **Multi-Provider**: OpenAI, Anthropic, Gemini, Ollama authentication
+- **ACP Architecture**: Designed (needs implementation)
+- **Dynamic Context**: Code exists (needs integration testing)
 
-### Current Competitive Position
-- **16-20% feature parity** with Claude Code
-- **Strong foundation** but minimal user value
-- **Architectural advantage** not yet realized in functionality
+### What Doesn't Work
+- **9/10 tools are stubs** - return fake JSON, no real functionality
+- **ACP Protocol**: Not implemented yet
+- **Intent Classification**: Code exists but not operational
+- **Benchmarks**: No empirical validation vs competitors
 
-## 🚀 Agent-First Development Phases
+### Competitive Position
+- **16-20% feature parity** with Claude Code (infrastructure vs capabilities)
+- **Strong foundation** but minimal user value currently
+- **Novel architecture** (intent classification, dynamic context) not yet proven
 
-### Phase 1: Core Agent Intelligence (4-6 weeks)
-**Goal**: Build real autonomous agent capabilities that provide user value
+## 🚀 10-Week Development Plan
 
-#### Week 1-2: Real Tool Implementation
-**Priority**: Replace stubs with actual working tools
+### Phase 1: Core Agent + ACP (Weeks 1-4)
 
-1. **File Operations** (Week 1)
-   - Real `read_file` with syntax highlighting and context
-   - Real `write_file` with backup and safety checks
-   - Real `edit_file` with precise line-based editing
-   - Real `list_files` with intelligent filtering
+#### **Week 1-2: Real Tool Implementation**
+**Goal**: Replace stubs with production-quality tools
 
-2. **Code Understanding** (Week 2)
-   - Real `search_code` leveraging semantic search
-   - Real `analyze_code` using AST analysis
-   - Real `find_references` across codebase
-   - Real `get_definition` with context
+**File Operations (Week 1):**
+- [ ] Real `read_file` - syntax highlighting, context extraction, smart truncation
+- [ ] Real `write_file` - backups, safety checks, atomic writes, protected files
+- [ ] Real `edit_file` - line-based editing, change validation, diff preview
+- [ ] Real `list_files` - gitignore respect, metadata, smart filtering
 
-**Success Criteria**:
-- All file/code tools provide real value
-- Can successfully complete basic file manipulation tasks
-- Agent can understand and navigate codebases
-
-#### Week 3-4: Autonomous Execution
-**Priority**: Build multi-step task orchestration
-
-1. **Task Planning** (Week 3)
-   - Decompose complex tasks into steps
-   - Show plan to user (transparency advantage)
-   - Allow plan modification before execution
-   - Track execution progress
-
-2. **Tool Selection & Execution** (Week 4)
-   - Intelligent tool choice based on context
-   - Explain why each tool was selected (transparency)
-   - Execute tools with error recovery
-   - Learn from successful/failed attempts
+**Code Understanding (Week 2):**
+- [ ] Real `search_code` - leverage semantic search, query expansion, context
+- [ ] Real `analyze_code` - AST-based analysis, complexity metrics, patterns
+- [ ] Real `find_references` - cross-file symbol tracking, imports/exports
+- [ ] Real `get_definition` - symbol lookup with context, type information
 
 **Success Criteria**:
-- Can autonomously complete multi-step tasks
-- Users see transparent reasoning process
-- Graceful error recovery and adaptation
+- 8/10 tools real and functional (vs 1/10 currently)
+- Can complete basic file/code tasks with real value
+- Tools work reliably in test harness
 
-#### Week 5-6: Project Intelligence
-**Priority**: Leverage Dynamic Context Management advantage
+#### **Week 3: ACP Protocol Implementation**
+**Goal**: Agent works via ACP in Zed
 
-1. **Pattern Learning** (Week 5)
-   - Learn project-specific coding patterns
-   - Remember successful approaches
-   - Extract conventions automatically
-   - Apply learned patterns to new code
-
-2. **Context-Aware Actions** (Week 6)
-   - Understand project architecture
-   - Respect existing patterns
-   - Suggest context-appropriate solutions
-   - Provide relevant examples from codebase
+**Tasks:**
+- [ ] stdio transport implementation (JSON-RPC over stdin/stdout)
+- [ ] ACP Agent trait full compliance
+- [ ] Session management (create, resume, end sessions)
+- [ ] Tool execution via ACP protocol
+- [ ] Streaming response support
+- [ ] Error handling and recovery
 
 **Success Criteria**:
-- Agent adapts to each project's style
-- Suggestions match existing codebase patterns
-- Better performance on repeat tasks
+- Aircher agent launchable from Zed
+- Basic tool execution works via ACP
+- Can maintain conversation state
+- Graceful error handling
 
-### Phase 2: Agent Reasoning & Transparency (3-4 weeks)
-**Goal**: Make agent reasoning visible and controllable
+#### **Week 4: Integration & Testing**
+**Goal**: Polished Zed integration
 
-#### Week 7-8: Transparent Decision Making
-1. **Reasoning Display**
-   - Show "thinking" process (like Claude Code)
-   - Display tool selection rationale
-   - Explain multi-step execution strategy
-   - Provide confidence levels for suggestions
-
-2. **User Control**
-   - Pause/resume multi-step executions
-   - Override agent decisions
-   - Suggest alternative approaches
-   - Fine-tune agent behavior per-session
+**Tasks:**
+- [ ] Test all 8 tools via Zed frontend
+- [ ] Fix integration bugs
+- [ ] Performance tuning
+- [ ] Documentation for Zed users
 
 **Success Criteria**:
-- Users understand agent's reasoning
-- Can intervene at any point
-- Trust built through transparency
-
-#### Week 9-10: Adaptive Strategies
-1. **Multiple Approaches**
-   - Generate alternative solutions
-   - Explain trade-offs between approaches
-   - Let user choose or auto-select based on context
-   - Fall back gracefully on failures
-
-2. **Learning & Improvement**
-   - Track what strategies work for which tasks
-   - Improve suggestions based on user feedback
-   - Remember preferences per-project
-   - Continuously adapt to user workflow
-
-**Success Criteria**:
-- Agent provides options, not just single answers
-- Improves over time with usage
-- Adapts to individual user preferences
-
-### Phase 3: Advanced Agent Capabilities (4-5 weeks)
-**Goal**: Match and exceed competitor autonomous capabilities
-
-#### Week 11-13: Complex Task Handling
-1. **Multi-File Operations** (Week 11)
-   - Coordinated changes across files
-   - Understand file relationships
-   - Maintain consistency across codebase
-   - Detect breaking changes
-
-2. **Refactoring & Architecture** (Week 12)
-   - Safe large-scale refactoring
-   - Architectural improvements
-   - Pattern application across codebase
-   - Impact analysis before changes
-
-3. **Testing & Validation** (Week 13)
-   - Automatic test generation
-   - Test execution and interpretation
-   - Fix-validation loop
-   - Regression prevention
-
-**Success Criteria**:
-- Can handle complex architectural tasks
-- Safe multi-file refactoring
-- Autonomous test-fix cycles
-
-#### Week 14-15: Agent Memory & Context
-1. **Long-Term Memory**
-   - Remember past conversations
-   - Recall successful solutions
-   - Track project evolution
-   - Build knowledge graph of codebase
-
-2. **Context Optimization**
-   - Intelligent context pruning
-   - Predictive context loading
-   - Relevance scoring
-   - Token budget optimization
-
-**Success Criteria**:
-- Agent remembers past work
-- Context management superior to competitors
-- Efficient token usage
-
-### Phase 4: Agent Polish & Performance (2-3 weeks)
-**Goal**: Production-ready agent quality
-
-#### Week 16-17: Performance & Reliability
-1. **Speed Optimization**
-   - Parallel tool execution where safe
-   - Caching for repeated operations
-   - Incremental updates
-   - Fast feedback loops
-
-2. **Error Handling**
-   - Graceful degradation
-   - Clear error messages
-   - Recovery suggestions
-   - Undo capabilities
-
-**Success Criteria**:
-- Sub-second response for most operations
+- Smooth experience in Zed
 - No crashes or data loss
-- Clear error communication
+- Clear installation instructions
+- Demo-ready quality
 
-#### Week 18: Agent UX Polish
-1. **Interface Refinement**
-   - Streaming progress indicators
-   - Beautiful tool output display
-   - Collapsible sections
-   - Syntax highlighting
+### Phase 2: Intelligence Features (Weeks 5-6)
 
-2. **Interaction Patterns**
-   - Natural conversation flow
-   - Smart defaults
-   - Keyboard shortcuts
-   - Workflow optimizations
+#### **Week 5: Intent Classification**
+**Goal**: Automatic task type detection working
+
+**Tasks:**
+- [ ] Make `UserIntent` classification operational
+- [ ] Connect to unified intelligence engine
+- [ ] Different execution strategies per intent type
+- [ ] Confidence scoring
 
 **Success Criteria**:
-- Delightful user experience
-- Faster than competitors
-- Professional polish
+- Correctly classifies: CodeReading, CodeWriting, ProjectFixing, ProjectExploration
+- Routes to appropriate execution strategy
+- Measurable accuracy >80%
 
-## 🎯 Success Metrics
+#### **Week 6: Dynamic Context Management**
+**Goal**: Prove superiority over sub-agents
 
-### Phase 1 Success (Core Intelligence)
-- ✅ 10+ real tools providing value (vs 1/10 currently)
-- ✅ Can complete multi-step tasks autonomously
-- ✅ 40-50% feature parity with Claude Code
-- ✅ Users report actual productivity gains
+**Tasks:**
+- [ ] Activate DynamicContextManager
+- [ ] Smart pruning and prefetching
+- [ ] Relevance scoring operational
+- [ ] Token budget optimization
 
-### Phase 2 Success (Reasoning & Transparency)
-- ✅ Users understand agent decisions
-- ✅ Transparency rated better than Claude Code
-- ✅ Adaptive behavior improves with usage
-- ✅ 60-70% feature parity with Claude Code
+**Success Criteria**:
+- Context efficiency measurably better
+- No context overflow on complex tasks
+- Maintains relevant context across turns
 
-### Phase 3 Success (Advanced Capabilities)
-- ✅ Can handle complex architectural tasks
-- ✅ Safe multi-file refactoring working
-- ✅ Test-fix cycles fully autonomous
-- ✅ 80-90% feature parity with Claude Code
+### Phase 3: Validation & Benchmarking (Weeks 7-8)
 
-### Phase 4 Success (Production Ready)
-- ✅ Performance matching or exceeding competitors
-- ✅ Zero crashes in normal usage
-- ✅ Professional polish and UX
-- ✅ **Best autonomous agent with transparency**
+#### **Week 7: Empirical Comparison**
+**Goal**: Measure vs Claude Code
 
-## 🚫 Anti-Goals (What We're NOT Doing)
+**Benchmark Tasks:**
+1. Multi-file refactoring (measure tool calls, success rate)
+2. Bug fixing (measure time to resolution, context efficiency)
+3. Code generation (measure style consistency)
+4. Codebase exploration (measure relevant context retrieval)
 
-### Enterprise Features (Skip These)
-- Team collaboration and sharing
-- Enterprise SSO integration
-- Audit logs and compliance
-- Multi-user permissions
-- Cloud deployment options
-- Usage analytics dashboards
-- Admin consoles
+**Metrics:**
+- Tool calls needed (fewer = better)
+- Context tokens used (fewer = better with same results)
+- Task success rate (higher = better)
+- Time to completion (faster = better)
 
-### Scope Creep (Resist These)
-- IDE integration (terminal-first)
-- Browser-based UI (local-first)
-- Mobile apps (desktop focus)
-- SaaS offering (open source)
-- Hosted services (self-hosted)
+**Success Criteria**:
+- Document 15-30% improvement in at least 2 metrics
+- Validate 19% context efficiency claim
+- Identify weaknesses for improvement
 
-## 📈 Competitive Position Targets
+#### **Week 8: Ablation Studies**
+**Goal**: Prove each feature's value
 
-### 3 Months: Agent Parity
-- Match Jules/Replit autonomous capabilities
-- Exceed Claude Code transparency
-- Leverage Dynamic Context advantage
-- 60-70% feature parity
+**Tests:**
+1. Intent classification ON vs OFF
+2. Dynamic context vs static context window
+3. Pattern learning ON vs OFF
 
-### 6 Months: Agent Leadership
-- Best autonomous agent for terminal users
-- Unique transparency + control combination
-- Dynamic Context demonstrably better
-- 80-90% feature parity
+**Success Criteria**:
+- Each feature shows measurable improvement
+- Understand which features matter most
+- Data for research paper
 
-### 12 Months: Agent Excellence
-- Clear leader in terminal-based autonomous agents
-- Known for transparency + local execution
-- Dynamic Context widely recognized as superior
-- Feature complete + unique advantages
+### Phase 4: Research & Release (Weeks 9-10)
+
+#### **Week 9: Documentation & Paper Draft**
+**Goal**: Publishable research contribution
+
+**Deliverables:**
+- [ ] Research paper draft (intent-driven agent architecture)
+- [ ] Technical documentation (how it works)
+- [ ] Blog post (for broader audience)
+- [ ] Benchmark results tables and graphs
+
+**Paper Sections:**
+1. Introduction (problem: one-size-fits-all agents)
+2. Related Work (ReAct, Reflexion, sub-agents)
+3. Architecture (intent classification + dynamic context)
+4. Evaluation (empirical comparison vs Claude Code)
+5. Results (improvements in metrics)
+6. Discussion (when it works, when it doesn't)
+7. Conclusion (contributions to field)
+
+#### **Week 10: Open Source Release**
+**Goal**: Community adoption
+
+**Deliverables:**
+- [ ] Installation guide for Zed users
+- [ ] Contributor documentation
+- [ ] Example usage patterns
+- [ ] Demo video
+- [ ] Reddit/HN announcement
+
+**Success Criteria**:
+- Clear installation path
+- Working examples
+- Community can contribute
+
+## 📈 Success Metrics
+
+### Phase 1 Success (Week 4)
+- ✅ 8 real tools providing value
+- ✅ Works smoothly in Zed via ACP
+- ✅ No crashes, good UX
+- ✅ Demo-ready quality
+
+### Phase 2 Success (Week 6)
+- ✅ Intent classification >80% accuracy
+- ✅ Dynamic context measurably better than static
+- ✅ Pattern learning showing improvement
+- ✅ 40-50% competitive parity
+
+### Phase 3 Success (Week 8)
+- ✅ 15-30% improvement in key metrics vs Claude Code
+- ✅ 19% context efficiency claim validated
+- ✅ Ablation studies prove feature value
+- ✅ Benchmark data ready for paper
+
+### Phase 4 Success (Week 10)
+- ✅ Research paper draft complete
+- ✅ Open source release with docs
+- ✅ Community can install and use
+- ✅ Clear research contributions documented
+
+## 🔬 Research Contributions
+
+### 1. **Intent-Driven Agent Architecture**
+**Hypothesis**: Automatic intent classification enables specialized execution strategies
+- **Baseline**: One-size-fits-all agent approach
+- **Measurement**: Task completion rate, tool efficiency
+- **Expected**: 15-30% improvement for specialized tasks
+
+### 2. **Dynamic Context Management**
+**Hypothesis**: Single agent with smart context > multiple sub-agents
+- **Baseline**: Sub-agent architecture (like Claude Code)
+- **Measurement**: Context efficiency, coordination overhead
+- **Expected**: Confirm 19% performance advantage
+
+### 3. **Pattern-Aware Code Generation**
+**Hypothesis**: Learning project conventions improves code quality
+- **Baseline**: Agent without pattern learning
+- **Measurement**: Style consistency, architectural compliance
+- **Expected**: 40-60% better matching to existing code
+
+### 4. **Unified Intelligence Middleware**
+**Hypothesis**: Automatic intelligence routing reduces latency
+- **Baseline**: Manual intelligence tool invocation
+- **Measurement**: Time to first useful response
+- **Expected**: 2-3x faster with automatic detection
+
+## 🚫 Anti-Goals (Explicit Non-Priorities)
+
+### Not Building (UI/Frontend)
+- ❌ Custom TUI application
+- ❌ Terminal rendering or themes
+- ❌ Keyboard shortcut systems
+- ❌ Custom editor or IDE
+
+**Why**: Zed/JetBrains/Neovim handle this better. We focus on agent intelligence.
+
+### Not Building (Enterprise)
+- ❌ Team collaboration features
+- ❌ Enterprise SSO/authentication
+- ❌ Audit trails and compliance
+- ❌ Multi-user permissions
+- ❌ Usage analytics dashboards
+
+**Why**: Individual developer productivity, not enterprise platform.
+
+### Not Building (Scope Creep)
+- ❌ IDE integrations beyond ACP
+- ❌ Browser-based UIs
+- ❌ Mobile applications
+- ❌ Hosted SaaS offering
+- ❌ Non-agent features
+
+**Why**: Stay focused on research contributions in agent intelligence.
+
+## 📋 Weekly Checklist
+
+### Every Week
+- [ ] Update NOW.md with current sprint status
+- [ ] Document decisions in DECISIONS.md
+- [ ] Keep PROJECT_REALITY.md honest (parity estimates)
+- [ ] Add discoveries to DISCOVERIES.md
+- [ ] Zero compiler warnings maintained
+
+### When Milestones Hit
+- [ ] Update competitive parity estimate in PROJECT_REALITY.md
+- [ ] Document architectural decisions in DECISIONS.md
+- [ ] Add learnings to KNOWLEDGE.md
+- [ ] Update this roadmap if priorities change
+
+## 🎯 End Goal (Week 10)
+
+**Deliverables:**
+1. **Working Agent**: Usable in Zed, 8+ real tools, intent classification, dynamic context
+2. **Research Paper**: "Intent-Driven Agent Architecture for Code Assistants"
+3. **Empirical Evidence**: 15-30% improvements in key metrics vs Claude Code
+4. **Open Source**: Full implementation on GitHub with documentation
+5. **Community**: Installation guide, examples, contributor docs
+
+**Positioning:**
+- "Aircher: The smartest ACP-compatible agent backend"
+- "Novel intent classification and dynamic context management"
+- "Empirically validated improvements over leading competitors"
+- "Use in Zed, JetBrains, Neovim, Emacs, or any ACP-compatible frontend"
+
+**Not:**
+- "Another terminal UI for coding agents"
+- "Yet another editor with AI features"
+- "A complete development environment"
 
 ## 🔄 Continuous Priorities
 
-Throughout all phases:
+Throughout all 10 weeks:
 
-1. **Agent-First Decisions**
-   - Always choose agent capabilities over enterprise features
-   - Focus on autonomous execution quality
-   - Prioritize transparency in all features
+1. **Agent Intelligence First**
+   - Every hour on: intent classification, context management, tool quality
+   - Zero hours on: UI design, themes, keyboard shortcuts
 
-2. **Dynamic Context Advantage**
-   - Continuously improve context management
-   - Demonstrate superiority over sub-agents
-   - Make it a visible differentiator
+2. **Research Quality**
+   - Rigorous benchmarking vs competitors
+   - Ablation studies to prove feature value
+   - Publication-grade documentation
 
-3. **Local-First Architecture**
-   - Optimize Ollama integration
-   - Ensure offline functionality
-   - Maintain privacy advantages
+3. **ACP Compliance**
+   - Follow protocol spec precisely
+   - Work in any ACP-compatible frontend
+   - No custom extensions
 
-4. **Transparency & Control**
-   - Show agent reasoning at all times
-   - Allow user intervention anywhere
-   - Build trust through visibility
+4. **Empirical Validation**
+   - Measure everything
+   - Honest about what works/doesn't
+   - Document failures as well as successes
 
-5. **Performance & Polish**
-   - Instant startup maintained
-   - Sub-second responses
-   - Professional UX quality
-
-## 📝 Documentation Requirements
-
-Each phase must maintain:
-
-- `PROJECT_REALITY.md` - Honest feature parity assessment
-- `KNOWLEDGE.md` - Competitive intelligence updates
-- `DISCOVERIES.md` - New findings and insights
-- `DECISIONS.md` - Major architectural decisions
-- `NOW.md` - Current sprint status
-
-**Update Frequency**: Weekly for NOW.md, monthly for others, immediate for major discoveries
+5. **Open Source Excellence**
+   - Zero warnings policy
+   - Clear documentation
+   - Community-friendly contribution
 
 ---
 
-**Next Actions**: See `NOW.md` for current sprint tasks
+**Next Actions**: See NOW.md for current sprint tasks (Week 1: Real tool implementation)
+
+**Success Metric**: In 10 weeks, working agent in Zed with empirical proof it's smarter than Claude Code's agent.
