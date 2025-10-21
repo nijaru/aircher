@@ -42,6 +42,7 @@
 - **Key insight**: Single agent with smart context beats multiple autonomous agents
 - **Implementation**: Context pruning, prefetching, and relevance scoring
 - **Competitive advantage**: Better than Claude Code's sub-agents without the overhead
+- **Industry observation**: Amp (Sourcegraph) analyzed our earlier subagent planning, but we've since pivoted to superior Dynamic Context Management approach that they haven't tracked yet
 
 ### Critical Issues with Current Context Manager (Sep 14, 2025)
 **Design Issues:**
@@ -182,8 +183,27 @@
 - **Market Position**: Performance-focused for benchmark tasks
 - **Pricing**: Not publicly disclosed
 
+##### **Sourcegraph Amp**
+- **Type**: AI coding agent with multi-threading and team collaboration
+- **Strengths**:
+  - Documentation research capabilities (can fetch and analyze external docs)
+  - Repository analysis and understanding
+  - Structured output and task extraction
+  - Thread-based collaboration (ampcode.com)
+  - Multi-user team workflows
+  - Sourcegraph codebase intelligence integration
+- **Weaknesses**:
+  - Requires Sourcegraph ecosystem
+  - Analysis can lag behind rapid architectural changes
+  - Enterprise-focused complexity
+  - May not track real-time project pivots
+  - Limited transparency into reasoning process
+- **Market Position**: Enterprise collaborative agent platform
+- **Pricing**: Enterprise contracts ($$$)
+- **Live Analysis**: Observed analyzing Aircher project with focus on subagent architecture, language decisions, and Claude Code integration patterns
+
 ##### **Sourcegraph Cody CLI**
-- **Type**: Enterprise codebase intelligence tool
+- **Type**: Enterprise codebase intelligence tool (predecessor to Amp)
 - **Strengths**:
   - Excellent large codebase navigation
   - Enterprise SSO and compliance features
@@ -195,7 +215,7 @@
   - Requires Sourcegraph server deployment
   - Limited autonomous capabilities
   - Complex setup and configuration
-- **Market Position**: Enterprise code intelligence platform
+- **Market Position**: Enterprise code intelligence platform (being evolved into Amp)
 - **Pricing**: Enterprise contracts ($$$)
 
 ##### **Aider (Open Source)**
@@ -328,17 +348,19 @@ A new category of fully automated, browser-based coding agents has emerged, focu
 
 #### Competitive Analysis Matrix
 
-| Feature | Claude Code | Cursor | Jules | Replit Agent | Copilot WS | Aider | Aircher (Us) |
-|---------|------------|--------|-------|--------------|------------|-------|--------------|
-| **Agent Autonomy** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **Task Planning** | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐ |
-| **Multi-Step Execution** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
-| **Transparency** | ⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **Local Development** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ❌ | ❌ | ❌ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **Customization** | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **Local Models** | ❌ | ⭐⭐⭐ | ❌ | ❌ | ❌ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **Rate Limits** | ⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | N/A | ⭐⭐⭐⭐⭐ |
-| **Open Source** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Feature | Claude Code | Cursor | Jules | Replit | Copilot WS | Amp | Aider | Aircher |
+|---------|------------|--------|-------|--------|------------|-----|-------|---------|
+| **Agent Autonomy** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Task Planning** | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐ |
+| **Multi-Step Execution** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
+| **Transparency** | ⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Local Development** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ❌ | ❌ | ❌ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Team Collaboration** | ⭐⭐ | ⭐⭐ | ⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐ |
+| **Customization** | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Local Models** | ❌ | ⭐⭐⭐ | ❌ | ❌ | ❌ | ❌ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Rate Limits** | ⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐ | N/A | ⭐⭐⭐⭐⭐ |
+| **Open Source** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| **Context Architecture** | Sub-agents | Composer | Black-box | Black-box | Planning | Threads | Basic | Dynamic |
 
 #### Our Unique Positioning: Agent-First Terminal Development
 
@@ -396,6 +418,11 @@ We occupy a unique position in the market by combining:
 - ✅ **We win on**: Terminal performance, agent autonomy, resource efficiency
 - ❌ **They win on**: IDE integration, inline editing
 - **Our target**: Terminal-first developers who want agent capabilities
+
+**vs Enterprise Platforms (Amp, Cody):**
+- ✅ **We win on**: Individual developer focus, local models, context architecture (Dynamic > Threads/Sub-agents)
+- ❌ **They win on**: Team collaboration, multi-user workflows, enterprise SSO
+- **Our target**: Solo developers and small teams who don't need enterprise overhead
 
 ##### Strategic Agent Features (Competitive Differentiation)
 
