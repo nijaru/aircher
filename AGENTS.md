@@ -2,7 +2,7 @@
 
 Entry point for AI agents working with Aircher - an intelligent ACP-compatible coding agent backend.
 
-@external/agent-contexts/AI_AGENT_INDEX.md
+For organization patterns: @external/agent-contexts/PRACTICES.md
 
 ## Project Overview
 
@@ -155,14 +155,14 @@ Aircher Agent Backend
 - Code understanding (search, analyze, references, definitions)
 - **Target**: 8/10 tools real vs 1/10 currently
 
-See @internal/NOW.md for current sprint details.
+See @ai/TODO.md for current sprint details.
 
 ## Quick Reference
 
 ### For Development
 - **Entry point**: This file (AGENTS.md)
-- **Current tasks**: @internal/NOW.md
-- **Roadmap**: @internal/AGENT_FIRST_ROADMAP.md (10-week agent intelligence plan)
+- **Current tasks**: @ai/TODO.md
+- **Roadmap**: @docs/ROADMAP.md (10-week agent intelligence plan)
 - **Architecture**: @docs/architecture/
 
 ### For Research
@@ -202,8 +202,8 @@ pub trait Tool: Send + Sync {
 
 - Follow @external/agent-contexts/standards/AI_CODE_PATTERNS.md
 - Zero warnings policy (competitive quality)
-- Document decisions in @internal/DECISIONS.md
-- Honest assessment in @internal/PROJECT_REALITY.md
+- Document decisions in @ai/DECISIONS.md
+- Check current state in @ai/STATUS.md
 
 ---
 

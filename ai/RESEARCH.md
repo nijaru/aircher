@@ -59,28 +59,28 @@
 
 ## Competitive Intelligence (2024-2025)
 
+**Key Finding**: Sub-agents cause 19% performance degradation vs dynamic context
+
 **Claude Code**:
-- Sub-agent architecture (causes 19% degradation)
-- Rate limit issues (50+ incidents/month)
+- Sub-agent architecture issues
+- Rate limit problems (50+ incidents/month)
 - No persistent memory across sessions
 
 **Devin**:
 - Knowledge base across sessions
 - Auto-suggests learnings
 - Repository scanning
-- Checkpoint/restore
 
 **Cursor**:
 - Complex UI (4+ Accept buttons)
 - Model flexibility (OpenAI, Anthropic, local)
-- Decision fatigue from too many options
 
 **Our Advantage**:
 - Memory systems (episodic + semantic)
-- Dynamic context (vs sub-agents)
+- Dynamic context management
 - LM-centric interfaces
 
-**Details**: → ai/research/competitive-analysis.md
+**Details**: → ai/research/competitive-intelligence.md
 
 ## Research-Based Strategy (2024-2025)
 
