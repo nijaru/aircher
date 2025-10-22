@@ -92,6 +92,50 @@
 
 **Details**: → docs/architecture/ (existing)
 
+## Knowledge Graphs for Code Understanding (researched 2025-10-27)
+
+**Key Finding**: Knowledge graphs solve RAG limitations for code repositories
+
+**Problem with RAG:**
+- Treats code as flat documents
+- Loses inter-file relationships
+- Can't answer "How many functions in file X?" or "Where is variable Y used?"
+
+**Knowledge Graph Solution:**
+- Nodes: files, classes, functions, variables
+- Edges: contains, calls, imports, inherits, uses
+- Enables structure-aware queries
+
+**Recent Research (2024-2025):**
+
+**CodexGraph (Microsoft, Aug 2024)**
+- Graph database with static analysis extraction
+- LLM agent constructs graph queries to find relevant code
+- Finding: "Static analysis + graph DB > semantic search alone"
+
+**RepoGraph (Oct 2024)**
+- Integrates line-level, file-level, repository-level context
+- Surpasses flat RAG approaches
+- Key: Multi-level context integration
+
+**KGCompass (Mar 2025)**
+- Links repository artifacts (issues, PRs) with code entities
+- Narrows search space to 20 most relevant functions
+- Application: Bug fixing with historical context
+
+**Knowledge Graph-Based Codegen (May 2025)**
+- Semantic search on code docs + structure
+- Generated code aligns with project structure
+- Uses functional similarity for retrieval
+
+**Application to Aircher:**
+- Build graph: tree-sitter → extract nodes/edges → NetworkX
+- Store in DuckDB for persistence
+- Query before tool execution: "What's relevant to this task?"
+- Combine with episodic memory for learned patterns
+
+**Details**: → poc-memory-agent/README.md
+
 ## Open Questions
 
 - [ ] Optimal context window size for code (100 lines? 200?)
