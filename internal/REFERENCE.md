@@ -6,13 +6,14 @@
 
 | Topic | Location | Description |
 |-------|----------|-------------|
-| **Project Overview** | `CLAUDE.md` / `AGENTS.md` | AI agent context and quick reference |
-| **Project Status** | `PROJECT_STATUS.md` | Current capabilities & limitations |
-| **Reality Check** | `internal/PROJECT_REALITY.md` | Honest competitive assessment |
-| **Current Tasks** | `internal/NOW.md` | Active priorities and sprint status |
-| **Technical Spec** | `internal/TECH_SPEC.md` | Architecture and implementation details |
-| **Decision History** | `internal/DECISIONS.md` | Why technical choices were made |
-| **Development Status** | `internal/STATUS.md` | Development phase tracking |
+| **Project Overview** | `CLAUDE.md` | AI agent entry point and quick reference |
+| **Public Status** | `docs/STATUS.md` | User-facing capabilities & limitations |
+| **Current Tasks** | `ai/TODO.md` | Active tasks and sprint status |
+| **Current State** | `ai/STATUS.md` | What works/doesn't, known issues |
+| **Technical Spec** | `docs/TECH_SPEC.md` | Architecture and implementation details |
+| **Decision History** | `ai/DECISIONS.md` | Why technical choices were made (append-only) |
+| **Research Index** | `ai/RESEARCH.md` | External research findings and application |
+| **Development Roadmap** | `docs/ROADMAP.md` | 10-week development plan |
 
 ## Architecture & Design
 
@@ -27,8 +28,10 @@
 
 | Topic | Location | Description |
 |-------|----------|-------------|
-| **Knowledge Base** | `internal/KNOWLEDGE.md` | Patterns & learnings |
-| **Discoveries** | `internal/DISCOVERIES.md` | Competitive insights & breakthroughs |
+| **Research Index** | `ai/RESEARCH.md` | External research findings |
+| **Agent Scaffolding** | `ai/research/agent-scaffolding.md` | SWE-Agent patterns & LM-centric interfaces |
+| **Discoveries** | `internal/DISCOVERIES.md` | Important findings and learnings |
+| **Knowledge Base** | `internal/KNOWLEDGE.md` | Competitive intelligence & patterns |
 
 ## Standards & Guidelines
 

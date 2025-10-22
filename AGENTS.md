@@ -13,28 +13,27 @@ Entry point for AI agents working with Aircher - an intelligent ACP-compatible c
 - Works in Zed, JetBrains IDEs (coming), Neovim, Emacs, or any ACP-compatible frontend
 - Focus: Agent intelligence, not UI - let editors handle the interface
 
-**⚠️ CRITICAL**: See @PROJECT_STATUS.md and @internal/PROJECT_REALITY.md for honest assessment
-- Status: Strong architecture, infrastructure complete, tools need implementation
-- Current: 16-20% feature parity (infrastructure vs actual capabilities)
+**⚠️ CRITICAL**: See @docs/STATUS.md and @ai/STATUS.md for current state
+- Status: Week 1 complete (4 tools), 23-27% feature parity
 - Focus: Agent intelligence research and implementation
+- Repository: Public at https://github.com/nijaru/aircher
 
 ## Key Files (Always Check/Update)
 
-### 📊 Project Status & Reality
-@PROJECT_STATUS.md                 # **READ FIRST**: Current capabilities & limitations
-@internal/PROJECT_REALITY.md       # **HONEST ASSESSMENT**: Real vs claimed functionality
-@internal/NOW.md                   # Current sprint & priorities
+### 📊 AI Working Context (ai/)
+@ai/TODO.md                        # **Active tasks** - What to work on now
+@ai/STATUS.md                      # **Current state** - What works/doesn't
+@ai/DECISIONS.md                   # **Architectural choices** (append-only)
+@ai/RESEARCH.md                    # **Research index** - SOTA findings
 
-### 🏗️ Architecture & Decisions
-@docs/architecture/agent-first-architecture.md  # ACP-compatible agent design
-@docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md  # Model vs agent responsibilities
-@internal/DECISIONS.md             # Major decisions (append-only)
-@internal/TECH_SPEC.md             # Technical specifications
+### 📚 Project Documentation (docs/)
+@docs/STATUS.md                    # **Public status** - User-facing capabilities
+@docs/ROADMAP.md                   # **10-week plan** - Strategic timeline
+@docs/TECH_SPEC.md                 # **Technical spec** - System architecture
 
-### 🔬 Research & Intelligence
-@internal/KNOWLEDGE.md             # Competitive intelligence & patterns
-@internal/DISCOVERIES.md           # Research insights & breakthroughs
-@internal/AGENT_FIRST_ROADMAP.md   # Development plan (agent intelligence focus)
+### 🏗️ Architecture & Design
+@docs/architecture/agent-first-architecture.md  # ACP-compatible design
+@docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md  # Model vs agent split
 
 ## What Makes Aircher Unique
 
