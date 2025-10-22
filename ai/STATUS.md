@@ -4,10 +4,11 @@
 
 ## Current State
 
-### Week 1 Complete ✅
+### Week 1 Complete ✅ → Python POC Started
 - **4 production file tools** implemented (2,110+ lines, 21+ tests)
 - **Competitive parity**: 23-27% (up from 17-21%)
-- **All success criteria met**: Production-quality, comprehensive tests, zero crashes
+- **Strategic pivot**: Building Python POC to validate memory approach
+- **POC location**: `poc-memory-agent/` directory
 
 ### What Works
 **Core Infrastructure**:
@@ -72,15 +73,17 @@
 
 ## Active Work
 
-**Current**: Documentation reorganization (agent-contexts structure)
-- Created ai/ directory (TODO, STATUS, DECISIONS, RESEARCH)
-- Moving agent context from internal/ to ai/
-- Moving user-facing docs to docs/
+**Current (2025-10-27)**: Python POC - Knowledge Graph + Episodic Memory
+- Building knowledge graph extraction (tree-sitter + NetworkX)
+- Will implement episodic memory layer (SQLite)
+- Creating benchmark harness to validate approach
+- Testing on Aircher codebase
 
-**Next (Week 2)**:
-- LM-centric interface improvements (windowing, validation)
-- Memory integration (DuckDB wiring, episodic recording)
-- Code understanding tools (search_code, analyze_code)
+**Goal**: Prove that memory improves performance by 25-40% before porting to Rust
+
+**After POC**:
+- If successful: Port to Rust, integrate with Aircher, wire ACP
+- If unsuccessful: Iterate in Python or pivot to different approach
 
 ## Blockers
 
