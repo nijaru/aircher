@@ -49,11 +49,14 @@
 **Completed Today**:
 - ✅ Week 1 file tools complete (4/4)
 - ✅ All internal docs updated
-- ✅ Documentation reorganization complete (agent-contexts structure)
+- ✅ Documentation reorganization complete (agent-contexts v0.1.1)
   - Created ai/ directory (TODO.md, STATUS.md, DECISIONS.md, RESEARCH.md)
   - Moved research findings to ai/research/
-  - Updated CLAUDE.md and REFERENCE.md
-  - Cleaned up consolidated files
+  - Eliminated internal/ directory (not needed for open-source)
+  - Cleaned up docs/ structure (archived old planning directories)
+  - Fixed external/agent-contexts submodule location
+  - Removed deprecated pattern files (CODE_STANDARDS, etc.)
+  - Updated all @internal/ references to @ai/ or @docs/
 
 **Next Session**:
 - Plan Week 2 implementation (LM-centric interfaces + memory)
