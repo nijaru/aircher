@@ -37,11 +37,10 @@ class CodeGraphBuilder:
 
     def __init__(self):
         self.graph = nx.DiGraph()
-        self.parser = Parser()
 
-        # Initialize Rust language
+        # Initialize Rust language and parser
         RUST_LANGUAGE = Language(tsrust.language())
-        self.parser.set_language(RUST_LANGUAGE)
+        self.parser = Parser(RUST_LANGUAGE)
 
         # Track seen entities to avoid duplicates
         self.seen_nodes: Set[str] = set()
@@ -198,16 +197,17 @@ class CodeGraphBuilder:
             code = file_path.read_bytes()
             tree = self.parser.parse(code)
 
-            # Create file node
-            file_id = self._node_id('file', str(file_path.relative_to(Path.cwd())))
-            self._add_node(file_id, 'file', file_path.name, str(file_path))
+            # Create file node - use absolute path
+            file_path_abs = file_path.absolute()
+            file_id = self._node_id('file', str(file_path_abs))
+            self._add_node(file_id, 'file', file_path.name, str(file_path_abs))
 
             # Extract entities
             initial_count = len(self.seen_nodes)
-            self._extract_functions(tree, str(file_path), file_id)
-            self._extract_structs(tree, str(file_path), file_id)
-            self._extract_impl_blocks(tree, str(file_path))
-            self._extract_use_statements(tree, str(file_path), file_id)
+            self._extract_functions(tree, str(file_path_abs), file_id)
+            self._extract_structs(tree, str(file_path_abs), file_id)
+            self._extract_impl_blocks(tree, str(file_path_abs))
+            self._extract_use_statements(tree, str(file_path_abs), file_id)
 
             return len(self.seen_nodes) - initial_count
 
@@ -249,7 +249,8 @@ class CodeGraphBuilder:
         """Count nodes by type"""
         counts = {}
         for node_id in self.graph.nodes:
-            node_type = self.graph.nodes[node_id]['type']
+            node_data = self.graph.nodes[node_id]
+            node_type = node_data.get('type', 'unknown')
             counts[node_type] = counts.get(node_type, 0) + 1
         return counts
 
