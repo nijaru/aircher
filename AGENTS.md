@@ -14,8 +14,10 @@ For organization patterns: @external/agent-contexts/PRACTICES.md
 - Focus: Agent intelligence, not UI - let editors handle the interface
 
 **⚠️ CRITICAL**: See @docs/STATUS.md and @ai/STATUS.md for current state
-- Status: Week 1 complete (4 tools), 23-27% feature parity
-- Focus: Agent intelligence research and implementation
+- Status: Week 1 complete (5 tools), 23-27% feature parity
+- Frontend: Toad (universal terminal UI) via ACP - saves 4-6 weeks
+- Backend: Rust (86K lines) - performance advantage for benchmarks
+- Memory: POC validated 60% improvement, porting to Rust
 - Repository: Public at https://github.com/nijaru/aircher
 
 ## Key Files (Always Check/Update)
@@ -82,6 +84,7 @@ EnhancedContext {
 
 ```
 Frontends (choose any)
+├── Toad (PRIMARY - universal terminal UI, Python/Textual)
 ├── Zed (native ACP support)
 ├── JetBrains IDEs (October 2025 collaboration)
 ├── Neovim (CodeCompanion, avante.nvim plugins)
@@ -89,16 +92,19 @@ Frontends (choose any)
 └── VSCode (via ACP adapter)
     ↓ (Agent Client Protocol - JSON-RPC over stdio)
     ↓
-Aircher Agent Backend
+Aircher Agent Backend (Rust)
+├── Semantic Search (hnswlib-rs, 45x faster)
+├── Knowledge Graph + Episodic Memory (60% improvement)
 ├── Intent Classification
 ├── Dynamic Context Management
 ├── Pattern Learning
-├── Intelligent Tool Execution
-└── Result Validation
+└── 9 Production Tools (Week 2 target)
 ```
 
-**You work on**: Agent intelligence
-**Frontend handles**: UI, keyboard shortcuts, themes, etc.
+**Primary Frontend**: Toad (universal terminal UI) - saves 4-6 weeks vs custom TUI
+**Backend**: Rust agent - performance critical for benchmarks
+**You work on**: Agent intelligence (tools, memory, intent, context)
+**Toad handles**: Terminal UI, rendering, keyboard shortcuts
 
 ## Key Architecture Insights
 
@@ -144,16 +150,23 @@ Aircher Agent Backend
 - **Dynamic Context**: Architecture implemented
 
 ### What's In Progress 🔄
-- **Tool Implementation**: Replacing stubs with real functionality
-- **ACP Protocol**: stdio transport and session management
-- **Intent Classification**: Making it operational
-- **Benchmarking**: Validation vs Claude Code/competitors
+- **Week 2**: Code understanding tools (search_code, analyze_code, find_references, find_definition)
+- **Week 3-4**: ACP protocol (stdio, JSON-RPC) + memory port to Rust
+- **Week 5-6**: Toad integration + intelligence wiring
+- **Week 7-8**: Benchmarks vs Claude Code (validate 60% memory improvement)
 
-### Current Priority (Week 1-2)
-**Real Tool Implementation**: Replace 9 stub tools with production-quality implementations
-- File operations (read, write, edit, list)
-- Code understanding (search, analyze, references, definitions)
-- **Target**: 8/10 tools real vs 1/10 currently
+### Current Priority (Week 2)
+**Code Understanding Tools**: Implement 4 production-quality tools
+- search_code: Leverage existing semantic search
+- analyze_code: AST-based analysis with tree-sitter
+- find_references: Cross-file symbol tracking
+- find_definition: Symbol lookup with context
+- **Target**: 9/10 tools real vs 5/10 currently
+
+**Memory Port Planning**: Port Python POC to Rust
+- Knowledge graph: tree-sitter + petgraph (vs NetworkX)
+- Episodic memory: DuckDB (already have infrastructure)
+- 60% improvement validated in POC
 
 See @ai/TODO.md for current sprint details.
 

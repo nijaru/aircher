@@ -1,15 +1,17 @@
 # TODO
 
-## Current Sprint: Python POC - Knowledge Graph + Episodic Memory
+## Current Sprint: Week 2 - Code Understanding Tools + Memory Port
 
-### Strategic Pivot (2025-10-27)
-**Decision**: Build Python POC to validate memory approach before continuing Rust implementation
+### Strategic Decision (2025-10-27)
+**Frontend**: Toad (universal terminal UI) via ACP
+**Backend**: Rust agent (stick with 86K lines investment)
+**Memory**: Port validated POC design to Rust
 
-**Why**:
-- Validate research hypothesis: "Does memory improve agent performance?"
-- Python allows faster iteration (1-2 weeks vs 4-6 weeks in Rust)
-- Keep 86K lines of Rust investment (semantic search, tools, providers)
-- Port proven design to Rust after validation
+**Why Toad + Rust**:
+- Toad: Universal terminal UI (Python/Textual) - saves 4-6 weeks vs custom TUI
+- ACP: Works in 5+ frontends (Toad, Zed, Neovim, Emacs, JetBrains)
+- Rust: Performance critical for benchmarks, semantic search irreplaceable
+- Memory POC: 60% improvement validated, port proven design
 
 ### ✅ POC COMPLETE - HYPOTHESIS VALIDATED! (Week 1-2)
 - [x] Set up Python POC project structure ✅
@@ -29,27 +31,48 @@
   - [x] 4 realistic coding scenarios ✅
   - [x] **Result: 60% improvement** (exceeded 25-40% target!) ✅
 
-### After POC (If Successful)
+### Week 2: Code Understanding Tools (Current)
+- [ ] Real `search_code` - semantic search integration, query expansion
+- [ ] Real `analyze_code` - AST-based analysis, complexity metrics
+- [ ] Real `find_references` - cross-file symbol tracking
+- [ ] Real `find_definition` - symbol lookup with context
+- [ ] Target: 9/10 tools real (up from 5/10)
 
-**Port to Rust (3-4 weeks)**:
-- [ ] Port knowledge graph builder to Rust
-- [ ] Port episodic memory layer
-- [ ] Integrate with existing Aircher infrastructure
-- [ ] Wire up ACP protocol (stdio transport)
-- [ ] Test in Zed editor
-
-**If POC Shows >25% Improvement**:
-- [ ] Write blog post series (4-5 posts)
-- [ ] Consider academic paper submission
-- [ ] Open source the memory system
-- [ ] Contribute learnings to Aider/Continue.dev community
-
-### Week 3 Preview (ACP Protocol)
-- [ ] stdio transport implementation (JSON-RPC)
+### Week 3-4: ACP Protocol + Memory Port
+**ACP Implementation (Rust)**:
+- [ ] stdio transport (JSON-RPC over stdin/stdout)
 - [ ] ACP Agent trait compliance
 - [ ] Session management
-- [ ] Test with Zed editor
-- [ ] Deprecate TUI testing (use Zed going forward)
+- [ ] Streaming response support
+- [ ] Test with Zed first (best ACP support)
+
+**Memory System Port (3-4 weeks)**:
+- [ ] Port knowledge graph builder to Rust (tree-sitter + petgraph)
+- [ ] Port episodic memory to DuckDB
+- [ ] Integrate with existing tool execution
+- [ ] Repository auto-scanning on startup
+
+### Week 5-6: Toad Integration + Intelligence Wiring
+- [ ] Test Aircher agent with Toad (when Toad stabilizes)
+- [ ] Wire intent classification to execution
+- [ ] Activate dynamic context management
+- [ ] Connect memory retrieval to tool calls
+
+### Week 7-8: Benchmarks + Blog Posts
+- [ ] Empirical comparison vs Claude Code
+- [ ] Measure: tool calls, context efficiency, success rate
+- [ ] Validate 60% memory improvement on real tasks
+- [ ] Write blog post series (4-5 posts)
+  - Post 1: Memory system validation
+  - Post 2: Toad + ACP architecture
+  - Post 3: Benchmark results
+  - Post 4: Open source release
+
+### Week 9-10: Research Paper + Release
+- [ ] Academic paper draft (if pursuing publication)
+- [ ] Open source memory system separately
+- [ ] Contribute learnings to Aider/Continue.dev
+- [ ] Final release + documentation
 
 ### Backlog
 - [ ] Error guardrails (linting, auto-reject bad edits)
@@ -71,14 +94,18 @@
   - Removed deprecated pattern files (CODE_STANDARDS, etc.)
   - Updated all @internal/ references to @ai/ or @docs/
 
-**Session Paused (2025-10-27)**:
-POC validation complete! 60% improvement achieved.
+**Session Active (2025-10-27)**:
+Strategy finalized: Toad frontend + Rust backend
 
-**Next Session Options**:
-1. Write blog post series (results are ready to share)
-2. Begin Rust port of memory system (proven design)
-3. Further POC refinement (test with real LLM calls)
-4. Academic paper preparation (if interested in publication)
+**Current Sprint (Week 2)**:
+1. Implement 4 code understanding tools (search, analyze, references, definitions)
+2. Target: 9/10 tools real (up from 5/10)
+3. Begin memory system port planning
+
+**Immediate Next**:
+- Start with `search_code` tool (leverage existing semantic search)
+- Integrate tree-sitter for AST analysis in `analyze_code`
+- Plan knowledge graph port to Rust (petgraph vs NetworkX)
 
 ## Notes
 - Week 1 Success: 4 production tools (2,110+ lines, 21+ tests)
