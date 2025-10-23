@@ -6,15 +6,19 @@
 
 ## What Is This?
 
-Aircher is an **ACP-compatible agent backend** - NOT a standalone TUI or IDE. It works **inside** your editor of choice:
+Aircher is an **ACP-compatible agent backend** - NOT a standalone TUI or IDE. It works **inside** your editor/terminal of choice:
+
+**Primary Frontend:**
+- **Toad** (universal terminal UI by Will McGugan - Python/Textual)
+
+**Also works in:**
 - **Zed** (native ACP support)
-- **JetBrains IDEs** (October 2025 collaboration with Zed on ACP)
 - **Neovim** (CodeCompanion, avante.nvim plugins)
 - **Emacs** (agent-shell)
-- **Any ACP-compatible frontend**
+- **JetBrains IDEs** (October 2025 collaboration - coming soon)
 
-**We focus on:** Agent intelligence, not UI
-**Editors handle:** UI, keyboard shortcuts, themes, rendering
+**Strategy:** Toad handles terminal UX, Aircher handles agent intelligence
+**Benefit:** Saves 4-6 weeks vs building custom TUI, works in 5+ frontends
 
 ## 🎯 Unique Contributions (Research Focus)
 
@@ -55,29 +59,30 @@ EnhancedContext {
 
 ## 📊 Current Status (Honest Assessment)
 
-**Week 1 of 10** | **16-20% competitive parity** | **Research phase**
+**Week 2 of 10** | **23-27% competitive parity** | **Research phase**
 
 ### What Works ✅
-- **Semantic Search**: Production-ready (6,468 vectors, 19+ languages, sub-second)
+- **Semantic Search**: Production-ready (6,468 vectors, 19+ languages, <2ms latency)
+- **5 Production Tools**: 2,110+ lines (analyze_errors, read_file, write_file, edit_file, list_files)
 - **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama
-- **Intelligence Framework**: 210+ Rust files with substantial implementation
-- **Architecture**: Designed and documented
+- **Memory POC**: Knowledge graph + episodic memory validated (60% improvement)
+- **Frontend Strategy**: Toad (universal terminal UI) - saves 4-6 weeks
 
 ### What's In Progress 🔄
-- **Real Tool Implementation**: Replacing 9 stub tools with production-quality implementations
-  - Week 1: File operations (read, write, edit, list)
-  - Week 2: Code understanding (search, analyze, references, definitions)
-- **ACP Protocol**: stdio transport and session management (Week 3)
-- **Intent Classification**: Making it operational (Week 5)
-- **Benchmarking**: Empirical validation vs Claude Code/competitors (Week 7-8)
+- **Week 2**: Code understanding tools (search_code, analyze_code, find_references, find_definition)
+- **Week 3-4**: ACP protocol (stdio, JSON-RPC) + memory port to Rust
+- **Week 5-6**: Toad integration + intelligence wiring
+- **Week 7-8**: Benchmarks vs Claude Code (validate 60% memory improvement)
+- **Week 9-10**: Research paper + open source release
 
 ### What Doesn't Work Yet ❌
-- **9/10 tools are stubs** - return fake JSON, no real functionality
-- **ACP Protocol**: Not yet implemented (Week 3 target)
-- **Intent Classification**: Code exists but not operational
-- **Benchmarks**: No empirical validation yet
+- **5/10 tools are stubs** - Week 2 target: 9/10 real
+- **ACP Protocol**: Not yet implemented (Week 3-4 target)
+- **Memory system**: POC validated but not yet ported to Rust (Week 3-4)
+- **Toad integration**: Waiting for Toad ACP stabilization (Week 5-6)
+- **Benchmarks**: No empirical validation yet (Week 7-8)
 
-**Bottom line**: Strong foundation with production-ready semantic search, but real tool functionality and ACP integration are works in progress.
+**Bottom line**: Strong foundation with production-ready semantic search and 5 real tools. Memory system validated in POC (60% improvement). Week 2 focuses on code understanding tools.
 
 ## 🚀 10-Week Development Plan
 

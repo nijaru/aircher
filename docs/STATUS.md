@@ -6,17 +6,21 @@
 
 ## 📊 Executive Summary
 
-Aircher is an **ACP-compatible agent backend** (not TUI) in Week 1 of 10-week development plan. Focus is research-grade agent intelligence for publication.
+Aircher is an **ACP-compatible agent backend** (not TUI) in Week 2 of 10-week development plan. Focus is research-grade agent intelligence for publication.
 
-**Current Status**: 5 production-quality tools (2,110+ lines), 5 stubs. Week 1 complete. Building toward ACP integration with Zed/JetBrains.
+**Frontend Strategy**: Toad (universal terminal UI) - saves 4-6 weeks vs custom TUI
+**Backend**: Rust (86K lines) - performance critical for benchmarks
+**Current Status**: 5 production tools (2,110+ lines), 5 stubs. Week 1 complete.
+**Memory System**: POC validated 60% improvement, porting to Rust in Week 3-4.
 
 **Bottom Line**: Research project Week 1 of 10 complete. Targeting empirical benchmarks vs Claude Code + publication.
 
 ## 🎯 What Actually Works Today
 
 ### ✅ FULLY FUNCTIONAL (Production-Ready)
-- **Semantic Code Search**: Production-ready search across 19+ languages (6,468 vectors)
+- **Semantic Code Search**: Production-ready search across 19+ languages (6,468 vectors, <2ms latency)
 - **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama authentication
+- **Memory POC**: Knowledge graph + episodic memory validated (60% improvement in Python)
 - **5 Real Tools** (2,110+ lines total): ✨ WEEK 1 COMPLETE
   1. **analyze_errors**: Error pattern matching, actionable fixes (378 lines)
   2. **read_file**: Syntax highlighting, AST context extraction (430 lines)
@@ -24,16 +28,23 @@ Aircher is an **ACP-compatible agent backend** (not TUI) in Week 1 of 10-week de
   4. **edit_file**: Dual modes (search/replace + line-based) (530 lines)
   5. **list_files**: Recursive traversal, filtering, metadata (700 lines)
 
-### 🔄 IN PROGRESS (Week 1 Polish)
-- **Days 5-7**: Integration & end-to-end testing of all 4 file tools
-- **Performance**: Optimization and polish
-- **Documentation**: Tool usage documentation
+### 🎨 FRONTEND STRATEGY
+- **Primary**: Toad (universal terminal UI by Will McGugan - Python/Textual)
+- **Also works in**: Zed, Neovim, Emacs, JetBrains (all via ACP protocol)
+- **Saves**: 4-6 weeks vs building custom TUI
+- **Focus**: Agent intelligence, let Toad handle terminal UX
+
+### 🔄 IN PROGRESS (Week 2)
+- **Code understanding tools**: search_code, analyze_code, find_references, find_definition
+- **Target**: 9/10 tools real (up from 5/10)
+- **Memory port planning**: Prepare to port Python POC to Rust (Week 3-4)
 
 ### ❌ NOT WORKING / MISSING
-- **5 out of 10 tools are stubs** (down from 8, Week 1 complete)
-- **ACP Protocol**: Not implemented (Week 3 target)
+- **5 out of 10 tools are stubs** (Week 2 target: 9/10 real)
+- **ACP Protocol**: Not implemented (Week 3-4 target)
+- **Memory system**: POC validated but not yet ported to Rust (Week 3-4)
 - **Intelligence wiring**: Code exists but not in execution path (Weeks 5-6)
-- **Code Understanding Tools**: Week 2 target (search_code, analyze_code, etc.)
+- **Toad integration**: Waiting for Toad ACP stabilization (Week 5-6)
 
 ## 🔍 Detailed Feature Matrix
 

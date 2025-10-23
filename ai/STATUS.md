@@ -1,14 +1,15 @@
 # STATUS
 
-**Last Updated**: 2025-10-27 (POC Validation Complete - Session Paused)
+**Last Updated**: 2025-10-27 (Toad Frontend Strategy - Stick with Rust)
 
 ## Current State
 
-### Week 1 Complete ✅ → Python POC Started
-- **4 production file tools** implemented (2,110+ lines, 21+ tests)
+### Week 1 Complete ✅ → Toad as Primary Frontend
+- **5 production file tools** implemented (2,110+ lines, 21+ tests)
 - **Competitive parity**: 23-27% (up from 17-21%)
-- **Strategic pivot**: Building Python POC to validate memory approach
-- **POC location**: `poc-memory-agent/` directory
+- **Frontend strategy**: Toad terminal UI (Python/Textual) via ACP
+- **Agent backend**: Rust (keep 86K lines investment)
+- **POC status**: Memory system validated (60% improvement)
 
 ### What Works
 **Core Infrastructure**:
@@ -55,10 +56,11 @@
 - **Documentation**: Clear status tracking enabled progress
 
 ### Architecture Decisions
-- **Rust backend**: 86K lines invested, correct choice
-- **ACP-first**: Right strategy vs building TUI
+- **Rust backend**: 86K lines invested, correct choice (performance critical for benchmarks)
+- **Toad frontend**: Universal terminal UI (saves 4-6 weeks vs custom TUI)
+- **ACP-first**: Works in 5+ frontends (Toad, Zed, Neovim, Emacs, JetBrains)
 - **Enhanced prompting** over complex orchestration (1685-line savings)
-- **Memory systems** built proactively (ready for Week 2)
+- **Memory systems** built proactively (POC validated 60% improvement)
 
 ## What Didn't Work
 
@@ -87,7 +89,16 @@
 - ✅ Benchmark: 4 realistic coding tasks validated
 - ✅ Integration: Graph + memory working together
 
-**Next Steps**: Port to Rust (3-4 weeks), integrate with Aircher, wire ACP, blog posts
+**Frontend Decision**: Use Toad (universal terminal UI) as primary frontend
+- Toad (Python/Textual) communicates via ACP JSON-RPC over stdio
+- Aircher agent (Rust) handles intelligence/tools
+- Also works in Zed, Neovim, Emacs, JetBrains (via ACP)
+
+**Next Steps**:
+1. Port memory system to Rust (3-4 weeks)
+2. Implement ACP protocol (Week 3-4)
+3. Test with Toad when it stabilizes
+4. Benchmark vs Claude Code
 
 ## Blockers
 

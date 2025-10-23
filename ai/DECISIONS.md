@@ -2,6 +2,57 @@
 
 **Purpose**: Document WHY significant technical decisions were made.
 
+## 2025-10-27: Toad as Primary Frontend + Stick with Rust
+
+### Decision
+Use Toad (universal terminal UI) as primary frontend, keep Rust for agent backend.
+
+### Context
+After POC validation (60% improvement), needed to decide:
+1. Frontend: Build custom TUI vs use existing ACP-compatible frontend
+2. Backend: Continue Rust vs rewrite in Python
+
+**Research findings**:
+- Toad: Universal terminal UI for agentic coding (Python/Textual by Will McGugan)
+- ACP support announced July 2025
+- OpenCode uses TypeScript + Go (split responsibilities)
+- Factory Droid scores highest (58.8% Terminal-Bench) but closed source
+- Research shows Rust > Python for agent scalability (GIL limitations)
+
+### Rationale
+**Frontend: Toad over Custom TUI**:
+- Toad provides universal terminal UI (we don't build/maintain)
+- ACP protocol means language-agnostic communication (JSON-RPC over stdio)
+- Saves 4-6 weeks vs custom Ratatui TUI development
+- Works in 5+ frontends: Toad, Zed, Neovim, Emacs, JetBrains
+
+**Backend: Rust over Python**:
+- Keep 86K lines investment (semantic search, tools, providers)
+- Performance critical for benchmarks (true parallelism, no GIL)
+- hnswlib-rs 45x faster than Python alternatives
+- Single binary deployment (easy to reproduce benchmarks)
+- Research: "Developers moving from Python to Rust for agentic AI"
+
+**Python POC served its purpose**: Validated memory approach in 1-2 weeks
+
+### Implementation
+- Week 2: Code understanding tools (search, analyze, references, definitions)
+- Week 3-4: ACP protocol (stdio, JSON-RPC) + memory port to Rust
+- Week 5-6: Test with Toad (when stable), wire intelligence
+- Week 7-8: Benchmarks vs Claude Code
+
+### Impact
+- **Time saved**: 4-6 weeks (custom TUI avoided)
+- **Reach**: 5+ frontends vs 1 custom TUI
+- **Performance**: Rust maintains benchmark advantage
+- **Maintenance**: Toad team handles UI, we focus on intelligence
+
+### Alternative Considered
+**Rewrite in Python + custom TUI**: 14-16 weeks total, slower benchmarks, harder deployment
+**Rejected**: POC already validated approach, Rust infrastructure is competitive advantage
+
+---
+
 ## 2025-10-27: Make Repository Public
 
 ### Decision
