@@ -53,6 +53,94 @@ After POC validation (60% improvement), needed to decide:
 
 ---
 
+## 2025-10-27: DuckDB + petgraph for Memory Systems
+
+### Decision
+Use **DuckDB for episodic memory** and **petgraph for knowledge graph**.
+
+### Context
+Memory system architecture requires two storage strategies:
+1. **Episodic memory**: Track tool executions, file interactions, tasks, patterns
+2. **Knowledge graph**: Codebase structure (files, functions, calls, imports)
+
+**Requirements**:
+- Episodic: Analytical queries ("files edited together?", "have I seen this before?")
+- Graph: Fast traversals ("what calls this?", "what's in file X?")
+- Both: Persist across sessions, incremental updates
+
+### Rationale
+
+**DuckDB for Episodic Memory**:
+- ✅ Already have infrastructure (`src/intelligence/memory/duckdb_memory.rs`)
+- ✅ Better than SQLite for analytical queries (vectorized execution)
+- ✅ JSON columns for flexible schema (parameters, patterns, metadata)
+- ✅ Embedded (no server, single file)
+- ✅ Arrow integration (export to DataFrame for analysis)
+- ✅ Size estimate: ~20MB for typical session (1000 tool calls, 10K interactions)
+
+**petgraph for Knowledge Graph**:
+- ✅ In-memory = microsecond graph traversals (vs milliseconds in database)
+- ✅ Mature Rust crate (3.2M downloads, stable API)
+- ✅ Supports directed graphs with typed nodes/edges
+- ✅ Binary serialization (serde) for persistence
+- ✅ POC validated: 3,942 nodes, 5,217 edges for Aircher codebase
+- ✅ Incremental updates: Re-parse only changed files
+
+**Alternatives Considered**:
+
+1. **SQLite for episodic**: Good but DuckDB better for analytical queries
+   - Rejected: DuckDB already integrated, better performance
+
+2. **Graph database (Neo4j, etc.)**: Powerful but heavyweight
+   - Rejected: Overkill for our use case, deployment complexity
+
+3. **All-in-one solution (PostgreSQL + graph extension)**: Possible
+   - Rejected: More complex, petgraph in-memory is faster
+
+### Implementation
+
+**DuckDB Schema (5 tables)**:
+- tool_executions: Every tool call, success/failure, duration
+- file_interactions: Every file operation, in what context
+- task_history: User-level goals, status, outcome
+- context_snapshots: Periodic state for debugging
+- learned_patterns: Co-edit patterns, error fixes
+
+**petgraph Structure**:
+- Nodes: File, Function, Class, Import, Variable (enum)
+- Edges: Contains, Calls, Imports, Uses, Inherits (enum)
+- Queries: get_file_contents, get_callers, find_symbol
+- Storage: Binary file (`knowledge_graph.bin`) loaded on startup
+
+**Week-by-week**:
+- Week 3: DuckDB episodic memory (schema + recording + queries)
+- Week 4: petgraph knowledge graph (build + query + incremental)
+- Week 5: Dynamic context management (integrate both)
+
+### Impact
+- **Continuous work**: Dynamic pruning removes low-value context, summarizes to episodic memory
+- **60% fewer tool calls**: Knowledge graph answers "what calls this?" without file scanning
+- **Pattern learning**: Co-edit detection, error-fix patterns improve over time
+- **Cross-session memory**: Both systems persist, agent learns across conversations
+
+### Trade-offs
+- **Memory usage**: petgraph in-memory (~50-100MB for large codebases)
+  - Mitigation: Serialize when not in use, lazy load on query
+- **Build time**: Initial graph construction 10-30 seconds
+  - Mitigation: Cache graph, incremental updates on file change
+- **Complexity**: Two storage systems to maintain
+  - Mitigation: Clear separation of concerns, well-tested
+
+### Research Contribution
+This architecture enables the **continuous work capability** that distinguishes Aircher from Claude Code:
+- Claude Code: Restarts when context fills
+- Aircher: Prunes intelligently, remembers via episodic memory, queries knowledge graph
+
+**Paper title**: "Memory-Augmented Coding Agents: Empirical Validation"
+**Key metric**: 60% reduction in tool calls (POC validated)
+
+---
+
 ## 2025-10-27: Make Repository Public
 
 ### Decision

@@ -41,11 +41,13 @@
 3. ❌ No result limits in search (should max 50 results)
 4. ❌ No context management (should keep last 5 interactions)
 
-**Memory Systems Not Active**:
-- DuckDB infrastructure complete but not wired to execution
-- No episodic recording of tool calls
-- No pattern retrieval before execution
-- No repository auto-scanning
+**Memory Systems Designed (Ready for Week 3-4 Port)**:
+- **Architecture complete**: Three-system design (knowledge graph + episodic + working memory)
+- **DuckDB schema**: 5 tables (tool_executions, file_interactions, task_history, context_snapshots, learned_patterns)
+- **Dynamic pruning**: Intelligent context removal enables continuous work without restart
+- **Relevance scoring**: Time decay + task association + dependencies + item type weights
+- **Pattern learning**: Co-edit detection, error-fix patterns, workflow recognition
+- **See**: ai/research/memory-system-architecture.md for complete design
 
 ## What Worked
 
@@ -60,7 +62,10 @@
 - **Toad frontend**: Universal terminal UI (saves 4-6 weeks vs custom TUI)
 - **ACP-first**: Works in 5+ frontends (Toad, Zed, Neovim, Emacs, JetBrains)
 - **Enhanced prompting** over complex orchestration (1685-line savings)
-- **Memory systems** built proactively (POC validated 60% improvement)
+- **Memory systems**: Three-layer architecture (POC validated 60% improvement)
+  - **Knowledge graph**: petgraph in-memory (microsecond traversals)
+  - **Episodic memory**: DuckDB (track everything, learn patterns)
+  - **Working memory**: Dynamic context with intelligent pruning
 
 ## What Didn't Work
 
@@ -94,11 +99,30 @@
 - Aircher agent (Rust) handles intelligence/tools
 - Also works in Zed, Neovim, Emacs, JetBrains (via ACP)
 
+**Memory Architecture** (Week 3-5 Implementation):
+1. **Knowledge Graph** (Week 4): petgraph + tree-sitter
+   - Nodes: files, functions, classes (3,942 in POC)
+   - Edges: contains, calls, imports (5,217 in POC)
+   - Queries: "What calls this?" "What's in file X?"
+
+2. **Episodic Memory** (Week 3): DuckDB with 5 tables
+   - tool_executions: Every tool call, success/failure, duration
+   - file_interactions: Every file operation, in what context
+   - task_history: User-level goals, status, outcome
+   - context_snapshots: Periodic state for debugging
+   - learned_patterns: Co-edit patterns, error fixes
+
+3. **Working Memory** (Week 5): Dynamic context pruning
+   - Intelligent removal: Bottom 30% by relevance score
+   - Relevance = time_decay × task_association × dependencies × type_weight
+   - Enables continuous work without restart (key innovation)
+
 **Next Steps**:
-1. Port memory system to Rust (3-4 weeks)
-2. Implement ACP protocol (Week 3-4)
-3. Test with Toad when it stabilizes
-4. Benchmark vs Claude Code
+1. Week 2: Code understanding tools (4 tools)
+2. Week 3: DuckDB episodic memory (schema + recording + queries)
+3. Week 4: Knowledge graph port (petgraph + tree-sitter)
+4. Week 5: Dynamic context management (pruning algorithm)
+5. Week 7-8: Benchmark vs Claude Code (validate 60% + continuous work)
 
 ## Blockers
 

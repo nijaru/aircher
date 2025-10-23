@@ -38,25 +38,91 @@
 - [ ] Real `find_definition` - symbol lookup with context
 - [ ] Target: 9/10 tools real (up from 5/10)
 
-### Week 3-4: ACP Protocol + Memory Port
+### Week 3: DuckDB Episodic Memory (1 week)
+**Day 1-2: Schema + Basic Operations**:
+- [ ] Create 5 tables (tool_executions, file_interactions, task_history, context_snapshots, learned_patterns)
+- [ ] Insert/query functions for each table
+- [ ] Connection pooling and error handling
+- [ ] Unit tests for basic CRUD operations
+
+**Day 3-4: Recording Layer**:
+- [ ] Hook into tool execution pipeline
+- [ ] Record every tool call (name, params, result, success, duration, tokens)
+- [ ] Record every file interaction (read, write, edit, search, analyze)
+- [ ] Track task lifecycle (start, complete, fail, pause)
+- [ ] Integration tests for recording
+
+**Day 5-7: Query Layer + Pattern Learning**:
+- [ ] "Have I worked on this file before?" query
+- [ ] Co-edit pattern detection (files edited together within 5 minutes)
+- [ ] Similar task lookup (semantic similarity)
+- [ ] Success rate by tool/file
+- [ ] Performance tests (1000+ rows)
+
+### Week 4: Knowledge Graph Port (1 week)
+**Day 1-3: Graph Building**:
+- [ ] Port tree-sitter extraction from Python POC
+- [ ] Build petgraph structure (3,942 nodes, 5,217 edges target)
+- [ ] Node types: File, Function, Class, Import, Variable
+- [ ] Edge types: Contains, Calls, Imports, Uses, Inherits
+- [ ] Serialize/deserialize to binary file
+- [ ] Tests for graph construction
+
+**Day 4-5: Query Interface**:
+- [ ] get_file_contents(path) → all functions/classes in file
+- [ ] get_callers(function) → what calls this function
+- [ ] get_dependencies(file) → what files does this depend on
+- [ ] find_symbol(name) → where is this defined
+- [ ] Integration with existing semantic search
+
+**Day 6-7: Incremental Updates**:
+- [ ] File changed → re-parse only that file
+- [ ] Update affected edges
+- [ ] Repository scan on startup
+- [ ] Cache parsed ASTs for performance
+- [ ] Edge case handling (deleted files, renamed symbols)
+
+### Week 3-4: ACP Protocol (can overlap with memory work)
 **ACP Implementation (Rust)**:
 - [ ] stdio transport (JSON-RPC over stdin/stdout)
 - [ ] ACP Agent trait compliance
-- [ ] Session management
+- [ ] Session management (create, resume, end)
 - [ ] Streaming response support
+- [ ] Tool execution via protocol
 - [ ] Test with Zed first (best ACP support)
 
-**Memory System Port (3-4 weeks)**:
-- [ ] Port knowledge graph builder to Rust (tree-sitter + petgraph)
-- [ ] Port episodic memory to DuckDB
-- [ ] Integrate with existing tool execution
-- [ ] Repository auto-scanning on startup
+### Week 5: Dynamic Context Management (1 week)
+**Day 1-3: Context Window Implementation**:
+- [ ] ContextWindow struct (items, token_count, max_tokens)
+- [ ] ContextItem struct (content, type, timestamp, relevance, dependencies)
+- [ ] Relevance scoring algorithm:
+  - Time decay (exponential, half-life ~1 hour)
+  - Task association (2x boost for current task)
+  - Dependency counting (items that reference this)
+  - Item type weights (task state 2x, tool results 0.8x)
+- [ ] Unit tests for relevance calculation
 
-### Week 5-6: Toad Integration + Intelligence Wiring
+**Day 4-5: Pruning Logic**:
+- [ ] maybe_prune() → check if 80% full, prune if needed
+- [ ] prune_context() → remove bottom 30% by token count
+- [ ] summarize_to_episodic() → save removed items to DuckDB
+- [ ] snapshot_context() → record state for debugging
+- [ ] Integration with episodic memory
+
+**Day 6-7: Integration + Validation**:
+- [ ] Connect to knowledge graph (fetch relevant code)
+- [ ] Connect to episodic memory (fetch similar tasks)
+- [ ] prepare_context() → build message list for LLM
+- [ ] Test with POC benchmark tasks
+- [ ] Validate 60% improvement holds in Rust
+- [ ] Fix issues, tune relevance weights
+
+### Week 6: Toad Integration + Intelligence Wiring
 - [ ] Test Aircher agent with Toad (when Toad stabilizes)
 - [ ] Wire intent classification to execution
-- [ ] Activate dynamic context management
+- [ ] Activate dynamic context management in main loop
 - [ ] Connect memory retrieval to tool calls
+- [ ] End-to-end testing with real tasks
 
 ### Week 7-8: Benchmarks + Blog Posts
 - [ ] Empirical comparison vs Claude Code
