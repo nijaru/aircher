@@ -28,6 +28,24 @@ Aircher is an **ACP-compatible agent backend** (not TUI) in Week 2 of 10-week de
   4. **edit_file**: Dual modes (search/replace + line-based) (530 lines)
   5. **list_files**: Recursive traversal, filtering, metadata (700 lines)
 
+### 🧠 MEMORY ARCHITECTURE DESIGNED (Week 3-5 Implementation)
+
+**Three-System Design**:
+1. **Knowledge Graph** (petgraph in-memory)
+   - Codebase structure: files → functions → calls
+   - POC: 3,942 nodes, 5,217 edges
+   - Microsecond traversals: "what calls this?", "what's in file X?"
+
+2. **Episodic Memory** (DuckDB)
+   - Track everything: tool calls, file interactions, tasks
+   - Learn patterns: files edited together, error fixes
+   - 5 tables: tool_executions, file_interactions, task_history, context_snapshots, learned_patterns
+
+3. **Working Memory** (Dynamic Context)
+   - Intelligent pruning: Remove bottom 30% by relevance score
+   - Relevance = time_decay × task_association × dependencies × type_weight
+   - **Key innovation**: Continuous work without restart
+
 ### 🎨 FRONTEND STRATEGY
 - **Primary**: Toad (universal terminal UI by Will McGugan - Python/Textual)
 - **Also works in**: Zed, Neovim, Emacs, JetBrains (all via ACP protocol)
@@ -42,9 +60,12 @@ Aircher is an **ACP-compatible agent backend** (not TUI) in Week 2 of 10-week de
 ### ❌ NOT WORKING / MISSING
 - **5 out of 10 tools are stubs** (Week 2 target: 9/10 real)
 - **ACP Protocol**: Not implemented (Week 3-4 target)
-- **Memory system**: POC validated but not yet ported to Rust (Week 3-4)
-- **Intelligence wiring**: Code exists but not in execution path (Weeks 5-6)
-- **Toad integration**: Waiting for Toad ACP stabilization (Week 5-6)
+- **Memory system**: POC validated, architecture designed, ready for port (Week 3-5)
+  - Week 3: DuckDB episodic memory (5 tables, recording, queries)
+  - Week 4: petgraph knowledge graph (build, query, incremental updates)
+  - Week 5: Dynamic context management (pruning algorithm)
+- **Intelligence wiring**: Code exists but not in execution path (Week 6)
+- **Toad integration**: Waiting for Toad ACP stabilization (Week 6)
 
 ## 🔍 Detailed Feature Matrix
 
@@ -96,8 +117,15 @@ cargo run --bin test_strategy_with_mock
 **Current**: ~23-27% feature parity with Claude Code (Week 1 complete!)
 - ✅ Has solid infrastructure (semantic search, multi-provider auth)
 - ✅ FIVE real tools providing actual value (2,110+ lines)
-- ⚠️ 5 strategy tools still stubs (down from 9)
+- ✅ Memory architecture designed (60% improvement validated in POC)
+- ⚠️ 5 strategy tools still stubs (Week 2 target: 9/10 real)
 - ❌ Missing intelligence wiring and code understanding
+
+**Unique Advantages Being Built**:
+1. **Continuous Work**: Dynamic context pruning (Claude Code must restart)
+2. **Episodic Memory**: DuckDB tracks everything, learns patterns (Claude Code has none)
+3. **Knowledge Graph**: petgraph for instant codebase queries (Claude Code re-scans)
+4. **60% Fewer Tool Calls**: Validated in POC (target: reproduce in Rust)
 
 **Progress Update (Oct 27, 2025)**:
 - +7% for Week 1 completion (4 new file operation tools)

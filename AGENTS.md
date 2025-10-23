@@ -56,19 +56,33 @@ Single agent with intelligent context vs sub-agents:
 
 **Empirical Evidence**: 19% performance advantage over sub-agent architectures
 
-### 3. **Pattern-Aware Code Generation**
+### 3. **Memory-Augmented Intelligence** (NEW: Week 3-5)
+Three-layer memory system enabling continuous work without restart:
+
+**Knowledge Graph** (petgraph in-memory):
+- Codebase structure: 3,942 nodes, 5,217 edges (Aircher POC)
+- Microsecond queries: "what calls this?", "what's in file X?"
+- Incremental updates when files change
+
+**Episodic Memory** (DuckDB):
+- Track everything: tool calls, file interactions, tasks
+- Learn patterns: co-edit detection, error-fix patterns
+- 5 tables: tool_executions, file_interactions, task_history, context_snapshots, learned_patterns
+
+**Working Memory** (Dynamic Context):
+- Intelligent pruning: Remove bottom 30% by relevance score
+- Relevance = time_decay × task_association × dependencies × type_weight
+- **Key innovation**: Continuous work, no restart needed
+
+**Measurable Impact**: 60% reduction in tool calls (POC validated)
+
+### 4. **Pattern-Aware Code Generation**
 Learns project-specific conventions:
 - Automatic style extraction
 - Context-aware suggestions
 - Architectural compliance checking
 
 **Measurable Impact**: Code consistency matching existing codebase patterns
-
-### 4. **Intelligent Debugging**
-Root cause analysis with system awareness:
-- Cross-file dependency tracking
-- Multiple fix strategies with risk assessment
-- Impact analysis before changes
 
 ### 5. **Unified Intelligence Middleware**
 Transparent automatic enhancement:
@@ -163,10 +177,25 @@ Aircher Agent Backend (Rust)
 - find_definition: Symbol lookup with context
 - **Target**: 9/10 tools real vs 5/10 currently
 
-**Memory Port Planning**: Port Python POC to Rust
-- Knowledge graph: tree-sitter + petgraph (vs NetworkX)
-- Episodic memory: DuckDB (already have infrastructure)
-- 60% improvement validated in POC
+### Upcoming (Week 3-5): Memory System Port
+
+**Week 3: DuckDB Episodic Memory**
+- Schema: 5 tables (tool_executions, file_interactions, task_history, context_snapshots, learned_patterns)
+- Recording layer: Hook every tool call, file interaction, task
+- Query layer: "Have I seen this?", co-edit patterns, similar tasks
+
+**Week 4: petgraph Knowledge Graph**
+- Build graph: tree-sitter extraction → 3,942 nodes, 5,217 edges
+- Query interface: get_file_contents, get_callers, find_symbol
+- Incremental updates: Re-parse only changed files
+
+**Week 5: Dynamic Context Management**
+- Relevance scoring algorithm (time decay, task association, dependencies, type weights)
+- Pruning logic: Remove bottom 30% when 80% full
+- Integration: Connect knowledge graph + episodic memory + working context
+- Validation: Prove 60% improvement holds in Rust
+
+**Architecture Details**: See @ai/research/memory-system-architecture.md (500+ lines)
 
 See @ai/TODO.md for current sprint details.
 
