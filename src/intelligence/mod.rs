@@ -4,6 +4,7 @@ use crate::semantic_search::SemanticCodeSearch;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use async_trait::async_trait;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::{RwLock, Mutex};
 use tracing::{warn, info};
@@ -73,6 +74,7 @@ pub struct IntelligenceEngine {
     narrative_tracker: DevelopmentNarrativeTracker,
     memory_system: ConversationalMemorySystem,
     duckdb_memory: Option<Arc<Mutex<DuckDBMemory>>>,
+    knowledge_graph: Option<Arc<Mutex<KnowledgeGraph>>>,  // Week 4: Knowledge graph
     semantic_search: Option<Arc<RwLock<SemanticCodeSearch>>>,
     ast_analyzer: Arc<RwLock<ASTAnalyzer>>,
     purpose_analyzer: PurposeAnalysisEngine,
@@ -105,6 +107,7 @@ impl IntelligenceEngine {
             narrative_tracker,
             memory_system,
             duckdb_memory: None,
+            knowledge_graph: None,
             semantic_search: None,
             ast_analyzer,
             purpose_analyzer,
@@ -143,6 +146,7 @@ impl IntelligenceEngine {
             narrative_tracker,
             memory_system,
             duckdb_memory: None,
+            knowledge_graph: None,
             semantic_search: Some(semantic_search_arc),
             ast_analyzer,
             purpose_analyzer,
@@ -370,6 +374,98 @@ impl IntelligenceEngine {
             Ok(related_files)
         } else {
             Ok(Vec::new())
+        }
+    }
+
+    // ========== Week 4: Knowledge Graph Methods ==========
+
+    /// Build knowledge graph from project root
+    pub async fn build_knowledge_graph(&mut self, project_root: PathBuf) -> Result<()> {
+        info!("Building knowledge graph for {:?}", project_root);
+
+        let mut builder = GraphBuilder::new(project_root.clone())?;
+        let graph = builder.build_graph()?;
+
+        let stats = graph.stats();
+        info!("Knowledge graph built: {}", stats);
+
+        self.knowledge_graph = Some(Arc::new(Mutex::new(graph)));
+
+        Ok(())
+    }
+
+    /// Load knowledge graph from file
+    pub async fn load_knowledge_graph(&mut self, path: &Path) -> Result<()> {
+        info!("Loading knowledge graph from {:?}", path);
+
+        let graph = KnowledgeGraph::load(path)?;
+
+        let stats = graph.stats();
+        info!("Knowledge graph loaded: {}", stats);
+
+        self.knowledge_graph = Some(Arc::new(Mutex::new(graph)));
+
+        Ok(())
+    }
+
+    /// Save knowledge graph to file
+    pub async fn save_knowledge_graph(&self, path: &Path) -> Result<()> {
+        if let Some(graph) = &self.knowledge_graph {
+            let graph_guard = graph.lock().await;
+            graph_guard.save(path)?;
+            Ok(())
+        } else {
+            anyhow::bail!("Knowledge graph not initialized")
+        }
+    }
+
+    /// Get all functions and classes in a file
+    pub async fn get_file_structure(&self, file_path: &Path) -> Result<Vec<NodeType>> {
+        if let Some(graph) = &self.knowledge_graph {
+            let graph_guard = graph.lock().await;
+            graph_guard.get_file_contents(file_path)
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Find what calls a function
+    pub async fn find_callers(&self, function_name: &str) -> Result<Vec<NodeType>> {
+        if let Some(graph) = &self.knowledge_graph {
+            let graph_guard = graph.lock().await;
+            graph_guard.get_callers(function_name)
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Get file dependencies (imports)
+    pub async fn get_file_dependencies(&self, file_path: &Path) -> Result<Vec<NodeType>> {
+        if let Some(graph) = &self.knowledge_graph {
+            let graph_guard = graph.lock().await;
+            graph_guard.get_dependencies(file_path)
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Find symbol definition
+    pub async fn find_symbol_definition(&self, symbol_name: &str) -> Result<Vec<NodeType>> {
+        if let Some(graph) = &self.knowledge_graph {
+            let graph_guard = graph.lock().await;
+            graph_guard.find_symbol(symbol_name)
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Get knowledge graph statistics
+    pub async fn get_knowledge_graph_stats(&self) -> Option<GraphStats> {
+        if let Some(graph) = &self.knowledge_graph {
+            let graph_guard = graph.lock().await;
+            Some(graph_guard.stats())
+        } else {
+            None
         }
     }
 

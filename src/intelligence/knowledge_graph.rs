@@ -10,6 +10,7 @@
 
 use anyhow::{Context, Result};
 use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::visit::EdgeRef;
 use petgraph::Direction;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -153,7 +154,8 @@ impl KnowledgeGraph {
         let mut contents = Vec::new();
         for edge in self.graph.edges_directed(*file_idx, Direction::Outgoing) {
             if let EdgeType::Contains = edge.weight() {
-                let node = &self.graph[edge.target()];
+                let target_idx = edge.target();
+                let node = &self.graph[target_idx];
                 contents.push(node.clone());
             }
         }
