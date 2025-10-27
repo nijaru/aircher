@@ -18,6 +18,8 @@ pub mod persistent_memory;
 pub mod duckdb_memory;
 pub mod knowledge_graph;  // Week 4: Knowledge graph for codebase structure
 pub mod graph_builder;    // Week 4: Build knowledge graph from tree-sitter
+pub mod working_memory;   // Week 5: Dynamic context management
+pub mod dynamic_context;  // Week 5: Integration of all memory systems
 pub mod tools;
 pub mod tui_tools;
 pub mod file_monitor;
@@ -38,6 +40,8 @@ pub use persistent_memory::*;
 pub use duckdb_memory::*;
 pub use knowledge_graph::*;
 pub use graph_builder::*;
+pub use working_memory::*;
+pub use dynamic_context::*;
 pub use tools::*;
 pub use mcp_integration::*;
 pub use ast_analysis::*;
