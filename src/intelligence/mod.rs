@@ -15,6 +15,8 @@ pub mod persistent_memory;
 // pub mod simple_lance_memory;  // Disabled due to arrow dependency conflict
 // pub mod intelligent_memory;   // Disabled due to arrow dependency conflict
 pub mod duckdb_memory;
+pub mod knowledge_graph;  // Week 4: Knowledge graph for codebase structure
+pub mod graph_builder;    // Week 4: Build knowledge graph from tree-sitter
 pub mod tools;
 pub mod tui_tools;
 pub mod file_monitor;
@@ -33,6 +35,8 @@ pub use persistent_memory::*;
 // pub use simple_lance_memory::*;  // Disabled due to arrow dependency conflict
 // pub use intelligent_memory::*;   // Disabled due to arrow dependency conflict
 pub use duckdb_memory::*;
+pub use knowledge_graph::*;
+pub use graph_builder::*;
 pub use tools::*;
 pub use mcp_integration::*;
 pub use ast_analysis::*;

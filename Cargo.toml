@@ -89,6 +89,9 @@ tokio-util = { version = "0.7", features = ["codec", "io"] }
 hnsw_rs = "0.3.2"
 rayon = "1.10"
 
+# Graph data structures for knowledge graph
+petgraph = { version = "0.6", features = ["serde-1"] }
+
 # Code parsing for better chunking
 tree-sitter = "0.25"
 tree-sitter-rust = "0.24"
