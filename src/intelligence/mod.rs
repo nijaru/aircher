@@ -239,6 +239,136 @@ impl IntelligenceEngine {
         Ok(())
     }
 
+    // WEEK 3 DAY 5-7: Episodic memory QUERY methods
+
+    /// Get tool execution history for current session
+    pub async fn get_tool_executions(&self, session_id: &str, limit: usize) -> Result<Vec<duckdb_memory::ToolExecution>> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            memory_guard.get_tool_executions(session_id, limit).await
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Get file interaction history - "Have I worked on this file before?"
+    pub async fn get_file_history(&self, file_path: &str, limit: usize) -> Result<Vec<duckdb_memory::FileInteraction>> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            memory_guard.get_file_interactions(file_path, limit).await
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Find files that are often edited together (co-edit patterns)
+    pub async fn find_co_edit_patterns(&self, time_window_minutes: i32) -> Result<Vec<duckdb_memory::LearnedPattern>> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            memory_guard.find_co_edit_patterns(time_window_minutes).await
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Get learned patterns by type
+    pub async fn get_learned_patterns(&self, pattern_type: &str, limit: usize) -> Result<Vec<duckdb_memory::LearnedPattern>> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            memory_guard.get_learned_patterns(pattern_type, limit).await
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    /// Get tool success rate analytics
+    pub async fn get_tool_success_rate(&self, session_id: &str, tool_name: Option<&str>) -> Result<(usize, usize, f64)> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            let executions = memory_guard.get_tool_executions(session_id, 1000).await?;
+
+            let filtered: Vec<_> = if let Some(name) = tool_name {
+                executions.into_iter().filter(|e| e.tool_name == name).collect()
+            } else {
+                executions
+            };
+
+            let total = filtered.len();
+            let successful = filtered.iter().filter(|e| e.success).count();
+            let rate = if total > 0 {
+                successful as f64 / total as f64
+            } else {
+                0.0
+            };
+
+            Ok((total, successful, rate))
+        } else {
+            Ok((0, 0, 0.0))
+        }
+    }
+
+    /// Check if file has been worked on before and get context
+    pub async fn check_file_context(&self, file_path: &str) -> Result<String> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            let interactions = memory_guard.get_file_interactions(file_path, 5).await?;
+
+            if interactions.is_empty() {
+                return Ok(format!("First time working with {}", file_path));
+            }
+
+            let mut context = format!("Previous work on {}:\n", file_path);
+            for interaction in interactions.iter().take(3) {
+                context.push_str(&format!(
+                    "- {} at {} ({})\n",
+                    interaction.operation,
+                    interaction.timestamp.format("%Y-%m-%d %H:%M"),
+                    if interaction.success { "success" } else { "failed" }
+                ));
+                if let Some(changes) = &interaction.changes_summary {
+                    context.push_str(&format!("  {}\n", changes));
+                }
+            }
+
+            Ok(context)
+        } else {
+            Ok("Memory not initialized".to_string())
+        }
+    }
+
+    /// Get suggestions based on what files are often edited together
+    pub async fn suggest_related_files(&self, current_file: &str) -> Result<Vec<String>> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+
+            // Get co-edit patterns
+            let patterns = memory_guard.find_co_edit_patterns(300).await?; // 5 minute window
+
+            // Find patterns involving current file
+            let mut related_files = Vec::new();
+            for pattern in patterns {
+                if let Some(files) = pattern.pattern_data.get("files").and_then(|f| f.as_array()) {
+                    let file_strings: Vec<String> = files
+                        .iter()
+                        .filter_map(|f| f.as_str().map(String::from))
+                        .collect();
+
+                    if file_strings.iter().any(|f| f == current_file) {
+                        for file in file_strings {
+                            if file != current_file && !related_files.contains(&file) {
+                                related_files.push(file);
+                            }
+                        }
+                    }
+                }
+            }
+
+            Ok(related_files)
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
     /// Get embeddings for text using semantic search
     pub async fn get_embedding(&self, text: &str) -> Result<Vec<f32>> {
         if let Some(semantic) = &self.semantic_search {
