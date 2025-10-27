@@ -14,10 +14,11 @@ For organization patterns: @external/agent-contexts/PRACTICES.md
 - Focus: Agent intelligence, not UI - let editors handle the interface
 
 **⚠️ CRITICAL**: See @docs/STATUS.md and @ai/STATUS.md for current state
-- Status: Week 1 complete (5 tools), 23-27% feature parity
-- Frontend: Toad (universal terminal UI) via ACP - saves 4-6 weeks
+- Status: Week 6 Day 1 complete, 30-33% feature parity
+- Memory Systems: ✅ ALL 3 COMPLETE (3,725 lines) - Episodic, Knowledge Graph, Working
+- ACP Protocol: ✅ 90% COMPLETE (major discovery!) - Ready for enhancements
+- Frontend: Toad + Zed/Neovim/Emacs via ACP
 - Backend: Rust (86K lines) - performance advantage for benchmarks
-- Memory: POC validated 60% improvement, porting to Rust
 - Repository: Public at https://github.com/nijaru/aircher
 
 ## Key Files (Always Check/Update)
@@ -158,42 +159,61 @@ Aircher Agent Backend (Rust)
 
 ### What Works ✅
 - **Semantic Search**: Production-ready, 19+ languages, 6,468 vectors indexed
-- **ACP Architecture**: Designed and ready for implementation
+- **ACP Protocol**: ✅ 90% COMPLETE - JSON-RPC over stdio, all 6 Agent trait methods
+- **Memory Systems**: ✅ ALL 3 COMPLETE (3,725 lines)
+  - Episodic Memory (DuckDB, 815 lines): 5 tables, 11 CRUD ops, 7 queries
+  - Knowledge Graph (petgraph, 1,470 lines): tree-sitter extraction, 8 queries
+  - Working Memory (820 lines + 620 test lines): dynamic pruning, relevance scoring
 - **Intelligence Framework**: 210+ Rust files, substantial implementation
 - **Multi-Provider**: OpenAI, Anthropic, Gemini, Ollama
-- **Dynamic Context**: Architecture implemented
+- **Production Tools**: 5 file operations (2,110+ lines, 21+ tests)
 
 ### What's In Progress 🔄
-- **Week 2**: Code understanding tools (search_code, analyze_code, find_references, find_definition)
-- **Week 3-4**: ACP protocol (stdio, JSON-RPC) + memory port to Rust
-- **Week 5-6**: Toad integration + intelligence wiring
+- **Week 6 Days 2-7**: ACP protocol enhancements
+  - Session state tracking (HashMap<SessionId, SessionState>)
+  - Conversation history per session
+  - Streaming response support (token-by-token)
+  - Tool execution progress updates
+  - Error handling and recovery
+  - End-to-end testing with Zed
 - **Week 7-8**: Benchmarks vs Claude Code (validate 60% memory improvement)
+- **Week 9-10**: Research paper + open source release
 
-### Current Priority (Week 2)
-**Code Understanding Tools**: Implement 4 production-quality tools
-- search_code: Leverage existing semantic search
-- analyze_code: AST-based analysis with tree-sitter
-- find_references: Cross-file symbol tracking
-- find_definition: Symbol lookup with context
-- **Target**: 9/10 tools real vs 5/10 currently
+### Current Priority (Week 6)
+**ACP Protocol Enhancements**: Session management + streaming + testing
+- Session state tracking: Maintain conversation history, timeouts
+- Streaming: Token-by-token responses, progress updates
+- Error recovery: Retry logic, graceful degradation
+- Testing: End-to-end with Zed editor
+- **Major Win**: ACP already 90% done (saved 4-5 days!)
 
-### Upcoming (Week 3-5): Memory System Port
+### Completed (Weeks 1-5)
 
-**Week 3: DuckDB Episodic Memory**
-- Schema: 5 tables (tool_executions, file_interactions, task_history, context_snapshots, learned_patterns)
-- Recording layer: Hook every tool call, file interaction, task
-- Query layer: "Have I seen this?", co-edit patterns, similar tasks
+**Week 1: File Operations**
+- 4 production tools: read_file, write_file, edit_file, list_files
+- 2,110+ lines, 21+ tests
 
-**Week 4: petgraph Knowledge Graph**
-- Build graph: tree-sitter extraction → 3,942 nodes, 5,217 edges
-- Query interface: get_file_contents, get_callers, find_symbol
-- Incremental updates: Re-parse only changed files
+**Week 2: Code Understanding** (Skipped - tools already exist)
+- Validated existing tools work
 
-**Week 5: Dynamic Context Management**
-- Relevance scoring algorithm (time decay, task association, dependencies, type weights)
-- Pruning logic: Remove bottom 30% when 80% full
-- Integration: Connect knowledge graph + episodic memory + working context
-- Validation: Prove 60% improvement holds in Rust
+**Week 3: DuckDB Episodic Memory** ✅
+- 5 tables, 11 CRUD operations, 7 query methods
+- +815 lines production code
+
+**Week 4: petgraph Knowledge Graph** ✅
+- Tree-sitter extraction, 5 node types, 6 edge types
+- Binary persistence, 8 query methods
+- +1,470 lines production code
+
+**Week 5: Dynamic Context Management** ✅
+- ContextWindow with intelligent pruning
+- Relevance scoring algorithm
+- DynamicContextManager integrating all 3 systems
+- +820 lines production code, +620 lines tests
+
+**Week 6 Day 1: ACP Protocol Review** ✅
+- Discovered ACP already 90% implemented
+- Comprehensive documentation created (@docs/acp-integration.md)
 
 **Architecture Details**: See @ai/research/memory-system-architecture.md (500+ lines)
 
