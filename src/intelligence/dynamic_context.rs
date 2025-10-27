@@ -67,13 +67,14 @@ impl DynamicContextManager {
 
     /// Add a message to the context
     pub fn add_user_message(&mut self, content: String, intent: Option<crate::intelligence::unified_intelligence::UserIntent>) {
+        let token_cost = self.estimate_tokens(&content);
         let item = ContextItem {
             id: Uuid::new_v4(),
             content,
             item_type: ContextItemType::UserMessage { intent },
             timestamp: Utc::now(),
             relevance_score: 1.0,
-            token_cost: self.estimate_tokens(&content),
+            token_cost,
             task_id: None,
             dependencies: vec![],
             sticky: false,
@@ -84,13 +85,14 @@ impl DynamicContextManager {
 
     /// Add assistant response
     pub fn add_assistant_response(&mut self, content: String, tool_calls: Vec<String>) {
+        let token_cost = self.estimate_tokens(&content);
         let item = ContextItem {
             id: Uuid::new_v4(),
             content,
             item_type: ContextItemType::AssistantResponse { tool_calls },
             timestamp: Utc::now(),
             relevance_score: 1.0,
-            token_cost: self.estimate_tokens(&content),
+            token_cost,
             task_id: None,
             dependencies: vec![],
             sticky: false,
@@ -101,13 +103,14 @@ impl DynamicContextManager {
 
     /// Add tool result
     pub fn add_tool_result(&mut self, tool_name: String, file_path: Option<String>, result: String) {
+        let token_cost = self.estimate_tokens(&result);
         let item = ContextItem {
             id: Uuid::new_v4(),
-            content: result.clone(),
+            content: result,
             item_type: ContextItemType::ToolResult { tool_name, file_path },
             timestamp: Utc::now(),
             relevance_score: 1.0,
-            token_cost: self.estimate_tokens(&result),
+            token_cost,
             task_id: None,
             dependencies: vec![],
             sticky: false,

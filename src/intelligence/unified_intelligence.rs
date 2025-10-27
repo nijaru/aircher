@@ -454,16 +454,18 @@ impl UnifiedIntelligenceEngine {
 
             UserIntent::ProjectFixing { error_indicators, .. } => {
                 // Get debugging intelligence context
-                for error in error_indicators {
-                    if let Ok(recommendations) = self.base_intelligence.get_quick_fix_recommendations(error).await {
-                        context_items.push(ContextItem {
-                            content: format!("Quick fix recommendations: {:?}", recommendations),
-                            source: ContextSource::PreviousInteraction("debug_knowledge".to_string()),
-                            relevance_score: 0.9,
-                            metadata: HashMap::new(),
-                        });
-                    }
-                }
+                // COMMENTED OUT: get_quick_fix_recommendations method is temporarily disabled
+                // for _error in error_indicators {
+                //     if let Ok(recommendations) = self.base_intelligence.get_quick_fix_recommendations(error).await {
+                //         context_items.push(ContextItem {
+                //             content: format!("Quick fix recommendations: {:?}", recommendations),
+                //             source: ContextSource::PreviousInteraction("debug_knowledge".to_string()),
+                //             relevance_score: 0.9,
+                //             metadata: HashMap::new(),
+                //         });
+                //     }
+                // }
+                let _ = error_indicators; // Suppress unused warning
             },
 
             _ => {

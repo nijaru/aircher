@@ -273,7 +273,7 @@ impl GraphBuilder {
                 for capture in m.captures.iter() {
                     let capture_name = &function_query.capture_names()[capture.index as usize];
 
-                    if capture_name == "name" {
+                    if &**capture_name == "name" {
                         let name = capture
                             .node
                             .utf8_text(content.as_bytes())
@@ -316,7 +316,7 @@ impl GraphBuilder {
                 for capture in m.captures.iter() {
                     let capture_name = &class_query.capture_names()[capture.index as usize];
 
-                    if capture_name == "name" {
+                    if &**capture_name == "name" {
                         let name = capture
                             .node
                             .utf8_text(content.as_bytes())
@@ -347,7 +347,7 @@ impl GraphBuilder {
                 for capture in m.captures.iter() {
                     let capture_name = &import_query.capture_names()[capture.index as usize];
 
-                    if capture_name == "path" {
+                    if &**capture_name == "path" {
                         let module = capture
                             .node
                             .utf8_text(content.as_bytes())

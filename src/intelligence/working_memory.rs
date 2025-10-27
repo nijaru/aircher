@@ -77,7 +77,7 @@ pub struct ContextItem {
 }
 
 /// Type of context item (affects relevance and pruning)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ContextItemType {
     /// System prompt (sticky, never removed)
     SystemPrompt,
