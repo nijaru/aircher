@@ -8,7 +8,7 @@ use chrono::Utc;
 
 use crate::auth::AuthManager;
 use crate::intelligence::IntelligenceEngine;
-use crate::intelligence::duckdb_memory::AgentAction;
+use crate::intelligence::duckdb_memory::{AgentAction, ToolExecution, FileInteraction, TaskRecord};
 use crate::providers::{LLMProvider, ChatRequest, Message, MessageRole, PricingModel};
 use crate::agent::tools::{ToolRegistry, ToolCall};
 use crate::agent::parser::{ToolCallParser, format_tool_results};
@@ -23,6 +23,8 @@ pub struct AgentController {
     parser: ToolCallParser,
     conversation: CodingConversation,
     max_iterations: usize,
+    session_id: String,  // Week 3: Session tracking
+    current_task_id: Option<String>,  // Week 3: Current task being worked on
 }
 
 impl AgentController {
@@ -31,6 +33,16 @@ impl AgentController {
         auth_manager: Arc<AuthManager>,
         project_context: ProjectContext,
     ) -> Result<Self> {
+        // Generate session ID from timestamp + project name
+        let session_id = format!(
+            "{}-{}",
+            project_context.root_path
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or("aircher"),
+            Utc::now().format("%Y%m%d-%H%M%S")
+        );
+
         Ok(Self {
             tools: ToolRegistry::default(),
             intelligence,
@@ -43,6 +55,8 @@ impl AgentController {
                 task_list: Vec::new(),
             },
             max_iterations: 10, // Prevent infinite loops
+            session_id,
+            current_task_id: None,
         })
     }
     
@@ -124,19 +138,19 @@ impl AgentController {
     async fn execute_tools_with_tracking(&self, tool_calls: &[ToolCall]) -> (Vec<(String, Result<Value, String>)>, Vec<AgentAction>) {
         let mut results = Vec::new();
         let mut actions = Vec::new();
-        
+
         for call in tool_calls {
             debug!("Executing tool: {} with params: {}", call.name, call.parameters);
-            
+
             let start = Instant::now();
-            
+
             if let Some(tool) = self.tools.get(&call.name) {
                 match tool.execute(call.parameters.clone()).await {
                     Ok(output) => {
                         let duration_ms = start.elapsed().as_millis() as u64;
                         let success = output.success;
-                        
-                        // Track the action for learning
+
+                        // Track the action for learning (legacy format)
                         actions.push(AgentAction {
                             tool: call.name.clone(),
                             params: call.parameters.clone(),
@@ -148,6 +162,51 @@ impl AgentController {
                                 format!("Error: {}", output.error.as_deref().unwrap_or("Unknown error"))
                             },
                         });
+
+                        // WEEK 3: Record to episodic memory
+                        let execution = ToolExecution {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            timestamp: Utc::now(),
+                            session_id: self.session_id.clone(),
+                            task_id: self.current_task_id.clone(),
+                            tool_name: call.name.clone(),
+                            parameters: call.parameters.clone(),
+                            result: Some(output.result.clone()),
+                            success,
+                            error_message: output.error.clone(),
+                            duration_ms: Some(duration_ms as i32),
+                            context_tokens: None, // Could add token tracking later
+                        };
+
+                        if let Err(e) = self.intelligence.record_tool_execution(execution).await {
+                            warn!("Failed to record tool execution: {}", e);
+                        }
+
+                        // WEEK 3: Record file interactions if this is a file operation
+                        if is_file_operation(&call.name) {
+                            if let Some(file_path) = extract_file_path_from_params(&call.parameters) {
+                                let interaction = FileInteraction {
+                                    id: uuid::Uuid::new_v4().to_string(),
+                                    timestamp: Utc::now(),
+                                    session_id: self.session_id.clone(),
+                                    task_id: self.current_task_id.clone(),
+                                    file_path,
+                                    operation: call.name.clone(),
+                                    line_range: extract_line_range_from_params(&call.parameters),
+                                    success,
+                                    context: None, // Could add context later
+                                    changes_summary: if success {
+                                        Some(summarize_value(&output.result))
+                                    } else {
+                                        None
+                                    },
+                                };
+
+                                if let Err(e) = self.intelligence.record_file_interaction(interaction).await {
+                                    warn!("Failed to record file interaction: {}", e);
+                                }
+                            }
+                        }
                         
                         if success {
                             // Try to inject duration_ms into result if it's an object
@@ -788,4 +847,36 @@ fn summarize_value(value: &Value) -> String {
         Value::Array(arr) => format!("{} items", arr.len()),
         _ => value.to_string(),
     }
+}
+
+// WEEK 3: Helper functions for episodic memory recording
+
+fn is_file_operation(tool_name: &str) -> bool {
+    matches!(
+        tool_name,
+        "read_file" | "write_file" | "edit_file" | "list_files" | "search_code" | "analyze_code"
+    )
+}
+
+fn extract_file_path_from_params(params: &Value) -> Option<String> {
+    params
+        .get("path")
+        .or_else(|| params.get("file_path"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
+fn extract_line_range_from_params(params: &Value) -> Option<Value> {
+    // For edit_file, might have start_line/end_line or line_range
+    if let Some(start) = params.get("start_line").and_then(|v| v.as_i64()) {
+        if let Some(end) = params.get("end_line").and_then(|v| v.as_i64()) {
+            return Some(serde_json::json!({
+                "start": start,
+                "end": end
+            }));
+        }
+    }
+
+    // Or might have line_range directly
+    params.get("line_range").cloned()
 }

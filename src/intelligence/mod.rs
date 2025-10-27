@@ -191,7 +191,54 @@ impl IntelligenceEngine {
         }
         Ok(())
     }
-    
+
+    // WEEK 3: Episodic memory recording methods
+
+    /// Record a tool execution to episodic memory
+    pub async fn record_tool_execution(&self, execution: duckdb_memory::ToolExecution) -> Result<()> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            memory_guard.record_tool_execution(execution).await?;
+        }
+        Ok(())
+    }
+
+    /// Record a file interaction to episodic memory
+    pub async fn record_file_interaction(&self, interaction: duckdb_memory::FileInteraction) -> Result<()> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            memory_guard.record_file_interaction(interaction).await?;
+        }
+        Ok(())
+    }
+
+    /// Record a task to episodic memory
+    pub async fn record_task(&self, task: duckdb_memory::TaskRecord) -> Result<()> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            memory_guard.record_task(task).await?;
+        }
+        Ok(())
+    }
+
+    /// Update task status in episodic memory
+    pub async fn update_task_status(&self, task_id: &str, status: &str, outcome: Option<String>) -> Result<()> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            memory_guard.update_task_status(task_id, status, outcome).await?;
+        }
+        Ok(())
+    }
+
+    /// Record a context snapshot to episodic memory
+    pub async fn record_context_snapshot(&self, snapshot: duckdb_memory::ContextSnapshot) -> Result<()> {
+        if let Some(memory) = &self.duckdb_memory {
+            let memory_guard = memory.lock().await;
+            memory_guard.record_context_snapshot(snapshot).await?;
+        }
+        Ok(())
+    }
+
     /// Get embeddings for text using semantic search
     pub async fn get_embedding(&self, text: &str) -> Result<Vec<f32>> {
         if let Some(semantic) = &self.semantic_search {
