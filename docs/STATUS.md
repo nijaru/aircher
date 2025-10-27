@@ -10,9 +10,9 @@ Aircher is an **ACP-compatible agent backend** (not TUI) in Week 6 of 10-week de
 
 **Frontend Strategy**: Toad (universal terminal UI) + Zed/Neovim/Emacs via ACP
 **Backend**: Rust (86K lines) - performance critical for benchmarks
-**Current Status**: Week 5 complete (all 3 memory systems), Week 6 Day 1 complete (ACP discovery)
+**Current Status**: Week 6 Days 1-4 complete (ACP protocol enhancements)
 **Memory System**: ✅ ALL 3 COMPLETE (3,725 lines) - Episodic, Knowledge Graph, Working Memory
-**ACP Protocol**: ✅ 90% COMPLETE (major discovery!) - Ready for enhancements
+**ACP Protocol**: ✅ ENHANCED (635 new lines) - Session management, streaming, error handling complete
 
 **Bottom Line**: Research project Week 6 of 10. Memory systems complete. ACP ready for testing. Targeting empirical benchmarks + publication.
 
@@ -53,37 +53,42 @@ Aircher is an **ACP-compatible agent backend** (not TUI) in Week 6 of 10-week de
 - **Saves**: 4-6 weeks vs building custom TUI
 - **Focus**: Agent intelligence, let Toad handle terminal UX
 
-### 🚀 ACP PROTOCOL - 90% COMPLETE! ✅ (Week 6 Day 1 Discovery)
-**Major Timeline Win**: Expected 1 week to implement, found already done!
+### 🚀 ACP PROTOCOL - ENHANCED! ✅ (Week 6 Days 1-4 Complete)
+**Major Timeline Win**: Base protocol was 90% done, added comprehensive enhancements!
 
 **What's Working**:
-- ✅ JSON-RPC over stdio transport (173 lines in `src/server/stdio.rs`)
+- ✅ JSON-RPC over stdio transport (808 lines in `src/server/stdio.rs`)
 - ✅ All 6 Agent trait methods implemented (`src/agent/core.rs` lines 1437-1545)
 - ✅ CLI integration with `--acp` flag in `src/main.rs`
-- ✅ Session creation with UUID
-- ✅ Message processing and routing
-- ✅ Proper stderr logging (doesn't interfere with JSON-RPC)
+- ✅ **Session Management** (Day 2): HashMap tracking with 30-minute timeout, conversation history
+- ✅ **Streaming Support** (Day 3): 5 notification types (Text, ToolStart, ToolProgress, ToolComplete, Thinking)
+- ✅ **Error Handling** (Day 4): 10 JSON-RPC error codes, retry logic, timeout handling (5 minutes)
+- ✅ **Graceful Degradation**: Continue processing despite partial failures
+- ✅ **Comprehensive Tests**: 20+ tests covering all Week 6 features (470+ lines)
 
-**What's Next** (Week 6 Days 2-7):
-- Session state tracking (HashMap<SessionId, SessionState>)
-- Conversation history per session
-- Streaming response support (token-by-token)
-- Tool execution progress updates
-- Error handling improvements
+**What's Next** (Week 6 Days 5-7):
+- Manual ACP protocol testing
+- Update documentation with all enhancements
+- Performance benchmarking (latency, throughput)
+- Attempt integration with Zed editor
 
-### ✅ COMPLETED (Weeks 1-5)
+### ✅ COMPLETED (Weeks 1-6 Days 1-4)
 - **Week 1**: 4 file operation tools (2,110+ lines, 21+ tests) - read, write, edit, list
 - **Week 2**: Code understanding tools (skipped - existing tools validated)
 - **Week 3**: Episodic Memory (DuckDB, 815 lines) - 5 tables, 11 CRUD ops, 7 queries
 - **Week 4**: Knowledge Graph (petgraph, 1,470 lines) - tree-sitter extraction, 8 queries
 - **Week 5**: Working Memory (820 lines) + Integration tests (620 lines) - dynamic pruning
-- **Week 6 Day 1**: ACP protocol review + documentation
+- **Week 6 Day 1**: ACP protocol review + documentation (discovered 90% already done)
+- **Week 6 Day 2**: Session management (192 lines) - HashMap tracking, 30-minute timeout
+- **Week 6 Day 3**: Streaming support (143 lines) - 5 notification types, real-time feedback
+- **Week 6 Day 4**: Error handling (300 lines) - retry logic, timeout handling, graceful degradation
+- **Week 6 Day 4**: Comprehensive tests (470+ lines) - 20+ tests for all Week 6 features
 
-### 🔄 IN PROGRESS (Week 6 Days 2-7)
-- **Session Management**: Track sessions, conversation history, timeouts
-- **Streaming Support**: Token-by-token responses, progress updates
-- **Error Recovery**: Retry logic, graceful degradation
-- **Testing**: End-to-end with Zed, performance benchmarks
+### 🔄 IN PROGRESS (Week 6 Days 5-7)
+- **Testing**: Manual ACP protocol testing, performance benchmarks
+- **Documentation**: Update docs/acp-integration.md with all enhancements
+- **Integration**: Attempt Zed editor integration (if possible)
+- **Fixes**: Resolve old binary test file compilation errors (non-blocking)
 
 ### ❌ NOT YET INTEGRATED
 - **Intelligence wiring**: Memory systems need integration into execution path
