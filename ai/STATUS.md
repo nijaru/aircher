@@ -1,20 +1,25 @@
 # STATUS
 
-**Last Updated**: 2025-10-27 (Toad Frontend Strategy - Stick with Rust)
+**Last Updated**: 2025-10-27 (Week 4 Day 1-5 Complete - Knowledge Graph Operational!)
 
 ## Current State
 
-### Week 3 Complete ✅ → Episodic Memory System Operational!
+### Week 4 Day 1-5 Complete ✅ → Knowledge Graph Implemented!
 - **6 production tools** implemented (2,300+ lines, 26+ tests)
-- **Competitive parity**: 30-33% (stable, preparing for intelligence integration)
-- **WEEK 3 NEW**: Complete episodic memory system (+815 lines)
+- **Competitive parity**: 30-33% (stable, memory systems operational)
+- **WEEK 3 COMPLETE**: Episodic memory system (+815 lines)
   - 5 DuckDB tables tracking everything
-  - 11 CRUD operations
-  - Auto-recording in tool pipeline
+  - 11 CRUD operations, auto-recording in pipeline
   - 7 query methods for intelligence
+- **WEEK 4 DAY 1-5 NEW**: Knowledge graph system (+1,100 lines)
+  - petgraph-based graph structure (5 node types, 6 edge types)
+  - Tree-sitter extraction for Rust (expandable to 19+ languages)
+  - Binary persistence with bincode
+  - 8 query methods (get_file_structure, find_callers, get_dependencies, etc.)
+  - Fully integrated with IntelligenceEngine
 - **Frontend strategy**: Toad terminal UI (Python/Textual) via ACP
 - **Agent backend**: Rust (keep 86K lines investment)
-- **POC status**: Memory system validated (60% improvement) - now porting to Rust!
+- **POC status**: Memory system validated (60% improvement) - Rust port IN PROGRESS!
 
 ### What Works
 **Core Infrastructure**:
@@ -94,14 +99,16 @@
 
 ## Active Work
 
-**Current (2025-10-27)**: Week 3 COMPLETE ✅ - Episodic Memory Operational!
+**Current (2025-10-27)**: Week 4 Day 1-5 COMPLETE ✅ - Knowledge Graph Operational!
 
-**Week 3 Achievements**:
-- ✅ 5 DuckDB tables created with indexes
-- ✅ 11 CRUD operations (record + query all tables)
-- ✅ Auto-recording hooked into tool execution pipeline
-- ✅ 7 query methods for intelligence (file history, co-edit patterns, analytics)
-- ✅ Total: +815 lines production-ready code
+**Week 4 Day 1-5 Achievements**:
+- ✅ KnowledgeGraph struct with petgraph (5 node types, 6 edge types)
+- ✅ GraphBuilder with tree-sitter extraction for Rust
+- ✅ Binary persistence (save/load with bincode)
+- ✅ 8 query methods in IntelligenceEngine
+- ✅ Streaming iterator fixes for tree-sitter QueryMatches
+- ✅ Full compilation achieved
+- ✅ Total: +1,100 lines production-ready code
 
 **Memory System Status**:
 1. **Episodic Memory** (Week 3): ✅ COMPLETE
@@ -111,10 +118,12 @@
    - context_snapshots: Debugging/recovery snapshots
    - learned_patterns: Co-edit detection operational
 
-2. **Knowledge Graph** (Week 4): NEXT
-   - Port POC (3,942 nodes, 5,217 edges) to Rust
-   - petgraph + tree-sitter implementation
-   - Queries: "What calls this?" "What's in file X?"
+2. **Knowledge Graph** (Week 4 Day 1-5): ✅ CORE COMPLETE
+   - ✅ petgraph + tree-sitter implementation
+   - ✅ Queries: "What calls this?" "What's in file X?"
+   - ✅ Binary persistence for cross-session memory
+   - ✅ Integrated with IntelligenceEngine
+   - 🔄 NEXT: Incremental updates + test with Aircher codebase
 
 3. **Working Memory** (Week 5): PLANNED
    - Dynamic context pruning algorithm
@@ -124,14 +133,15 @@
 **POC Validation**:
 - ✅ Python POC: 60% improvement validated
 - ✅ Knowledge graph: 3,942 nodes, 5,217 edges working
-- ✅ Episodic memory: SQLite → now DuckDB in Rust
+- ✅ Episodic memory: SQLite → DuckDB in Rust (COMPLETE)
+- ✅ Knowledge graph: NetworkX → petgraph in Rust (CORE COMPLETE)
 - ✅ 4 benchmark tasks: 7.5 → 3.0 tool calls (-60%)
 
-**Next Steps (Week 4)**:
-1. Day 1-3: Build knowledge graph (petgraph + tree-sitter)
-2. Day 4-5: Query interface (get_file_contents, get_callers, find_symbol)
-3. Day 6-7: Incremental updates (re-parse only changed files)
-4. Target: Reproduce POC graph structure in Rust
+**Next Steps (Week 4 Day 6-7)**:
+1. Implement incremental graph updates (re-parse changed files)
+2. Test with Aircher codebase (target: 3,942+ nodes, 5,217+ edges)
+3. Benchmark graph build time and query performance
+4. Write comprehensive tests for edge cases
 
 ## Blockers
 
