@@ -300,3 +300,201 @@ fn guess_definition_type(line: &str) -> &'static str {
     else if trimmed.contains("let ") || trimmed.contains("var ") { "variable" }
     else { "unknown" }
 }
+
+/// Tool for analyzing code structure, complexity, and quality
+pub struct AnalyzeCodeTool {
+    intelligence: Option<IntelligenceEngine>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AnalyzeCodeParams {
+    file_path: String,
+    #[serde(default)]
+    include_ast: bool,
+    #[serde(default)]
+    include_suggestions: bool,
+}
+
+impl AnalyzeCodeTool {
+    pub fn new() -> Self {
+        Self {
+            intelligence: None,
+        }
+    }
+
+    pub fn with_intelligence(intelligence: IntelligenceEngine) -> Self {
+        Self {
+            intelligence: Some(intelligence),
+        }
+    }
+}
+
+#[async_trait]
+impl AgentTool for AnalyzeCodeTool {
+    fn name(&self) -> &str {
+        "analyze_code"
+    }
+
+    fn description(&self) -> &str {
+        "Analyze code structure, complexity, quality metrics, and get improvement suggestions"
+    }
+
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "Path to the file to analyze"
+                },
+                "include_ast": {
+                    "type": "boolean",
+                    "description": "Include full AST analysis in results",
+                    "default": false
+                },
+                "include_suggestions": {
+                    "type": "boolean",
+                    "description": "Include code improvement suggestions",
+                    "default": true
+                }
+            },
+            "required": ["file_path"]
+        })
+    }
+
+    async fn execute(&self, params: Value) -> Result<ToolOutput, ToolError> {
+        let params: AnalyzeCodeParams = serde_json::from_value(params)
+            .map_err(|e| ToolError::InvalidParameters(e.to_string()))?;
+
+        // Use intelligence engine for comprehensive analysis if available
+        if let Some(intelligence) = &self.intelligence {
+            match intelligence.get_code_insights(&params.file_path).await {
+                Ok(insights) => {
+                    let mut result = json!({
+                        "file_path": insights.file_path,
+                        "language": insights.language,
+                        "quality_score": insights.quality_score,
+                        "complexity": insights.complexity_summary,
+                        "key_functions": insights.key_functions,
+                        "dependencies": insights.dependencies,
+                        "patterns": insights.patterns,
+                    });
+
+                    if params.include_suggestions {
+                        result["suggestions"] = json!(insights.suggestions);
+                    }
+
+                    if params.include_ast && insights.ast_analysis.is_some() {
+                        result["ast_analysis"] = json!(insights.ast_analysis);
+                    }
+
+                    Ok(ToolOutput {
+                        success: true,
+                        result: json!({
+                            "analysis": result,
+                            "summary": format!(
+                                "{} ({}): Quality {:.1}/10, {} functions, {} dependencies",
+                                insights.file_path,
+                                insights.language,
+                                insights.quality_score,
+                                insights.key_functions.len(),
+                                insights.dependencies.len()
+                            )
+                        }),
+                        error: None,
+                        usage: None,
+                    })
+                }
+                Err(e) => {
+                    Ok(ToolOutput {
+                        success: false,
+                        result: json!({
+                            "file_path": params.file_path,
+                            "error": e,
+                            "message": "Analysis failed - file may not exist or be unsupported"
+                        }),
+                        error: Some(e),
+                        usage: None,
+                    })
+                }
+            }
+        } else {
+            // Fallback: basic file analysis without intelligence engine
+            fallback_analyze_file(&params.file_path).await
+        }
+    }
+}
+
+/// Fallback analysis when intelligence engine is not available
+async fn fallback_analyze_file(file_path: &str) -> Result<ToolOutput, ToolError> {
+    use std::path::Path;
+    use tokio::fs;
+
+    let path = Path::new(file_path);
+
+    if !path.exists() {
+        return Ok(ToolOutput {
+            success: false,
+            result: json!({
+                "file_path": file_path,
+                "error": "File not found",
+                "message": "The specified file does not exist"
+            }),
+            error: Some("File not found".to_string()),
+            usage: None,
+        });
+    }
+
+    let content = fs::read_to_string(path).await
+        .map_err(|e| ToolError::ExecutionFailed(format!("Failed to read file: {}", e)))?;
+
+    // Basic metrics
+    let lines_of_code = content.lines().count();
+    let non_empty_lines = content.lines().filter(|l| !l.trim().is_empty()).count();
+    let comment_lines = content.lines().filter(|l| {
+        let trimmed = l.trim();
+        trimmed.starts_with("//") || trimmed.starts_with("#") ||
+        trimmed.starts_with("/*") || trimmed.starts_with("*")
+    }).count();
+
+    // Detect language from extension
+    let language = path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| match ext {
+            "rs" => "rust",
+            "py" => "python",
+            "js" | "jsx" => "javascript",
+            "ts" | "tsx" => "typescript",
+            "go" => "go",
+            "java" => "java",
+            "cpp" | "cc" | "cxx" => "cpp",
+            "c" | "h" => "c",
+            _ => "unknown",
+        })
+        .unwrap_or("unknown");
+
+    Ok(ToolOutput {
+        success: true,
+        result: json!({
+            "analysis": {
+                "file_path": file_path,
+                "language": language,
+                "lines_of_code": lines_of_code,
+                "non_empty_lines": non_empty_lines,
+                "comment_lines": comment_lines,
+                "comment_ratio": if non_empty_lines > 0 {
+                    comment_lines as f64 / non_empty_lines as f64
+                } else {
+                    0.0
+                },
+            },
+            "summary": format!(
+                "{} ({}): {} LOC, {} comments",
+                file_path, language, lines_of_code, comment_lines
+            ),
+            "message": "Basic analysis (intelligence engine not available for advanced metrics)"
+        }),
+        error: None,
+        usage: None,
+    })
+}

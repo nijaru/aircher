@@ -32,7 +32,7 @@ pub use enhanced_write_file::EnhancedWriteFileTool;
 pub use enhanced_edit_file::EnhancedEditFileTool;
 pub use enhanced_list_files::EnhancedListFilesTool;
 pub use safe_file_ops::SafeWriteFileTool;
-pub use code_analysis::{SearchCodeTool, FindDefinitionTool};
+pub use code_analysis::{SearchCodeTool, FindDefinitionTool, AnalyzeCodeTool};
 pub use system_ops::RunCommandTool;
 pub use web_tools::{WebBrowsingTool, WebSearchTool};
 pub use build_tools::BuildSystemTool;

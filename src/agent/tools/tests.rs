@@ -106,4 +106,104 @@ mod tests {
         assert!(text.contains("Done!"));
         assert!(!text.contains("<tool_use>"));
     }
+
+    #[tokio::test]
+    async fn test_analyze_code_tool_fallback() {
+        // Test AnalyzeCodeTool without intelligence engine (fallback mode)
+        let tool = code_analysis::AnalyzeCodeTool::new();
+
+        let params = json!({
+            "file_path": "Cargo.toml",
+            "include_suggestions": true
+        });
+
+        let result = tool.execute(params).await.unwrap();
+        assert!(result.success);
+
+        // Check that analysis contains expected fields
+        assert!(result.result["analysis"].is_object());
+        assert!(result.result["analysis"]["file_path"].as_str().unwrap().contains("Cargo.toml"));
+        assert_eq!(result.result["analysis"]["language"], "unknown"); // .toml not detected in fallback
+        assert!(result.result["analysis"]["lines_of_code"].as_u64().unwrap() > 0);
+        assert!(result.result["summary"].as_str().unwrap().contains("LOC"));
+    }
+
+    #[tokio::test]
+    async fn test_analyze_code_tool_rust_file() {
+        // Test analyzing a Rust source file
+        let tool = code_analysis::AnalyzeCodeTool::new();
+
+        // Use a known Rust file
+        let params = json!({
+            "file_path": "src/main.rs",
+            "include_suggestions": true
+        });
+
+        let result = tool.execute(params).await.unwrap();
+        assert!(result.success);
+
+        // Check basic analysis
+        let analysis = &result.result["analysis"];
+        assert_eq!(analysis["language"], "rust");
+        assert!(analysis["lines_of_code"].as_u64().unwrap() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_analyze_code_tool_nonexistent_file() {
+        // Test handling of nonexistent file
+        let tool = code_analysis::AnalyzeCodeTool::new();
+
+        let params = json!({
+            "file_path": "/nonexistent/file/path.rs",
+            "include_suggestions": true
+        });
+
+        let result = tool.execute(params).await.unwrap();
+        assert!(!result.success);
+        assert!(result.error.is_some());
+        assert!(result.result["message"].as_str().unwrap().contains("not found") ||
+                result.result["message"].as_str().unwrap().contains("not exist"));
+    }
+
+    #[tokio::test]
+    async fn test_search_code_tool_without_engine() {
+        // Test SearchCodeTool without intelligence engine (should return appropriate message)
+        let tool = code_analysis::SearchCodeTool::new();
+
+        let params = json!({
+            "query": "semantic search",
+            "limit": 5
+        });
+
+        let result = tool.execute(params).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.result["count"], 0);
+        assert!(result.result["message"].as_str().unwrap().contains("not available") ||
+                result.result["message"].as_str().unwrap().contains("needs proper integration"));
+    }
+
+    #[tokio::test]
+    async fn test_find_definition_tool() {
+        // Test FindDefinitionTool with ripgrep
+        let tool = code_analysis::FindDefinitionTool::new();
+
+        let params = json!({
+            "symbol": "AgentTool",
+            "file_types": ["rs"]
+        });
+
+        let result = tool.execute(params).await.unwrap();
+        assert!(result.success);
+
+        // Should find at least one definition (the trait definition)
+        if let Some(definitions) = result.result["definitions"].as_array() {
+            // May or may not find results depending on ripgrep availability
+            // Just verify the structure is correct
+            if !definitions.is_empty() {
+                assert!(definitions[0]["file"].is_string());
+                assert!(definitions[0]["line"].is_number());
+                assert!(definitions[0]["text"].is_string());
+            }
+        }
+    }
 }
