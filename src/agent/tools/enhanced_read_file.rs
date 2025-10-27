@@ -444,7 +444,7 @@ mod tests {
     #[tokio::test]
     async fn test_metadata_extraction() {
         let mut temp_file = NamedTempFile::new().unwrap();
-        writeln!(temp_file, "fn main() {}").unwrap();
+        writeln!(temp_file, "fn main() {{}}").unwrap();
 
         let tool = EnhancedReadFileTool::new();
         let params = json!({

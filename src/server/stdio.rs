@@ -222,7 +222,7 @@ impl SessionState {
 
     /// Get conversation history for context
     fn get_history(&self, last_n: Option<usize>) -> Vec<(String, String)> {
-        let messages = if let Some(n) = last_n {
+        let messages: Vec<&ConversationMessage> = if let Some(n) = last_n {
             self.messages.iter().rev().take(n).rev().collect()
         } else {
             self.messages.iter().collect()
@@ -685,7 +685,8 @@ impl AcpServer {
                         self.add_message_to_session(&session_id, "assistant", "Error processing request".to_string()).await?;
 
                         // Return error response instead of crashing
-                        let error_ctx = ErrorContext::from_error(&e);
+                        let anyhow_err = anyhow::anyhow!("{}", e);
+                        let error_ctx = ErrorContext::from_error(&anyhow_err);
                         return Ok(Some(serde_json::json!({
                             "jsonrpc": "2.0",
                             "error": {
