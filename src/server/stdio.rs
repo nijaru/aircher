@@ -4,7 +4,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::time::{Duration, Instant};
+use tokio::time::{Duration, Instant, timeout};
 use tracing::{debug, error, info, warn};
 use serde_json;
 
@@ -18,6 +18,146 @@ use crate::agent::conversation::{ProjectContext, ProgrammingLanguage};
 
 /// Session timeout (30 minutes of inactivity)
 const SESSION_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
+/// Operation timeout (5 minutes for long-running operations)
+const OPERATION_TIMEOUT: Duration = Duration::from_secs(5 * 60);
+
+/// Maximum retry attempts for transient failures
+const MAX_RETRIES: u32 = 3;
+
+/// Base delay for exponential backoff (100ms)
+const BASE_RETRY_DELAY: Duration = Duration::from_millis(100);
+
+/// JSON-RPC error codes
+#[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
+enum JsonRpcError {
+    /// Parse error (-32700)
+    ParseError = -32700,
+    /// Invalid request (-32600)
+    InvalidRequest = -32600,
+    /// Method not found (-32601)
+    MethodNotFound = -32601,
+    /// Invalid params (-32602)
+    InvalidParams = -32602,
+    /// Internal error (-32603)
+    InternalError = -32603,
+    /// Server error (-32000 to -32099)
+    ServerError = -32000,
+    /// Session not found (-32001)
+    SessionNotFound = -32001,
+    /// Session expired (-32002)
+    SessionExpired = -32002,
+    /// Operation timeout (-32003)
+    OperationTimeout = -32003,
+    /// Rate limit exceeded (-32004)
+    RateLimitExceeded = -32004,
+}
+
+impl JsonRpcError {
+    fn code(self) -> i32 {
+        self as i32
+    }
+
+    fn default_message(self) -> &'static str {
+        match self {
+            Self::ParseError => "Parse error",
+            Self::InvalidRequest => "Invalid request",
+            Self::MethodNotFound => "Method not found",
+            Self::InvalidParams => "Invalid params",
+            Self::InternalError => "Internal error",
+            Self::ServerError => "Server error",
+            Self::SessionNotFound => "Session not found",
+            Self::SessionExpired => "Session expired",
+            Self::OperationTimeout => "Operation timeout",
+            Self::RateLimitExceeded => "Rate limit exceeded",
+        }
+    }
+}
+
+/// Error context for better user messages
+#[derive(Debug, Clone)]
+struct ErrorContext {
+    code: i32,
+    message: String,
+    /// User-friendly description
+    user_message: String,
+    /// Whether this error is retryable
+    retryable: bool,
+    /// Suggested action for user
+    suggestion: Option<String>,
+}
+
+impl ErrorContext {
+    fn new(code: i32, message: String, user_message: String) -> Self {
+        Self {
+            code,
+            message,
+            user_message,
+            retryable: false,
+            suggestion: None,
+        }
+    }
+
+    fn with_retry(mut self, retryable: bool) -> Self {
+        self.retryable = retryable;
+        self
+    }
+
+    fn with_suggestion(mut self, suggestion: String) -> Self {
+        self.suggestion = Some(suggestion);
+        self
+    }
+
+    /// Convert anyhow::Error to ErrorContext with user-friendly message
+    fn from_error(err: &anyhow::Error) -> Self {
+        let err_str = err.to_string();
+
+        // Parse error type and provide helpful context
+        if err_str.contains("timeout") || err_str.contains("timed out") {
+            ErrorContext::new(
+                JsonRpcError::OperationTimeout.code(),
+                err_str.clone(),
+                "Operation took too long and was cancelled".to_string()
+            )
+            .with_retry(true)
+            .with_suggestion("Try a simpler request or increase timeout".to_string())
+        } else if err_str.contains("connection") || err_str.contains("network") {
+            ErrorContext::new(
+                JsonRpcError::ServerError.code(),
+                err_str.clone(),
+                "Network connection issue".to_string()
+            )
+            .with_retry(true)
+            .with_suggestion("Check your internet connection and try again".to_string())
+        } else if err_str.contains("Session not found") || err_str.contains("session") {
+            ErrorContext::new(
+                JsonRpcError::SessionNotFound.code(),
+                err_str.clone(),
+                "Session not found or expired".to_string()
+            )
+            .with_retry(false)
+            .with_suggestion("Please start a new session".to_string())
+        } else if err_str.contains("parse") || err_str.contains("JSON") {
+            ErrorContext::new(
+                JsonRpcError::ParseError.code(),
+                err_str.clone(),
+                "Failed to parse request".to_string()
+            )
+            .with_retry(false)
+            .with_suggestion("Check request format".to_string())
+        } else {
+            // Generic error
+            ErrorContext::new(
+                JsonRpcError::InternalError.code(),
+                err_str.clone(),
+                "An unexpected error occurred".to_string()
+            )
+            .with_retry(true)
+            .with_suggestion("Please try again".to_string())
+        }
+    }
+}
 
 /// Session state tracking conversation history and metadata
 #[derive(Debug, Clone)]
@@ -270,6 +410,96 @@ impl AcpServer {
         self.send_response(error_response.to_string()).await
     }
 
+    /// Send enhanced error response with user context
+    async fn send_error_context(&self, id: Option<serde_json::Value>, context: ErrorContext) -> Result<()> {
+        let mut error_data = serde_json::json!({
+            "user_message": context.user_message,
+            "retryable": context.retryable,
+        });
+
+        if let Some(suggestion) = context.suggestion {
+            error_data["suggestion"] = serde_json::Value::String(suggestion);
+        }
+
+        let error_response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": context.code,
+                "message": context.message,
+                "data": error_data
+            },
+            "id": id
+        });
+
+        self.send_response(error_response.to_string()).await
+    }
+
+    /// Retry an operation with exponential backoff
+    async fn retry_operation<F, Fut, T>(&self, operation: F, operation_name: &str) -> Result<T>
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
+        let mut attempts = 0;
+        let mut last_error = None;
+
+        while attempts < MAX_RETRIES {
+            match operation().await {
+                Ok(result) => {
+                    if attempts > 0 {
+                        info!("Operation {} succeeded after {} retries", operation_name, attempts);
+                    }
+                    return Ok(result);
+                }
+                Err(e) => {
+                    attempts += 1;
+                    last_error = Some(e);
+
+                    if attempts < MAX_RETRIES {
+                        // Exponential backoff: 100ms, 200ms, 400ms
+                        let delay = BASE_RETRY_DELAY * 2_u32.pow(attempts - 1);
+                        warn!(
+                            "Operation {} failed (attempt {}/{}), retrying in {:?}",
+                            operation_name, attempts, MAX_RETRIES, delay
+                        );
+                        tokio::time::sleep(delay).await;
+                    }
+                }
+            }
+        }
+
+        error!("Operation {} failed after {} attempts", operation_name, MAX_RETRIES);
+        Err(last_error.unwrap())
+    }
+
+    /// Execute operation with timeout
+    async fn with_timeout<F, Fut, T>(&self, operation: F, operation_name: &str) -> Result<T>
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
+        match timeout(OPERATION_TIMEOUT, operation()).await {
+            Ok(Ok(result)) => Ok(result),
+            Ok(Err(e)) => Err(e),
+            Err(_) => {
+                error!("Operation {} timed out after {:?}", operation_name, OPERATION_TIMEOUT);
+                Err(anyhow::anyhow!("Operation timed out after {:?}", OPERATION_TIMEOUT))
+            }
+        }
+    }
+
+    /// Execute operation with both timeout and retry
+    async fn execute_resilient<F, Fut, T>(&self, operation: F, operation_name: &str) -> Result<T>
+    where
+        F: Fn() -> Fut + Clone,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
+        self.retry_operation(
+            || self.with_timeout(operation.clone(), operation_name),
+            operation_name
+        ).await
+    }
+
     /// Run the ACP server over stdio (for editor integration)
     pub async fn run_stdio(self) -> Result<()> {
         info!("🚀 Starting Aircher ACP server on stdio");
@@ -298,16 +528,28 @@ impl AcpServer {
                         Ok(response) => {
                             if let Some(response_str) = response {
                                 debug!("Sending ACP response: {}", response_str);
-                                if let Err(e) = self.send_response(response_str).await {
-                                    error!("Failed to send response: {}", e);
+                                // Retry response sending in case of transient failures
+                                if let Err(e) = self.retry_operation(
+                                    || async { self.send_response(response_str.clone()).await },
+                                    "send_response"
+                                ).await {
+                                    error!("Failed to send response after retries: {}", e);
+                                    // Only break if we can't send responses at all
                                     break;
                                 }
                             }
                         }
                         Err(e) => {
                             error!("Failed to handle ACP message: {}", e);
-                            if let Err(send_err) = self.send_error(None, -32603, format!("Internal error: {}", e)).await {
-                                error!("Failed to send error response: {}", send_err);
+                            let error_context = ErrorContext::from_error(&e);
+
+                            // Try to send enhanced error with retry
+                            if let Err(send_err) = self.retry_operation(
+                                || async { self.send_error_context(None, error_context.clone()).await },
+                                "send_error_context"
+                            ).await {
+                                error!("Failed to send error response after retries: {}", send_err);
+                                // If we can't even send errors, connection is likely broken
                                 break;
                             }
                         }
@@ -422,13 +664,63 @@ impl AcpServer {
                 let response_text = "I understand your request. Processing...";
                 for chunk in response_text.chars().collect::<Vec<_>>().chunks(5) {
                     let chunk_str: String = chunk.iter().collect();
-                    self.stream_text(&session_id, &chunk_str).await?;
+                    // Graceful degradation: If streaming fails, continue but log
+                    if let Err(e) = self.stream_text(&session_id, &chunk_str).await {
+                        warn!("Failed to stream text chunk: {}", e);
+                        // Continue processing despite streaming failure
+                    }
                     tokio::time::sleep(Duration::from_millis(50)).await;
                 }
 
-                // Re-acquire agent lock for processing
+                // Re-acquire agent lock for processing with timeout
                 let agent = self.agent.lock().await;
-                let response = agent.prompt(prompt_request).await?;
+
+                // Execute agent.prompt with timeout and graceful degradation
+                let response = match timeout(OPERATION_TIMEOUT, agent.prompt(prompt_request)).await {
+                    Ok(Ok(response)) => response,
+                    Ok(Err(e)) => {
+                        warn!("Agent prompt failed: {}", e);
+                        // Graceful degradation: Return error but don't crash
+                        drop(agent);
+                        self.add_message_to_session(&session_id, "assistant", "Error processing request".to_string()).await?;
+
+                        // Return error response instead of crashing
+                        let error_ctx = ErrorContext::from_error(&e);
+                        return Ok(Some(serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "error": {
+                                "code": error_ctx.code,
+                                "message": error_ctx.message,
+                                "data": {
+                                    "user_message": error_ctx.user_message,
+                                    "retryable": error_ctx.retryable,
+                                    "suggestion": error_ctx.suggestion
+                                }
+                            },
+                            "id": id
+                        }).to_string()));
+                    }
+                    Err(_) => {
+                        error!("Agent prompt timed out after {:?}", OPERATION_TIMEOUT);
+                        drop(agent);
+                        self.add_message_to_session(&session_id, "assistant", "Request timed out".to_string()).await?;
+
+                        // Return timeout error
+                        return Ok(Some(serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "error": {
+                                "code": JsonRpcError::OperationTimeout.code(),
+                                "message": format!("Operation timed out after {:?}", OPERATION_TIMEOUT),
+                                "data": {
+                                    "user_message": "Request took too long and was cancelled",
+                                    "retryable": true,
+                                    "suggestion": "Try a simpler request"
+                                }
+                            },
+                            "id": id
+                        }).to_string()));
+                    }
+                };
 
                 // Add assistant response to session
                 drop(agent); // Release lock
