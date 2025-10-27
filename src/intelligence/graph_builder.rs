@@ -15,6 +15,7 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use streaming_iterator::StreamingIterator;
 use tracing::{debug, info, warn};
 use tree_sitter::{Parser, Query, QueryCursor, Tree};
 use walkdir::WalkDir;
@@ -266,10 +267,10 @@ impl GraphBuilder {
         // Extract functions
         if let Some(function_query) = &lang_config.queries.functions {
             let mut cursor = QueryCursor::new();
-            let matches = cursor.matches(function_query, root_node, content.as_bytes());
+            let mut matches = cursor.matches(function_query, root_node, content.as_bytes());
 
-            for m in matches {
-                for capture in m.captures {
+            while let Some(m) = matches.next() {
+                for capture in m.captures.iter() {
                     let capture_name = &function_query.capture_names()[capture.index as usize];
 
                     if capture_name == "name" {
@@ -309,10 +310,10 @@ impl GraphBuilder {
         // Extract structs/classes
         if let Some(class_query) = &lang_config.queries.classes {
             let mut cursor = QueryCursor::new();
-            let matches = cursor.matches(class_query, root_node, content.as_bytes());
+            let mut matches = cursor.matches(class_query, root_node, content.as_bytes());
 
-            for m in matches {
-                for capture in m.captures {
+            while let Some(m) = matches.next() {
+                for capture in m.captures.iter() {
                     let capture_name = &class_query.capture_names()[capture.index as usize];
 
                     if capture_name == "name" {
@@ -340,10 +341,10 @@ impl GraphBuilder {
         // Extract imports/use statements
         if let Some(import_query) = &lang_config.queries.imports {
             let mut cursor = QueryCursor::new();
-            let matches = cursor.matches(import_query, root_node, content.as_bytes());
+            let mut matches = cursor.matches(import_query, root_node, content.as_bytes());
 
-            for m in matches {
-                for capture in m.captures {
+            while let Some(m) = matches.next() {
+                for capture in m.captures.iter() {
                     let capture_name = &import_query.capture_names()[capture.index as usize];
 
                     if capture_name == "path" {
