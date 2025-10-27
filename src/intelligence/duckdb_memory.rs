@@ -39,6 +39,80 @@ pub struct Prediction {
     pub reason: String,
 }
 
+// ===== WEEK 3: EPISODIC MEMORY DATA STRUCTURES =====
+
+/// Tool execution record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolExecution {
+    pub id: String,
+    pub timestamp: DateTime<Utc>,
+    pub session_id: String,
+    pub task_id: Option<String>,
+    pub tool_name: String,
+    pub parameters: serde_json::Value,
+    pub result: Option<serde_json::Value>,
+    pub success: bool,
+    pub error_message: Option<String>,
+    pub duration_ms: Option<i32>,
+    pub context_tokens: Option<i32>,
+}
+
+/// File interaction record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileInteraction {
+    pub id: String,
+    pub timestamp: DateTime<Utc>,
+    pub session_id: String,
+    pub task_id: Option<String>,
+    pub file_path: String,
+    pub operation: String, // read, write, edit, search, analyze
+    pub line_range: Option<serde_json::Value>, // {start: 10, end: 50}
+    pub success: bool,
+    pub context: Option<String>, // why this file
+    pub changes_summary: Option<String>,
+}
+
+/// Task history record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskRecord {
+    pub id: String,
+    pub task_id: String,
+    pub session_id: String,
+    pub description: String,
+    pub intent: Option<String>, // CodeReading, CodeWriting, etc.
+    pub status: String, // active, completed, failed, paused
+    pub started_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub files_touched: Option<serde_json::Value>,
+    pub tools_used: Option<serde_json::Value>,
+    pub outcome: Option<String>,
+}
+
+/// Context snapshot record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextSnapshot {
+    pub id: String,
+    pub timestamp: DateTime<Utc>,
+    pub session_id: String,
+    pub task_id: Option<String>,
+    pub context_items: serde_json::Value,
+    pub total_tokens: i32,
+    pub pruned_items: Option<serde_json::Value>,
+    pub reason: String, // pruning, task_switch, manual_snapshot
+}
+
+/// Learned pattern record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LearnedPattern {
+    pub id: String,
+    pub pattern_type: String, // co-edit, error-fix, refactor
+    pub pattern_data: serde_json::Value,
+    pub confidence: f64,
+    pub observed_count: i32,
+    pub first_seen: DateTime<Utc>,
+    pub last_seen: DateTime<Utc>,
+}
+
 /// DuckDB-based intelligent memory system
 pub struct DuckDBMemory {
     _base_dir: PathBuf,
@@ -64,6 +138,92 @@ impl DuckDBMemory {
     }
     
     fn init_schema(conn: &DuckDBConnection) -> Result<()> {
+        // ===== WEEK 3: EPISODIC MEMORY TABLES =====
+
+        // 1. Tool executions - track EVERY tool call
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS tool_executions (
+                id VARCHAR PRIMARY KEY,
+                timestamp TIMESTAMP NOT NULL,
+                session_id VARCHAR NOT NULL,
+                task_id VARCHAR,
+                tool_name VARCHAR NOT NULL,
+                parameters JSON NOT NULL,
+                result JSON,
+                success BOOLEAN NOT NULL,
+                error_message TEXT,
+                duration_ms INTEGER,
+                context_tokens INTEGER
+            )",
+            [],
+        )?;
+
+        // 2. File interactions - track EVERY file operation
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS file_interactions (
+                id VARCHAR PRIMARY KEY,
+                timestamp TIMESTAMP NOT NULL,
+                session_id VARCHAR NOT NULL,
+                task_id VARCHAR,
+                file_path VARCHAR NOT NULL,
+                operation VARCHAR NOT NULL,
+                line_range JSON,
+                success BOOLEAN NOT NULL,
+                context TEXT,
+                changes_summary TEXT
+            )",
+            [],
+        )?;
+
+        // 3. Task history - user-level tasks
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS task_history (
+                id VARCHAR PRIMARY KEY,
+                task_id VARCHAR UNIQUE NOT NULL,
+                session_id VARCHAR NOT NULL,
+                description TEXT NOT NULL,
+                intent VARCHAR,
+                status VARCHAR NOT NULL,
+                started_at TIMESTAMP NOT NULL,
+                completed_at TIMESTAMP,
+                files_touched JSON,
+                tools_used JSON,
+                outcome TEXT
+            )",
+            [],
+        )?;
+
+        // 4. Context snapshots - periodic state for debugging
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS context_snapshots (
+                id VARCHAR PRIMARY KEY,
+                timestamp TIMESTAMP NOT NULL,
+                session_id VARCHAR NOT NULL,
+                task_id VARCHAR,
+                context_items JSON NOT NULL,
+                total_tokens INTEGER NOT NULL,
+                pruned_items JSON,
+                reason VARCHAR NOT NULL
+            )",
+            [],
+        )?;
+
+        // 5. Learned patterns - co-editing, error fixes, refactoring
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS learned_patterns (
+                id VARCHAR PRIMARY KEY,
+                pattern_type VARCHAR NOT NULL,
+                pattern_data JSON NOT NULL,
+                confidence DOUBLE NOT NULL,
+                observed_count INTEGER NOT NULL,
+                first_seen TIMESTAMP NOT NULL,
+                last_seen TIMESTAMP NOT NULL
+            )",
+            [],
+        )?;
+
+        // ===== LEGACY PATTERN TABLES (keep for backward compatibility) =====
+
         // Main patterns table
         conn.execute(
             "CREATE TABLE IF NOT EXISTS patterns (
@@ -81,7 +241,7 @@ impl DuckDBMemory {
             )",
             [],
         )?;
-        
+
         // Actions table
         conn.execute(
             "CREATE TABLE IF NOT EXISTS actions (
@@ -97,7 +257,7 @@ impl DuckDBMemory {
             )",
             [],
         )?;
-        
+
         // Files table
         conn.execute(
             "CREATE TABLE IF NOT EXISTS files (
@@ -108,7 +268,7 @@ impl DuckDBMemory {
             )",
             [],
         )?;
-        
+
         // Pattern similarity table (pre-computed similarities)
         conn.execute(
             "CREATE TABLE IF NOT EXISTS pattern_similarity (
@@ -121,13 +281,31 @@ impl DuckDBMemory {
             )",
             [],
         )?;
-        
-        // Create indexes
+
+        // ===== INDEXES FOR PERFORMANCE =====
+
+        // Week 3 episodic memory indexes
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tool_executions_session ON tool_executions(session_id)", [])?;
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tool_executions_tool_time ON tool_executions(tool_name, timestamp)", [])?;
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tool_executions_task ON tool_executions(task_id)", [])?;
+
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_file_interactions_file ON file_interactions(file_path)", [])?;
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_file_interactions_session_file ON file_interactions(session_id, file_path)", [])?;
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_file_interactions_operation ON file_interactions(operation, timestamp)", [])?;
+
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_task_history_status ON task_history(status)", [])?;
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_task_history_session ON task_history(session_id)", [])?;
+
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_context_snapshots_session ON context_snapshots(session_id)", [])?;
+
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_learned_patterns_type ON learned_patterns(pattern_type)", [])?;
+
+        // Legacy pattern indexes
         conn.execute("CREATE INDEX IF NOT EXISTS idx_patterns_timestamp ON patterns(timestamp DESC)", [])?;
         conn.execute("CREATE INDEX IF NOT EXISTS idx_patterns_success ON patterns(success)", [])?;
         conn.execute("CREATE INDEX IF NOT EXISTS idx_files_path ON files(file_path)", [])?;
         conn.execute("CREATE INDEX IF NOT EXISTS idx_actions_tool ON actions(tool)", [])?;
-        
+
         Ok(())
     }
     
@@ -473,6 +651,368 @@ impl DuckDBMemory {
             rows.next()
                 .ok_or_else(|| anyhow::anyhow!("No data found"))?
                 .map_err(Into::into)
+        }).await?
+    }
+
+    // ===== WEEK 3: EPISODIC MEMORY CRUD OPERATIONS =====
+
+    /// Record a tool execution
+    pub async fn record_tool_execution(&self, execution: ToolExecution) -> Result<()> {
+        let db = self.db.clone();
+
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let db = db.blocking_lock();
+
+            db.execute(
+                "INSERT INTO tool_executions
+                 (id, timestamp, session_id, task_id, tool_name, parameters, result,
+                  success, error_message, duration_ms, context_tokens)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                params![
+                    &execution.id,
+                    execution.timestamp.to_rfc3339(),
+                    &execution.session_id,
+                    &execution.task_id,
+                    &execution.tool_name,
+                    serde_json::to_string(&execution.parameters)?,
+                    execution.result.as_ref().map(|r| serde_json::to_string(r)).transpose()?,
+                    execution.success,
+                    &execution.error_message,
+                    execution.duration_ms,
+                    execution.context_tokens,
+                ],
+            )?;
+
+            Ok(())
+        }).await?
+    }
+
+    /// Get tool execution history for a session
+    pub async fn get_tool_executions(&self, session_id: &str, limit: usize) -> Result<Vec<ToolExecution>> {
+        let db = self.db.clone();
+        let session_id = session_id.to_string();
+
+        tokio::task::spawn_blocking(move || -> Result<Vec<ToolExecution>> {
+            let db = db.blocking_lock();
+
+            let query = "
+                SELECT id, timestamp, session_id, task_id, tool_name, parameters, result,
+                       success, error_message, duration_ms, context_tokens
+                FROM tool_executions
+                WHERE session_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ?";
+
+            let executions = db.prepare(query)?
+                .query_map(params![&session_id, limit as i32], |row| {
+                    let result_str: Option<String> = row.get(6)?;
+                    let result = result_str.and_then(|s| serde_json::from_str(&s).ok());
+
+                    let params_str: String = row.get(5)?;
+                    let parameters = serde_json::from_str(&params_str)
+                        .unwrap_or(serde_json::Value::Null);
+
+                    Ok(ToolExecution {
+                        id: row.get(0)?,
+                        timestamp: DateTime::parse_from_rfc3339(&row.get::<_, String>(1)?)
+                            .unwrap()
+                            .with_timezone(&Utc),
+                        session_id: row.get(2)?,
+                        task_id: row.get(3)?,
+                        tool_name: row.get(4)?,
+                        parameters,
+                        result,
+                        success: row.get(7)?,
+                        error_message: row.get(8)?,
+                        duration_ms: row.get(9)?,
+                        context_tokens: row.get(10)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+
+            Ok(executions)
+        }).await?
+    }
+
+    /// Record a file interaction
+    pub async fn record_file_interaction(&self, interaction: FileInteraction) -> Result<()> {
+        let db = self.db.clone();
+
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let db = db.blocking_lock();
+
+            db.execute(
+                "INSERT INTO file_interactions
+                 (id, timestamp, session_id, task_id, file_path, operation, line_range,
+                  success, context, changes_summary)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                params![
+                    &interaction.id,
+                    interaction.timestamp.to_rfc3339(),
+                    &interaction.session_id,
+                    &interaction.task_id,
+                    &interaction.file_path,
+                    &interaction.operation,
+                    interaction.line_range.as_ref().map(|r| serde_json::to_string(r)).transpose()?,
+                    interaction.success,
+                    &interaction.context,
+                    &interaction.changes_summary,
+                ],
+            )?;
+
+            Ok(())
+        }).await?
+    }
+
+    /// Get file interaction history
+    pub async fn get_file_interactions(&self, file_path: &str, limit: usize) -> Result<Vec<FileInteraction>> {
+        let db = self.db.clone();
+        let file_path = file_path.to_string();
+
+        tokio::task::spawn_blocking(move || -> Result<Vec<FileInteraction>> {
+            let db = db.blocking_lock();
+
+            let query = "
+                SELECT id, timestamp, session_id, task_id, file_path, operation, line_range,
+                       success, context, changes_summary
+                FROM file_interactions
+                WHERE file_path = ?
+                ORDER BY timestamp DESC
+                LIMIT ?";
+
+            let interactions = db.prepare(query)?
+                .query_map(params![&file_path, limit as i32], |row| {
+                    let line_range_str: Option<String> = row.get(6)?;
+                    let line_range = line_range_str.and_then(|s| serde_json::from_str(&s).ok());
+
+                    Ok(FileInteraction {
+                        id: row.get(0)?,
+                        timestamp: DateTime::parse_from_rfc3339(&row.get::<_, String>(1)?)
+                            .unwrap()
+                            .with_timezone(&Utc),
+                        session_id: row.get(2)?,
+                        task_id: row.get(3)?,
+                        file_path: row.get(4)?,
+                        operation: row.get(5)?,
+                        line_range,
+                        success: row.get(7)?,
+                        context: row.get(8)?,
+                        changes_summary: row.get(9)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+
+            Ok(interactions)
+        }).await?
+    }
+
+    /// Detect co-edit patterns (files edited together within time window)
+    pub async fn find_co_edit_patterns(&self, time_window_minutes: i32) -> Result<Vec<LearnedPattern>> {
+        let db = self.db.clone();
+
+        tokio::task::spawn_blocking(move || -> Result<Vec<LearnedPattern>> {
+            let db = db.blocking_lock();
+
+            // Find files edited together within time window
+            let query = format!("
+                SELECT
+                    f1.file_path as file1,
+                    f2.file_path as file2,
+                    COUNT(*) as co_edit_count
+                FROM file_interactions f1
+                JOIN file_interactions f2
+                    ON f1.session_id = f2.session_id
+                    AND f1.task_id = f2.task_id
+                    AND f1.file_path < f2.file_path
+                    AND ABS(EXTRACT(EPOCH FROM (f2.timestamp - f1.timestamp))) < {}
+                WHERE f1.operation = 'edit' AND f2.operation = 'edit'
+                GROUP BY f1.file_path, f2.file_path
+                HAVING COUNT(*) >= 3
+                ORDER BY co_edit_count DESC
+                LIMIT 20",
+                time_window_minutes * 60
+            );
+
+            let patterns = db.prepare(&query)?
+                .query_map([], |row| {
+                    let file1: String = row.get(0)?;
+                    let file2: String = row.get(1)?;
+                    let count: i32 = row.get(2)?;
+
+                    Ok(LearnedPattern {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        pattern_type: "co-edit".to_string(),
+                        pattern_data: serde_json::json!({
+                            "files": [file1, file2],
+                            "operations": ["edit", "edit"],
+                            "within_seconds": time_window_minutes * 60
+                        }),
+                        confidence: (count as f64 / 10.0).min(1.0),
+                        observed_count: count,
+                        first_seen: Utc::now(), // Would need to query actual first/last
+                        last_seen: Utc::now(),
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+
+            Ok(patterns)
+        }).await?
+    }
+
+    /// Record a task
+    pub async fn record_task(&self, task: TaskRecord) -> Result<()> {
+        let db = self.db.clone();
+
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let db = db.blocking_lock();
+
+            db.execute(
+                "INSERT INTO task_history
+                 (id, task_id, session_id, description, intent, status, started_at,
+                  completed_at, files_touched, tools_used, outcome)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                params![
+                    &task.id,
+                    &task.task_id,
+                    &task.session_id,
+                    &task.description,
+                    &task.intent,
+                    &task.status,
+                    task.started_at.to_rfc3339(),
+                    task.completed_at.map(|t| t.to_rfc3339()),
+                    task.files_touched.as_ref().map(|f| serde_json::to_string(f)).transpose()?,
+                    task.tools_used.as_ref().map(|t| serde_json::to_string(t)).transpose()?,
+                    &task.outcome,
+                ],
+            )?;
+
+            Ok(())
+        }).await?
+    }
+
+    /// Update task status
+    pub async fn update_task_status(&self, task_id: &str, status: &str, outcome: Option<String>) -> Result<()> {
+        let db = self.db.clone();
+        let task_id = task_id.to_string();
+        let status = status.to_string();
+
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let db = db.blocking_lock();
+
+            if outcome.is_some() {
+                db.execute(
+                    "UPDATE task_history
+                     SET status = ?, completed_at = ?, outcome = ?
+                     WHERE task_id = ?",
+                    params![&status, Utc::now().to_rfc3339(), &outcome, &task_id],
+                )?;
+            } else {
+                db.execute(
+                    "UPDATE task_history
+                     SET status = ?
+                     WHERE task_id = ?",
+                    params![&status, &task_id],
+                )?;
+            }
+
+            Ok(())
+        }).await?
+    }
+
+    /// Record a context snapshot
+    pub async fn record_context_snapshot(&self, snapshot: ContextSnapshot) -> Result<()> {
+        let db = self.db.clone();
+
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let db = db.blocking_lock();
+
+            db.execute(
+                "INSERT INTO context_snapshots
+                 (id, timestamp, session_id, task_id, context_items, total_tokens,
+                  pruned_items, reason)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                params![
+                    &snapshot.id,
+                    snapshot.timestamp.to_rfc3339(),
+                    &snapshot.session_id,
+                    &snapshot.task_id,
+                    serde_json::to_string(&snapshot.context_items)?,
+                    snapshot.total_tokens,
+                    snapshot.pruned_items.as_ref().map(|p| serde_json::to_string(p)).transpose()?,
+                    &snapshot.reason,
+                ],
+            )?;
+
+            Ok(())
+        }).await?
+    }
+
+    /// Record a learned pattern
+    pub async fn record_learned_pattern(&self, pattern: LearnedPattern) -> Result<()> {
+        let db = self.db.clone();
+
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let db = db.blocking_lock();
+
+            db.execute(
+                "INSERT OR REPLACE INTO learned_patterns
+                 (id, pattern_type, pattern_data, confidence, observed_count,
+                  first_seen, last_seen)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)",
+                params![
+                    &pattern.id,
+                    &pattern.pattern_type,
+                    serde_json::to_string(&pattern.pattern_data)?,
+                    pattern.confidence,
+                    pattern.observed_count,
+                    pattern.first_seen.to_rfc3339(),
+                    pattern.last_seen.to_rfc3339(),
+                ],
+            )?;
+
+            Ok(())
+        }).await?
+    }
+
+    /// Get learned patterns by type
+    pub async fn get_learned_patterns(&self, pattern_type: &str, limit: usize) -> Result<Vec<LearnedPattern>> {
+        let db = self.db.clone();
+        let pattern_type = pattern_type.to_string();
+
+        tokio::task::spawn_blocking(move || -> Result<Vec<LearnedPattern>> {
+            let db = db.blocking_lock();
+
+            let query = "
+                SELECT id, pattern_type, pattern_data, confidence, observed_count,
+                       first_seen, last_seen
+                FROM learned_patterns
+                WHERE pattern_type = ?
+                ORDER BY confidence DESC, observed_count DESC
+                LIMIT ?";
+
+            let patterns = db.prepare(query)?
+                .query_map(params![&pattern_type, limit as i32], |row| {
+                    let pattern_data_str: String = row.get(2)?;
+                    let pattern_data = serde_json::from_str(&pattern_data_str)
+                        .unwrap_or(serde_json::Value::Null);
+
+                    Ok(LearnedPattern {
+                        id: row.get(0)?,
+                        pattern_type: row.get(1)?,
+                        pattern_data,
+                        confidence: row.get(3)?,
+                        observed_count: row.get(4)?,
+                        first_seen: DateTime::parse_from_rfc3339(&row.get::<_, String>(5)?)
+                            .unwrap()
+                            .with_timezone(&Utc),
+                        last_seen: DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?)
+                            .unwrap()
+                            .with_timezone(&Utc),
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+
+            Ok(patterns)
         }).await?
     }
 }
