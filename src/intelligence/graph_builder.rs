@@ -374,16 +374,23 @@ impl GraphBuilder {
     pub fn update_file(&mut self, file_path: &Path, graph: &mut KnowledgeGraph) -> Result<()> {
         info!("Updating graph for changed file: {:?}", file_path);
 
-        // Remove old nodes for this file
-        if let Some(file_idx) = graph.get_file_index(file_path) {
-            // TODO: Remove edges and contained nodes
-            warn!("Incremental update not fully implemented yet");
+        // Remove old nodes and edges for this file
+        graph.remove_file(file_path)?;
+
+        // Re-process file if it still exists
+        if file_path.exists() {
+            self.process_file(file_path, graph)?;
+        } else {
+            debug!("File deleted, not re-adding: {:?}", file_path);
         }
 
-        // Re-process file
-        self.process_file(file_path, graph)?;
-
         Ok(())
+    }
+
+    /// Remove file from graph (for deletions)
+    pub fn remove_file(&mut self, file_path: &Path, graph: &mut KnowledgeGraph) -> Result<()> {
+        info!("Removing file from graph: {:?}", file_path);
+        graph.remove_file(file_path)
     }
 }
 

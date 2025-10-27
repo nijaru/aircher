@@ -252,6 +252,68 @@ impl KnowledgeGraph {
         self.file_index.get(path).copied()
     }
 
+    /// Remove all nodes and edges for a file (for incremental updates)
+    pub fn remove_file(&mut self, file_path: &Path) -> Result<()> {
+        let file_idx = match self.file_index.get(file_path) {
+            Some(idx) => *idx,
+            None => return Ok(()), // File not in graph, nothing to remove
+        };
+
+        debug!("Removing file from graph: {:?}", file_path);
+
+        // Collect all nodes contained by this file
+        let mut nodes_to_remove = Vec::new();
+        for edge in self.graph.edges_directed(file_idx, Direction::Outgoing) {
+            if let EdgeType::Contains = edge.weight() {
+                nodes_to_remove.push(edge.target());
+            }
+        }
+
+        // Remove contained nodes (functions, classes, imports, variables)
+        for node_idx in nodes_to_remove {
+            // Remove from symbol index
+            if let Some(node) = self.graph.node_weight(node_idx) {
+                match node {
+                    NodeType::Function { name, .. }
+                    | NodeType::Class { name, .. }
+                    | NodeType::Variable { name, .. } => {
+                        if let Some(indices) = self.symbol_index.get_mut(name) {
+                            indices.retain(|&idx| idx != node_idx);
+                            if indices.is_empty() {
+                                self.symbol_index.remove(name);
+                            }
+                        }
+                    }
+                    NodeType::Import { module, .. } => {
+                        if let Some(indices) = self.symbol_index.get_mut(module) {
+                            indices.retain(|&idx| idx != node_idx);
+                            if indices.is_empty() {
+                                self.symbol_index.remove(module);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // Remove node from graph
+            self.graph.remove_node(node_idx);
+            self.node_count -= 1;
+        }
+
+        // Remove file node itself
+        self.file_index.remove(file_path);
+        self.graph.remove_node(file_idx);
+        self.node_count -= 1;
+
+        // Update edge count (approximate - edges are automatically removed with nodes)
+        self.edge_count = self.graph.edge_count();
+
+        debug!("Removed file: {:?}, {} nodes remaining", file_path, self.node_count);
+
+        Ok(())
+    }
+
     /// Save knowledge graph to binary file
     pub fn save(&self, path: &Path) -> Result<()> {
         info!("Saving knowledge graph to {:?}", path);
@@ -507,5 +569,146 @@ mod tests {
         } else {
             panic!("Expected Function node");
         }
+    }
+
+    #[test]
+    fn test_remove_file() {
+        let mut graph = KnowledgeGraph::new(PathBuf::from("/test"));
+
+        // Add file with some functions
+        let file_path = PathBuf::from("/test/lib.rs");
+        let file_node = NodeType::File {
+            path: file_path.clone(),
+            language: "rust".to_string(),
+            line_count: 50,
+        };
+        let file_idx = graph.add_node(file_node);
+
+        let func1 = NodeType::Function {
+            name: "foo".to_string(),
+            signature: "fn foo()".to_string(),
+            line: 5,
+            file_path: file_path.clone(),
+        };
+        let func1_idx = graph.add_node(func1);
+
+        let func2 = NodeType::Function {
+            name: "bar".to_string(),
+            signature: "fn bar()".to_string(),
+            line: 10,
+            file_path: file_path.clone(),
+        };
+        let func2_idx = graph.add_node(func2);
+
+        graph.add_edge(file_idx, func1_idx, EdgeType::Contains);
+        graph.add_edge(file_idx, func2_idx, EdgeType::Contains);
+
+        let stats_before = graph.stats();
+        assert_eq!(stats_before.node_count, 3);
+        assert_eq!(stats_before.edge_count, 2);
+
+        // Remove file
+        graph.remove_file(&file_path).unwrap();
+
+        let stats_after = graph.stats();
+        assert_eq!(stats_after.node_count, 0);
+        assert_eq!(stats_after.edge_count, 0);
+        assert_eq!(stats_after.file_count, 0);
+
+        // Verify symbols removed from index
+        assert!(graph.find_symbol("foo").is_err());
+        assert!(graph.find_symbol("bar").is_err());
+    }
+
+    #[test]
+    fn test_save_load() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let graph_file = temp_dir.path().join("test_graph.bin");
+
+        // Create graph
+        let mut graph = KnowledgeGraph::new(PathBuf::from("/test"));
+
+        let file_node = NodeType::File {
+            path: PathBuf::from("/test/main.rs"),
+            language: "rust".to_string(),
+            line_count: 100,
+        };
+        let file_idx = graph.add_node(file_node);
+
+        let func_node = NodeType::Function {
+            name: "main".to_string(),
+            signature: "fn main()".to_string(),
+            line: 10,
+            file_path: PathBuf::from("/test/main.rs"),
+        };
+        let func_idx = graph.add_node(func_node);
+
+        graph.add_edge(file_idx, func_idx, EdgeType::Contains);
+
+        let stats_before = graph.stats();
+
+        // Save
+        graph.save(&graph_file).unwrap();
+        assert!(graph_file.exists());
+
+        // Load
+        let loaded_graph = KnowledgeGraph::load(&graph_file).unwrap();
+        let stats_after = loaded_graph.stats();
+
+        // Verify same structure
+        assert_eq!(stats_before.node_count, stats_after.node_count);
+        assert_eq!(stats_before.edge_count, stats_after.edge_count);
+        assert_eq!(stats_before.file_count, stats_after.file_count);
+        assert_eq!(stats_before.symbol_count, stats_after.symbol_count);
+
+        // Verify can query loaded graph
+        let contents = loaded_graph
+            .get_file_contents(&PathBuf::from("/test/main.rs"))
+            .unwrap();
+        assert_eq!(contents.len(), 1);
+    }
+
+    #[test]
+    fn test_multiple_files_same_symbol() {
+        let mut graph = KnowledgeGraph::new(PathBuf::from("/test"));
+
+        // Add two files with same function name
+        let file1 = PathBuf::from("/test/a.rs");
+        let file1_node = NodeType::File {
+            path: file1.clone(),
+            language: "rust".to_string(),
+            line_count: 10,
+        };
+        graph.add_node(file1_node);
+
+        let func1 = NodeType::Function {
+            name: "test".to_string(),
+            signature: "fn test()".to_string(),
+            line: 5,
+            file_path: file1.clone(),
+        };
+        graph.add_node(func1);
+
+        let file2 = PathBuf::from("/test/b.rs");
+        let file2_node = NodeType::File {
+            path: file2.clone(),
+            language: "rust".to_string(),
+            line_count: 10,
+        };
+        graph.add_node(file2_node);
+
+        let func2 = NodeType::Function {
+            name: "test".to_string(),
+            signature: "fn test()".to_string(),
+            line: 5,
+            file_path: file2.clone(),
+        };
+        graph.add_node(func2);
+
+        // Should find both symbols
+        let symbols = graph.find_symbol("test").unwrap();
+        assert_eq!(symbols.len(), 2);
     }
 }
