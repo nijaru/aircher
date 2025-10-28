@@ -127,15 +127,29 @@
 
 ## Active Work
 
-**Current (2025-10-27)**: Week 6 Days 1-4 COMPLETE ✅ - ACP Protocol Enhancements Complete!
+**Current (2025-10-27)**: Week 6 COMPLETE ✅ - ACP Enhanced + Architecture Redesigned!
 
-**Week 6 Days 1-4 Achievements**:
+**Week 6 Achievements**:
+
+**Days 1-4: ACP Protocol Enhancements** ✅
 - ✅ Day 1: ACP protocol review + documentation (discovered 90% complete)
 - ✅ Day 2: Session state tracking with 30-minute timeout (192 lines)
 - ✅ Day 3: Streaming notifications (5 types: text, tool_start, tool_progress, tool_complete, thinking) (143 lines)
 - ✅ Day 4: Error handling (10 JSON-RPC error codes, retry logic, timeout handling) (300 lines)
 - ✅ Day 4: Comprehensive test file created (`tests/acp_week6_features_test.rs` - 470+ lines)
-- ✅ Total Week 6 additions: +635 lines production code, +470 lines test code
+- ✅ Total ACP additions: +635 lines production code, +470 lines test code
+
+**Day 5: SOTA Research** ✅
+- ✅ Researched Factory Droid (#1 Terminal-Bench, 58.8%)
+- ✅ Researched OpenCode (thdxr - Plan/Build, LSP, Git snapshots)
+- ✅ Researched Claude Code (sub-agents: 90% research gain, 15x coding waste)
+- ✅ Researched Amp (multi-model routing)
+
+**Day 5-6: Architecture Redesign + Documentation** ✅
+- ✅ Created ai/SYSTEM_DESIGN_2025.md (+500 lines) - hybrid architecture spec
+- ✅ Updated docs/ROADMAP.md - Weeks 7-10 implementation plan
+- ✅ Updated all documentation (ai/, docs/, AGENTS.md, README.md)
+- ✅ Committed and pushed (commits: 57c3b90, 069a42c)
 
 **Memory System Status: ALL 3 COMPLETE ✅**:
 
