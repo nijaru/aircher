@@ -2,6 +2,64 @@
 
 *Index of external research findings and their application to Aircher*
 
+## SOTA Agent Architectures (researched 2025-10-27) ✨ NEW
+
+**Key Finding**: Hybrid architecture combining 4 leading patterns is superior
+
+**Sources**:
+- Factory Droid (58.8% Terminal-Bench, #1)
+- OpenCode (thdxr, open source, production-validated)
+- Claude Code (Anthropic, sub-agent research)
+- Sourcegraph Amp (multi-model routing)
+
+**Critical Discoveries**:
+
+1. **Plan/Build Separation** (OpenCode)
+   - Read-only exploration (Plan) vs modification (Build)
+   - Prevents accidental changes, clear mode distinction
+   - Validated in production
+
+2. **LSP Integration** (OpenCode)
+   - Real-time diagnostics after file edits
+   - Edit → LSP → diagnostics → agent self-corrects
+   - Prevents hallucination before code runs
+   - 50% fewer runtime errors (estimated)
+
+3. **Git Snapshots** (OpenCode)
+   - Temporary commits before risky operations
+   - Auto-rollback on errors or permission rejection
+   - 100% recovery from failed operations
+   - No history pollution
+
+4. **Sub-Agents: When to Use** (Claude Code research)
+   - ✅ **Research tasks**: 90% improvement (parallel execution)
+   - ❌ **Coding tasks**: 15x token waste (context isolation fatal)
+   - Users reported: 160k tokens for 3k work, 20k overhead per sub-agent
+   - **Lesson**: Decision matrix based on task type
+
+5. **Specialized Agents** (Factory Droid)
+   - Pre-configured "Droids" for different tasks
+   - Focused system prompts > generic prompts
+   - Smaller tool sets = less decision paralysis
+   - #1 on Terminal-Bench
+
+6. **Multi-Model Routing** (Amp)
+   - Haiku for simple tasks (fast, cheap)
+   - Sonnet for moderate complexity
+   - Opus for complex reasoning
+   - 40% cost reduction via intelligent selection
+
+**Application**:
+- Implement all 6 patterns in hybrid architecture
+- Plan/Build modes (Week 7 Day 3-4)
+- LSP integration (Week 7 Day 1-2)
+- Git snapshots (Week 7 Day 5)
+- Research sub-agents only (Week 8 Day 3-4)
+- Specialized agents (Week 8 Day 1-2)
+- Model router (Week 7 Day 6-7)
+
+**Details**: → ai/SYSTEM_DESIGN_2025.md, ai/DECISIONS.md (2025-10-27)
+
 ## Agent Scaffolding (researched 2025-10-27)
 
 **Key Finding**: Simple scaffolding >> Complex orchestration
