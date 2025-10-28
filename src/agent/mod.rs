@@ -16,6 +16,8 @@ pub mod multi_turn_reasoning; // NEW: Real multi-turn reasoning engine for syste
 pub mod enhanced_prompting; // NEW: Research-based enhanced prompting (replaces complex orchestration)
 pub mod strategies; // NEW: Research-based reasoning strategies (ReAct, Reflexion, ToT, etc.)
 pub mod intelligent_strategy_selection; // NEW: Intelligence-enhanced strategy selection and adaptation
+pub mod events; // NEW (Week 7): Event bus system for agent-wide communication
+pub mod lsp_manager; // NEW (Week 7): LSP manager with global diagnostics + event integration
 // pub mod background_tasks; // NEW: Background task execution system (disabled due to compilation errors)
 // pub mod runtime_validation; // NEW: Runtime validation and testing system (disabled due to compilation errors)
 // pub mod orchestrator; // DEPRECATED - used sub-agents, replaced by task_orchestrator
@@ -25,3 +27,5 @@ pub use controller::AgentController;
 pub use conversation::{CodingConversation, ProjectContext};
 pub use tools::{AgentTool, ToolOutput, ToolError};
 pub use core::Agent;
+pub use events::{EventBus, EventListener, AgentEvent, SharedEventBus, create_event_bus};
+pub use lsp_manager::LspManager;
