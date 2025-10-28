@@ -21,32 +21,35 @@ Build a research-grade intelligent agent backend that works via Agent Client Pro
 
 ## 📊 Current Reality (October 2025)
 
-### ACP Frontend Landscape ✅
-- **Zed**: Native ACP support (best starting point)
-- **JetBrains**: October 2025 collaboration announced (huge opportunity)
-- **Neovim**: 2 plugins already (CodeCompanion, avante.nvim)
-- **Emacs**: agent-shell plugin
-- **1k+ GitHub stars** on ACP protocol repo
+### Major Strategic Pivot: SOTA Architecture Redesign ✨
 
-**Validation**: Strong ecosystem adoption confirms ACP-first strategy is correct
+**Research Findings** (Oct 27, 2025):
+- **Factory Droid**: 58.8% Terminal-Bench using specialized agents
+- **OpenCode**: Plan/Build separation + LSP integration + Git snapshots
+- **Claude Code**: Sub-agents work for research (90% improvement) but terrible for coding (15x waste)
+- **Amp**: Multi-model routing for cost optimization
 
-### What Actually Works
+**New Direction**: Hybrid architecture combining best patterns from all tools
+
+### What Actually Works ✅
+- **Week 6 Complete**: ACP protocol with session management, streaming, error handling (+635 lines)
+- **Memory Systems**: ALL 3 complete (3,725 lines) - Episodic, Knowledge Graph, Working
 - **Semantic Search**: Production-ready (6,468 vectors, 19+ languages, sub-second)
-- **Intelligence Framework**: 210+ Rust files with substantial implementation
 - **Multi-Provider**: OpenAI, Anthropic, Gemini, Ollama authentication
-- **ACP Architecture**: Designed (needs implementation)
-- **Dynamic Context**: Code exists (needs integration testing)
+- **6 Production Tools**: read_file, write_file, edit_file, list_files, analyze_errors, analyze_code (2,300+ lines)
 
-### What Doesn't Work
-- **9/10 tools are stubs** - return fake JSON, no real functionality
-- **ACP Protocol**: Not implemented yet
-- **Intent Classification**: Code exists but not operational
-- **Benchmarks**: No empirical validation vs competitors
+### What's Being Redesigned 🔄
+- **Agent Architecture**: Single agent → Hybrid (Plan/Build modes + research sub-agents)
+- **LSP Integration**: Adding real-time diagnostics feedback (from OpenCode pattern)
+- **Git Snapshots**: Safe experimentation with auto-rollback (from OpenCode)
+- **Model Routing**: Multi-model selection based on task complexity (from Amp)
+- **Specialized Agents**: Explorer, Builder, Debugger, Refactorer configs (from Factory Droid)
 
-### Competitive Position
-- **16-20% feature parity** with Claude Code (infrastructure vs capabilities)
-- **Strong foundation** but minimal user value currently
-- **Novel architecture** (intent classification, dynamic context) not yet proven
+### Competitive Position (Updated)
+- **30-33% feature parity** with Claude Code (infrastructure complete, capabilities growing)
+- **Unique advantages**: Memory systems (nobody has), ACP multi-frontend, intent-driven architecture
+- **Research validated**: Patterns from 4 SOTA tools combined
+- **Timeline**: Weeks 7-10 implement new architecture + benchmarks
 
 ## 🚀 10-Week Development Plan
 
@@ -104,157 +107,202 @@ Build a research-grade intelligent agent backend that works via Agent Client Pro
 - Clear installation instructions
 - Demo-ready quality
 
-### Phase 2: Intelligence Features (Weeks 5-6)
+### Phase 2: SOTA Architecture Implementation (Weeks 5-8) ✨ UPDATED
 
-#### **Week 5: Intent Classification**
-**Goal**: Automatic task type detection working
+#### **Week 5: Working Memory** ✅ COMPLETE
+- Dynamic context pruning with relevance scoring
+- Integration of all 3 memory systems
+- +820 lines production code, +620 lines tests
 
-**Tasks:**
-- [ ] Make `UserIntent` classification operational
-- [ ] Connect to unified intelligence engine
-- [ ] Different execution strategies per intent type
-- [ ] Confidence scoring
+#### **Week 6: ACP Protocol Enhancements** ✅ COMPLETE
+- Session management with 30-minute timeout
+- Streaming notifications (5 types)
+- Comprehensive error handling with retry logic
+- +635 lines production code, +470 lines tests
 
-**Success Criteria**:
-- Correctly classifies: CodeReading, CodeWriting, ProjectFixing, ProjectExploration
-- Routes to appropriate execution strategy
-- Measurable accuracy >80%
+#### **Week 7: Core Architecture Patterns** (NEW)
+**Goal**: Implement OpenCode's proven patterns
 
-#### **Week 6: Dynamic Context Management**
-**Goal**: Prove superiority over sub-agents
+**Day 1-2: Event Bus + LSP Integration**
+- [ ] Implement tokio broadcast event bus
+- [ ] LSP manager with global diagnostics map
+- [ ] Real-time feedback loop (edit → LSP → diagnostics → agent)
+- [ ] Support Rust, Python, TypeScript, Go
 
-**Tasks:**
-- [ ] Activate DynamicContextManager
-- [ ] Smart pruning and prefetching
-- [ ] Relevance scoring operational
-- [ ] Token budget optimization
+**Day 3-4: Plan/Build Mode Separation**
+- [ ] `AgentMode` enum with tool restrictions
+- [ ] Plan mode: read-only tools (grep, read, glob, LSP)
+- [ ] Build mode: all tools + approval workflow
+- [ ] Mode transition logic based on intent
 
-**Success Criteria**:
-- Context efficiency measurably better
-- No context overflow on complex tasks
-- Maintains relevant context across turns
+**Day 5: Git Snapshots**
+- [ ] SnapshotManager with temporary commits
+- [ ] Auto-snapshot before risky operations
+- [ ] Rollback on errors or permission rejection
+- [ ] Clean history (snapshots don't pollute git log)
 
-### Phase 3: Validation & Benchmarking (Weeks 7-8)
-
-#### **Week 7: Empirical Comparison**
-**Goal**: Measure vs Claude Code
-
-**Benchmark Tasks:**
-1. Multi-file refactoring (measure tool calls, success rate)
-2. Bug fixing (measure time to resolution, context efficiency)
-3. Code generation (measure style consistency)
-4. Codebase exploration (measure relevant context retrieval)
-
-**Metrics:**
-- Tool calls needed (fewer = better)
-- Context tokens used (fewer = better with same results)
-- Task success rate (higher = better)
-- Time to completion (faster = better)
+**Day 6-7: Model Router**
+- [ ] Multi-model selection logic
+- [ ] Cost-aware routing (Haiku for simple, Opus for complex)
+- [ ] Performance testing across models
 
 **Success Criteria**:
-- Document 15-30% improvement in at least 2 metrics
-- Validate 19% context efficiency claim
-- Identify weaknesses for improvement
+- LSP provides real-time diagnostics after file edits
+- Plan mode safely explores without modification risk
+- Git snapshots enable safe experimentation
+- Model router reduces API costs by 40%
 
-#### **Week 8: Ablation Studies**
-**Goal**: Prove each feature's value
+#### **Week 8: Specialized Agents + Sub-Agents** (NEW)
+**Goal**: Factory Droid's specialized agent pattern + Claude Code's research sub-agents
 
-**Tests:**
-1. Intent classification ON vs OFF
-2. Dynamic context vs static context window
-3. Pattern learning ON vs OFF
+**Day 1-2: Agent Configurations**
+- [ ] Explorer agent (CodeReading tasks)
+- [ ] Builder agent (CodeWriting tasks)
+- [ ] Debugger agent (ProjectFixing tasks)
+- [ ] Refactorer agent (code improvements)
+- [ ] Specialized system prompts per agent
 
-**Success Criteria**:
-- Each feature shows measurable improvement
-- Understand which features matter most
-- Data for research paper
+**Day 3-4: Research Sub-Agents**
+- [ ] Parallel research spawning (max 10 concurrent)
+- [ ] Task decomposition for research queries
+- [ ] Result aggregation in main agent
+- [ ] Memory integration (prevent duplicate research)
 
-### Phase 4: Research & Release (Weeks 9-10)
-
-#### **Week 9: Documentation & Paper Draft**
-**Goal**: Publishable research contribution
-
-**Deliverables:**
-- [ ] Research paper draft (intent-driven agent architecture)
-- [ ] Technical documentation (how it works)
-- [ ] Blog post (for broader audience)
-- [ ] Benchmark results tables and graphs
-
-**Paper Sections:**
-1. Introduction (problem: one-size-fits-all agents)
-2. Related Work (ReAct, Reflexion, sub-agents)
-3. Architecture (intent classification + dynamic context)
-4. Evaluation (empirical comparison vs Claude Code)
-5. Results (improvements in metrics)
-6. Discussion (when it works, when it doesn't)
-7. Conclusion (contributions to field)
-
-#### **Week 10: Open Source Release**
-**Goal**: Community adoption
-
-**Deliverables:**
-- [ ] Installation guide for Zed users
-- [ ] Contributor documentation
-- [ ] Example usage patterns
-- [ ] Demo video
-- [ ] Reddit/HN announcement
+**Day 5-7: Integration Testing**
+- [ ] Test Plan mode with sub-agents for research
+- [ ] Test Build mode NEVER uses sub-agents (prevent 15x waste)
+- [ ] Validate 90% improvement for research tasks
+- [ ] Measure token usage: sub-agents vs main agent
 
 **Success Criteria**:
-- Clear installation path
-- Working examples
-- Community can contribute
+- Specialized agents have focused, effective system prompts
+- Research tasks 90% faster with parallel sub-agents
+- Coding tasks NEVER spawn sub-agents (avoid 15x overhead)
+- Memory prevents duplicate research across sessions
 
-## 📈 Success Metrics
+### Phase 3: Validation & Benchmarking (Weeks 9-10) - UPDATED TIMELINE
 
-### Phase 1 Success (Week 4)
-- ✅ 8 real tools providing value
-- ✅ Works smoothly in Zed via ACP
-- ✅ No crashes, good UX
-- ✅ Demo-ready quality
+#### **Week 9: Empirical Comparison vs Claude Code**
+**Goal**: Validate improvements with real benchmarks
 
-### Phase 2 Success (Week 6)
-- ✅ Intent classification >80% accuracy
-- ✅ Dynamic context measurably better than static
-- ✅ Pattern learning showing improvement
-- ✅ 40-50% competitive parity
+**Benchmark Tasks** (from research):
+1. Multi-file refactoring (measure: tool calls, context efficiency)
+2. Bug fixing workflow (measure: time to resolution, relevant files)
+3. New feature implementation (measure: code consistency, iterations)
+4. Codebase exploration (measure: irrelevant files examined, research deduplication)
 
-### Phase 3 Success (Week 8)
-- ✅ 15-30% improvement in key metrics vs Claude Code
-- ✅ 19% context efficiency claim validated
-- ✅ Ablation studies prove feature value
-- ✅ Benchmark data ready for paper
+**Metrics to Track**:
+- Tool calls needed (target: 60% reduction via memory)
+- Files examined (target: fewer irrelevant files)
+- Context efficiency (dynamic pruning effectiveness)
+- Research deduplication (cache hit rate from episodic memory)
+- LSP self-correction rate (fixes via diagnostics feedback)
+- Sub-agent speedup (research tasks only)
 
-### Phase 4 Success (Week 10)
-- ✅ Research paper draft complete
-- ✅ Open source release with docs
-- ✅ Community can install and use
-- ✅ Clear research contributions documented
+**Success Criteria**:
+- 60% reduction in tool calls (memory advantage)
+- 90% improvement in research tasks (sub-agents)
+- 0% sub-agent usage for coding (avoid 15x waste)
+- Measurable LSP self-correction (fewer hallucinations)
 
-## 🔬 Research Contributions
+#### **Week 10: Research Paper + Release**
+**Goal**: Publication-ready research + open source launch
 
-### 1. **Intent-Driven Agent Architecture**
-**Hypothesis**: Automatic intent classification enables specialized execution strategies
-- **Baseline**: One-size-fits-all agent approach
-- **Measurement**: Task completion rate, tool efficiency
-- **Expected**: 15-30% improvement for specialized tasks
+**Paper Sections** (updated):
+1. Introduction: Problem with current agent architectures
+2. Related Work: Factory Droid, OpenCode, Claude Code, Amp analysis
+3. Architecture: Hybrid design combining best patterns
+   - Plan/Build separation (OpenCode)
+   - Specialized agents (Factory Droid)
+   - Smart sub-agents (research only, not coding)
+   - LSP integration (real-time feedback)
+   - Memory systems (our innovation)
+4. Evaluation: Benchmarks vs Claude Code
+5. Results: 60% tool reduction, 90% research speedup, LSP self-correction
+6. Discussion: When to use sub-agents, when not to
+7. Conclusion: Intent-driven hybrid architecture is superior
 
-### 2. **Dynamic Context Management**
-**Hypothesis**: Single agent with smart context > multiple sub-agents
-- **Baseline**: Sub-agent architecture (like Claude Code)
-- **Measurement**: Context efficiency, coordination overhead
-- **Expected**: Confirm 19% performance advantage
+**Release Checklist**:
+- [ ] Research paper draft (arXiv submission)
+- [ ] Blog post series (4-5 posts explaining architecture)
+- [ ] Documentation (architecture guide, user manual)
+- [ ] Video demos (30s teaser, 5min walkthrough)
+- [ ] GitHub release (v0.1.0 with release notes)
+- [ ] Community announcement (Reddit, HN, Twitter)
 
-### 3. **Pattern-Aware Code Generation**
-**Hypothesis**: Learning project conventions improves code quality
-- **Baseline**: Agent without pattern learning
-- **Measurement**: Style consistency, architectural compliance
-- **Expected**: 40-60% better matching to existing code
+**Success Criteria**:
+- Paper demonstrates clear advantages over existing tools
+- Empirical evidence supports all claims
+- Community understands our unique approach
+- Open source release is production-ready
 
-### 4. **Unified Intelligence Middleware**
-**Hypothesis**: Automatic intelligence routing reduces latency
-- **Baseline**: Manual intelligence tool invocation
-- **Measurement**: Time to first useful response
-- **Expected**: 2-3x faster with automatic detection
+
+## 📈 Success Metrics (Updated)
+
+### Phase 1 Success (Weeks 1-6) ✅ ACHIEVED
+- ✅ 6 production tools (2,300+ lines)
+- ✅ Memory systems complete (3,725 lines)
+- ✅ ACP protocol enhanced (session management, streaming, error handling)
+- ✅ 30-33% competitive parity
+- ✅ Infrastructure solid
+
+### Phase 2 Success (Weeks 7-8) - NEW GOALS
+- ✅ LSP integration provides real-time diagnostics
+- ✅ Plan/Build mode separation prevents accidental modifications
+- ✅ Git snapshots enable safe experimentation
+- ✅ Specialized agents have focused, effective prompts
+- ✅ Research sub-agents show 90% improvement
+- ✅ Coding tasks NEVER use sub-agents (0% usage)
+- ✅ Model router reduces API costs by 40%
+
+### Phase 3 Success (Weeks 9-10) - VALIDATION
+- ✅ 60% reduction in tool calls vs Claude Code (memory advantage)
+- ✅ 90% improvement in research tasks (parallel sub-agents)
+- ✅ 0% sub-agent usage for coding (avoid 15x waste)
+- ✅ Measurable LSP self-correction rate
+- ✅ Research paper demonstrates unique hybrid architecture
+- ✅ Empirical evidence supports all claims
+- ✅ Open source release is production-ready
+
+## 🔬 Research Contributions (Updated)
+
+### 1. **Hybrid Agent Architecture** ✨ NEW
+**Hypothesis**: Combining patterns from 4 SOTA tools creates superior agent
+- **Components**: Plan/Build separation + specialized agents + smart sub-agents + LSP feedback + memory systems
+- **Baseline**: Single-strategy agents (Claude Code, Amp, etc.)
+- **Measurement**: Tool calls, research speed, code quality, cost
+- **Expected**: 60% tool reduction (memory), 90% research speedup (sub-agents), 40% cost reduction (model routing)
+
+### 2. **Intent-Driven Strategy Selection**
+**Hypothesis**: User intent determines optimal agent strategy
+- **Plan Mode**: Read-only exploration, can spawn research sub-agents
+- **Build Mode**: Modification capable, NEVER uses sub-agents
+- **Baseline**: One-size-fits-all or naive sub-agent usage
+- **Measurement**: Safety (accidental modifications), efficiency (sub-agent usage)
+- **Expected**: 0% sub-agents for coding (avoid 15x waste), 90% improvement for research
+
+### 3. **LSP-Augmented Feedback Loop**
+**Hypothesis**: Real-time diagnostics prevent hallucination
+- **Pattern**: Edit → LSP diagnostic → agent sees errors → self-correct
+- **Baseline**: No LSP feedback
+- **Measurement**: Self-correction rate, errors caught before execution
+- **Expected**: 50% fewer runtime errors via LSP self-correction
+
+### 4. **Memory-Augmented Agent Intelligence**
+**Hypothesis**: Three-layer memory enables continuous work
+- **Episodic**: Prevent duplicate research
+- **Knowledge Graph**: Instant codebase queries
+- **Working Memory**: Dynamic context pruning
+- **Baseline**: Stateless agent (Claude Code)
+- **Measurement**: Research deduplication, tool call reduction, context efficiency
+- **Expected**: 60% fewer tool calls, 80% cache hit rate for research
+
+### 5. **Git-Based Safe Experimentation**
+**Hypothesis**: Snapshots enable fearless exploration
+- **Pattern**: Snapshot → risky operation → rollback on failure
+- **Baseline**: No snapshots (permanent changes)
+- **Measurement**: Rollback frequency, user confidence
+- **Expected**: 100% recovery from failed operations
 
 ## 🚫 Anti-Goals (Explicit Non-Priorities)
 
