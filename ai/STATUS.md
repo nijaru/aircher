@@ -228,7 +228,7 @@
 4. Day 5: Git snapshots
    - SnapshotManager with temporary commits
    - Auto-rollback on errors
-4. Day 6-7: Model router
+5. Day 6-7: Model router
    - Multi-model selection (Haiku/Sonnet/Opus)
    - Cost-aware routing
 
