@@ -6,15 +6,19 @@
 
 ## 📊 Executive Summary
 
-Aircher is an **ACP-compatible agent backend** (not TUI) in Week 6 of 10-week development plan. Focus is research-grade agent intelligence for publication.
+Aircher is an **ACP-compatible agent backend** implementing a **hybrid architecture** that combines the best patterns from 4 leading agents: Factory Droid, OpenCode, Claude Code, and Amp.
 
-**Frontend Strategy**: Toad (universal terminal UI) + Zed/Neovim/Emacs via ACP
-**Backend**: Rust (86K lines) - performance critical for benchmarks
-**Current Status**: Week 6 Days 1-4 complete (ACP protocol enhancements)
-**Memory System**: ✅ ALL 3 COMPLETE (3,725 lines) - Episodic, Knowledge Graph, Working Memory
-**ACP Protocol**: ✅ ENHANCED (635 new lines) - Session management, streaming, error handling complete
+**Architecture Pivot** (Oct 27, 2025):
+- ✅ **Week 1-6**: Infrastructure complete (ACP, memory systems, tools)
+- ✨ **Week 6 Research**: Analyzed 4 SOTA agents, redesigned architecture
+- 🎯 **Week 7-10**: Implement hybrid patterns + empirical validation
 
-**Bottom Line**: Research project Week 6 of 10. Memory systems complete. ACP ready for testing. Targeting empirical benchmarks + publication.
+**Current Status**: Week 6 complete, starting Week 7
+- **Memory Systems**: ✅ ALL 3 COMPLETE (3,725 lines) - Episodic, Knowledge Graph, Working
+- **ACP Protocol**: ✅ ENHANCED (+635 lines) - Session management, streaming, error handling
+- **New Architecture**: Hybrid design combining Plan/Build separation, LSP integration, smart sub-agents, Git snapshots, model routing
+
+**Bottom Line**: Research project pivoting to SOTA hybrid architecture. Combining best patterns from leading agents. Targeting 60% tool reduction, 90% research speedup, 50% error reduction via LSP.
 
 ## 🎯 What Actually Works Today
 
@@ -71,6 +75,46 @@ Aircher is an **ACP-compatible agent backend** (not TUI) in Week 6 of 10-week de
 - Update documentation with all enhancements
 - Performance benchmarking (latency, throughput)
 - Attempt integration with Zed editor
+
+### 🏗️ NEW HYBRID ARCHITECTURE (Week 6 Research) ✨
+
+**Combining Best Patterns from 4 Leading Agents**:
+
+1. **OpenCode** (thdxr, open source):
+   - Plan/Build separation: Read-only exploration vs modification
+   - LSP integration: Real-time diagnostics prevent hallucination
+   - Git snapshots: Temporary commits with auto-rollback
+   - Event bus: Global diagnostics map
+
+2. **Factory Droid** (58.8% Terminal-Bench, #1):
+   - Specialized agents: Explorer, Builder, Debugger, Refactorer
+   - Pre-configured prompts for focused tasks
+   - Smaller tool sets = less decision paralysis
+
+3. **Claude Code** (Anthropic):
+   - Sub-agents for research: 90% improvement
+   - NEVER for coding: 15x token waste
+   - Decision matrix: When to use, when not to
+
+4. **Amp** (Sourcegraph):
+   - Multi-model routing: Haiku/Sonnet/Opus
+   - Cost-aware selection: 40% reduction target
+   - Task complexity determines model
+
+**Our Unique Addition**: Memory systems (nobody else has)
+- Episodic: Prevent duplicate research
+- Knowledge Graph: Instant codebase queries
+- Working Memory: Dynamic context pruning
+
+**Expected Results**:
+- 60% tool call reduction (memory)
+- 90% research task speedup (sub-agents)
+- 0% sub-agent usage for coding (avoid waste)
+- 50% fewer runtime errors (LSP self-correction)
+- 40% cost reduction (model routing)
+- 100% operation recovery (Git snapshots)
+
+**Implementation**: Weeks 7-10
 
 ### ✅ COMPLETED (Weeks 1-6 Days 1-4)
 - **Week 1**: 4 file operation tools (2,110+ lines, 21+ tests) - read, write, edit, list

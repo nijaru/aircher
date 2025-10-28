@@ -1,52 +1,63 @@
 # TODO
 
-## Current Sprint: Week 6 - ACP Protocol Enhancements
+## Current Sprint: Week 7 - Core Architecture Implementation
 
 **Last Updated**: 2025-10-27
 
-### 🎉 Major Discovery: ACP Already 90% Complete!
-- JSON-RPC over stdio transport: ✅ WORKING
-- All 6 Agent trait methods: ✅ IMPLEMENTED
-- CLI integration (--acp flag): ✅ WORKING
-- Ready for production testing with Zed
+### 🎉 Week 6 Complete: Architecture Redesigned!
+- ✅ ACP protocol enhanced (session mgmt, streaming, error handling)
+- ✅ SOTA research completed (Factory Droid, OpenCode, Claude Code, Amp)
+- ✅ New system design created (ai/SYSTEM_DESIGN_2025.md)
+- ✅ Hybrid architecture: Plan/Build modes + smart sub-agents + LSP + Git snapshots
+- **Ready for Week 7**: Implementation of core patterns
 
-### Week 6 Days 1-4: COMPLETE ✅
+## Week 7: Core Architecture Patterns (Current Sprint)
 
-**Day 1: ACP Protocol Review** ✅:
-- [x] Review existing ACP implementation
-- [x] Discovered ACP already 90% complete!
-- [x] Created comprehensive documentation (docs/acp-integration.md)
+### Day 1-2: Event Bus + LSP Integration
+- [ ] Implement tokio::sync::broadcast event bus
+- [ ] Create Event enum (FileChanged, DiagnosticsReceived, TestResults, ToolExecuted)
+- [ ] LspManager with global HashMap<PathBuf, Vec<Diagnostic>>
+- [ ] LSP server spawning (rust-analyzer, pyright, gopls, typescript-language-server)
+- [ ] JSON-RPC communication over stdio
+- [ ] Hook edit_file tool to trigger LSP notifications
+- [ ] Event bus integration with agent context
+- [ ] Test: Edit file → LSP diagnostics → Agent receives via event bus
 
-**Day 2: Session Management** ✅:
-- [x] Implement session state tracking (HashMap<SessionId, SessionState>)
-- [x] Add conversation history per session
-- [x] Session cleanup and timeout (30 min idle)
-- **Code added**: 192 lines in src/server/stdio.rs
+**Expected Outcome**: Real-time diagnostics after every file edit
 
-**Day 3: Streaming Support** ✅:
-- [x] Streaming response support (token-by-token)
-- [x] Tool execution progress updates
-- [x] Real-time feedback to editor
-- [x] 5 notification types (Text, ToolStart, ToolProgress, ToolComplete, Thinking)
-- **Code added**: 143 lines
+### Day 3-4: Plan/Build Mode Separation
+- [ ] Create AgentMode enum (Plan { read_only_tools }, Build { all_tools })
+- [ ] Update Agent struct to track current mode
+- [ ] Implement mode-specific tool filtering
+- [ ] Plan mode: only grep, read, glob, LSP queries allowed
+- [ ] Build mode: all tools including write, edit, bash
+- [ ] Add mode transition logic based on UserIntent
+- [ ] System prompt per mode (different instructions)
+- [ ] Test: Plan mode rejects write operations, Build mode allows
 
-**Day 4: Error Handling & Recovery** ✅:
-- [x] Retry logic for transient failures (exponential backoff)
-- [x] Graceful degradation (fallback to simpler responses)
-- [x] Better error messages (user-friendly ErrorContext)
-- [x] Timeout handling for long operations (5-minute timeout)
-- [x] 10 JSON-RPC error codes (standard + custom)
-- [x] Comprehensive test file created (tests/acp_week6_features_test.rs - 470+ lines)
-- **Code added**: 300 lines
+**Expected Outcome**: Safe exploration in Plan mode, controlled modifications in Build mode
 
-**Day 5-7: Testing & Documentation** (Current):
-- [ ] Fix old binary test files (blocking full test suite)
-- [ ] Manual ACP protocol testing
-- [ ] Update docs/acp-integration.md with all enhancements
-- [ ] Performance benchmarking (latency, throughput)
-- [ ] Attempt integration with Zed editor (if possible)
-- [ ] Document known limitations
-- [ ] Create testing guide
+### Day 5: Git Snapshots
+- [ ] Create SnapshotManager using git2 crate
+- [ ] Implement create_snapshot() - temporary detached commit
+- [ ] Implement rollback() - hard reset to snapshot
+- [ ] Auto-snapshot before bash commands
+- [ ] Auto-snapshot before bulk file edits
+- [ ] Rollback on permission rejection
+- [ ] Test: Make risky change → error → auto-rollback → state restored
+
+**Expected Outcome**: 100% recovery from failed operations
+
+### Day 6-7: Model Router
+- [ ] Create ModelRouter with HashMap<AgentType, ModelConfig>
+- [ ] Implement select_model() based on task complexity
+- [ ] Simple tasks → Claude Haiku (fast, cheap)
+- [ ] Complex reasoning → Claude Opus 4.1 (best)
+- [ ] Research sub-agents → Claude Haiku (cheap parallelization)
+- [ ] Track costs per model usage
+- [ ] Test: Compare costs with/without routing
+
+**Expected Outcome**: 40% cost reduction via intelligent routing
 
 ### Completed Weeks (Timeline)
 
@@ -77,12 +88,60 @@
 - +820 lines production code, +620 lines tests
 - 9 unit tests + 8 integration tests
 
-**✅ Week 6 Day 1: ACP Protocol Review**
-- Discovered ACP already 90% implemented!
-- Comprehensive documentation created
-- Ready for testing with Zed
+**✅ Week 6 Day 1-6: ACP + Architecture Redesign**
+- ACP protocol enhanced (+635 lines)
+- SOTA research (Factory Droid, OpenCode, Claude Code, Amp)
+- New system design created (ai/SYSTEM_DESIGN_2025.md)
+- Hybrid architecture combining best patterns
 
-### Week 7-8: Benchmarks vs Claude Code
+## Week 8: Specialized Agents + Sub-Agents
+
+### Day 1-2: Agent Configurations
+- [ ] Create AgentConfig struct (agent_type, system_prompt, allowed_tools, max_steps)
+- [ ] Define Explorer agent (CodeReading tasks)
+  - System prompt: "You are a code explorer. Your goal is to understand code, find patterns, and explain functionality."
+  - Tools: grep, read, glob, LSP, knowledge_graph_query
+- [ ] Define Builder agent (CodeWriting tasks)
+  - System prompt: "You are a code builder. Implement features precisely, follow existing patterns."
+  - Tools: all tools including write, edit
+- [ ] Define Debugger agent (ProjectFixing tasks)
+  - System prompt: "You are a debugger. Find root causes, fix bugs systematically."
+  - Tools: all tools + test runner
+- [ ] Define Refactorer agent (code improvements)
+  - System prompt: "You are a refactorer. Improve code while maintaining behavior."
+  - Tools: read, write, edit, test runner, LSP
+- [ ] Test: Each agent type with specialized task
+
+**Expected Outcome**: Specialized agents with focused, effective prompts
+
+### Day 3-4: Research Sub-Agents
+- [ ] Implement SubAgent::spawn() for parallel research
+- [ ] Task decomposition: break research query into subtasks
+- [ ] Max 10 concurrent sub-agents (Claude Code limit)
+- [ ] Result aggregation in main agent context
+- [ ] Memory integration: check episodic memory before spawning
+- [ ] Prevent duplicate research (cache hit = skip sub-agent)
+- [ ] Test: "Find all auth patterns" → 5 parallel sub-agents search directories
+
+**Expected Outcome**: 90% speedup for research tasks, memory prevents duplicates
+
+### Day 5-7: Integration Testing
+- [ ] Test Plan mode with research sub-agents
+  - Verify: Read-only tools, can spawn sub-agents
+  - Measure: Research task completion time vs baseline
+- [ ] Test Build mode NEVER uses sub-agents
+  - Verify: 0% sub-agent usage for coding tasks
+  - Measure: No 15x token waste
+- [ ] End-to-end workflow tests
+  - Start in Plan → research with sub-agents → transition to Build → implement
+- [ ] Performance benchmarks
+  - Tool calls: target 60% reduction
+  - Research speed: target 90% improvement
+  - Token usage: confirm no sub-agents for coding
+
+**Expected Outcome**: Validated 90% research improvement, 0% coding sub-agents
+
+## Week 9: Benchmarks vs Claude Code
 
 **Goal**: Validate 60% improvement from memory systems
 

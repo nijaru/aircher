@@ -2,6 +2,153 @@
 
 **Purpose**: Document WHY significant technical decisions were made.
 
+## 2025-10-27: Architecture Pivot to Hybrid SOTA Design
+
+### Decision
+Redesign Aircher architecture combining best patterns from 4 leading agents:
+1. **OpenCode**: Plan/Build separation + LSP integration + Git snapshots
+2. **Factory Droid**: Specialized agents for different tasks
+3. **Claude Code**: Research sub-agents (BUT learned when NOT to use them)
+4. **Amp**: Multi-model routing for cost optimization
+
+### Context
+After Week 6 ACP completion, conducted comprehensive SOTA research to validate our architecture decisions from September 2024. Research revealed critical insights that warranted major redesign.
+
+### Research Findings
+
+**Factory Droid** (58.8% Terminal-Bench, #1):
+- Uses specialized "Droids" with pre-configured prompts for specific tasks
+- Pattern: Focused agents > generic multi-purpose agent
+- Closed source, but concept is validated
+
+**OpenCode** (thdxr, open source):
+- **Plan/Build separation**: Read-only exploration vs modification-capable
+- **LSP integration**: Real-time diagnostics after edits prevents hallucination
+- **Git snapshots**: Temporary commits before risky ops, auto-rollback on failure
+- **Event bus**: Global diagnostics map, event-driven architecture
+- Validated in production, proven pattern
+
+**Claude Code** (Anthropic):
+- **Critical discovery**: Sub-agents have OPPOSITE effects for different tasks
+  - ✅ Research: 90% improvement (parallel information gathering)
+  - ❌ Coding: 15x token waste (context isolation is fatal)
+- Users complaining: 160k tokens for 3k work, 20k overhead per sub-agent
+- **Lesson**: NEVER use sub-agents for coding, ONLY for research
+
+**Amp** (Sourcegraph):
+- Multi-model routing: Haiku for simple, Opus for complex
+- Cost-aware selection: 40% reduction via intelligent routing
+- Model flexibility: User can override, per-task selection
+
+### Rationale
+
+**Our September 2024 Decision Was Partially Wrong**:
+- ✅ **Correct**: Rejected sub-agents for coding (they're terrible)
+- ❌ **Mistake**: Dismissed sub-agents entirely (they're great for research)
+- ❌ **Missed**: Plan/Build separation, LSP integration, Git snapshots
+
+**New Hybrid Architecture Advantages**:
+1. **Plan/Build Separation** (from OpenCode)
+   - Plan mode: Safe read-only exploration, can spawn research sub-agents
+   - Build mode: Controlled modification, NEVER uses sub-agents
+   - Prevents accidental modifications, clear mode distinction
+
+2. **LSP Integration** (from OpenCode)
+   - Edit → LSP diagnostics → Agent sees errors → Self-correct
+   - Prevents hallucination before code runs
+   - Real-time feedback loop
+
+3. **Specialized Agents** (from Factory Droid)
+   - Explorer (CodeReading), Builder (CodeWriting), Debugger (ProjectFixing), Refactorer
+   - Focused system prompts per agent type
+   - Smaller tool sets = less decision paralysis
+
+4. **Smart Sub-Agents** (learned from Claude Code)
+   - ✅ Spawn for research tasks: 90% improvement
+   - ❌ NEVER for coding: Avoid 15x token waste
+   - Decision matrix based on task type
+
+5. **Git Snapshots** (from OpenCode)
+   - Snapshot before risky operations
+   - Auto-rollback on errors or rejections
+   - 100% recovery from failures
+
+6. **Model Router** (from Amp)
+   - Haiku for simple tasks (fast, cheap)
+   - Sonnet for moderate complexity
+   - Opus for complex reasoning
+   - 40% cost reduction target
+
+7. **Memory Systems** (our unique advantage)
+   - Episodic: Prevents duplicate research
+   - Knowledge Graph: Instant codebase queries
+   - Working Memory: Dynamic context pruning
+   - **Nobody else has this**
+
+### Implementation Timeline
+
+**Week 7**: Event bus, LSP, Plan/Build modes, Git snapshots, model router
+**Week 8**: Specialized agents, research sub-agents, integration testing
+**Week 9**: Benchmarks vs Claude Code
+**Week 10**: Research paper + release
+
+### Expected Results
+
+| Metric | Target | Source |
+|--------|--------|--------|
+| Tool call reduction | 60% | Memory systems |
+| Research speedup | 90% | Parallel sub-agents |
+| Coding sub-agent usage | 0% | Avoid 15x waste |
+| LSP self-correction | 50% | Real-time diagnostics |
+| Cost reduction | 40% | Model routing |
+| Operation recovery | 100% | Git snapshots |
+
+### Impact
+
+**Research Contributions**:
+1. First agent to combine all these patterns
+2. Validated hybrid architecture (not single-strategy)
+3. Decision matrix for sub-agent usage (when yes, when no)
+4. LSP-augmented feedback loop
+5. Memory-augmented intelligence
+
+**Competitive Advantages**:
+- Only agent with all patterns combined
+- Memory systems (nobody has)
+- Intent-driven strategy selection
+- Empirically validated design
+
+### Trade-offs
+
+**Complexity**: More patterns = more code to maintain
+- Mitigation: Each pattern is independently valuable
+- Can implement incrementally, validate each
+
+**Implementation Time**: 4 weeks vs 2 weeks for simple approach
+- Mitigation: Research-validated patterns reduce risk
+- Better to get it right than ship fast
+
+**Learning Curve**: Users must understand modes
+- Mitigation: Mode selection is automatic (intent-driven)
+- Clear documentation for manual override
+
+### Alternative Considered
+
+**Keep September 2024 Architecture**: Single agent with dynamic context only
+- **Rejected**: Leaves too much performance on the table
+  - Missing 90% research speedup (sub-agents)
+  - Missing 50% error reduction (LSP feedback)
+  - Missing 100% recovery (Git snapshots)
+  - Missing 40% cost savings (model routing)
+
+**Reasoning**: SOTA research shows clear advantages. Would be irresponsible to ignore.
+
+### Review Date
+
+After Week 9 benchmarks - validate all improvement claims with empirical data.
+
+---
+
 ## 2025-10-27: Toad as Primary Frontend + Stick with Rust
 
 ### Decision

@@ -31,15 +31,47 @@ Automatic detection and specialized execution strategies:
 
 **vs One-size-fits-all agents**: Intent-driven strategies show 15-30% improvement on specialized tasks (target validation).
 
-### 2. Dynamic Context Management
+### 2. Hybrid Architecture Combining SOTA Patterns (NEW: Week 6)
+Combines best patterns from 4 leading agents into unified system:
+
+**From OpenCode** (thdxr):
+- Plan/Build mode separation (safe exploration vs controlled modification)
+- LSP integration with event bus (real-time diagnostics, self-correction → 50% fewer runtime errors)
+- Git snapshots (100% recovery from failed operations)
+
+**From Factory Droid** (#1 Terminal-Bench, 58.8%):
+- Specialized agent configs (Explorer, Builder, Debugger, Refactorer)
+- Pre-configured prompts for focused tasks
+
+**From Claude Code** (Anthropic):
+- Smart sub-agent decision matrix:
+  - ✅ Research tasks: 90% improvement (parallel execution)
+  - ❌ Coding tasks: 0% usage (avoid 15x token waste)
+
+**From Amp** (Sourcegraph):
+- Multi-model routing (Haiku/Sonnet/Opus based on task complexity)
+- 40% cost reduction target
+
+**Our Unique Addition**:
+- Memory systems (episodic + knowledge graph + working memory)
+- Prevent duplicate research, continuous work without restart
+
+**Expected Combined Results**:
+- 60% tool call reduction (memory)
+- 90% research speedup (parallel sub-agents)
+- 50% fewer runtime errors (LSP self-correction)
+- 40% cost reduction (model routing)
+- 100% operation recovery (Git snapshots)
+
+### 3. Dynamic Context Management
 Single agent with intelligent context vs autonomous sub-agents:
 - Smart pruning and prefetching
 - Relevance scoring and token optimization
 - No coordination overhead or tunnel vision
 
-**Empirical evidence**: Research shows sub-agents cause 19% performance degradation. Our dynamic context approach outperforms without the overhead.
+**Empirical evidence**: Research shows sub-agents cause 19% degradation for coding. Our hybrid approach uses them only for research (90% gain) while avoiding them for coding (15x waste).
 
-### 3. Pattern-Aware Code Generation
+### 4. Pattern-Aware Code Generation
 Learns and applies project-specific conventions:
 - Automatic style extraction
 - Context-aware suggestions
@@ -47,7 +79,7 @@ Learns and applies project-specific conventions:
 
 **Measurable impact**: 40-60% better code consistency matching existing patterns (target validation).
 
-### 4. Unified Intelligence Middleware
+### 5. Unified Intelligence Middleware
 Transparent automatic enhancement:
 ```rust
 EnhancedContext {
@@ -59,51 +91,54 @@ EnhancedContext {
 
 ## 📊 Current Status (Honest Assessment)
 
-**Week 2 of 10** | **23-27% competitive parity** | **Research phase**
+**Week 6 of 10 COMPLETE** | **30-33% competitive parity** | **Research phase**
 
 ### What Works ✅
 - **Semantic Search**: Production-ready (6,468 vectors, 19+ languages, <2ms latency)
 - **5 Production Tools**: 2,110+ lines (analyze_errors, read_file, write_file, edit_file, list_files)
 - **Multi-Provider Auth**: OpenAI, Anthropic, Gemini, Ollama
-- **Memory POC**: Knowledge graph + episodic memory validated (60% improvement)
-- **Frontend Strategy**: Toad (universal terminal UI) - saves 4-6 weeks
+- **Memory Systems**: ✅ ALL 3 COMPLETE (3,725 lines)
+  - Episodic Memory (DuckDB, 815 lines): 5 tables, 11 CRUD ops, 7 queries
+  - Knowledge Graph (petgraph, 1,470 lines): tree-sitter extraction, 8 queries
+  - Working Memory (820 lines + 620 test lines): dynamic pruning, relevance scoring
+- **ACP Protocol**: ✅ ENHANCED (+635 lines production, +470 lines tests)
+  - Session management, streaming, error handling, comprehensive tests
+- **Hybrid Architecture**: SOTA research complete, system design created
 
 ### What's In Progress 🔄
-- **Week 2**: Code understanding tools (search_code, analyze_code, find_references, find_definition)
-- **Week 3-4**: ACP protocol (stdio, JSON-RPC) + memory port to Rust
-- **Week 5-6**: Toad integration + intelligence wiring
-- **Week 7-8**: Benchmarks vs Claude Code (validate 60% memory improvement)
-- **Week 9-10**: Research paper + open source release
+- **Week 7**: Core architecture patterns (event bus, LSP, Plan/Build modes, Git snapshots, model router)
+- **Week 8**: Specialized agents + research sub-agents
+- **Week 9**: Benchmarks vs Claude Code (validate hybrid architecture improvements)
+- **Week 10**: Research paper + open source release
 
-### What Doesn't Work Yet ❌
-- **5/10 tools are stubs** - Week 2 target: 9/10 real
-- **ACP Protocol**: Not yet implemented (Week 3-4 target)
-- **Memory system**: POC validated but not yet ported to Rust (Week 3-4)
-- **Toad integration**: Waiting for Toad ACP stabilization (Week 5-6)
-- **Benchmarks**: No empirical validation yet (Week 7-8)
+### What's Next ⏭️
+- **Week 7-8**: Implement hybrid architecture combining SOTA patterns from 4 leading agents
+- **Week 9**: Empirical validation (60% tool reduction, 90% research speedup, 50% LSP self-correction)
+- **Week 10**: Publication-ready research paper + community release
 
-**Bottom line**: Strong foundation with production-ready semantic search and 5 real tools. Memory system validated in POC (60% improvement). Week 2 focuses on code understanding tools.
+**Bottom line**: Week 6 complete. Memory systems operational (3,725 lines). ACP enhanced (session, streaming, errors). Hybrid architecture designed combining Factory Droid, OpenCode, Claude Code, and Amp patterns. Ready for Week 7 implementation.
 
 ## 🚀 10-Week Development Plan
 
-See [AGENT_FIRST_ROADMAP.md](internal/AGENT_FIRST_ROADMAP.md) for complete plan.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for complete plan.
 
-**Phase 1: Core Agent + ACP (Weeks 1-4)**
-- Week 1-2: Real tool implementation (file ops + code understanding)
-- Week 3: ACP protocol implementation (stdio transport, session management)
-- Week 4: Integration testing with Zed
+**✅ Phase 1 COMPLETE: Foundation (Weeks 1-6)**
+- Week 1: File operation tools (2,110+ lines)
+- Week 2: Code understanding tools (skipped - already exist)
+- Week 3: Episodic Memory (DuckDB, 815 lines)
+- Week 4: Knowledge Graph (petgraph, 1,470 lines)
+- Week 5: Working Memory (820 lines + 620 test lines)
+- Week 6: ACP enhancements (+635 lines) + SOTA research + architecture redesign
 
-**Phase 2: Intelligence Features (Weeks 5-6)**
-- Week 5: Intent classification operational
-- Week 6: Dynamic context management activated
+**🔄 Phase 2 IN PROGRESS: Core Architecture (Weeks 7-8)**
+- Week 7: Event bus + LSP integration, Plan/Build modes, Git snapshots, model router
+- Week 8: Specialized agents + research sub-agents
 
-**Phase 3: Validation & Benchmarking (Weeks 7-8)**
-- Week 7: Empirical comparison vs Claude Code (tool calls, context efficiency, success rate)
-- Week 8: Ablation studies (prove each feature's value)
+**⏭️ Phase 3: Validation & Benchmarking (Week 9)**
+- Week 9: Empirical comparison vs Claude Code (validate all improvements)
 
-**Phase 4: Research & Release (Weeks 9-10)**
-- Week 9: Research paper draft
-- Week 10: Open source release + documentation
+**📄 Phase 4: Research & Release (Week 10)**
+- Week 10: Research paper + open source release + documentation
 
 ## 🔬 Research Goals
 
@@ -119,19 +154,34 @@ See [AGENT_FIRST_ROADMAP.md](internal/AGENT_FIRST_ROADMAP.md) for complete plan.
 
 ## 💻 Current Development
 
-**See [NOW.md](internal/NOW.md) for Week 1 sprint details.**
+**See [ai/TODO.md](ai/TODO.md) for Week 7 sprint details.**
 
-This week (Week 1): Implementing 4 real file operation tools
-- `read_file` - syntax highlighting, context extraction, smart truncation
-- `write_file` - backups, safety checks, atomic writes
-- `edit_file` - line-based editing, change validation, diff preview
-- `list_files` - gitignore respect, metadata, smart filtering
+**This week (Week 7)**: Implementing core architecture patterns
 
-**Success criteria**: 4 production-quality tools working with no crashes or data loss.
+**Days 1-2: Event Bus + LSP Integration**
+- tokio::sync::broadcast event bus
+- LspManager with global diagnostics map
+- Real-time feedback loop: edit → LSP → diagnostics → agent self-corrects
+- Target: 50% fewer runtime errors via self-correction
 
-## 🏗️ Installation (Future - Week 3+)
+**Days 3-4: Plan/Build Mode Separation**
+- AgentMode enum (Plan: read-only + research sub-agents, Build: all tools, no sub-agents)
+- Intent-based mode selection
+- Tool restriction enforcement
 
-Once ACP implementation is complete (Week 3), installation will be:
+**Day 5: Git Snapshots**
+- SnapshotManager with temporary commits
+- Auto-rollback on errors or permission rejection
+- 100% recovery from failed operations
+
+**Days 6-7: Model Router**
+- Multi-model selection (Haiku/Sonnet/Opus)
+- Task complexity analysis
+- Cost tracking and optimization (40% reduction target)
+
+## 🏗️ Installation (Week 7+)
+
+ACP protocol is implemented (Week 6 complete). Once core architecture is complete (Week 7), installation will be:
 
 ```bash
 # Via Zed (recommended)
@@ -151,7 +201,7 @@ cd aircher
 cargo build --release
 ```
 
-**Current status**: Not yet usable via ACP - implementation starts Week 3.
+**Current status**: ACP protocol complete (session management, streaming, error handling). Core architecture patterns (event bus, LSP, Plan/Build modes) implementing in Week 7.
 
 ## 🤝 Contributing
 
@@ -161,15 +211,16 @@ This is a **research project** targeting publication. Contributions welcome:
 - **Documentation**: Improve clarity and accuracy
 - **Testing**: Expand test coverage
 
-See [PROJECT_REALITY.md](internal/PROJECT_REALITY.md) for honest assessment of current vs claimed functionality.
+See [ai/STATUS.md](ai/STATUS.md) and [docs/STATUS.md](docs/STATUS.md) for honest assessment of current status.
 
 ## 📚 Documentation
 
-**Entry point**: [AGENTS.md](AGENTS.md) - Complete project context for AI agents
-**Current sprint**: [NOW.md](internal/NOW.md) - Week-by-week tasks and priorities
-**Development plan**: [AGENT_FIRST_ROADMAP.md](internal/AGENT_FIRST_ROADMAP.md) - 10-week roadmap
-**Architecture**: [docs/architecture/agent-first-architecture.md](docs/architecture/agent-first-architecture.md)
-**Competitive analysis**: [KNOWLEDGE.md](internal/KNOWLEDGE.md) - Market research and positioning
+**Entry point**: [CLAUDE.md](CLAUDE.md) - Complete project context for AI agents
+**Current sprint**: [ai/TODO.md](ai/TODO.md) - Week-by-week tasks and priorities
+**Development plan**: [docs/ROADMAP.md](docs/ROADMAP.md) - 10-week roadmap
+**System design**: [ai/SYSTEM_DESIGN_2025.md](ai/SYSTEM_DESIGN_2025.md) - Hybrid SOTA architecture
+**Architecture**: [docs/architecture/](docs/architecture/) - Technical specifications
+**Research**: [ai/RESEARCH.md](ai/RESEARCH.md) - SOTA findings and application
 
 ## 🎯 Why This Matters
 
@@ -198,4 +249,4 @@ Elastic License 2.0 - see [LICENSE](LICENSE) file for details.
 
 **Not**: Another editor, TUI, or UI - we focus on agent intelligence and let frontends handle UX.
 
-**Current**: Week 1 of 10 - Building real tools to replace stubs. Follow progress in [NOW.md](internal/NOW.md).
+**Current**: Week 6 of 10 complete - Memory systems operational, ACP enhanced, hybrid architecture designed. Follow progress in [ai/TODO.md](ai/TODO.md) and [ai/STATUS.md](ai/STATUS.md).

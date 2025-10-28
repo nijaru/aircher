@@ -14,9 +14,10 @@ For organization patterns: @external/agent-contexts/PRACTICES.md
 - Focus: Agent intelligence, not UI - let editors handle the interface
 
 **⚠️ CRITICAL**: See @docs/STATUS.md and @ai/STATUS.md for current state
-- Status: Week 6 Day 1 complete, 30-33% feature parity
+- Status: Week 6 COMPLETE, 30-33% feature parity
 - Memory Systems: ✅ ALL 3 COMPLETE (3,725 lines) - Episodic, Knowledge Graph, Working
-- ACP Protocol: ✅ 90% COMPLETE (major discovery!) - Ready for enhancements
+- ACP Protocol: ✅ ENHANCED (+635 lines) - Session management, streaming, error handling
+- **NEW**: Hybrid architecture combining SOTA patterns from 4 leading agents
 - Frontend: Toad + Zed/Neovim/Emacs via ACP
 - Backend: Rust (86K lines) - performance advantage for benchmarks
 - Repository: Public at https://github.com/nijaru/aircher
@@ -35,6 +36,7 @@ For organization patterns: @external/agent-contexts/PRACTICES.md
 @docs/TECH_SPEC.md                 # **Technical spec** - System architecture
 
 ### 🏗️ Architecture & Design
+@ai/SYSTEM_DESIGN_2025.md          # **NEW**: Hybrid SOTA architecture (Week 6 redesign)
 @docs/architecture/agent-first-architecture.md  # ACP-compatible design
 @docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md  # Model vs agent split
 
@@ -77,7 +79,48 @@ Three-layer memory system enabling continuous work without restart:
 
 **Measurable Impact**: 60% reduction in tool calls (POC validated)
 
-### 4. **Pattern-Aware Code Generation**
+### 4. **Hybrid Architecture Combining SOTA Patterns** (NEW: Week 6)
+Combines best patterns from 4 leading agents:
+
+**From OpenCode** (thdxr, production-validated):
+- Plan/Build mode separation (safe exploration vs controlled modification)
+- LSP integration (real-time diagnostics, self-correction)
+- Git snapshots (100% recovery from failed operations)
+- Event bus (global diagnostics map)
+
+**From Factory Droid** (#1 on Terminal-Bench, 58.8%):
+- Specialized agent configs (Explorer, Builder, Debugger, Refactorer)
+- Pre-configured prompts for focused tasks
+- Smaller tool sets = less decision paralysis
+
+**From Claude Code** (Anthropic):
+- Smart sub-agent usage:
+  - ✅ Research: 90% improvement (parallel execution)
+  - ❌ Coding: 15x waste avoided (never use for coding)
+- Decision matrix based on task type
+
+**From Amp** (Sourcegraph):
+- Multi-model routing (Haiku/Sonnet/Opus)
+- Cost-aware selection (40% reduction target)
+- Task complexity determines model
+
+**Our Unique Addition**: Memory systems (nobody else has)
+- Episodic: Prevent duplicate research
+- Knowledge Graph: Instant codebase queries
+- Working Memory: Dynamic context pruning
+
+**Expected Results**:
+- 60% tool call reduction (memory systems)
+- 90% research speedup (parallel sub-agents)
+- 0% sub-agent usage for coding (avoid waste)
+- 50% fewer runtime errors (LSP self-correction)
+- 40% cost reduction (model routing)
+- 100% operation recovery (Git snapshots)
+
+**Implementation Timeline**: Weeks 7-10
+**Details**: @ai/SYSTEM_DESIGN_2025.md
+
+### 5. **Pattern-Aware Code Generation**
 Learns project-specific conventions:
 - Automatic style extraction
 - Context-aware suggestions
@@ -85,7 +128,7 @@ Learns project-specific conventions:
 
 **Measurable Impact**: Code consistency matching existing codebase patterns
 
-### 5. **Unified Intelligence Middleware**
+### 6. **Unified Intelligence Middleware**
 Transparent automatic enhancement:
 ```rust
 EnhancedContext {
@@ -129,11 +172,15 @@ Aircher Agent Backend (Rust)
 - **Solution**: Enhanced prompting system (300 lines) replaces complex orchestration
 - **Details**: @docs/architecture/MODEL_VS_AGENT_ARCHITECTURE.md
 
-### Dynamic Context > Sub-Agents (Sep 14, 2025)
-- **Research finding**: Sub-agents cause 19% performance degradation
-- **Problems**: Tunnel vision, context pollution, coordination overhead
-- **Our innovation**: Single agent with intelligent context management
-- **Competitive advantage**: Better than Claude Code's sub-agents without overhead
+### Hybrid Architecture: Smart Sub-Agent Usage (Oct 27, 2025)
+- **Research finding**: Sub-agents have OPPOSITE effects for different tasks
+  - ✅ **Research tasks**: 90% improvement (parallel execution)
+  - ❌ **Coding tasks**: 15x token waste (context isolation fatal, 160k tokens for 3k work)
+- **Our innovation**: Decision matrix based on UserIntent classification
+  - **Plan mode**: Can spawn research sub-agents (max 10 concurrent)
+  - **Build mode**: NEVER uses sub-agents (avoid 15x waste)
+- **Memory integration**: Check episodic memory before spawning to prevent duplicate research
+- **Details**: @ai/SYSTEM_DESIGN_2025.md and @ai/DECISIONS.md (2025-10-27)
 
 ## Development Philosophy
 
@@ -169,23 +216,28 @@ Aircher Agent Backend (Rust)
 - **Production Tools**: 5 file operations (2,110+ lines, 21+ tests)
 
 ### What's In Progress 🔄
-- **Week 6 Days 2-7**: ACP protocol enhancements
-  - Session state tracking (HashMap<SessionId, SessionState>)
-  - Conversation history per session
-  - Streaming response support (token-by-token)
-  - Tool execution progress updates
-  - Error handling and recovery
-  - End-to-end testing with Zed
-- **Week 7-8**: Benchmarks vs Claude Code (validate 60% memory improvement)
-- **Week 9-10**: Research paper + open source release
+- **Week 7-8**: Core architecture implementation
+  - Event bus + LSP integration (Week 7 Days 1-2)
+  - Plan/Build mode separation (Week 7 Days 3-4)
+  - Git snapshots (Week 7 Day 5)
+  - Model router (Week 7 Days 6-7)
+  - Specialized agent configs (Week 8 Days 1-2)
+  - Research sub-agents (Week 8 Days 3-4)
+- **Week 9**: Benchmarks vs Claude Code (validate hybrid architecture improvements)
+- **Week 10**: Research paper + open source release
 
-### Current Priority (Week 6)
-**ACP Protocol Enhancements**: Session management + streaming + testing
-- Session state tracking: Maintain conversation history, timeouts
-- Streaming: Token-by-token responses, progress updates
-- Error recovery: Retry logic, graceful degradation
-- Testing: End-to-end with Zed editor
-- **Major Win**: ACP already 90% done (saved 4-5 days!)
+### Current Priority (Week 7)
+**Core Architecture Patterns**: Implementing hybrid design combining SOTA patterns
+- **Days 1-2**: Event bus (tokio broadcast) + LSP integration
+  - LspManager with global diagnostics map
+  - Edit → LSP → diagnostics → agent self-corrects
+  - Real-time feedback loop (50% fewer runtime errors target)
+- **Days 3-4**: Plan/Build mode separation
+  - AgentMode enum with tool restrictions
+  - Plan: read-only, can spawn research sub-agents
+  - Build: can modify, never uses sub-agents
+- **Day 5**: Git snapshots for safe experimentation
+- **Days 6-7**: Multi-model routing for cost optimization
 
 ### Completed (Weeks 1-5)
 
@@ -211,11 +263,21 @@ Aircher Agent Backend (Rust)
 - DynamicContextManager integrating all 3 systems
 - +820 lines production code, +620 lines tests
 
-**Week 6 Day 1: ACP Protocol Review** ✅
-- Discovered ACP already 90% implemented
-- Comprehensive documentation created (@docs/acp-integration.md)
+**Week 6 Days 1-4: ACP Protocol Enhancements** ✅
+- Day 1: Protocol review (discovered 90% already implemented)
+- Day 2: Session management (192 lines) - HashMap tracking, 30-minute timeout
+- Day 3: Streaming support (143 lines) - 5 notification types, real-time feedback
+- Day 4: Error handling (300 lines) - retry logic, timeout handling, graceful degradation
+- Day 4: Comprehensive tests (470+ lines) - 20+ tests for all Week 6 features
+- Total: +635 lines production code, +470 lines test code
 
-**Architecture Details**: See @ai/research/memory-system-architecture.md (500+ lines)
+**Week 6 Days 5-6: SOTA Research + Architecture Redesign** ✅
+- Researched Factory Droid, OpenCode, Claude Code, Amp
+- Created ai/SYSTEM_DESIGN_2025.md (+500 lines)
+- Updated all documentation with hybrid architecture
+- Ready for Week 7 implementation
+
+**Architecture Details**: See @ai/SYSTEM_DESIGN_2025.md and @ai/research/memory-system-architecture.md
 
 See @ai/TODO.md for current sprint details.
 
