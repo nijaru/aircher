@@ -127,7 +127,32 @@
 
 ## Active Work
 
-**Current (2025-10-27)**: Week 6 COMPLETE ✅ - ACP Enhanced + Architecture Redesigned!
+**Current (2025-10-28)**: Week 7 Day 1 COMPLETE ✅ - Event Bus + LSP Manager Foundation!
+
+**Week 7 Day 1 Achievements** ✅:
+
+**Event Bus System** (src/agent/events.rs - 343 lines):
+- ✅ tokio::sync::broadcast-based event bus
+- ✅ Event types: FileChanged, DiagnosticsReceived, TestResults, ToolExecuted, ModeChanged, SnapshotCreated, SnapshotRolledBack
+- ✅ EventListener with filtering and timeout support
+- ✅ 6 comprehensive tests (all passing)
+
+**LSP Manager** (src/agent/lsp_manager.rs - 479 lines):
+- ✅ Global diagnostics map: HashMap<PathBuf, Vec<Diagnostic>>
+- ✅ Event bus integration for real-time diagnostics
+- ✅ Language server lifecycle management (rust-analyzer, pyright, gopls, typescript-language-server)
+- ✅ JSON-RPC communication over stdio
+- ✅ File change notifications trigger LSP diagnostics
+- ✅ 5 tests covering language detection, diagnostics storage, error counting
+
+**Integration**:
+- ✅ Added modules to src/agent/mod.rs
+- ✅ Exported public API: EventBus, EventListener, AgentEvent, LspManager
+- ✅ Compiles successfully with zero errors
+
+**Commit**: 6fa8d17 - "feat: implement event bus and LSP manager (Week 7 Day 1)"
+
+---
 
 **Week 6 Achievements**:
 
@@ -187,15 +212,20 @@
 **Next Steps (Week 7-10)**: NEW ARCHITECTURE IMPLEMENTATION
 
 **Week 7: Core Architecture Patterns** (from OpenCode + Amp)
-1. Day 1-2: Event bus + LSP integration
-   - tokio broadcast event bus
-   - LSP manager with global diagnostics map
-   - Real-time feedback loop (edit → LSP → diagnostics)
-2. Day 3-4: Plan/Build mode separation
+1. ✅ Day 1: Event bus + LSP manager foundation COMPLETE
+   - ✅ tokio broadcast event bus (343 lines, 6 tests)
+   - ✅ LSP manager with global diagnostics map (479 lines, 5 tests)
+   - ✅ Language server spawning (rust-analyzer, pyright, gopls, typescript-language-server)
+   - Commit: 6fa8d17
+2. 🔄 Day 2: Integration (CURRENT)
+   - Hook edit_file tool to trigger LSP notifications
+   - Integrate event bus with Agent struct
+   - Test: Edit file → LSP → diagnostics → Agent receives
+3. Day 3-4: Plan/Build mode separation
    - AgentMode enum with tool restrictions
    - Plan: read-only, can spawn research sub-agents
    - Build: can modify, NEVER uses sub-agents
-3. Day 5: Git snapshots
+4. Day 5: Git snapshots
    - SnapshotManager with temporary commits
    - Auto-rollback on errors
 4. Day 6-7: Model router
