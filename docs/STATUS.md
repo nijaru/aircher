@@ -1,24 +1,34 @@
 # Aircher Project Status
 
-**Last Updated**: October 27, 2025
-**Current Version**: Development (pre-alpha)
+**Last Updated**: October 29, 2025
+**Current Version**: Development (pre-alpha, integration in progress)
 **Repository**: Public at https://github.com/nijaru/aircher
 
 ## 📊 Executive Summary
 
-Aircher is an **ACP-compatible agent backend** implementing a **hybrid architecture** that combines the best patterns from 4 leading agents: Factory Droid, OpenCode, Claude Code, and Amp.
+Aircher is an **ACP-compatible agent backend** with a **hybrid architecture** designed from research on 4 leading agents: Factory Droid, OpenCode, Claude Code, and Amp.
 
-**Architecture Pivot** (Oct 27, 2025):
-- ✅ **Week 1-6**: Infrastructure complete (ACP, memory systems, tools)
-- ✨ **Week 6 Research**: Analyzed 4 SOTA agents, redesigned architecture
-- 🎯 **Week 7-10**: Implement hybrid patterns + empirical validation
+**HONEST Current Status** (Oct 29, 2025):
+- ✅ **Week 1-6**: Core infrastructure working (ACP, memory systems, 5 real tools)
+- ✅ **Week 7-8 Code Written**: 3,767 lines of hybrid architecture components
+- ❌ **Week 7-8 NOT INTEGRATED**: Components exist but not wired into execution path
+- 🔧 **Current Focus**: Actually integrating Week 7-8 work (7-11 hours estimated)
 
-**Current Status**: Week 6 complete, starting Week 7
-- **Memory Systems**: ✅ ALL 3 COMPLETE (3,725 lines) - Episodic, Knowledge Graph, Working
-- **ACP Protocol**: ✅ ENHANCED (+635 lines) - Session management, streaming, error handling
-- **New Architecture**: Hybrid design combining Plan/Build separation, LSP integration, smart sub-agents, Git snapshots, model routing
+**What Actually Works**:
+- ✅ Basic agent execution with 5 real file operations tools
+- ✅ ACP protocol (can communicate with Zed/frontends)
+- ✅ Memory systems exist (not fully wired)
+- ❌ Hybrid architecture (code exists, not integrated)
 
-**Bottom Line**: Research project pivoting to SOTA hybrid architecture. Combining best patterns from leading agents. Targeting 60% tool reduction, 90% research speedup, 50% error reduction via LSP.
+**What Needs Integration**:
+- Event bus: Tools need to emit FileChanged events
+- LSP manager: Ready to receive events, tools don't send them
+- Mode enforcement: AgentMode tracked but not checked
+- Model router: Module exists, not used for provider selection
+- Specialized agents: Configs exist, not selected by agent
+- Research sub-agents: Manager exists, never spawned
+
+**Bottom Line**: Good infrastructure + research-based architecture design, but integration work needed to make it actually function as designed.
 
 ## 🎯 What Actually Works Today
 

@@ -146,15 +146,35 @@
 
 ## Active Work
 
-**Current (2025-10-29)**: Week 8 COMPLETE ✅ - Full Hybrid Architecture Implemented!
+**Current (2025-10-29)**: Week 7-8 Code Written BUT NOT INTEGRATED ⚠️
 
-**Week 8 Complete Summary**:
-- ✅ Day 1-2: Specialized agent configurations (Explorer, Builder, Debugger, Refactorer) - 726 lines, 11 tests
-- ✅ Day 3-4: Research sub-agents (parallel spawning, query decomposition) - 572 lines, 10 tests
-- ✅ Day 5-7: Integration testing and validation - 430+ lines tests, validation summary
-- **Total Week 8**: +1,728 lines, 31 unit tests, comprehensive integration test suite
+**HONEST STATUS - What's Actually Working**:
+- ✅ **Week 7-8 Code Exists**: 3,767 lines of well-architected code
+- ✅ **Unit Tests Pass**: 31 tests for individual components
+- ❌ **NOT INTEGRATED**: Components not wired into agent execution path
+- ❌ **NOT TESTED E2E**: Integration tests don't compile/run
 
-**Week 7 Complete Summary** ✅:
+**What This Means**:
+- Event bus: Created in Agent, but tools don't emit events
+- LSP manager: Initialized, but not triggered by file operations
+- Mode enforcement: AgentMode tracked, but not checked by tools
+- Git snapshots: SnapshotManager exists, but never called
+- Model router: Module exists, but agent doesn't use it for model selection
+- Specialized agents: Config structs exist, but agent doesn't select them
+- Research sub-agents: Manager exists, but never spawned
+
+**Reality Check**: We have good infrastructure code sitting on a shelf, not plugged in.
+
+**What Needs To Happen For Real Integration**:
+1. Wire event bus: file_ops.rs tools must call event_bus.publish(FileChanged)
+2. Wire LSP: LSP manager must subscribe to FileChanged events and emit diagnostics
+3. Wire mode enforcement: Tool registry must check AgentMode before allowing tools
+4. Wire git snapshots: Add snapshot calls before risky operations
+5. Wire model router: Provider selection must use ModelRouter.select_model()
+6. Wire specialized agents: Agent must select config based on UserIntent
+7. Wire research sub-agents: Explorer agent must spawn ResearchSubAgentManager
+
+**Week 7-8 Summary** (Code Written, Not Integrated):
 
 **Day 1: Event Bus + LSP Manager** (Commit: 6fa8d17)
 
@@ -236,70 +256,56 @@
 - ✅ Working memory: Dynamic context → Rust ✅ COMPLETE
 - 🎯 Target: Reproduce 60% improvement (7.5 → 3.0 tool calls)
 
-**Next Steps (Week 7-10)**: NEW ARCHITECTURE IMPLEMENTATION
+**Next Steps**: ACTUAL INTEGRATION (Week 7-8 Wiring)
 
-**Week 7: Core Architecture Patterns** (from OpenCode + Amp)
-1. ✅ Day 1: Event bus + LSP manager foundation COMPLETE
-   - ✅ tokio broadcast event bus (343 lines, 6 tests)
-   - ✅ LSP manager with global diagnostics map (479 lines, 5 tests)
-   - ✅ Language server spawning (rust-analyzer, pyright, gopls, typescript-language-server)
-   - Commit: 6fa8d17
-2. ✅ Day 2: Integration COMPLETE
-   - ✅ Hook edit_file tool to trigger LSP notifications
-   - ✅ Integrate event bus with Agent struct
-   - ✅ FileChanged events emitted after edit/write operations
-   - Commits: 4965bd3, d3aeec2
-3. ✅ Day 3-4: Plan/Build mode separation COMPLETE
-   - ✅ AgentMode enum with tool restrictions (+229 lines)
-   - ✅ Plan: read-only (7 tools), can spawn research sub-agents
-   - ✅ Build: can modify (11 tools), NEVER uses sub-agents
-   - ✅ Tool restriction checking before execution
-   - ✅ Mode transitions with event emission (9 tests)
-   - Commits: dca6099, dee1a4e
-4. ✅ Day 5: Git snapshots COMPLETE
-   - ✅ SnapshotManager with temporary commits (+401 lines)
-   - ✅ Thread-safe Repository (Mutex<Repository>)
-   - ✅ create_snapshot() + rollback() + helpers
-   - ✅ Event bus integration (SnapshotCreated, SnapshotRolledBack)
-   - ✅ Graceful handling of non-Git workspaces (5 tests)
-   - Commit: 9998761
-5. ✅ Day 6-7: Model router COMPLETE
-   - ✅ ModelRouter with cost-aware selection (+587 lines)
-   - ✅ Routing table: Haiku (simple), Sonnet (moderate), Opus (complex)
-   - ✅ Sub-agents always use Haiku (cheap parallelization)
-   - ✅ Usage tracking with cost estimation and savings (40% target)
-   - ✅ Per-model statistics and comprehensive reporting
-   - ✅ User override support for manual model selection (10 tests)
-   - Commit: 865a9c2
+**Immediate Priority - Wire Week 7-8 Components**:
 
-**Week 8: Specialized Agents** (from Factory Droid + Claude Code)
-1. ✅ Day 1-2: Agent configurations COMPLETE
-   - ✅ AgentConfig struct with specialized configurations (+726 lines)
-   - ✅ Explorer, Builder, Debugger, Refactorer agents
-   - ✅ Specialized system prompts per agent type
-   - ✅ Tool restrictions per agent (Builder: NEVER spawns sub-agents)
-   - ✅ Sub-agent configs: FileSearcher, PatternFinder, DependencyMapper
-   - ✅ Memory access levels and step limits (11 tests)
-   - Commit: [specialized_agents commit]
-2. ✅ Day 3-4: Research sub-agents COMPLETE
-   - ✅ Parallel spawning (max 10 concurrent, from Claude Code research)
-   - ✅ QueryDecomposer with heuristic-based task decomposition (+572 lines)
-   - ✅ ResearchSubAgentManager with result aggregation
-   - ✅ Memory integration stub (prevent duplicate research)
-   - ✅ ResearchHandle with progress tracking
-   - ✅ Sub-agent types: FileSearcher, PatternFinder, DependencyMapper (10 tests)
-   - Commit: 170083b
-3. ✅ Day 5-7: Integration testing COMPLETE
-   - ✅ Comprehensive integration test suite (430+ lines)
-   - ✅ Validates all architectural constraints (sub-agent usage, model selection, tool restrictions)
-   - ✅ Week 8 validation summary document
-   - ✅ 31 unit tests passing across all Week 8 components
-   - ✅ Ready for empirical validation in Week 9
-   - Commit: e03cfad
+1. **Event Bus + File Operations** (Critical)
+   - ⚠️ Status: Event bus exists, tools don't emit events
+   - 🔧 Fix: Modify file_ops.rs tools to publish FileChanged events
+   - 📍 Files: src/agent/tools/file_ops.rs, src/agent/tools/approved_file_ops.rs
 
-**Week 9: Benchmarks vs Claude Code**
-- Multi-file refactoring, bug fixing, feature implementation, exploration
-- Target: 60% tool reduction, 90% research speedup, 50% LSP self-correction
+2. **LSP Manager Integration** (Critical)
+   - ⚠️ Status: LSP manager exists, not triggered by file changes
+   - 🔧 Fix: LSP manager already listening, just need tools to emit events
+   - 📍 Files: Already done in lsp_manager.rs, depends on #1
+
+3. **Mode Enforcement** (High Priority)
+   - ⚠️ Status: AgentMode tracked, not enforced
+   - 🔧 Fix: Tool registry must check mode before allowing execution
+   - 📍 Files: src/agent/tools/mod.rs (ToolRegistry)
+
+4. **Git Snapshots** (Medium Priority)
+   - ⚠️ Status: SnapshotManager exists, never called
+   - 🔧 Fix: Call create_snapshot() before bash commands, bulk edits
+   - 📍 Files: src/agent/tools/build_tools.rs (run_command)
+
+5. **Model Router** (Medium Priority)
+   - ⚠️ Status: Module exists, not in Agent struct
+   - 🔧 Fix: Add ModelRouter to Agent, use for provider selection
+   - 📍 Files: src/agent/core.rs, provider selection logic
+
+6. **Specialized Agents** (Low Priority - Can Wait)
+   - ⚠️ Status: Configs exist, agent doesn't use them
+   - 🔧 Fix: Agent must select config based on UserIntent
+   - 📍 Files: src/agent/core.rs initialization
+
+7. **Research Sub-Agents** (Low Priority - Can Wait)
+   - ⚠️ Status: Manager exists, never spawned
+   - 🔧 Fix: Explorer agent must spawn for research queries
+   - 📍 Files: src/agent/core.rs execution path
+
+**Realistic Timeline**:
+- Priority 1-2 (Event bus + LSP): 1-2 hours
+- Priority 3-4 (Mode + Snapshots): 2-3 hours
+- Priority 5 (Model router): 1-2 hours
+- Priority 6-7 (Specialized + Sub-agents): 3-4 hours
+**Total**: 7-11 hours of actual integration work
+
+**After Integration - Then Week 9**:
+- Validate integrated features actually work
+- Terminal-Bench evaluation (if basics work)
+- Honest competitive assessment
 
 **Week 10: Research Paper + Release**
 - Paper: "Hybrid Agent Architecture: Combining Best Patterns"
