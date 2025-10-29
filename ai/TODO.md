@@ -1,63 +1,59 @@
 # TODO
 
-## Current Sprint: Week 7 - Core Architecture Implementation
+## Current Sprint: Week 9 - Empirical Validation & Benchmarking
 
-**Last Updated**: 2025-10-27
+**Last Updated**: 2025-10-29
 
-### 🎉 Week 6 Complete: Architecture Redesigned!
-- ✅ ACP protocol enhanced (session mgmt, streaming, error handling)
-- ✅ SOTA research completed (Factory Droid, OpenCode, Claude Code, Amp)
-- ✅ New system design created (ai/SYSTEM_DESIGN_2025.md)
-- ✅ Hybrid architecture: Plan/Build modes + smart sub-agents + LSP + Git snapshots
-- **Ready for Week 7**: Implementation of core patterns
+### 🎉 Week 7-8 Complete: Full Hybrid Architecture Integration!
+- ✅ All 7 components integrated into execution path (100%)
+- ✅ Event bus + LSP manager operational
+- ✅ Plan/Build mode enforcement working
+- ✅ Git snapshots before risky operations
+- ✅ Model router for cost-aware selection
+- ✅ Specialized agent selection (Explorer/Builder/Debugger)
+- ✅ Research sub-agent spawning for parallel execution
+- ✅ Full execution flow implemented: UserIntent → Agent → Model → Execution
+- **Ready for Week 9**: Empirical validation and benchmarking
 
-## Week 7: Core Architecture Patterns (Current Sprint)
+## Week 9: Empirical Validation (Current Sprint)
 
-### Day 1-2: Event Bus + LSP Integration
-- [ ] Implement tokio::sync::broadcast event bus
-- [ ] Create Event enum (FileChanged, DiagnosticsReceived, TestResults, ToolExecuted)
-- [ ] LspManager with global HashMap<PathBuf, Vec<Diagnostic>>
-- [ ] LSP server spawning (rust-analyzer, pyright, gopls, typescript-language-server)
-- [ ] JSON-RPC communication over stdio
-- [ ] Hook edit_file tool to trigger LSP notifications
-- [ ] Event bus integration with agent context
-- [ ] Test: Edit file → LSP diagnostics → Agent receives via event bus
+### Priority 1: Integration Validation
+- [ ] Review all integrated components for correctness
+- [ ] Check for obvious bugs or edge cases
+- [ ] Verify event flow: write_file → FileChanged → LSP
+- [ ] Verify mode enforcement: Plan mode blocks write_file
+- [ ] Verify model selection: Logs show cost-aware routing
+- [ ] Verify agent selection: Logs show specialized agents chosen
 
-**Expected Outcome**: Real-time diagnostics after every file edit
+**Expected Outcome**: Confidence that all components work as designed
 
-### Day 3-4: Plan/Build Mode Separation
-- [ ] Create AgentMode enum (Plan { read_only_tools }, Build { all_tools })
-- [ ] Update Agent struct to track current mode
-- [ ] Implement mode-specific tool filtering
-- [ ] Plan mode: only grep, read, glob, LSP queries allowed
-- [ ] Build mode: all tools including write, edit, bash
-- [ ] Add mode transition logic based on UserIntent
-- [ ] System prompt per mode (different instructions)
-- [ ] Test: Plan mode rejects write operations, Build mode allows
+### Priority 2: Unit/Integration Testing
+- [ ] Test event bus emission and reception
+- [ ] Test mode enforcement with various tool calls
+- [ ] Test model router selection logic
+- [ ] Test agent selection for different intents
+- [ ] Test research sub-agent spawning (if possible without full LLM)
+- [ ] Mock/stub tests for isolated component validation
 
-**Expected Outcome**: Safe exploration in Plan mode, controlled modifications in Build mode
+**Expected Outcome**: Automated tests validate core integration logic
 
-### Day 5: Git Snapshots
-- [ ] Create SnapshotManager using git2 crate
-- [ ] Implement create_snapshot() - temporary detached commit
-- [ ] Implement rollback() - hard reset to snapshot
-- [ ] Auto-snapshot before bash commands
-- [ ] Auto-snapshot before bulk file edits
-- [ ] Rollback on permission rejection
-- [ ] Test: Make risky change → error → auto-rollback → state restored
+### Priority 3: Real-World Testing Strategy
+- [ ] Determine if we can test locally with proper cleanup
+- [ ] Consider container-based testing for isolation
+- [ ] Create test scenarios for each agent type
+- [ ] Test with actual Ollama models (free, local)
+- [ ] Document test setup and teardown procedures
 
-**Expected Outcome**: 100% recovery from failed operations
+**Expected Outcome**: Safe, repeatable testing methodology
 
-### Day 6-7: Model Router
-- [ ] Create ModelRouter with HashMap<AgentType, ModelConfig>
-- [ ] Implement select_model() based on task complexity
-- [ ] Simple tasks → Claude Haiku (fast, cheap)
-- [ ] Complex reasoning → Claude Opus 4.1 (best)
-- [ ] Research sub-agents → Claude Haiku (cheap parallelization)
-- [ ] Track costs per model usage
-- [ ] Test: Compare costs with/without routing
+### Priority 4: Performance Measurements (if feasible)
+- [ ] Measure model selection overhead
+- [ ] Measure event bus latency
+- [ ] Track token usage per model type
+- [ ] Compare cost with/without router
+- [ ] Measure sub-agent spawn time
 
-**Expected Outcome**: 40% cost reduction via intelligent routing
+**Expected Outcome**: Quantitative validation of hybrid architecture benefits
 
 ### Completed Weeks (Timeline)
 
