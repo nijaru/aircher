@@ -17,18 +17,27 @@ For organization patterns: @external/agent-contexts/PRACTICES.md
 
 **ACTUAL Status (Oct 29, 2025)**:
 - ✅ **Working**: Basic agent with 5 real tools, ACP protocol, memory infrastructure
-- ✅ **Week 7-8 Code Exists**: 3,767 lines of hybrid architecture (event bus, LSP, modes, router, specialized agents)
-- ❌ **NOT INTEGRATED**: Week 7-8 components not wired into execution path
-- 🔧 **Current Work**: Actually integrating components (7-11 hours estimated)
+- ✅ **Week 7-8 INTEGRATED**: All 7 components wired into execution path (100%)
+- ✅ **Full Execution Flow**: UserIntent → Agent Selection → Model Routing → Execution
+- 🎯 **Next**: Week 9 empirical validation and benchmarking
 
-**What This Means**:
-- Tools execute but don't emit events → LSP manager never triggered
-- AgentMode tracked but not enforced → no tool restrictions
-- Model router exists but not used → no cost optimization
-- Specialized agents defined but not selected → no focused prompts
-- Research sub-agents implemented but never spawned → no parallelization
+**What Actually Works Now**:
+- ✅ Tools emit events when files change → LSP manager receives
+- ✅ AgentMode enforced → Plan mode blocks write operations
+- ✅ Model router used → Cost-aware selection (Haiku/Sonnet/Opus)
+- ✅ Specialized agents selected → Explorer/Builder/Debugger prompts
+- ✅ Research sub-agents spawned → Parallel execution for Explorer
 
-**Bottom Line**: Good code sitting on shelf, needs wiring. See @ai/STATUS.md "Next Steps" for integration plan.
+**Integration Complete (9 commits, Oct 29, 2025)**:
+1. Event bus wired (7efed2f)
+2. Mode enforcement wired (e0c9b1b)
+3. Git snapshots wired (cd1580e)
+4. Model router wired (f1d0741)
+5. Specialized agents wired (2796e97)
+6. Research sub-agents wired (31e8b4e)
+7. Full execution flow (49a4bd4)
+
+**Bottom Line**: Complete hybrid architecture operational. All components integrated and executing. Ready for empirical validation.
 
 Repository: Public at https://github.com/nijaru/aircher
 
