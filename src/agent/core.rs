@@ -17,8 +17,9 @@ use crate::agent::dynamic_context::DynamicContextManager;
 use crate::agent::task_orchestrator::TaskOrchestrator;
 use crate::agent::plan_mode::{PlanGenerator, PlanMode};
 use crate::agent::multi_turn_reasoning::MultiTurnReasoningEngine;
-use crate::agent::events::{SharedEventBus, create_event_bus, AgentEvent, FileOperation};
+use crate::agent::events::{SharedEventBus, create_event_bus, AgentEvent, FileOperation, AgentMode};
 use crate::agent::lsp_manager::LspManager;
+use crate::agent::agent_mode::{ModeClassifier, ModeTransition};
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -45,6 +46,8 @@ pub struct Agent {
     event_bus: SharedEventBus,
     /// LSP manager with global diagnostics (Week 7)
     lsp_manager: Arc<LspManager>,
+    /// Current agent mode: Plan (read-only) or Build (modification) (Week 7 Day 3)
+    current_mode: Arc<tokio::sync::RwLock<AgentMode>>,
 }
 
 impl Agent {
@@ -127,6 +130,10 @@ impl Agent {
         // Start LSP manager event listener (Week 7 Day 2)
         lsp_manager.clone().start_listening();
 
+        // Initialize agent mode (Week 7 Day 3)
+        // Start in Plan mode (safe, read-only) by default
+        let current_mode = Arc::new(tokio::sync::RwLock::new(AgentMode::Plan));
+
         Ok(Self {
             tools,
             intelligence,
@@ -148,6 +155,7 @@ impl Agent {
             max_iterations: 10, // Prevent infinite loops
             event_bus,
             lsp_manager,
+            current_mode,
         })
     }
     
@@ -159,6 +167,29 @@ impl Agent {
     /// Get reference to LSP manager (Week 7)
     pub fn lsp_manager(&self) -> &Arc<LspManager> {
         &self.lsp_manager
+    }
+
+    /// Get current agent mode (Week 7 Day 3)
+    pub async fn current_mode(&self) -> AgentMode {
+        *self.current_mode.read().await
+    }
+
+    /// Set agent mode with transition event (Week 7 Day 3)
+    pub async fn set_mode(&self, new_mode: AgentMode, reason: String) {
+        let old_mode = *self.current_mode.read().await;
+
+        if old_mode != new_mode {
+            *self.current_mode.write().await = new_mode;
+
+            // Create and log transition
+            let transition = ModeTransition::new(old_mode, new_mode, reason);
+            transition.log();
+
+            // Emit event
+            self.event_bus.publish(transition.to_event());
+
+            info!("Agent mode changed: {:?} → {:?}", old_mode, new_mode);
+        }
     }
 
     /// Convert tool registry to provider tool format for LLM requests
@@ -408,6 +439,20 @@ impl Agent {
             let mut tool_results = Vec::new();
             for call in &tool_calls {
                 debug!("Executing tool: {} with params: {}", call.name, call.parameters);
+
+                // Week 7 Day 3: Check if tool is allowed in current mode
+                let current_mode = self.current_mode().await;
+                if !current_mode.is_tool_allowed(&call.name) {
+                    let error_msg = format!(
+                        "Tool '{}' not allowed in {:?} mode. Available tools: {:?}",
+                        call.name,
+                        current_mode,
+                        current_mode.allowed_tools()
+                    );
+                    warn!("{}", error_msg);
+                    tool_results.push(format!("Tool {} blocked: {}", call.name, error_msg));
+                    continue;
+                }
 
                 if let Some(tool) = self.tools.get(&call.name) {
                     match tool.execute(call.parameters.clone()).await {
@@ -978,6 +1023,7 @@ impl Agent {
                 max_iterations: self.max_iterations,
                 event_bus: self.event_bus.clone(), // Week 7: Share event bus
                 lsp_manager: self.lsp_manager.clone(), // Week 7: Share LSP manager
+                current_mode: self.current_mode.clone(), // Week 7 Day 3: Share mode
             }),
             self.reasoning.clone(),
             self.context_manager.clone(),
