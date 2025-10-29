@@ -13,7 +13,7 @@ use std::process::Stdio;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 use tracing::{debug, info, warn};
 
 use super::events::{
@@ -54,6 +54,52 @@ impl LspManager {
             event_bus,
             workspace_root,
         }
+    }
+
+    /// Start listening for FileChanged events (Week 7 Day 2)
+    /// Spawns a background task that processes file change notifications
+    pub fn start_listening(self: Arc<Self>) {
+        let mut receiver = self.event_bus.subscribe();
+
+        tokio::spawn(async move {
+            info!("LSP manager started listening for FileChanged events");
+
+            loop {
+                match receiver.recv().await {
+                    Ok(AgentEvent::FileChanged { path, operation, .. }) => {
+                        debug!("LSP manager received FileChanged event: {:?} ({:?})", path, operation);
+
+                        // Handle file change asynchronously
+                        if let Err(e) = self.handle_file_changed(&path).await {
+                            warn!("Failed to handle file change for {:?}: {}", path, e);
+                        }
+                    }
+                    Ok(_) => {
+                        // Ignore other event types
+                    }
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        warn!("LSP manager lagged, skipped {} events", skipped);
+                    }
+                    Err(broadcast::error::RecvError::Closed) => {
+                        info!("Event bus closed, stopping LSP manager listener");
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    /// Handle file changed notification
+    async fn handle_file_changed(&self, path: &Path) -> Result<()> {
+        // Use the existing notify_file_changed public method
+        // It already handles language detection, server startup, and LSP notification
+        let operation = FileOperation::Edit; // Assume Edit for file changes
+        self.notify_file_changed(path, operation).await?;
+
+        // Note: Diagnostics will come asynchronously via LSP's publishDiagnostics notification
+        debug!("Notified LSP server about file change: {:?}", path);
+
+        Ok(())
     }
 
     /// Get language from file extension
