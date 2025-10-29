@@ -21,6 +21,7 @@ use crate::agent::events::{SharedEventBus, create_event_bus, AgentEvent, FileOpe
 use crate::agent::lsp_manager::LspManager;
 use crate::agent::agent_mode::{ModeClassifier, ModeTransition};
 use crate::agent::git_snapshots::SnapshotManager;
+use crate::agent::model_router::ModelRouter;
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -51,6 +52,8 @@ pub struct Agent {
     current_mode: Arc<tokio::sync::RwLock<AgentMode>>,
     /// Git snapshot manager for safe experimentation (Week 7 Day 5)
     snapshot_manager: Option<Arc<SnapshotManager>>,
+    /// Model router for cost-aware model selection (Week 7 Day 6-7)
+    model_router: Arc<ModelRouter>,
 }
 
 impl Agent {
@@ -149,6 +152,10 @@ impl Agent {
             warn!("Git not available - snapshot functionality disabled");
         }
 
+        // Initialize model router for cost-aware model selection (Week 7 Day 6-7)
+        let model_router = Arc::new(ModelRouter::new());
+        info!("Model router initialized with default routing table");
+
         Ok(Self {
             tools,
             intelligence,
@@ -172,6 +179,7 @@ impl Agent {
             lsp_manager,
             current_mode,
             snapshot_manager,
+            model_router,
         })
     }
     
@@ -183,6 +191,11 @@ impl Agent {
     /// Get reference to LSP manager (Week 7)
     pub fn lsp_manager(&self) -> &Arc<LspManager> {
         &self.lsp_manager
+    }
+
+    /// Get reference to model router (Week 7 Day 6-7)
+    pub fn model_router(&self) -> &Arc<ModelRouter> {
+        &self.model_router
     }
 
     /// Get current agent mode (Week 7 Day 3)
