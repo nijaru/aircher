@@ -127,12 +127,30 @@ pub struct TestError {
     pub line: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy)]
 pub enum AgentMode {
     /// Read-only exploration mode (can spawn research sub-agents)
     Plan,
     /// Modification mode (all tools, never uses sub-agents)
     Build,
+}
+
+impl AgentMode {
+    /// Can this mode spawn sub-agents for parallel research?
+    pub fn can_spawn_subagents(&self) -> bool {
+        match self {
+            AgentMode::Plan => true,  // Can spawn research sub-agents
+            AgentMode::Build => false, // NEVER spawn sub-agents (15x waste)
+        }
+    }
+
+    /// Get human-readable description
+    pub fn description(&self) -> &'static str {
+        match self {
+            AgentMode::Plan => "Read-only exploration and analysis",
+            AgentMode::Build => "Full modification and implementation",
+        }
+    }
 }
 
 /// Event bus for agent-wide communication
