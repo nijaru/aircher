@@ -1362,6 +1362,27 @@ impl Agent {
         }
         drop(current_mode); // Release read lock
 
+        // Create git snapshot before risky operations
+        let risky_tools = ["run_command", "edit_file", "write_file"];
+        let _snapshot_id = if risky_tools.contains(&tool_name) {
+            if let Some(snapshot_mgr) = &self.snapshot_manager {
+                match snapshot_mgr.create_snapshot(&format!("Before {}", tool_name)) {
+                    Ok(id) => {
+                        info!("Created git snapshot {} before {}", id, tool_name);
+                        Some(id)
+                    }
+                    Err(e) => {
+                        warn!("Failed to create snapshot before {}: {}", tool_name, e);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         if let Some(tool) = self.tools.get(tool_name) {
             match tool.execute(params.clone()).await {
                 Ok(output) => {
