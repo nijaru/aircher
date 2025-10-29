@@ -167,8 +167,12 @@ impl Agent {
         info!("Agent registry initialized with 7 specialized configs");
 
         // Initialize research sub-agent manager (Week 8 Day 3-4)
-        let research_manager = Arc::new(ResearchSubAgentManager::new());
-        info!("Research sub-agent manager initialized (max {} concurrent)",
+        // Pass tool_registry and workspace_root for actual tool execution
+        let research_manager = Arc::new(ResearchSubAgentManager::with_tools(
+            tools.clone(),
+            project_context.root_path.clone(),
+        ));
+        info!("Research sub-agent manager initialized (max {} concurrent) with tool execution",
               crate::agent::research_subagents::MAX_CONCURRENT_SUBAGENTS);
 
         Ok(Self {
