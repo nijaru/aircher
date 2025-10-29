@@ -22,6 +22,7 @@ use crate::agent::lsp_manager::LspManager;
 use crate::agent::agent_mode::{ModeClassifier, ModeTransition};
 use crate::agent::git_snapshots::SnapshotManager;
 use crate::agent::model_router::ModelRouter;
+use crate::agent::specialized_agents::AgentRegistry;
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -54,6 +55,8 @@ pub struct Agent {
     snapshot_manager: Option<Arc<SnapshotManager>>,
     /// Model router for cost-aware model selection (Week 7 Day 6-7)
     model_router: Arc<ModelRouter>,
+    /// Registry of specialized agent configurations (Week 8 Day 1-2)
+    agent_registry: Arc<AgentRegistry>,
 }
 
 impl Agent {
@@ -156,6 +159,10 @@ impl Agent {
         let model_router = Arc::new(ModelRouter::new());
         info!("Model router initialized with default routing table");
 
+        // Initialize specialized agent registry (Week 8 Day 1-2)
+        let agent_registry = Arc::new(AgentRegistry::new());
+        info!("Agent registry initialized with 7 specialized configs");
+
         Ok(Self {
             tools,
             intelligence,
@@ -180,6 +187,7 @@ impl Agent {
             current_mode,
             snapshot_manager,
             model_router,
+            agent_registry,
         })
     }
     
@@ -196,6 +204,11 @@ impl Agent {
     /// Get reference to model router (Week 7 Day 6-7)
     pub fn model_router(&self) -> &Arc<ModelRouter> {
         &self.model_router
+    }
+
+    /// Get reference to agent registry (Week 8 Day 1-2)
+    pub fn agent_registry(&self) -> &Arc<AgentRegistry> {
+        &self.agent_registry
     }
 
     /// Get current agent mode (Week 7 Day 3)
