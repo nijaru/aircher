@@ -1343,6 +1343,25 @@ impl Agent {
         tool_name: &str,
         params: serde_json::Value,
     ) -> Result<crate::client::ToolCallInfo> {
+        // Check if tool is allowed in current mode
+        let current_mode = self.current_mode.read().await;
+        let allowed_tools = current_mode.allowed_tools();
+
+        if !allowed_tools.contains(tool_name) {
+            return Ok(crate::client::ToolCallInfo {
+                name: tool_name.to_string(),
+                status: crate::client::ToolStatus::Failed,
+                result: None,
+                error: Some(format!(
+                    "Tool '{}' not allowed in {:?} mode. Allowed tools: {:?}",
+                    tool_name,
+                    *current_mode,
+                    allowed_tools.iter().collect::<Vec<_>>()
+                )),
+            });
+        }
+        drop(current_mode); // Release read lock
+
         if let Some(tool) = self.tools.get(tool_name) {
             match tool.execute(params.clone()).await {
                 Ok(output) => {
