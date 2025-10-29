@@ -1180,6 +1180,25 @@ impl Agent {
                 if let Some(tool) = self.tools.get(&call.name) {
                     match tool.execute(call.parameters.clone()).await {
                         Ok(output) => {
+                            // Emit FileChanged event for file modification tools
+                            if output.success && (call.name == "write_file" || call.name == "edit_file") {
+                                if let Some(path_str) = call.parameters.get("path").and_then(|v| v.as_str()) {
+                                    use crate::agent::events::{AgentEvent, FileOperation};
+                                    let path = std::path::PathBuf::from(path_str);
+                                    let operation = if call.name == "write_file" {
+                                        FileOperation::Write
+                                    } else {
+                                        FileOperation::Edit
+                                    };
+
+                                    self.event_bus.publish(AgentEvent::FileChanged {
+                                        path,
+                                        operation,
+                                        timestamp: std::time::SystemTime::now(),
+                                    });
+                                }
+                            }
+
                             if output.success {
                                 // Format the result more clearly
                                 let result_str = if output.result.is_object() || output.result.is_array() {
@@ -1327,6 +1346,25 @@ impl Agent {
         if let Some(tool) = self.tools.get(tool_name) {
             match tool.execute(params.clone()).await {
                 Ok(output) => {
+                    // Emit FileChanged event for file modification tools
+                    if output.success && (tool_name == "write_file" || tool_name == "edit_file") {
+                        if let Some(path_str) = params.get("path").and_then(|v| v.as_str()) {
+                            use crate::agent::events::{AgentEvent, FileOperation};
+                            let path = std::path::PathBuf::from(path_str);
+                            let operation = if tool_name == "write_file" {
+                                FileOperation::Write
+                            } else {
+                                FileOperation::Edit
+                            };
+
+                            self.event_bus.publish(AgentEvent::FileChanged {
+                                path,
+                                operation,
+                                timestamp: std::time::SystemTime::now(),
+                            });
+                        }
+                    }
+
                     Ok(crate::client::ToolCallInfo {
                         name: tool_name.to_string(),
                         status: if output.success {
@@ -1449,6 +1487,25 @@ impl Agent {
                 if let Some(tool) = self.tools.get(&call.name) {
                     match tool.execute(call.parameters.clone()).await {
                         Ok(output) => {
+                            // Emit FileChanged event for file modification tools
+                            if output.success && (call.name == "write_file" || call.name == "edit_file") {
+                                if let Some(path_str) = call.parameters.get("path").and_then(|v| v.as_str()) {
+                                    use crate::agent::events::{AgentEvent, FileOperation};
+                                    let path = std::path::PathBuf::from(path_str);
+                                    let operation = if call.name == "write_file" {
+                                        FileOperation::Write
+                                    } else {
+                                        FileOperation::Edit
+                                    };
+
+                                    self.event_bus.publish(AgentEvent::FileChanged {
+                                        path,
+                                        operation,
+                                        timestamp: std::time::SystemTime::now(),
+                                    });
+                                }
+                            }
+
                             if output.success {
                                 // Format the result more clearly
                                 let result_str = if output.result.is_object() || output.result.is_array() {

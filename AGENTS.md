@@ -13,14 +13,24 @@ For organization patterns: @external/agent-contexts/PRACTICES.md
 - Works in Zed, JetBrains IDEs (coming), Neovim, Emacs, or any ACP-compatible frontend
 - Focus: Agent intelligence, not UI - let editors handle the interface
 
-**⚠️ CRITICAL**: See @docs/STATUS.md and @ai/STATUS.md for current state
-- Status: Week 6 COMPLETE, 30-33% feature parity
-- Memory Systems: ✅ ALL 3 COMPLETE (3,725 lines) - Episodic, Knowledge Graph, Working
-- ACP Protocol: ✅ ENHANCED (+635 lines) - Session management, streaming, error handling
-- **NEW**: Hybrid architecture combining SOTA patterns from 4 leading agents
-- Frontend: Toad + Zed/Neovim/Emacs via ACP
-- Backend: Rust (86K lines) - performance advantage for benchmarks
-- Repository: Public at https://github.com/nijaru/aircher
+**⚠️ CRITICAL**: See @docs/STATUS.md and @ai/STATUS.md for HONEST current state
+
+**ACTUAL Status (Oct 29, 2025)**:
+- ✅ **Working**: Basic agent with 5 real tools, ACP protocol, memory infrastructure
+- ✅ **Week 7-8 Code Exists**: 3,767 lines of hybrid architecture (event bus, LSP, modes, router, specialized agents)
+- ❌ **NOT INTEGRATED**: Week 7-8 components not wired into execution path
+- 🔧 **Current Work**: Actually integrating components (7-11 hours estimated)
+
+**What This Means**:
+- Tools execute but don't emit events → LSP manager never triggered
+- AgentMode tracked but not enforced → no tool restrictions
+- Model router exists but not used → no cost optimization
+- Specialized agents defined but not selected → no focused prompts
+- Research sub-agents implemented but never spawned → no parallelization
+
+**Bottom Line**: Good code sitting on shelf, needs wiring. See @ai/STATUS.md "Next Steps" for integration plan.
+
+Repository: Public at https://github.com/nijaru/aircher
 
 ## Key Files (Always Check/Update)
 
