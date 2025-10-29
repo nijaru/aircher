@@ -2,52 +2,59 @@
 
 *Index of external research findings and their application to Aircher*
 
-## SOTA Agent Architectures (researched 2025-10-27) ✨ NEW
+## SOTA Agent Architectures (researched 2025-10-27, UPDATED 2025-10-29) ✨
 
-**Key Finding**: Hybrid architecture combining 4 leading patterns is superior
+**HONESTY CHECK**: Claims below need verification. Evidence levels marked clearly.
+
+**Evidence Levels**:
+- ✅ VERIFIED: Open source code inspected or official docs with implementation
+- ⚠️ INFERRED: User reports, blog posts, no code to verify
+- ❓ UNKNOWN: Pure speculation, no public info
 
 **Sources**:
-- Factory Droid (58.8% Terminal-Bench, #1)
-- OpenCode (thdxr, open source, production-validated)
-- Claude Code (Anthropic, sub-agent research)
-- Sourcegraph Amp (multi-model routing)
+- OpenCode ✅ (github.com/sst/opencode - VERIFIED open source, can inspect)
+- Factory Droid ⚠️ (58.8% Terminal-Bench #1, closed source, inferred from marketing)
+- Claude Code ⚠️ (Anthropic, inferred from user complaints, no source code)
+- Sourcegraph Amp ⚠️ (docs exist, implementation closed)
 
-**Critical Discoveries**:
+**Patterns (with Evidence Levels)**:
 
-1. **Plan/Build Separation** (OpenCode)
-   - Read-only exploration (Plan) vs modification (Build)
-   - Prevents accidental changes, clear mode distinction
-   - Validated in production
+1. **Plan/Build Separation** (OpenCode) ✅ VERIFIED
+   - Docs: https://opencode.ai/docs/modes/
+   - Plan mode disables: write, edit, patch, bash
+   - Build mode: all tools enabled (default)
+   - Source code: github.com/sst/opencode (can inspect implementation)
+   - **ACTION NEEDED**: Read actual source code to verify implementation
 
-2. **LSP Integration** (OpenCode)
-   - Real-time diagnostics after file edits
-   - Edit → LSP → diagnostics → agent self-corrects
-   - Prevents hallucination before code runs
-   - 50% fewer runtime errors (estimated)
+2. **LSP Integration** (OpenCode) ⚠️ INFERRED
+   - Blog post mentions LSP integration
+   - Event bus architecture mentioned
+   - **NO SOURCE CODE READ YET** - need to verify actual implementation
+   - "50% fewer runtime errors" - **UNVERIFIED CLAIM**, need to remove
 
-3. **Git Snapshots** (OpenCode)
-   - Temporary commits before risky operations
-   - Auto-rollback on errors or permission rejection
-   - 100% recovery from failed operations
-   - No history pollution
+3. **Git Snapshots** (OpenCode) ⚠️ INFERRED
+   - Blog posts mention "undo" functionality
+   - **NOT VERIFIED** if it uses git snapshots or different mechanism
+   - **ACTION NEEDED**: Read source code to verify
 
-4. **Sub-Agents: When to Use** (Claude Code research)
-   - ✅ **Research tasks**: 90% improvement (parallel execution)
-   - ❌ **Coding tasks**: 15x token waste (context isolation fatal)
-   - Users reported: 160k tokens for 3k work, 20k overhead per sub-agent
-   - **Lesson**: Decision matrix based on task type
+4. **Sub-Agents** (Claude Code) ⚠️ INFERRED FROM USER COMPLAINTS
+   - User reports: 160k tokens for small tasks
+   - Reddit/HN complaints about cost
+   - **NO VERIFICATION** of actual architecture
+   - "15x waste" - based on user anecdotes, not measurements
+   - "90% improvement for research" - **MADE UP**, no evidence
+   - **HONESTY**: We don't know how Claude Code works internally
 
-5. **Specialized Agents** (Factory Droid)
-   - Pre-configured "Droids" for different tasks
-   - Focused system prompts > generic prompts
-   - Smaller tool sets = less decision paralysis
-   - #1 on Terminal-Bench
+5. **Specialized Agents** (Factory Droid) ⚠️ INFERRED FROM MARKETING
+   - #1 on Terminal-Bench (58.8%) - ✅ VERIFIED benchmark result
+   - "Specialized droids" - from marketing, no code
+   - **SPECULATION**: Might just be different prompts, not architecture
+   - **ACTION NEEDED**: Try to access or request demo
 
-6. **Multi-Model Routing** (Amp)
-   - Haiku for simple tasks (fast, cheap)
-   - Sonnet for moderate complexity
-   - Opus for complex reasoning
-   - 40% cost reduction via intelligent selection
+6. **Multi-Model Routing** (Amp) ⚠️ DOCUMENTED BUT NOT VERIFIED
+   - Docs mention multi-model support
+   - "40% cost reduction" - **NO DATA TO SUPPORT THIS**
+   - **ACTION NEEDED**: Test Amp, measure actual costs
 
 **Application**:
 - Implement all 6 patterns in hybrid architecture
