@@ -514,6 +514,24 @@ impl Agent {
         debug!("Response tool_calls: {:?}", response.tool_calls);
         debug!("Response content first 500 chars: {}", assistant_message.chars().take(500).collect::<String>());
 
+        // === RECORD TOKEN USAGE TO MODEL ROUTER (Week 7 Day 6-7 - Critical Issue #2) ===
+        // Estimate input/output token split from total tokens_used
+        // Heuristic: Assume ~70% input (prompt + context), ~30% output (response)
+        // This is approximate since providers don't always split tokens in response
+        let total_tokens = response.tokens_used as usize;
+        let estimated_input_tokens = (total_tokens as f64 * 0.7) as usize;
+        let estimated_output_tokens = total_tokens - estimated_input_tokens;
+
+        // Record usage for cost tracking
+        self.model_router.record_usage(
+            &selected_model_config,
+            estimated_input_tokens,
+            estimated_output_tokens,
+        ).await;
+
+        debug!("Recorded model usage: {} total tokens ({} in, {} out estimated)",
+               total_tokens, estimated_input_tokens, estimated_output_tokens);
+
         // Log if LLM is trying to call multiple tools
         if let Some(ref tool_calls) = response.tool_calls {
             if tool_calls.len() > 1 {
