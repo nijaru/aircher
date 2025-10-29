@@ -257,9 +257,11 @@ mod tests {
         let repo = Repository::init(&repo_path)?;
 
         // Configure git
-        let mut config = repo.config()?;
-        config.set_str("user.name", "Test User")?;
-        config.set_str("user.email", "test@example.com")?;
+        {
+            let mut config = repo.config()?;
+            config.set_str("user.name", "Test User")?;
+            config.set_str("user.email", "test@example.com")?;
+        } // Drop config here so repo is no longer borrowed
 
         // Create initial commit
         let sig = Signature::now("Test User", "test@example.com")?;
@@ -267,16 +269,17 @@ mod tests {
             let mut index = repo.index()?;
             index.write_tree()?
         };
-        let tree = repo.find_tree(tree_id)?;
-
-        repo.commit(
-            Some("HEAD"),
-            &sig,
-            &sig,
-            "Initial commit",
-            &tree,
-            &[],
-        )?;
+        {
+            let tree = repo.find_tree(tree_id)?;
+            repo.commit(
+                Some("HEAD"),
+                &sig,
+                &sig,
+                "Initial commit",
+                &tree,
+                &[],
+            )?;
+        } // Drop tree here so repo is no longer borrowed
 
         Ok((temp_dir, repo_path, repo))
     }
