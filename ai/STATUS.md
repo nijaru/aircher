@@ -146,33 +146,37 @@
 
 ## Active Work
 
-**Current (2025-10-29)**: Week 7-8 Code Written BUT NOT INTEGRATED ⚠️
+**Current (2025-10-29)**: Week 7 Integration PARTIAL ✅ - Core Features Now Working!
 
-**HONEST STATUS - What's Actually Working**:
-- ✅ **Week 7-8 Code Exists**: 3,767 lines of well-architected code
-- ✅ **Unit Tests Pass**: 31 tests for individual components
-- ❌ **NOT INTEGRATED**: Components not wired into agent execution path
-- ❌ **NOT TESTED E2E**: Integration tests don't compile/run
+**INTEGRATION PROGRESS - What's Actually Working Now**:
+- ✅ **Event Bus**: write_file/edit_file emit FileChanged events (Commit: 7efed2f)
+- ✅ **LSP Manager**: Listens to FileChanged, will trigger diagnostics (Commit: 7efed2f)
+- ✅ **Mode Enforcement**: Tools check AgentMode before execution (Commit: e0c9b1b)
+- ❌ **Git Snapshots**: SnapshotManager exists, not called before risky ops
+- ❌ **Model Router**: Module exists, not used for provider selection
+- ❌ **Specialized Agents**: Configs exist, agent doesn't select them
+- ❌ **Research Sub-Agents**: Manager exists, never spawned
 
 **What This Means**:
-- Event bus: Created in Agent, but tools don't emit events
-- LSP manager: Initialized, but not triggered by file operations
-- Mode enforcement: AgentMode tracked, but not checked by tools
-- Git snapshots: SnapshotManager exists, but never called
-- Model router: Module exists, but agent doesn't use it for model selection
-- Specialized agents: Config structs exist, but agent doesn't select them
-- Research sub-agents: Manager exists, but never spawned
+- ✅ **Working**: File modifications trigger events → LSP will process
+- ✅ **Working**: Plan mode blocks write_file/edit_file (returns error)
+- ✅ **Working**: Build mode allows all tools
+- ❌ **Not Wired**: Git snapshots, model routing, specialized agents, sub-agents
 
-**Reality Check**: We have good infrastructure code sitting on a shelf, not plugged in.
+**Progress**: 3/7 Week 7-8 components integrated (~43%). Core safety features working.
 
-**What Needs To Happen For Real Integration**:
-1. Wire event bus: file_ops.rs tools must call event_bus.publish(FileChanged)
-2. Wire LSP: LSP manager must subscribe to FileChanged events and emit diagnostics
-3. Wire mode enforcement: Tool registry must check AgentMode before allowing tools
-4. Wire git snapshots: Add snapshot calls before risky operations
-5. Wire model router: Provider selection must use ModelRouter.select_model()
-6. Wire specialized agents: Agent must select config based on UserIntent
-7. Wire research sub-agents: Explorer agent must spawn ResearchSubAgentManager
+**What's Been Integrated** (Oct 29, 2025):
+1. ✅ Event bus: Tools emit FileChanged after write/edit (3 execution paths)
+2. ✅ LSP manager: Already listening, will auto-trigger on FileChanged
+3. ✅ Mode enforcement: execute_single_tool checks allowed_tools()
+
+**What Still Needs Integration**:
+4. ❌ Git snapshots: Call create_snapshot() before bash commands, bulk edits
+5. ❌ Model router: Add to Agent struct, use for provider selection
+6. ❌ Specialized agents: Agent must select config based on UserIntent
+7. ❌ Research sub-agents: Explorer agent must spawn ResearchSubAgentManager
+
+**Estimated Time Remaining**: 5-7 hours for items 4-7
 
 **Week 7-8 Summary** (Code Written, Not Integrated):
 
