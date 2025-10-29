@@ -1,8 +1,25 @@
 # STATUS
 
-**Last Updated**: 2025-10-27 (Week 6 COMPLETE ✅ - Architecture Redesigned with SOTA Research!)
+**Last Updated**: 2025-10-29 (Week 7 Days 1-5 COMPLETE ✅ - Core Architecture Implementation!)
 
 ## Current State
+
+### Week 7 Days 1-5 COMPLETE ✅ → Core Architecture Patterns Implemented!
+
+**Phase 2 In Progress (Weeks 7-10)**:
+- **Week 7 Day 1**: ✅ Event bus + LSP manager foundation (+822 lines: 343 events + 479 LSP)
+- **Week 7 Day 2**: ✅ Event bus integration with Agent core and tools
+- **Week 7 Day 3-4**: ✅ Plan/Build mode separation (+229 lines, 9 tests)
+- **Week 7 Day 5**: ✅ Git snapshot system (+401 lines, 5 tests)
+- **Week 7 Day 6-7**: ⏳ Model router (pending)
+
+**What's New (Week 7 Achievements)**:
+- Event-driven LSP integration with global diagnostics map
+- Real-time feedback loop: edit → LSP → diagnostics → agent
+- Plan mode (read-only) vs Build mode (modification capable)
+- Tool restriction system based on agent mode
+- Git snapshots for safe experimentation + 100% rollback
+- Thread-safe snapshot manager with event bus integration
 
 ### Week 6 COMPLETE ✅ → Architecture Redesigned Based on SOTA Research!
 
@@ -127,7 +144,7 @@
 
 ## Active Work
 
-**Current (2025-10-28)**: Week 7 Day 1 COMPLETE ✅ - Event Bus + LSP Manager Foundation!
+**Current (2025-10-29)**: Week 7 Days 1-5 COMPLETE ✅ - Core Architecture Implementation Complete!
 
 **Week 7 Day 1 Achievements** ✅:
 
@@ -217,16 +234,25 @@
    - ✅ LSP manager with global diagnostics map (479 lines, 5 tests)
    - ✅ Language server spawning (rust-analyzer, pyright, gopls, typescript-language-server)
    - Commit: 6fa8d17
-2. 🔄 Day 2: Integration (CURRENT)
-   - Hook edit_file tool to trigger LSP notifications
-   - Integrate event bus with Agent struct
-   - Test: Edit file → LSP → diagnostics → Agent receives
-3. Day 3-4: Plan/Build mode separation
-   - AgentMode enum with tool restrictions
-   - Plan: read-only, can spawn research sub-agents
-   - Build: can modify, NEVER uses sub-agents
-4. Day 5: Git snapshots
-   - SnapshotManager with temporary commits
+2. ✅ Day 2: Integration COMPLETE
+   - ✅ Hook edit_file tool to trigger LSP notifications
+   - ✅ Integrate event bus with Agent struct
+   - ✅ FileChanged events emitted after edit/write operations
+   - Commits: 4965bd3, d3aeec2
+3. ✅ Day 3-4: Plan/Build mode separation COMPLETE
+   - ✅ AgentMode enum with tool restrictions (+229 lines)
+   - ✅ Plan: read-only (7 tools), can spawn research sub-agents
+   - ✅ Build: can modify (11 tools), NEVER uses sub-agents
+   - ✅ Tool restriction checking before execution
+   - ✅ Mode transitions with event emission (9 tests)
+   - Commits: dca6099, dee1a4e
+4. ✅ Day 5: Git snapshots COMPLETE
+   - ✅ SnapshotManager with temporary commits (+401 lines)
+   - ✅ Thread-safe Repository (Mutex<Repository>)
+   - ✅ create_snapshot() + rollback() + helpers
+   - ✅ Event bus integration (SnapshotCreated, SnapshotRolledBack)
+   - ✅ Graceful handling of non-Git workspaces (5 tests)
+   - Commit: 9998761
    - Auto-rollback on errors
 5. Day 6-7: Model router
    - Multi-model selection (Haiku/Sonnet/Opus)
