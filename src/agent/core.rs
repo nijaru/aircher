@@ -20,6 +20,7 @@ use crate::agent::multi_turn_reasoning::MultiTurnReasoningEngine;
 use crate::agent::events::{SharedEventBus, create_event_bus, AgentEvent, FileOperation, AgentMode};
 use crate::agent::lsp_manager::LspManager;
 use crate::agent::agent_mode::{ModeClassifier, ModeTransition};
+use crate::agent::git_snapshots::SnapshotManager;
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -48,6 +49,8 @@ pub struct Agent {
     lsp_manager: Arc<LspManager>,
     /// Current agent mode: Plan (read-only) or Build (modification) (Week 7 Day 3)
     current_mode: Arc<tokio::sync::RwLock<AgentMode>>,
+    /// Git snapshot manager for safe experimentation (Week 7 Day 5)
+    snapshot_manager: Option<Arc<SnapshotManager>>,
 }
 
 impl Agent {
@@ -134,6 +137,18 @@ impl Agent {
         // Start in Plan mode (safe, read-only) by default
         let current_mode = Arc::new(tokio::sync::RwLock::new(AgentMode::Plan));
 
+        // Initialize Git snapshot manager (Week 7 Day 5)
+        // Only available if workspace is a Git repository
+        let snapshot_manager = SnapshotManager::new(project_context.root_path.clone(), event_bus.clone())
+            .ok()
+            .map(Arc::new);
+
+        if snapshot_manager.is_some() {
+            info!("Git snapshot manager initialized");
+        } else {
+            warn!("Git not available - snapshot functionality disabled");
+        }
+
         Ok(Self {
             tools,
             intelligence,
@@ -156,6 +171,7 @@ impl Agent {
             event_bus,
             lsp_manager,
             current_mode,
+            snapshot_manager,
         })
     }
     
@@ -190,6 +206,12 @@ impl Agent {
 
             info!("Agent mode changed: {:?} → {:?}", old_mode, new_mode);
         }
+    }
+
+    /// Get reference to snapshot manager (Week 7 Day 5)
+    /// Returns None if Git is not available in workspace
+    pub fn snapshot_manager(&self) -> Option<&Arc<SnapshotManager>> {
+        self.snapshot_manager.as_ref()
     }
 
     /// Convert tool registry to provider tool format for LLM requests
@@ -1024,6 +1046,7 @@ impl Agent {
                 event_bus: self.event_bus.clone(), // Week 7: Share event bus
                 lsp_manager: self.lsp_manager.clone(), // Week 7: Share LSP manager
                 current_mode: self.current_mode.clone(), // Week 7 Day 3: Share mode
+                snapshot_manager: self.snapshot_manager.clone(), // Week 7 Day 5: Share snapshot manager
             }),
             self.reasoning.clone(),
             self.context_manager.clone(),
