@@ -10,6 +10,8 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -17,6 +19,7 @@ use tracing::{debug, info, warn};
 
 use super::model_router::{AgentType as RouterAgentType, TaskComplexity};
 use super::specialized_agents::AgentConfig;
+use super::tools::{ToolRegistry, ToolOutput};
 
 /// Maximum concurrent sub-agents (from Claude Code research)
 pub const MAX_CONCURRENT_SUBAGENTS: usize = 10;
@@ -197,6 +200,12 @@ pub struct ResearchSubAgentManager {
     /// Memory integration (to prevent duplicate research)
     #[allow(dead_code)]
     episodic_memory: Option<Arc<RwLock<EpisodicMemoryStub>>>,
+
+    /// Tool registry for executing actual research
+    tool_registry: Arc<ToolRegistry>,
+
+    /// Workspace root for tool execution
+    workspace_root: PathBuf,
 }
 
 /// Stub for episodic memory integration
@@ -236,10 +245,24 @@ struct CachedResearch {
 impl ResearchSubAgentManager {
     /// Create a new research sub-agent manager
     pub fn new() -> Self {
+        let workspace_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         Self {
             active: Arc::new(RwLock::new(Vec::new())),
             results: Arc::new(RwLock::new(Vec::new())),
             episodic_memory: None,
+            tool_registry: Arc::new(ToolRegistry::default()),
+            workspace_root,
+        }
+    }
+
+    /// Create with custom tool registry and workspace
+    pub fn with_tools(tool_registry: Arc<ToolRegistry>, workspace_root: PathBuf) -> Self {
+        Self {
+            active: Arc::new(RwLock::new(Vec::new())),
+            results: Arc::new(RwLock::new(Vec::new())),
+            episodic_memory: None,
+            tool_registry,
+            workspace_root,
         }
     }
 
@@ -300,39 +323,267 @@ impl ResearchSubAgentManager {
     ) -> Result<JoinHandle<Result<ResearchResult>>> {
         debug!("Spawning sub-agent for task: {}", task.id);
 
-        // Get agent configuration
-        let config = AgentConfig::explorer(); // Placeholder
-        let _config = match task.agent_type {
-            RouterAgentType::FileSearcher => AgentConfig::file_searcher(),
-            RouterAgentType::PatternFinder => AgentConfig::pattern_finder(),
-            RouterAgentType::DependencyMapper => AgentConfig::dependency_mapper(),
-            _ => config,
-        };
+        // Clone necessary data for the spawned task
+        let tool_registry = Arc::clone(&self.tool_registry);
+        let workspace_root = self.workspace_root.clone();
 
         // Spawn task in background
         let handle = tokio::spawn(async move {
             let start = std::time::Instant::now();
 
-            // Simulate research execution
-            // In production, this would execute the actual agent logic
             debug!("Executing research task: {}", task.description);
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-            // Placeholder result
-            let result = ResearchResult {
-                task_id: task.id.clone(),
-                success: true,
-                findings: format!("Research findings for: {}", task.description),
-                relevant_files: vec![],
-                tokens_used: 1000,
-                duration_ms: start.elapsed().as_millis() as u64,
-                error: None,
+            // Execute actual research based on agent type
+            let (findings, relevant_files, tokens_used) = match task.agent_type {
+                RouterAgentType::FileSearcher => {
+                    Self::execute_file_search(&task, &tool_registry, &workspace_root).await
+                }
+                RouterAgentType::PatternFinder => {
+                    Self::execute_pattern_search(&task, &tool_registry, &workspace_root).await
+                }
+                RouterAgentType::DependencyMapper => {
+                    Self::execute_dependency_mapping(&task, &tool_registry, &workspace_root).await
+                }
+                _ => {
+                    // Fallback to basic file search
+                    Self::execute_file_search(&task, &tool_registry, &workspace_root).await
+                }
             };
 
-            Ok(result)
+            let (findings, relevant_files, tokens_used) = match (findings, relevant_files, tokens_used) {
+                (Ok(f), Ok(r), Ok(t)) => (f, r, t),
+                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+                    return Ok(ResearchResult {
+                        task_id: task.id.clone(),
+                        success: false,
+                        findings: String::new(),
+                        relevant_files: vec![],
+                        tokens_used: 0,
+                        duration_ms: start.elapsed().as_millis() as u64,
+                        error: Some(format!("Research failed: {}", e)),
+                    });
+                }
+            };
+
+            Ok(ResearchResult {
+                task_id: task.id.clone(),
+                success: true,
+                findings,
+                relevant_files,
+                tokens_used,
+                duration_ms: start.elapsed().as_millis() as u64,
+                error: None,
+            })
         });
 
         Ok(handle)
+    }
+
+    /// Execute file search research
+    async fn execute_file_search(
+        task: &ResearchTask,
+        tool_registry: &Arc<ToolRegistry>,
+        workspace_root: &PathBuf,
+    ) -> (Result<String>, Result<Vec<String>>, Result<usize>) {
+        let mut findings = Vec::new();
+        let mut relevant_files = Vec::new();
+        let mut tokens_used = 0;
+
+        // Extract search terms from task description
+        let search_term = task.description
+            .to_lowercase()
+            .replace("find all", "")
+            .replace("search for", "")
+            .replace("in source files", "")
+            .replace("in tests", "")
+            .replace("in documentation", "")
+            .trim()
+            .to_string();
+
+        // 1. List files in context directories
+        if let Some(list_tool) = tool_registry.get("list_files") {
+            for context_path in &task.context {
+                let params = json!({
+                    "path": workspace_root.join(context_path).to_string_lossy().to_string(),
+                    "recursive": true,
+                    "pattern": "*",
+                });
+
+                match list_tool.execute(params).await {
+                    Ok(output) if output.success => {
+                        if let Some(files) = output.result.get("files").and_then(|f| f.as_array()) {
+                            findings.push(format!("Found {} files in {}", files.len(), context_path));
+                            tokens_used += 100; // Estimate
+                        }
+                    }
+                    Err(e) => {
+                        findings.push(format!("Failed to list files in {}: {}", context_path, e));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // 2. Search code for the term (if search_code tool available)
+        if !search_term.is_empty() {
+            if let Some(search_tool) = tool_registry.get("search_code") {
+                let params = json!({
+                    "query": search_term,
+                    "scope": if task.context.is_empty() { None } else { Some(task.context.clone()) },
+                    "limit": 20,
+                });
+
+                match search_tool.execute(params).await {
+                    Ok(output) if output.success => {
+                        if let Some(results) = output.result.get("results").and_then(|r| r.as_array()) {
+                            findings.push(format!("Search found {} matches for '{}'", results.len(), search_term));
+
+                            for result in results.iter().take(10) {
+                                if let Some(file) = result.get("file").and_then(|f| f.as_str()) {
+                                    relevant_files.push(file.to_string());
+                                }
+                            }
+                            tokens_used += 500; // Estimate
+                        }
+                    }
+                    Err(e) => {
+                        findings.push(format!("Search failed: {}", e));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // 3. Read a sample of relevant files
+        if let Some(read_tool) = tool_registry.get("read_file") {
+            for file_path in relevant_files.iter().take(3) {
+                let params = json!({
+                    "path": file_path,
+                    "line_range": null,
+                });
+
+                match read_tool.execute(params).await {
+                    Ok(output) if output.success => {
+                        if let Some(content) = output.result.get("content").and_then(|c| c.as_str()) {
+                            let preview = content.chars().take(200).collect::<String>();
+                            findings.push(format!("Read {}: {}...", file_path, preview));
+                            tokens_used += 200; // Estimate
+                        }
+                    }
+                    Err(e) => {
+                        findings.push(format!("Failed to read {}: {}", file_path, e));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let summary = if findings.is_empty() {
+            format!("No results found for query: {}", task.description)
+        } else {
+            findings.join("\n")
+        };
+
+        (Ok(summary), Ok(relevant_files), Ok(tokens_used))
+    }
+
+    /// Execute pattern search research
+    async fn execute_pattern_search(
+        task: &ResearchTask,
+        tool_registry: &Arc<ToolRegistry>,
+        _workspace_root: &PathBuf,
+    ) -> (Result<String>, Result<Vec<String>>, Result<usize>) {
+        let mut findings = Vec::new();
+        let mut relevant_files = Vec::new();
+        let tokens_used = 500;
+
+        // Use search_code to find patterns
+        if let Some(search_tool) = tool_registry.get("search_code") {
+            let params = json!({
+                "query": task.description,
+                "scope": task.context,
+                "limit": 30,
+            });
+
+            match search_tool.execute(params).await {
+                Ok(output) if output.success => {
+                    if let Some(results) = output.result.get("results").and_then(|r| r.as_array()) {
+                        findings.push(format!("Found {} pattern matches", results.len()));
+
+                        for result in results {
+                            if let Some(file) = result.get("file").and_then(|f| f.as_str()) {
+                                relevant_files.push(file.to_string());
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    findings.push(format!("Pattern search failed: {}", e));
+                }
+                _ => {}
+            }
+        }
+
+        let summary = if findings.is_empty() {
+            format!("No patterns found for: {}", task.description)
+        } else {
+            findings.join("\n")
+        };
+
+        (Ok(summary), Ok(relevant_files), Ok(tokens_used))
+    }
+
+    /// Execute dependency mapping research
+    async fn execute_dependency_mapping(
+        task: &ResearchTask,
+        tool_registry: &Arc<ToolRegistry>,
+        _workspace_root: &PathBuf,
+    ) -> (Result<String>, Result<Vec<String>>, Result<usize>) {
+        let mut findings = Vec::new();
+        let mut relevant_files = Vec::new();
+        let tokens_used = 300;
+
+        // Use find_references tool if available, otherwise search
+        if let Some(refs_tool) = tool_registry.get("find_references") {
+            // Extract symbol from query
+            let symbol = task.description
+                .replace("What uses", "")
+                .replace("Where is", "")
+                .replace("?", "")
+                .trim()
+                .to_string();
+
+            let params = json!({
+                "symbol": symbol,
+                "scope": task.context,
+            });
+
+            match refs_tool.execute(params).await {
+                Ok(output) if output.success => {
+                    if let Some(refs) = output.result.get("references").and_then(|r| r.as_array()) {
+                        findings.push(format!("Found {} references", refs.len()));
+
+                        for ref_item in refs {
+                            if let Some(file) = ref_item.get("file").and_then(|f| f.as_str()) {
+                                relevant_files.push(file.to_string());
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    findings.push(format!("Reference search failed: {}", e));
+                }
+                _ => {}
+            }
+        }
+
+        let summary = if findings.is_empty() {
+            format!("No dependencies found for: {}", task.description)
+        } else {
+            findings.join("\n")
+        };
+
+        (Ok(summary), Ok(relevant_files), Ok(tokens_used))
     }
 
     /// Wait for all sub-agents to complete and aggregate results
@@ -395,6 +646,8 @@ impl Clone for ResearchSubAgentManager {
             active: Arc::clone(&self.active),
             results: Arc::clone(&self.results),
             episodic_memory: self.episodic_memory.clone(),
+            tool_registry: Arc::clone(&self.tool_registry),
+            workspace_root: self.workspace_root.clone(),
         }
     }
 }
