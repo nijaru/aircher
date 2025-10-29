@@ -220,6 +220,90 @@
 
 **Details**: → poc-memory-agent/README.md
 
+## Toad TUI Frontend (researched 2025-10-29)
+
+**Key Finding**: Professional terminal UI frontend built by expert, perfect for ACP-native agents
+
+**Creator**: Will McGugan (Rich/Textual Python libraries, 5+ years terminal UI expertise)
+
+**Status**: Private preview ($5,000/month sponsorship), will become open source
+
+**Core Advantages**:
+- **No flicker**: Partial character updates (vs full screen rewrites in Node tools)
+- **Interactive scrollback**: Can interact with and copy previous output
+- **Jank-free**: Solves terminal rendering problems from 5+ years of Textual optimization
+- **Universal**: Provider-agnostic, works with any AI backend
+
+**Features Verified**:
+1. Advanced text input (multi-line, cut/copy/paste, undo/redo)
+2. Markdown highlighting in real-time
+3. Code fence editing with language-specific syntax highlighting
+4. Shell mode (triggered by "!" or "$" prefix)
+5. Smart indentation and LSP support (planned for code fences)
+
+**Technical Foundation**:
+- Built on Textual (Python TUI framework)
+- Installation: `uvx toad` (similar UX to `npx`)
+- Positioned as "universal UI" for agentic coding
+
+**ACP Integration**: ⚠️ INFERRED (not explicitly documented, but likely given "universal" positioning)
+
+**Application to Aircher**:
+- Saves 4-6 weeks of custom TUI development
+- Professional quality from terminal rendering expert
+- Aligns perfectly with ACP-native architecture
+- Multi-frontend strategy: Toad + Zed + Neovim + Emacs + JetBrains
+
+**Strategy**:
+1. Build Aircher as ACP-native backend (current)
+2. Test with existing frontends (Zed, Neovim, Emacs)
+3. Integrate Toad when open source release available
+4. Position: "Best agent intelligence, works in your favorite frontend"
+
+**Details**: → ai/research/toad-tui-features.md (comprehensive analysis)
+
+## Benchmarking Strategy (researched 2025-10-29)
+
+**Key Finding**: Two industry-standard benchmarks available for empirical validation
+
+**Terminal-Bench** (Primary Target):
+- Terminal-specific agent benchmark with public leaderboard
+- T-Bench-Core-v0: 80 terminal tasks
+- Current SOTA: Ante (60.3%), Factory Droid (58.8%), Claude Code (43.2%)
+- Target: Beat Factory Droid's 58.8% to claim SOTA
+
+**SWE-bench** (Industry Standard):
+- Most widely recognized coding agent benchmark
+- Multiple datasets: Full (2,294), Verified (500), Lite (300), Multimodal (517), Live (1,565)
+- Current SOTA: Grok 4 (75%), GPT-5 (74.9%), Claude Opus 4.1 (74.5%)
+- Recommended: Start with SWE-bench Verified (500 tasks, human-filtered)
+
+**Terminal-Bench Registry**:
+- Unified harness for multiple benchmarks
+- Can run: SWE-bench Verified, AppWorld, DevEval, EvoEval
+- Single CLI interface for all evaluations
+
+**Integration Approach**:
+- ACP-based integration (tests production interface)
+- Week 9 Days 1-3: Terminal-Bench baseline run
+- Week 9 Days 4-5: SWE-bench Verified sample run
+- Week 9 Days 6-7: Analysis and optimization planning
+
+**Expected Baseline** (conservative):
+- Terminal-Bench: 35-45% (between Claude Code and Factory Droid)
+- SWE-bench Verified: 25-35%
+
+**Optimistic Targets** (after optimization):
+- Terminal-Bench: 50-60% (competitive with Factory Droid)
+- SWE-bench Verified: 40-50%
+
+**Success Criteria for Paper**:
+- Minimum: >43.2% Terminal-Bench (beat Claude Code)
+- Competitive: >50% Terminal-Bench (approach Factory Droid)
+- SOTA: >58.8% Terminal-Bench (beat Factory Droid)
+
+**Details**: → ai/research/benchmark-integration-plan.md (comprehensive implementation plan)
+
 ## Open Questions
 
 - [ ] Optimal context window size for code (100 lines? 200?)
