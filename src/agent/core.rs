@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::sync::Arc;
+use std::path::PathBuf;
 use tracing::{debug, info, warn};
 
 #[cfg(feature = "acp")]
@@ -16,6 +17,8 @@ use crate::agent::dynamic_context::DynamicContextManager;
 use crate::agent::task_orchestrator::TaskOrchestrator;
 use crate::agent::plan_mode::{PlanGenerator, PlanMode};
 use crate::agent::multi_turn_reasoning::MultiTurnReasoningEngine;
+use crate::agent::events::{SharedEventBus, create_event_bus, AgentEvent, FileOperation};
+use crate::agent::lsp_manager::LspManager;
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -38,6 +41,10 @@ pub struct Agent {
     is_orchestration_agent: bool,
     #[allow(dead_code)]
     max_iterations: usize,
+    /// Event bus for agent-wide communication (Week 7)
+    event_bus: SharedEventBus,
+    /// LSP manager with global diagnostics (Week 7)
+    lsp_manager: Arc<LspManager>,
 }
 
 impl Agent {
@@ -110,6 +117,13 @@ impl Agent {
             MultiTurnReasoningEngine::new(tools.clone(), intelligence.clone())?
         ));
 
+        // Create event bus for agent-wide communication (Week 7)
+        let event_bus = create_event_bus();
+
+        // Create LSP manager with global diagnostics (Week 7)
+        let workspace_root = project_context.root_path.clone();
+        let lsp_manager = Arc::new(LspManager::new(workspace_root, event_bus.clone()));
+
         Ok(Self {
             tools,
             intelligence,
@@ -129,9 +143,21 @@ impl Agent {
             multi_turn_reasoning,
             is_orchestration_agent: false,
             max_iterations: 10, // Prevent infinite loops
+            event_bus,
+            lsp_manager,
         })
     }
     
+    /// Get reference to event bus (Week 7)
+    pub fn event_bus(&self) -> &SharedEventBus {
+        &self.event_bus
+    }
+
+    /// Get reference to LSP manager (Week 7)
+    pub fn lsp_manager(&self) -> &Arc<LspManager> {
+        &self.lsp_manager
+    }
+
     /// Convert tool registry to provider tool format for LLM requests
     pub fn convert_tools_to_provider_format(&self) -> Vec<crate::providers::Tool> {
         self.tools.list_tools()
@@ -392,6 +418,22 @@ impl Agent {
                                         crate::agent::dynamic_context::AccessAction::Modified
                                     };
                                     let _ = self.context_manager.track_file_access(path, action).await;
+
+                                    // Week 7 Day 2: Emit FileChanged event for LSP integration
+                                    if (call.name == "edit_file" || call.name == "write_file") && output.success {
+                                        let file_path = PathBuf::from(path);
+                                        let operation = if call.name == "edit_file" {
+                                            FileOperation::Edit
+                                        } else {
+                                            FileOperation::Write
+                                        };
+                                        self.event_bus.publish(AgentEvent::FileChanged {
+                                            path: file_path,
+                                            operation,
+                                            timestamp: std::time::SystemTime::now(),
+                                        });
+                                        debug!("Emitted FileChanged event for: {}", path);
+                                    }
                                 }
                             }
 
@@ -931,6 +973,8 @@ impl Agent {
                 )),
                 is_orchestration_agent: true, // Mark as orchestration agent to prevent recursion
                 max_iterations: self.max_iterations,
+                event_bus: self.event_bus.clone(), // Week 7: Share event bus
+                lsp_manager: self.lsp_manager.clone(), // Week 7: Share LSP manager
             }),
             self.reasoning.clone(),
             self.context_manager.clone(),
