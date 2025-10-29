@@ -29,11 +29,18 @@ Aircher is an **ACP-compatible agent backend** with a **hybrid architecture** de
 - ✅ Specialized agents: AgentRegistry with 7 configs ready for selection
 - ✅ Research sub-agents: ResearchSubAgentManager ready for parallel spawning
 
-**What's Next**:
-- Full execution flow: UserIntent → select agent config → model routing → research spawning
-- Empirical validation: Benchmarks vs Claude Code (Week 9)
+**Execution Flow Implemented** (Oct 29, 2025):
+- ✅ Full flow working: UserIntent → specialized agent → model router → (research sub-agents) → execution
+- ✅ Cost-aware model selection based on agent type + task complexity
+- ✅ Specialized system prompts per agent (Explorer, Builder, Debugger)
+- ✅ Parallel research sub-agents for Explorer agents only
+- ✅ Builder/Debugger never spawn sub-agents (avoid 15x token waste)
 
-**Bottom Line**: All infrastructure integrated and wired. Ready for end-to-end testing and empirical validation.
+**What's Next**:
+- Empirical validation: Benchmarks vs Claude Code (Week 9)
+- Performance measurements: Validate 60% tool reduction, 90% research speedup, 40% cost savings
+
+**Bottom Line**: Complete hybrid architecture now operational. All 7 components integrated and executing in production flow. Ready for Week 9 empirical validation.
 
 ## 🎯 What Actually Works Today
 
