@@ -124,6 +124,9 @@ impl Agent {
         let workspace_root = project_context.root_path.clone();
         let lsp_manager = Arc::new(LspManager::new(workspace_root, event_bus.clone()));
 
+        // Start LSP manager event listener (Week 7 Day 2)
+        lsp_manager.clone().start_listening();
+
         Ok(Self {
             tools,
             intelligence,
