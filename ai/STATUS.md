@@ -146,7 +146,12 @@
 
 ## Active Work
 
-**Current (2025-10-29)**: Week 7 COMPLETE ✅ - All Core Architecture Patterns Implemented!
+**Current (2025-10-29)**: Week 8 Days 1-4 COMPLETE ✅ - Specialized Agents + Research Sub-Agents!
+
+**Week 8 Progress So Far**:
+- ✅ Day 1-2: Specialized agent configurations (Explorer, Builder, Debugger, Refactorer) - 726 lines, 11 tests
+- ✅ Day 3-4: Research sub-agents (parallel spawning, query decomposition) - 572 lines, 10 tests
+- 🔄 Day 5-7: Integration testing (NEXT)
 
 **Week 7 Complete Summary** ✅:
 
@@ -267,12 +272,22 @@
    - Commit: 865a9c2
 
 **Week 8: Specialized Agents** (from Factory Droid + Claude Code)
-1. Day 1-2: Agent configurations
-   - Explorer, Builder, Debugger, Refactorer
-   - Specialized system prompts per agent
-2. Day 3-4: Research sub-agents
-   - Parallel spawning (max 10 concurrent)
-   - Memory integration (prevent duplicates)
+1. ✅ Day 1-2: Agent configurations COMPLETE
+   - ✅ AgentConfig struct with specialized configurations (+726 lines)
+   - ✅ Explorer, Builder, Debugger, Refactorer agents
+   - ✅ Specialized system prompts per agent type
+   - ✅ Tool restrictions per agent (Builder: NEVER spawns sub-agents)
+   - ✅ Sub-agent configs: FileSearcher, PatternFinder, DependencyMapper
+   - ✅ Memory access levels and step limits (11 tests)
+   - Commit: [specialized_agents commit]
+2. ✅ Day 3-4: Research sub-agents COMPLETE
+   - ✅ Parallel spawning (max 10 concurrent, from Claude Code research)
+   - ✅ QueryDecomposer with heuristic-based task decomposition (+572 lines)
+   - ✅ ResearchSubAgentManager with result aggregation
+   - ✅ Memory integration stub (prevent duplicate research)
+   - ✅ ResearchHandle with progress tracking
+   - ✅ Sub-agent types: FileSearcher, PatternFinder, DependencyMapper (10 tests)
+   - Commit: 170083b
 3. Day 5-7: Integration testing
    - Validate 90% research improvement
    - Confirm 0% sub-agent usage for coding
