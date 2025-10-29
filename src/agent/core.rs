@@ -23,6 +23,7 @@ use crate::agent::agent_mode::{ModeClassifier, ModeTransition};
 use crate::agent::git_snapshots::SnapshotManager;
 use crate::agent::model_router::ModelRouter;
 use crate::agent::specialized_agents::AgentRegistry;
+use crate::agent::research_subagents::ResearchSubAgentManager;
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -57,6 +58,8 @@ pub struct Agent {
     model_router: Arc<ModelRouter>,
     /// Registry of specialized agent configurations (Week 8 Day 1-2)
     agent_registry: Arc<AgentRegistry>,
+    /// Research sub-agent manager for parallel research (Week 8 Day 3-4)
+    research_manager: Arc<ResearchSubAgentManager>,
 }
 
 impl Agent {
@@ -163,6 +166,11 @@ impl Agent {
         let agent_registry = Arc::new(AgentRegistry::new());
         info!("Agent registry initialized with 7 specialized configs");
 
+        // Initialize research sub-agent manager (Week 8 Day 3-4)
+        let research_manager = Arc::new(ResearchSubAgentManager::new());
+        info!("Research sub-agent manager initialized (max {} concurrent)",
+              crate::agent::research_subagents::MAX_CONCURRENT_SUBAGENTS);
+
         Ok(Self {
             tools,
             intelligence,
@@ -188,6 +196,7 @@ impl Agent {
             snapshot_manager,
             model_router,
             agent_registry,
+            research_manager,
         })
     }
     
@@ -209,6 +218,11 @@ impl Agent {
     /// Get reference to agent registry (Week 8 Day 1-2)
     pub fn agent_registry(&self) -> &Arc<AgentRegistry> {
         &self.agent_registry
+    }
+
+    /// Get reference to research sub-agent manager (Week 8 Day 3-4)
+    pub fn research_manager(&self) -> &Arc<ResearchSubAgentManager> {
+        &self.research_manager
     }
 
     /// Get current agent mode (Week 7 Day 3)
