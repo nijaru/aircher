@@ -292,11 +292,74 @@ impl Agent {
             }
         };
 
+        // === SPECIALIZED AGENT SELECTION (Week 8 Day 1-2) ===
+        // Select appropriate specialized agent based on detected intent
+        let selected_agent = self.select_agent_for_intent(&enhanced_context.detected_intent).await;
+        info!("Selected {:?} agent for this task", selected_agent.agent_type);
+
+        // === TASK COMPLEXITY ASSESSMENT (Week 7 Day 6-7) ===
+        let task_complexity = self.assess_task_complexity(user_message, &enhanced_context).await;
+        debug!("Task complexity: {:?}", task_complexity);
+
+        // === MODEL SELECTION VIA ROUTER (Week 7 Day 6-7) ===
+        // Use model router to select cost-appropriate model
+        let selected_model_config = self.model_router.select_model(
+            selected_agent.agent_type,
+            task_complexity,
+            None, // TODO: Support user model override
+        );
+        let selected_model = &selected_model_config.model;
+        info!("Model router selected: {} (cost: ${:.4}/1M in, ${:.4}/1M out)",
+              selected_model,
+              selected_model_config.cost_per_1m_input,
+              selected_model_config.cost_per_1m_output);
+
+        // === RESEARCH SUB-AGENT SPAWNING (Week 8 Day 3-4) ===
+        // For Explorer agents with research queries, spawn parallel sub-agents
+        if selected_agent.can_spawn_subagents && self.is_research_task(user_message).await {
+            info!("Explorer agent detected research task - considering sub-agent spawn");
+
+            // Check if query benefits from parallelization
+            if user_message.to_lowercase().contains("find all")
+                || user_message.to_lowercase().contains("search for")
+                || user_message.to_lowercase().contains("list all") {
+
+                info!("Spawning research sub-agents for parallel execution");
+                match self.research_manager.spawn_research(user_message).await {
+                    Ok(handle) => {
+                        info!("Research sub-agents spawned, waiting for results...");
+                        match handle.wait().await {
+                            Ok(results) => {
+                                info!("Research complete: {} sub-agents returned results", results.len());
+
+                                // Add research findings to system prompt
+                                let mut research_summary = String::from("\n\n## Research Sub-Agent Findings:\n");
+                                for (i, result) in results.iter().enumerate() {
+                                    if result.success {
+                                        research_summary.push_str(&format!("{}. {}\n", i + 1, result.findings));
+                                    }
+                                }
+
+                                // This will be added to system prompt below
+                                debug!("Research summary: {}", research_summary);
+                            }
+                            Err(e) => {
+                                warn!("Research sub-agents failed: {}, proceeding without", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to spawn research sub-agents: {}, proceeding without", e);
+                    }
+                }
+            }
+        }
+
         // Validate authentication before making LLM calls
         if !matches!(provider.pricing_model(), PricingModel::Free) && !provider.name().eq_ignore_ascii_case("ollama") {
             debug!("Auth validated for provider: {}", provider.name());
         }
-        
+
         // Add user message to conversation
         {
             let mut conversation = self.conversation.lock().await;
@@ -355,18 +418,23 @@ impl Agent {
         // Always proceed with LLM-based execution for actual work
         debug!("Proceeding with LLM-based tool execution");
 
-        // 2. Build chat request with intelligence-enhanced system prompt
-        let base_prompt = self.build_context_aware_system_prompt(user_message);
-        let mut system_prompt = match self.unified_intelligence.enhance_system_prompt(&base_prompt, &enhanced_context).await {
-            Ok(enhanced_prompt) => {
-                debug!("System prompt automatically enhanced with intelligence");
-                enhanced_prompt
+        // 2. Build chat request with specialized agent system prompt (Week 8 Day 1-2)
+        // Use the specialized agent's system prompt instead of generic one
+        let mut system_prompt = selected_agent.system_prompt.clone();
+
+        // Enhance with intelligence context
+        let enhanced_prompt = match self.unified_intelligence.enhance_system_prompt(&system_prompt, &enhanced_context).await {
+            Ok(enhanced) => {
+                debug!("Specialized agent prompt enhanced with intelligence");
+                enhanced
             },
             Err(e) => {
-                warn!("System prompt enhancement failed: {}, using base prompt", e);
-                base_prompt
+                warn!("Prompt enhancement failed: {}, using agent's base prompt", e);
+                system_prompt.clone()
             }
         };
+
+        system_prompt = enhanced_prompt;
 
         // Update dynamic context based on current activity
         if let Ok(context_update) = self.context_manager.update_context(user_message).await {
@@ -428,7 +496,7 @@ impl Agent {
         
         let request = ChatRequest {
             messages: messages.clone(),
-            model: model.to_string(),
+            model: selected_model.to_string(), // Use model router selection (Week 7 Day 6-7)
             temperature: Some(0.7),
             max_tokens: Some(2000),
             stream: false,
@@ -800,6 +868,100 @@ impl Agent {
         Ok((final_response, tool_status_messages))
     }
 
+    /// Select specialized agent configuration based on detected intent (Week 8 Day 1-2)
+    async fn select_agent_for_intent(&self, intent: &crate::intelligence::UserIntent) -> crate::agent::specialized_agents::AgentConfig {
+        use crate::intelligence::UserIntent;
+        use crate::agent::model_router::AgentType as RouterAgentType;
+
+        let agent_type = match intent {
+            UserIntent::CodeReading { .. } | UserIntent::ProjectExploration { .. } => {
+                // Read-only analysis tasks → Explorer agent
+                RouterAgentType::Explorer
+            }
+            UserIntent::CodeWriting { .. } => {
+                // Code generation and implementation → Builder agent
+                RouterAgentType::Builder
+            }
+            UserIntent::ProjectFixing { .. } => {
+                // Bug fixing and debugging → Debugger agent
+                RouterAgentType::Debugger
+            }
+            UserIntent::Mixed { primary_intent, .. } => {
+                // Use primary intent for mixed tasks
+                match **primary_intent {
+                    UserIntent::CodeReading { .. } => RouterAgentType::Explorer,
+                    UserIntent::CodeWriting { .. } => RouterAgentType::Builder,
+                    UserIntent::ProjectFixing { .. } => RouterAgentType::Debugger,
+                    _ => RouterAgentType::Builder, // Default
+                }
+            }
+        };
+
+        // Get agent config from registry
+        self.agent_registry
+            .get(agent_type)
+            .cloned()
+            .unwrap_or_else(|| {
+                warn!("No agent config for {:?}, using Builder as fallback", agent_type);
+                crate::agent::specialized_agents::AgentConfig::builder()
+            })
+    }
+
+    /// Assess task complexity for model selection (Week 7 Day 6-7)
+    async fn assess_task_complexity(
+        &self,
+        user_message: &str,
+        enhanced_context: &crate::intelligence::EnhancedContext,
+    ) -> crate::agent::model_router::TaskComplexity {
+        use crate::agent::model_router::TaskComplexity;
+
+        let message_lower = user_message.to_lowercase();
+
+        // High complexity indicators
+        if message_lower.contains("architecture")
+            || message_lower.contains("design pattern")
+            || message_lower.contains("complex")
+            || message_lower.contains("algorithm")
+            || message_lower.contains("optimize")
+            || message_lower.contains("refactor entire")
+            || user_message.len() > 500 // Long requests likely complex
+            || enhanced_context.confidence < 0.6 // Low confidence = complex
+        {
+            return TaskComplexity::High;
+        }
+
+        // Low complexity indicators
+        if message_lower.contains("simple")
+            || message_lower.contains("basic")
+            || message_lower.contains("trivial")
+            || message_lower.contains("read")
+            || message_lower.contains("list")
+            || message_lower.contains("show")
+            || (user_message.len() < 50 && enhanced_context.confidence > 0.8)
+        {
+            return TaskComplexity::Low;
+        }
+
+        // Default: medium complexity
+        TaskComplexity::Medium
+    }
+
+    /// Determine if task is research-oriented (for sub-agent spawning) (Week 8 Day 3-4)
+    async fn is_research_task(&self, user_message: &str) -> bool {
+        let message_lower = user_message.to_lowercase();
+
+        // Research task indicators
+        message_lower.contains("find")
+            || message_lower.contains("search")
+            || message_lower.contains("list all")
+            || message_lower.contains("show all")
+            || message_lower.contains("what are")
+            || message_lower.contains("where is")
+            || message_lower.contains("how many")
+            || message_lower.contains("analyze")
+            || message_lower.contains("explore")
+    }
+
     /// Determine if a task needs multi-turn orchestration
     fn task_needs_tools(&self, user_message: &str) -> bool {
         let message_lower = user_message.to_lowercase();
@@ -1087,6 +1249,9 @@ impl Agent {
                 lsp_manager: self.lsp_manager.clone(), // Week 7: Share LSP manager
                 current_mode: self.current_mode.clone(), // Week 7 Day 3: Share mode
                 snapshot_manager: self.snapshot_manager.clone(), // Week 7 Day 5: Share snapshot manager
+                model_router: self.model_router.clone(), // Week 7 Day 6-7: Share model router
+                agent_registry: self.agent_registry.clone(), // Week 8 Day 1-2: Share agent registry
+                research_manager: self.research_manager.clone(), // Week 8 Day 3-4: Share research manager
             }),
             self.reasoning.clone(),
             self.context_manager.clone(),
