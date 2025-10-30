@@ -131,13 +131,14 @@
 3. ❌ No result limits in search (should max 50 results)
 4. ❌ No context management (should keep last 5 interactions)
 
-**Model Routing Issues** (Identified Oct 29):
-1. ❌ **Outdated model names**: Using non-existent models (claude-opus-4.1, claude-sonnet-4 vs actual sonnet-4.5/haiku-4.5)
-2. ❌ **Too much Opus usage**: Current routing over-uses expensive Opus 4.1 (should favor Sonnet 4.5)
-3. ❌ **No provider flexibility**: Hardcoded Anthropic only (missing OpenAI, Google, OpenRouter, Ollama)
-4. ❌ **No single-model default**: Can't easily say "use sonnet-4.5 for everything"
-5. ⚠️ **Missing OAuth subscriptions**: No Claude Max / ChatGPT Plus auth (OpenCode has this)
-**Action**: See ai/MODEL_CONFIG_PLAN.md for fixes (Phase 1 planned)
+**Model Routing Issues** (Identified Oct 29, RESOLVED Oct 29 ✅):
+**Phase 1 Complete** (Commits: 9423e55, d411998, 507bcc4):
+1. ✅ **Outdated model names**: FIXED - Updated to claude-opus-4-1, claude-sonnet-4-5, claude-haiku-4-5
+2. ✅ **Too much Opus usage**: FIXED - All agents now use Sonnet 4.5 for medium/high, Opus removed from routing
+3. ✅ **Single-model default**: FIXED - Added config.model_routing.single_model support
+4. ⏸️ **Provider flexibility**: PARTIAL - Config supports provider field, but Agent only implements Anthropic (TODO: OpenAI, Google, OpenRouter)
+5. ⏸️ **OAuth subscriptions**: DEFERRED - Phase 2 feature (requires separate auth flow)
+**Status**: No longer blocking empirical validation. Phase 2 enhancements in ai/MODEL_CONFIG_PLAN.md
 
 **Episodic Memory System (Week 3 ✅ IMPLEMENTED)**:
 - **DuckDB schema**: 5 tables operational (tool_executions, file_interactions, task_history, context_snapshots, learned_patterns)
