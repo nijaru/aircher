@@ -1,8 +1,37 @@
 # STATUS
 
-**Last Updated**: 2025-10-29 (Week 7-8 INTEGRATION COMPLETE ✅ - All Components Wired!)
+**Last Updated**: 2025-10-30 (SOTA Research Complete + Skills System Design)
 
 ## Current State
+
+### SOTA Research COMPLETE ✅ → Skills System Next Priority!
+
+**Completed (Oct 30, 2025)**:
+- ✅ **Comprehensive TUI Agent Analysis**: Researched 8 leading agents
+  - OpenCode (26K stars): LSP + multi-session + privacy-first + shareable sessions
+  - Aider: Voice-to-code + watch mode + git-native + prompt caching
+  - Crush CLI: MCP first-class + LSP-enhanced + session-based
+  - Claude Code: Checkpoints + sandboxing (84% fewer prompts) + skills + dynamic subagents
+  - Cline, Cursor, Zed, Goose
+- ✅ **Feature Comparison Matrix**: 40+ features across all agents
+- ✅ **Priority Identification**:
+  - **HIGH**: MCP Support (ecosystem compatibility - 90% adoption expected)
+  - **HIGH**: Skills System (user extensibility - enables community contributions)
+  - **MEDIUM**: Multi-session support (parallel agents on same project)
+  - **POSTPONED**: Budget limits (8+ edge cases: Ollama paid, rate limits, concurrent requests, etc.)
+  - **POSTPONED**: Sandboxing (high effort, medium impact)
+- 📄 **Created**: ai/research/tui-agents-sota-2025.md (64KB comprehensive analysis)
+- 📐 **Designed**: docs/architecture/skills-system-design.md (Skills architecture)
+
+**Skills System Design Complete**:
+- SKILL.md format with YAML frontmatter (name, description, parameters, capabilities, tags)
+- Progressive loading (metadata → full docs when invoked)
+- Three-tier discovery: project (.aircher/skills/) > user (~/.aircher/skills/) > system (/usr/share/aircher/skills/)
+- MCP-compatible for ecosystem integration
+- Example skills: search_documentation, deploy_to_staging, run_integration_tests
+- Implementation plan: 4 phases over 1 week
+
+**Next Priority**: Implement Skills system (HIGH from SOTA analysis)
 
 ### Week 7-8 INTEGRATION COMPLETE ✅ → All 7 Components Fully Wired!
 

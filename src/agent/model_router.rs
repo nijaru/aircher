@@ -224,6 +224,10 @@ pub struct ModelRouter {
 
     /// Baseline model for cost comparison (typically most expensive)
     baseline_model: ModelConfig,
+
+    /// Optional: Maximum budget in USD (inspired by Claude Code's --max-budget-usd)
+    /// When set, router will reject requests that would exceed this budget
+    budget_limit_usd: Option<f64>,
 }
 
 impl ModelRouter {
@@ -332,6 +336,7 @@ impl ModelRouter {
             single_model_override: None, // No override by default (use routing table)
             stats: Arc::new(RwLock::new(ModelUsageStats::default())),
             baseline_model: ModelConfig::claude_opus_4_1(), // Most expensive as baseline
+            budget_limit_usd: None, // No budget limit by default
         }
     }
 
