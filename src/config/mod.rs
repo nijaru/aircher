@@ -17,12 +17,19 @@ pub use hierarchy::{ConfigHierarchy, ConfigScope, ConfigPaths};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigManager {
+    #[serde(default)]
     pub global: GlobalConfig,
+    #[serde(default)]
     pub providers: HashMap<String, ProviderConfig>,
+    #[serde(default)]
     pub hosts: HashMap<String, HostConfig>,
+    #[serde(default)]
     pub ui: UiConfig,
+    #[serde(default)]
     pub database: DatabaseConfig,
+    #[serde(default)]
     pub intelligence: IntelligenceConfig,
+    #[serde(default)]
     pub cost: CostConfig,
     #[serde(default)]
     pub multi_provider: MultiProviderConfig,
@@ -34,25 +41,49 @@ pub struct ConfigManager {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalConfig {
+    #[serde(default = "default_provider")]
     pub default_provider: String,
+    #[serde(default = "default_model")]
     pub default_model: String,
+    #[serde(default = "default_host")]
     pub default_host: String,
+    #[serde(default = "default_max_context_tokens")]
     pub max_context_tokens: u32,
+    #[serde(default)]
     pub budget_limit: Option<f64>,
+    #[serde(default = "default_data_directory")]
     pub data_directory: PathBuf,
+}
+
+// Default functions for serde
+fn default_provider() -> String { "ollama".to_string() }
+fn default_model() -> String { "gpt-oss".to_string() }
+fn default_host() -> String { "ollama".to_string() }
+fn default_max_context_tokens() -> u32 { 100_000 }
+fn default_data_directory() -> PathBuf {
+    AircherDirs::data_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub api_key_env: String,
+    #[serde(default)]
     pub base_url: String,
     #[serde(default)]
     pub fallback_urls: Vec<String>,
+    #[serde(default)]
     pub models: Vec<ModelConfig>,
+    #[serde(default = "default_timeout_seconds")]
     pub timeout_seconds: u64,
+    #[serde(default = "default_max_retries")]
     pub max_retries: u32,
 }
+
+fn default_timeout_seconds() -> u64 { 60 }
+fn default_max_retries() -> u32 { 3 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelConfig {
@@ -91,6 +122,19 @@ pub struct DatabaseConfig {
     pub knowledge_db: PathBuf,
     pub file_index_db: PathBuf,
     pub sessions_db: PathBuf,
+}
+
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        let data_dir = AircherDirs::data_dir()
+            .unwrap_or_else(|_| PathBuf::from("."));
+        Self {
+            conversations_db: data_dir.join("conversations.db"),
+            knowledge_db: data_dir.join("knowledge.db"),
+            file_index_db: data_dir.join("file_index.db"),
+            sessions_db: data_dir.join("sessions.db"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
