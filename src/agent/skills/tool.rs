@@ -320,12 +320,12 @@ Returns search results matching the query.
         let result = skill_tool.execute(params).await;
         assert!(result.is_ok());
 
-        if let ToolOutput::Success { content } = result.unwrap() {
-            assert!(content.contains("test-skill"));
-            assert!(content.contains("loaded successfully"));
-            assert!(content.contains("Prompt:"));
-        } else {
-            panic!("Expected Success output");
-        }
+        let output = result.unwrap();
+        assert!(output.success, "Expected successful tool execution");
+
+        let content = output.result.as_str().expect("Result should be a string");
+        assert!(content.contains("test-skill"));
+        assert!(content.contains("loaded successfully"));
+        assert!(content.contains("Prompt:"));
     }
 }

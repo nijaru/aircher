@@ -52,7 +52,7 @@ struct ListFilesParams {
     include_metadata: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct FileEntry {
     path: String,
     name: String,
@@ -65,7 +65,7 @@ struct FileEntry {
     extension: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct ListResult {
     directory: String,
     entries: Vec<FileEntry>,

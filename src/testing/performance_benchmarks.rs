@@ -132,8 +132,8 @@ impl PerformanceBenchmarks {
     async fn benchmark_response_times(&mut self) -> Result<()> {
         println!("      ⏱️  Benchmarking response times...");
 
-        let mut p50_times: Vec<u128> = Vec::new();
-        let mut p95_times: Vec<u128> = Vec::new();
+        let mut p50_times: Vec<f64> = Vec::new();
+        let mut p95_times: Vec<f64> = Vec::new();
 
         // Simulate various query types
         for i in 0..self.config.performance_iterations {
