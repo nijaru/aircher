@@ -78,35 +78,37 @@ pub struct ModelConfig {
 
 impl ModelConfig {
     /// Claude Opus 4.1 - Best reasoning, highest cost
+    /// NOTE: Sonnet 4.5 is better for most/all tasks. Opus rarely needed.
     pub fn claude_opus_4_1() -> Self {
         Self {
             provider: "anthropic".to_string(),
-            model: "claude-opus-4.1".to_string(),
-            cost_per_1m_input: 15.0,
+            model: "claude-opus-4-1".to_string(), // API alias (full: claude-opus-4-1-20250805)
+            cost_per_1m_input: 15.0, // TODO: Verify current pricing
             cost_per_1m_output: 75.0,
             max_context: 200_000,
             tokens_per_second: 50,
         }
     }
 
-    /// Claude Sonnet 4 - Good balance
-    pub fn claude_sonnet_4() -> Self {
+    /// Claude Sonnet 4.5 - RECOMMENDED for 90%+ of tasks
+    /// Better than Opus for most use cases (faster, cheaper, often better results)
+    pub fn claude_sonnet_4_5() -> Self {
         Self {
             provider: "anthropic".to_string(),
-            model: "claude-sonnet-4".to_string(),
-            cost_per_1m_input: 3.0,
+            model: "claude-sonnet-4-5".to_string(), // API alias (full: claude-sonnet-4-5-20250929)
+            cost_per_1m_input: 3.0, // TODO: Verify current pricing
             cost_per_1m_output: 15.0,
             max_context: 200_000,
             tokens_per_second: 80,
         }
     }
 
-    /// Claude Haiku - Fast and cheap
-    pub fn claude_haiku() -> Self {
+    /// Claude Haiku 4.5 - Fast and cheap for simple tasks
+    pub fn claude_haiku_4_5() -> Self {
         Self {
             provider: "anthropic".to_string(),
-            model: "claude-haiku".to_string(),
-            cost_per_1m_input: 0.25,
+            model: "claude-haiku-4-5".to_string(), // API alias (full: claude-haiku-4-5-20251001)
+            cost_per_1m_input: 0.25, // TODO: Verify current pricing
             cost_per_1m_output: 1.25,
             max_context: 200_000,
             tokens_per_second: 120,
@@ -213,6 +215,10 @@ pub struct ModelRouter {
     /// Default model configs by agent type and complexity
     routing_table: HashMap<(AgentType, TaskComplexity), ModelConfig>,
 
+    /// Optional: Single model to use for ALL tasks (bypasses routing table)
+    /// Set via config.model.model = "claude-sonnet-4-5"
+    single_model_override: Option<ModelConfig>,
+
     /// Usage statistics
     stats: Arc<RwLock<ModelUsageStats>>,
 
@@ -228,104 +234,136 @@ impl ModelRouter {
         // Explorer agent routes (read-only, code analysis)
         routing_table.insert(
             (AgentType::Explorer, TaskComplexity::Low),
-            ModelConfig::claude_haiku(), // Fast queries
+            ModelConfig::claude_haiku_4_5(), // Fast queries
         );
         routing_table.insert(
             (AgentType::Explorer, TaskComplexity::Medium),
-            ModelConfig::claude_sonnet_4(), // Analysis needs quality
+            ModelConfig::claude_sonnet_4_5(), // Analysis needs quality
         );
         routing_table.insert(
             (AgentType::Explorer, TaskComplexity::High),
-            ModelConfig::claude_opus_4_1(), // Deep understanding
+            ModelConfig::claude_sonnet_4_5(), // Even deep analysis (Sonnet better than Opus)
         );
 
         // Builder agent routes (code generation)
         routing_table.insert(
             (AgentType::Builder, TaskComplexity::Low),
-            ModelConfig::claude_sonnet_4(), // Even simple generation needs quality
+            ModelConfig::claude_sonnet_4_5(), // Even simple generation needs quality
         );
         routing_table.insert(
             (AgentType::Builder, TaskComplexity::Medium),
-            ModelConfig::claude_sonnet_4(), // Default for most building
+            ModelConfig::claude_sonnet_4_5(), // Default for most building
         );
         routing_table.insert(
             (AgentType::Builder, TaskComplexity::High),
-            ModelConfig::claude_opus_4_1(), // Complex features need best
+            ModelConfig::claude_sonnet_4_5(), // Sonnet better for coding (not Opus)
         );
 
         // Debugger agent routes (bug fixing)
         routing_table.insert(
             (AgentType::Debugger, TaskComplexity::Low),
-            ModelConfig::claude_sonnet_4(), // Simple fixes
+            ModelConfig::claude_sonnet_4_5(), // Simple fixes
         );
         routing_table.insert(
             (AgentType::Debugger, TaskComplexity::Medium),
-            ModelConfig::claude_opus_4_1(), // Most bugs need deep reasoning
+            ModelConfig::claude_sonnet_4_5(), // Sonnet sufficient for most debugging
         );
         routing_table.insert(
             (AgentType::Debugger, TaskComplexity::High),
-            ModelConfig::claude_opus_4_1(), // Complex bugs need best
+            ModelConfig::claude_sonnet_4_5(), // Even complex bugs (Sonnet better)
         );
 
         // Refactorer agent routes (code improvements)
         routing_table.insert(
             (AgentType::Refactorer, TaskComplexity::Low),
-            ModelConfig::claude_sonnet_4(), // Simple refactors
+            ModelConfig::claude_sonnet_4_5(), // Simple refactors
         );
         routing_table.insert(
             (AgentType::Refactorer, TaskComplexity::Medium),
-            ModelConfig::claude_sonnet_4(), // Most refactors
+            ModelConfig::claude_sonnet_4_5(), // Most refactors
         );
         routing_table.insert(
             (AgentType::Refactorer, TaskComplexity::High),
-            ModelConfig::claude_opus_4_1(), // Architecture changes
+            ModelConfig::claude_sonnet_4_5(), // Even architecture changes (Sonnet sufficient)
         );
 
         // Sub-agent routes (cheap parallelization)
         routing_table.insert(
             (AgentType::FileSearcher, TaskComplexity::Low),
-            ModelConfig::claude_haiku(), // Fast parallel search
+            ModelConfig::claude_haiku_4_5(), // Fast parallel search
         );
         routing_table.insert(
             (AgentType::FileSearcher, TaskComplexity::Medium),
-            ModelConfig::claude_haiku(), // Still want cheap
+            ModelConfig::claude_haiku_4_5(), // Still want cheap
         );
         routing_table.insert(
             (AgentType::FileSearcher, TaskComplexity::High),
-            ModelConfig::claude_haiku(), // Even complex searches
+            ModelConfig::claude_haiku_4_5(), // Even complex searches
         );
 
         routing_table.insert(
             (AgentType::PatternFinder, TaskComplexity::Low),
-            ModelConfig::claude_haiku(),
+            ModelConfig::claude_haiku_4_5(),
         );
         routing_table.insert(
             (AgentType::PatternFinder, TaskComplexity::Medium),
-            ModelConfig::claude_haiku(),
+            ModelConfig::claude_haiku_4_5(),
         );
         routing_table.insert(
             (AgentType::PatternFinder, TaskComplexity::High),
-            ModelConfig::claude_haiku(),
+            ModelConfig::claude_haiku_4_5(),
         );
 
         routing_table.insert(
             (AgentType::DependencyMapper, TaskComplexity::Low),
-            ModelConfig::claude_haiku(),
+            ModelConfig::claude_haiku_4_5(),
         );
         routing_table.insert(
             (AgentType::DependencyMapper, TaskComplexity::Medium),
-            ModelConfig::claude_haiku(),
+            ModelConfig::claude_haiku_4_5(),
         );
         routing_table.insert(
             (AgentType::DependencyMapper, TaskComplexity::High),
-            ModelConfig::claude_haiku(),
+            ModelConfig::claude_haiku_4_5(),
         );
 
         Self {
             routing_table,
+            single_model_override: None, // No override by default (use routing table)
             stats: Arc::new(RwLock::new(ModelUsageStats::default())),
             baseline_model: ModelConfig::claude_opus_4_1(), // Most expensive as baseline
         }
+    }
+
+    /// Create a router with a single model for all tasks (bypasses routing)
+    /// Useful for: config.model.model = "claude-sonnet-4-5" (simple config)
+    pub fn with_single_model(model_config: ModelConfig) -> Self {
+        info!(
+            "Creating router with single model override: {} ({})",
+            model_config.model, model_config.provider
+        );
+
+        Self {
+            routing_table: HashMap::new(), // Not used when override is set
+            single_model_override: Some(model_config.clone()),
+            stats: Arc::new(RwLock::new(ModelUsageStats::default())),
+            baseline_model: model_config, // Use same model as baseline
+        }
+    }
+
+    /// Set single model override (use this model for everything)
+    pub fn set_single_model(&mut self, model_config: ModelConfig) {
+        info!(
+            "Setting single model override: {} ({})",
+            model_config.model, model_config.provider
+        );
+        self.single_model_override = Some(model_config);
+    }
+
+    /// Clear single model override (go back to routing table)
+    pub fn clear_single_model(&mut self) {
+        info!("Clearing single model override, using routing table");
+        self.single_model_override = None;
     }
 
     /// Select the appropriate model for a task
@@ -335,7 +373,16 @@ impl ModelRouter {
         complexity: TaskComplexity,
         user_override: Option<ModelConfig>,
     ) -> ModelConfig {
-        // User override takes precedence
+        // Single model override takes precedence (config.model.model = "...")
+        if let Some(ref config) = self.single_model_override {
+            debug!(
+                "Using single model override: {} ({})",
+                config.model, config.provider
+            );
+            return config.clone();
+        }
+
+        // User override takes precedence over routing table
         if let Some(config) = user_override {
             debug!(
                 "Using user-specified model: {} ({})",
@@ -351,12 +398,12 @@ impl ModelRouter {
             .get(&key)
             .cloned()
             .unwrap_or_else(|| {
-                // Fallback: use Sonnet for unknown combinations
+                // Fallback: use Sonnet 4.5 for unknown combinations
                 debug!(
-                    "No routing rule for {:?}/{:?}, using default Sonnet",
+                    "No routing rule for {:?}/{:?}, using default Sonnet 4.5",
                     agent_type, complexity
                 );
-                ModelConfig::claude_sonnet_4()
+                ModelConfig::claude_sonnet_4_5()
             });
 
         info!(
@@ -481,17 +528,17 @@ mod tests {
     fn test_model_router_selection() {
         let router = ModelRouter::new();
 
-        // Explorer + Low = Haiku
+        // Explorer + Low = Haiku 4.5
         let config = router.select_model(AgentType::Explorer, TaskComplexity::Low, None);
-        assert_eq!(config.model, "claude-haiku");
+        assert_eq!(config.model, "claude-haiku-4-5");
 
-        // Builder + High = Opus
+        // Builder + High = Sonnet 4.5 (NOT Opus - Sonnet better for coding)
         let config = router.select_model(AgentType::Builder, TaskComplexity::High, None);
-        assert_eq!(config.model, "claude-opus-4.1");
+        assert_eq!(config.model, "claude-sonnet-4-5");
 
-        // Sub-agent always Haiku (cheap parallelization)
+        // Sub-agent always Haiku 4.5 (cheap parallelization)
         let config = router.select_model(AgentType::FileSearcher, TaskComplexity::High, None);
-        assert_eq!(config.model, "claude-haiku");
+        assert_eq!(config.model, "claude-haiku-4-5");
     }
 
     #[test]
@@ -533,7 +580,7 @@ mod tests {
     #[tokio::test]
     async fn test_cost_savings() {
         let router = ModelRouter::new();
-        let haiku = ModelConfig::claude_haiku();
+        let haiku = ModelConfig::claude_haiku_4_5();
         let opus = ModelConfig::claude_opus_4_1();
 
         // Record usage with cheaper model
@@ -565,8 +612,8 @@ mod tests {
     #[tokio::test]
     async fn test_report_generation() {
         let router = ModelRouter::new();
-        let haiku = ModelConfig::claude_haiku();
-        let sonnet = ModelConfig::claude_sonnet_4();
+        let haiku = ModelConfig::claude_haiku_4_5();
+        let sonnet = ModelConfig::claude_sonnet_4_5();
 
         router.record_usage(&haiku, 50_000, 25_000).await;
         router.record_usage(&sonnet, 30_000, 15_000).await;
@@ -578,7 +625,41 @@ mod tests {
         assert!(report.contains("Total Input Tokens: 80000"));
         assert!(report.contains("Total Output Tokens: 40000"));
         assert!(report.contains("Cost Savings"));
-        assert!(report.contains("anthropic/claude-haiku"));
-        assert!(report.contains("anthropic/claude-sonnet-4"));
+        assert!(report.contains("anthropic/claude-haiku-4-5"));
+        assert!(report.contains("anthropic/claude-sonnet-4-5"));
+    }
+
+    #[test]
+    fn test_single_model_override() {
+        let router = ModelRouter::with_single_model(ModelConfig::claude_sonnet_4_5());
+
+        // All tasks should use the single model override
+        let config = router.select_model(AgentType::Explorer, TaskComplexity::Low, None);
+        assert_eq!(config.model, "claude-sonnet-4-5");
+
+        let config = router.select_model(AgentType::Builder, TaskComplexity::High, None);
+        assert_eq!(config.model, "claude-sonnet-4-5");
+
+        let config = router.select_model(AgentType::FileSearcher, TaskComplexity::Medium, None);
+        assert_eq!(config.model, "claude-sonnet-4-5");
+    }
+
+    #[test]
+    fn test_single_model_set_and_clear() {
+        let mut router = ModelRouter::new();
+
+        // Initially should use routing table
+        let config = router.select_model(AgentType::Explorer, TaskComplexity::Low, None);
+        assert_eq!(config.model, "claude-haiku-4-5");
+
+        // Set single model override
+        router.set_single_model(ModelConfig::claude_sonnet_4_5());
+        let config = router.select_model(AgentType::Explorer, TaskComplexity::Low, None);
+        assert_eq!(config.model, "claude-sonnet-4-5");
+
+        // Clear override
+        router.clear_single_model();
+        let config = router.select_model(AgentType::Explorer, TaskComplexity::Low, None);
+        assert_eq!(config.model, "claude-haiku-4-5");
     }
 }
