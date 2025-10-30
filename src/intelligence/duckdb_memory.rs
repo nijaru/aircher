@@ -162,7 +162,7 @@ impl DuckDBMemory {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS file_interactions (
                 id VARCHAR PRIMARY KEY,
-                timestamp TIMESTAMP NOT NULL,
+                timestamp TEXT NOT NULL,
                 session_id VARCHAR NOT NULL,
                 task_id VARCHAR,
                 file_path VARCHAR NOT NULL,
@@ -824,7 +824,7 @@ impl DuckDBMemory {
                     ON f1.session_id = f2.session_id
                     AND f1.task_id = f2.task_id
                     AND f1.file_path < f2.file_path
-                    AND ABS(EXTRACT(EPOCH FROM (f2.timestamp - f1.timestamp))) < {}
+                    AND ABS(EXTRACT(EPOCH FROM (CAST(f2.timestamp AS TIMESTAMP) - CAST(f1.timestamp AS TIMESTAMP)))) < {}
                 WHERE f1.operation = 'edit' AND f2.operation = 'edit'
                 GROUP BY f1.file_path, f2.file_path
                 HAVING COUNT(*) >= 3
