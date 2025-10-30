@@ -125,23 +125,73 @@
 
 **Expected Outcome**: ✅ ACHIEVED - Automated tests validate core integration logic
 
-### Priority 3: Real-World Testing Strategy
-- [ ] Determine if we can test locally with proper cleanup
-- [ ] Consider container-based testing for isolation
-- [ ] Create test scenarios for each agent type
-- [ ] Test with actual Ollama models (free, local)
-- [ ] Document test setup and teardown procedures
+### Priority 3: Pragmatic Validation via Benchmarks (NEW APPROACH - Oct 30, 2025)
 
-**Expected Outcome**: Safe, repeatable testing methodology
+**Decision**: Stop trying to prove theoretical improvements (60% reduction, 90% speedup). Instead, validate agent works on real tasks via standardized benchmarks.
 
-### Priority 4: Performance Measurements (if feasible)
-- [ ] Measure model selection overhead
-- [ ] Measure event bus latency
-- [ ] Track token usage per model type
-- [ ] Compare cost with/without router
-- [ ] Measure sub-agent spawn time
+**Target**: Terminal-Bench (80 tasks, terminal/CLI focused)
+- **Current SOTA**: Factory Droid 58.8%, Claude Code 43.2%
+- **Realistic Goal**: 35-45% (match Claude Code baseline)
+- **Stretch Goal**: 45-55% (approach Factory Droid)
 
-**Expected Outcome**: Quantitative validation of hybrid architecture benefits
+**Setup** (COMPLETED Oct 30):
+- [x] Created Dockerfile.bench (containerized environment)
+- [x] Created scripts/run-benchmark.sh (helper script)
+- [x] Created ai/BENCHMARK_SETUP.md (comprehensive guide)
+- [x] Added benchmark-results/ to .gitignore
+
+**Remaining Tasks**:
+- [ ] **Phase 1**: Validate integration (10 tasks, 30 min)
+  ```bash
+  ./scripts/run-benchmark.sh phase1
+  ```
+  - Proves: ACP protocol works, container setup correct, Aircher responds
+  - Success: At least 1 task completes (pass/fail doesn't matter)
+
+- [ ] **Phase 2**: Baseline run (80 tasks, 4-6 hours)
+  ```bash
+  ./scripts/run-benchmark.sh phase2
+  ```
+  - Proves: Agent can handle real tasks, establish competitive position
+  - Success: >25% (working), >35% (competitive), >45% (strong)
+
+- [ ] **Analysis**: Document results in ai/BENCHMARK_RESULTS.md
+  - Overall success rate
+  - Failure modes (what types of tasks fail)
+  - Competitive positioning
+  - Honest assessment
+
+**Expected Outcome**:
+- ✅ Empirical proof agent works on real tasks (not just unit tests)
+- ✅ Objective competitive comparison (vs Claude Code, Factory Droid)
+- ✅ Clear understanding of strengths and weaknesses
+
+**What This Proves**:
+- Agent completes real tasks (file ops, git, debugging)
+- ACP protocol works in practice
+- Tool implementations functional
+- Competitive positioning
+
+**What This Doesn't Prove**:
+- 60% tool reduction (would need A/B with/without memory)
+- 90% research speedup (benchmarks don't isolate research)
+- Memory advantages (benchmarks are stateless)
+
+**Why This Approach**: Pragmatic validation of actual capabilities vs theoretical improvements
+
+**Details**: See ai/BENCHMARK_SETUP.md
+
+### Priority 4: Performance Measurements (Deferred)
+
+**Status**: Skipping component-level benchmarks in favor of end-to-end validation
+
+**Rationale**: Terminal-Bench provides more valuable validation than micro-benchmarks of:
+- Model selection overhead (irrelevant if agent can't complete tasks)
+- Event bus latency (already tested in integration tests)
+- Memory query speed (not the bottleneck)
+
+**If Terminal-Bench shows >35%**: Agent is competitive, component optimizations can wait
+**If Terminal-Bench shows <25%**: Fix core functionality, not performance
 
 ### Completed Weeks (Timeline)
 
