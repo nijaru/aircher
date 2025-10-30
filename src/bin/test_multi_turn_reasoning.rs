@@ -6,6 +6,8 @@ use aircher::agent::multi_turn_reasoning::MultiTurnReasoningEngine;
 use aircher::providers::ollama::OllamaProvider;
 use aircher::config::{ProviderConfig, ConfigManager};
 use aircher::auth::AuthManager;
+use aircher::intelligence::IntelligenceEngine;
+use aircher::storage::DatabaseManager;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -15,13 +17,19 @@ async fn main() -> Result<()> {
     // Create tool registry
     let tools = Arc::new(ToolRegistry::default());
 
+    // Create config and database managers for IntelligenceEngine
+    let config_manager = ConfigManager::load().await?;
+    let db_manager = DatabaseManager::new(&config_manager).await?;
+
+    // Create IntelligenceEngine
+    let intelligence = Arc::new(IntelligenceEngine::new(&config_manager, &db_manager).await?);
+
     // Create multi-turn reasoning engine
-    let mut reasoning_engine = MultiTurnReasoningEngine::new(tools.clone());
+    let mut reasoning_engine = MultiTurnReasoningEngine::new(tools.clone(), intelligence)?;
 
     println!("✅ MultiTurnReasoningEngine created successfully");
 
     // Use OllamaProvider for testing (doesn't require API keys)
-    let config_manager = ConfigManager::load().await?;
     let auth_manager = Arc::new(AuthManager::new()?);
 
     let ollama_config = ProviderConfig {

@@ -343,12 +343,11 @@ impl ModelRouter {
             model_config.model, model_config.provider
         );
 
-        Self {
-            routing_table: HashMap::new(), // Not used when override is set
-            single_model_override: Some(model_config.clone()),
-            stats: Arc::new(RwLock::new(ModelUsageStats::default())),
-            baseline_model: model_config, // Use same model as baseline
-        }
+        // Create a normal router first (with routing table), then override
+        let mut router = Self::new();
+        router.single_model_override = Some(model_config.clone());
+        router.baseline_model = model_config; // Use same model as baseline
+        router
     }
 
     /// Set single model override (use this model for everything)
