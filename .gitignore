@@ -47,4 +47,4 @@ models/*.pt
 models/*.pth
 
 # External program binaries
-external/
+external/benchmark-results/
