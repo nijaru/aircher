@@ -274,53 +274,81 @@
 
 ## Daily Focus (2025-10-30)
 
-**Completed (SOTA Research - Oct 30, 2025)**:
-- ✅ **Research SOTA TUI agent features**: Analyzed 8 leading agents
-  - OpenCode (26K stars, LSP + multi-session + privacy)
-  - Aider (voice-to-code + watch mode + git-native)
-  - Crush CLI (MCP first-class + LSP + cross-platform)
-  - Claude Code (checkpoints + sandboxing + skills + subagents)
-  - Cline, Cursor, Zed, Goose
-- ✅ **Create comprehensive comparison matrix**: 40+ features compared
-- ✅ **Identify priority features**:
-  - HIGH: MCP Support (ecosystem compatibility)
-  - HIGH: Skills System (user extensibility)
-  - MEDIUM: Multi-session support
-  - POSTPONED: Budget limits (8+ edge cases documented)
-  - POSTPONED: Sandboxing (high effort, medium impact)
-- 📄 **Created**: ai/research/tui-agents-sota-2025.md (64KB analysis)
+**Completed (Oct 30, 2025)**:
+- ✅ **SOTA Research**: 8 agents analyzed, 64KB comprehensive analysis
+- ✅ **Skills Phase 1**: Core infrastructure complete (1,600 lines, 22 tests, Commit: 6149bd6)
+- ⏸️ **Skills Phase 2-4**: PAUSED - resuming after validation
+
+**REFOCUSED Priority**: Week 9 Empirical Validation (Automated Only)
+
+**Reality Check**:
+- 3,725 lines of memory code unproven
+- 7/7 hybrid components integrated but not validated
+- 17/17 integration tests passing (unit level only)
+- NO manual testing available (constraint)
+- NO empirical proof of 60% improvement
 
 **Current Status**:
-- Week 9 Priorities 0-2: ✅ COMPLETE
-- SOTA Research: ✅ COMPLETE
-- Next Priority: Skills System design (HIGH from SOTA research)
+- Week 9 Priorities 0-2: ✅ COMPLETE (model routing, integration tests)
+- Skills Phase 1: ✅ COMPLETE (foundation built)
+- **Next**: Automated validation of existing architecture
 
-**Immediate Next**:
-- Design and implement Skills system architecture
-- OR continue Week 9 empirical validation (Priority 3-4)
+## Week 9 REFOCUSED: Automated Validation Strategy
 
-## Priority 5: Skills System Design & Implementation (NEW from SOTA)
+**Goal**: Prove (or disprove) memory systems and hybrid architecture work
 
-**Goal**: Enable user-extensible agent capabilities via SKILL.md files
+**Constraint**: NO manual testing - must use automated approaches only
 
-**High-Level Design** (from Claude Agent Skills + SOTA research):
-- Skills defined in SKILL.md files with YAML frontmatter
-- Progressive loading (lightweight info → full docs when needed)
-- User can add custom skills to ~/.aircher/skills/ or project .aircher/skills/
-- Agent discovers and invokes skills as needed
-- MCP-compatible for ecosystem integration
+### Priority 3: Memory System Validation (Automated)
+- [ ] **Test memory system integration**
+  - Add tests for EpisodicMemory recording tool executions
+  - Add tests for KnowledgeGraph file/function extraction
+  - Add tests for WorkingMemory context pruning
+  - Validate all 3 systems can be initialized together
+- [ ] **Measure memory overhead**
+  - Benchmark memory usage with/without memory systems
+  - Measure query performance (DuckDB, petgraph)
+  - Test with realistic codebase sizes
+- [ ] **Test context pruning**
+  - Simulate context window filling
+  - Verify pruning removes low-relevance items
+  - Measure token reduction from pruning
 
-**Implementation Tasks**:
-- [ ] Design SKILL.md format (YAML frontmatter + markdown body)
-- [ ] Implement skill discovery (scan ~/.aircher/skills/ and .aircher/skills/)
-- [ ] Create skill loader with progressive loading
-- [ ] Add skill execution to tool registry
-- [ ] Test with example skills (search_documentation, run_tests, deploy)
-- [ ] Document skill creation for users
+**Expected Outcome**: Quantitative data on memory system behavior
 
-**Expected Outcome**: Users can extend Aircher with custom capabilities without modifying Rust code
+### Priority 4: Hybrid Architecture Validation (Automated)
+- [ ] **Test component integration paths**
+  - Event bus: Verify file changes trigger LSP
+  - Mode enforcement: Test tool restriction logic
+  - Model routing: Verify cost-aware selection
+  - Git snapshots: Test create/restore cycle
+- [ ] **Measure performance overhead**
+  - Benchmark event bus latency
+  - Measure mode checking overhead
+  - Test snapshot creation time
+  - Profile model selection speed
+- [ ] **Integration stress testing**
+  - Simulate 100+ tool executions
+  - Test concurrent event handling
+  - Verify memory doesn't leak
 
-**Priority**: HIGH (identified as critical gap in SOTA analysis)
+**Expected Outcome**: Proof that hybrid architecture doesn't add excessive overhead
+
+### Priority 5: Realistic Simulation (No Manual Testing)
+- [ ] **Create synthetic benchmark tasks**
+  - Simulate "refactor authentication" workflow
+  - Generate tool call sequences
+  - Measure: tool calls, file accesses, context usage
+- [ ] **Compare with/without memory**
+  - Run same task with memory enabled
+  - Run same task with memory disabled
+  - Calculate actual reduction percentage
+- [ ] **Document findings**
+  - Create graphs showing improvements (or lack thereof)
+  - Update research claims based on data
+  - Honest assessment of what works/doesn't
+
+**Expected Outcome**: Data-driven validation of research claims
 
 ## Notes
 
