@@ -120,12 +120,8 @@ impl Agent {
         ));
 
         // Create unified intelligence engine for automatic middleware
-        // Note: We need to clone the intelligence engine for the unified wrapper
-        let intelligence_for_unified = IntelligenceEngine::new(
-            &crate::config::ConfigManager::load().await?,
-            &crate::storage::DatabaseManager::new(&crate::config::ConfigManager::load().await?).await?
-        ).await?;
-        let unified_intelligence = Arc::new(UnifiedIntelligenceEngine::new(intelligence_for_unified));
+        // Reuse existing intelligence engine to avoid duplicate memory and state
+        let unified_intelligence = Arc::new(UnifiedIntelligenceEngine::new(intelligence.clone()));
 
         // Create multi-turn reasoning engine for systematic problem solving
         let multi_turn_reasoning = Arc::new(tokio::sync::Mutex::new(

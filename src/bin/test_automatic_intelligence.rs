@@ -3,6 +3,7 @@ use anyhow::Result;
 use aircher::intelligence::{IntelligenceEngine, UnifiedIntelligenceEngine};
 use aircher::config::ConfigManager;
 use aircher::storage::DatabaseManager;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -12,7 +13,7 @@ async fn main() -> Result<()> {
     // Initialize intelligence engine
     let config = ConfigManager::load().await?;
     let db_manager = DatabaseManager::new(&config).await?;
-    let base_intelligence = IntelligenceEngine::new(&config, &db_manager).await?;
+    let base_intelligence = Arc::new(IntelligenceEngine::new(&config, &db_manager).await?);
 
     // Create unified intelligence engine for automatic middleware
     let unified_intelligence = UnifiedIntelligenceEngine::new(base_intelligence);
