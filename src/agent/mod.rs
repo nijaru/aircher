@@ -23,6 +23,7 @@ pub mod git_snapshots; // NEW (Week 7 Day 5): Git snapshots for safe experimenta
 pub mod model_router; // NEW (Week 7 Day 6-7): Cost-aware model routing
 pub mod specialized_agents; // NEW (Week 8 Day 1-2): Specialized agent configurations
 pub mod research_subagents; // NEW (Week 8 Day 3-4): Research sub-agents (parallel research only)
+pub mod skills; // NEW (Week 10 Day 1-2): User-extensible skills system (SKILL.md format)
 // pub mod background_tasks; // NEW: Background task execution system (disabled due to compilation errors)
 // pub mod runtime_validation; // NEW: Runtime validation and testing system (disabled due to compilation errors)
 // pub mod orchestrator; // DEPRECATED - used sub-agents, replaced by task_orchestrator
@@ -39,3 +40,4 @@ pub use git_snapshots::{SnapshotManager, SnapshotInfo};
 pub use model_router::{ModelRouter, ModelConfig, TaskComplexity, AgentType as RouterAgentType, ModelUsageStats};
 pub use specialized_agents::{AgentConfig, AgentRegistry, MemoryAccessLevel};
 pub use research_subagents::{ResearchSubAgentManager, ResearchTask, ResearchResult, ResearchHandle, ResearchProgress, MAX_CONCURRENT_SUBAGENTS};
+pub use skills::{SkillManager, SkillMetadata, SkillDiscovery, SkillTool, ParameterSchema, ParameterType};

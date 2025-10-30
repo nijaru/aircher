@@ -272,26 +272,55 @@
 - [ ] JetBrains collaboration (when ready)
 - [ ] VSCode via ACP adapter
 
-## Daily Focus (2025-10-29)
+## Daily Focus (2025-10-30)
 
-**Completed Today**:
-- ✅ Priority 0: Model routing improvements (Phase 1 complete)
-  - Fixed model names to correct API strings
-  - Updated routing table to favor Sonnet 4.5
-  - Added single model override support
-  - Fixed ModelRouter::with_single_model() routing table fallback
-- ✅ Priority 2: Integration testing (complete)
-  - Created 19-test comprehensive suite for Week 7-8 features
-  - Fixed pre-existing test binary compilation errors
-  - All 17/17 integration tests passing
+**Completed (SOTA Research - Oct 30, 2025)**:
+- ✅ **Research SOTA TUI agent features**: Analyzed 8 leading agents
+  - OpenCode (26K stars, LSP + multi-session + privacy)
+  - Aider (voice-to-code + watch mode + git-native)
+  - Crush CLI (MCP first-class + LSP + cross-platform)
+  - Claude Code (checkpoints + sandboxing + skills + subagents)
+  - Cline, Cursor, Zed, Goose
+- ✅ **Create comprehensive comparison matrix**: 40+ features compared
+- ✅ **Identify priority features**:
+  - HIGH: MCP Support (ecosystem compatibility)
+  - HIGH: Skills System (user extensibility)
+  - MEDIUM: Multi-session support
+  - POSTPONED: Budget limits (8+ edge cases documented)
+  - POSTPONED: Sandboxing (high effort, medium impact)
+- 📄 **Created**: ai/research/tui-agents-sota-2025.md (64KB analysis)
 
 **Current Status**:
 - Week 9 Priorities 0-2: ✅ COMPLETE
-- Ready for Priority 3: Real-world testing strategy
+- SOTA Research: ✅ COMPLETE
+- Next Priority: Skills System design (HIGH from SOTA research)
 
 **Immediate Next**:
-- Decide on Priority 3 (real-world testing) or Priority 4 (performance measurements)
-- OR proceed directly to empirical validation (Week 9 main goal)
+- Design and implement Skills system architecture
+- OR continue Week 9 empirical validation (Priority 3-4)
+
+## Priority 5: Skills System Design & Implementation (NEW from SOTA)
+
+**Goal**: Enable user-extensible agent capabilities via SKILL.md files
+
+**High-Level Design** (from Claude Agent Skills + SOTA research):
+- Skills defined in SKILL.md files with YAML frontmatter
+- Progressive loading (lightweight info → full docs when needed)
+- User can add custom skills to ~/.aircher/skills/ or project .aircher/skills/
+- Agent discovers and invokes skills as needed
+- MCP-compatible for ecosystem integration
+
+**Implementation Tasks**:
+- [ ] Design SKILL.md format (YAML frontmatter + markdown body)
+- [ ] Implement skill discovery (scan ~/.aircher/skills/ and .aircher/skills/)
+- [ ] Create skill loader with progressive loading
+- [ ] Add skill execution to tool registry
+- [ ] Test with example skills (search_documentation, run_tests, deploy)
+- [ ] Document skill creation for users
+
+**Expected Outcome**: Users can extend Aircher with custom capabilities without modifying Rust code
+
+**Priority**: HIGH (identified as critical gap in SOTA analysis)
 
 ## Notes
 
