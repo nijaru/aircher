@@ -28,6 +28,8 @@ pub struct ConfigManager {
     pub multi_provider: MultiProviderConfig,
     #[serde(default)]
     pub compaction: CompactionConfig,
+    #[serde(default)]
+    pub model_routing: ModelRoutingConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -239,6 +241,31 @@ pub struct ProviderFallback {
     /// Enable fallback on connection failures
     #[serde(default)]
     pub connection_fallback: bool,
+}
+
+/// Model routing configuration for task-based smart routing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelRoutingConfig {
+    /// Provider to use: "anthropic" | "openai" | "google" | "ollama" | "openrouter"
+    /// If None, defaults to "anthropic"
+    pub provider: Option<String>,
+
+    /// Optional: Single model to use for ALL tasks (bypasses routing table)
+    /// Example: "claude-sonnet-4-5"
+    pub single_model: Option<String>,
+
+    /// Optional: Use OpenRouter exacto premium endpoints
+    pub use_exacto: Option<bool>,
+}
+
+impl Default for ModelRoutingConfig {
+    fn default() -> Self {
+        Self {
+            provider: None,  // Will default to "anthropic" in Agent initialization
+            single_model: None,  // Use smart routing by default
+            use_exacto: None,
+        }
+    }
 }
 
 // Default functions for serde
@@ -783,6 +810,7 @@ impl Default for ConfigManager {
             cost: CostConfig::default(),
             multi_provider: MultiProviderConfig::default(),
             compaction: CompactionConfig::default(),
+            model_routing: ModelRoutingConfig::default(),
         }
     }
 }

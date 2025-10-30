@@ -37,7 +37,9 @@ For organization patterns: @external/agent-contexts/PRACTICES.md
 6. Research sub-agents wired (31e8b4e)
 7. Full execution flow (49a4bd4)
 
-**Bottom Line**: Complete hybrid architecture operational. All components integrated and executing. Ready for empirical validation.
+**⚠️ CRITICAL BLOCKER (Oct 29, 2025)**: Model routing has outdated model names and incorrect defaults. See @ai/STATUS.md "Model Routing Issues" for details and @ai/MODEL_CONFIG_PLAN.md for fix plan. Priority 0 in @ai/TODO.md.
+
+**Bottom Line**: Complete hybrid architecture operational. All components integrated and executing. Model routing needs urgent fixes (Priority 0) before empirical validation can proceed.
 
 Repository: Public at https://github.com/nijaru/aircher
 

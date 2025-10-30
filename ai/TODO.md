@@ -17,6 +17,52 @@
 
 ## Week 9: Empirical Validation (Current Sprint)
 
+### Priority 0: Model Routing Improvements (URGENT - Blocking)
+**Identified**: Oct 29, 2025 - Current model router has critical issues
+
+- [ ] **Fix model names** (5 min - CRITICAL)
+  - Update claude-opus-4.1, claude-sonnet-4, claude-haiku to current API names
+  - Research exact API strings: sonnet-4.5, haiku-4.5, opus-4.1 (verify format)
+  - Update ModelConfig constructors in src/agent/model_router.rs
+
+- [ ] **Implement provider-specific routing tables** (30-60 min)
+  - Create anthropic_routing_table() - favor sonnet-4.5 (90% of tasks)
+  - Create openai_routing_table() - GPT-5-Codex equivalent to sonnet-4.5
+  - Create google_routing_table() - gemini-2.5-pro default
+  - Create openrouter_routing_table() - unified gateway with exacto option
+  - Ollama: no routing table (user specifies model)
+
+- [ ] **Add single model override support** (15 min)
+  - Add single_model_override field to ModelRouter
+  - If set, skip routing table, use single model for everything
+  - Update Agent initialization to support config.model.model override
+
+- [ ] **Update Config struct** (10 min)
+  - Add provider: Option<String> to ModelConfig
+  - Add use_exacto: Option<bool> for OpenRouter
+  - Default provider to "anthropic" if not specified
+
+- [ ] **Add provider-specific model configs** (20 min)
+  - claude_sonnet_4_5(), claude_haiku_4_5(), claude_opus_4_1()
+  - gpt_5_codex(), gpt_4o_mini()
+  - gemini_2_5_pro(), gemini_2_5_flash(), gemini_2_5_flash_lite()
+  - TODO comments for pricing verification
+
+- [ ] **Test with different providers** (30 min)
+  - Test Anthropic routing (should favor Sonnet 4.5)
+  - Test single model override (should bypass routing)
+  - Test Ollama (should use user-specified model)
+  - Verify logs show correct model selection
+
+**Expected Outcome**: Smart task-based routing working with current model names
+
+**Blockers Resolved**:
+- ❌ Can't validate empirically with wrong model names
+- ❌ Can't measure cost reduction with incorrect routing
+- ❌ Current implementation references non-existent models
+
+**Details**: See ai/MODEL_CONFIG_PLAN.md for complete implementation plan
+
 ### Priority 1: Integration Validation
 - [ ] Review all integrated components for correctness
 - [ ] Check for obvious bugs or edge cases
