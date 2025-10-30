@@ -174,9 +174,11 @@ pub struct UnifiedIntelligenceEngine {
 }
 
 impl UnifiedIntelligenceEngine {
-    pub fn new(base_intelligence: IntelligenceEngine) -> Self {
+    /// Create a new unified intelligence engine from an existing engine
+    /// Takes Arc to allow sharing the same engine instance across components
+    pub fn new(base_intelligence: Arc<IntelligenceEngine>) -> Self {
         Self {
-            base_intelligence: Arc::new(base_intelligence),
+            base_intelligence,
             intent_cache: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             context_cache: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             learning_enabled: true,
