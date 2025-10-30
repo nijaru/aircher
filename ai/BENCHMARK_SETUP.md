@@ -228,3 +228,64 @@ CMD ["tbench", "run", "--agent", "aircher", "--output", "/results"]
 - **SWE-bench**: https://www.swebench.com/
 - **Existing plan**: ai/research/benchmark-integration-plan.md (comprehensive 500+ line plan)
 - **Test results**: ai/TEST_RESULTS_2025-10-30.md (current validation status)
+
+## ⚠️ Blockers Discovered (Oct 30, 2025)
+
+### Issue 1: Terminal-Bench Not Published
+**Problem**: `npm install -g @terminal-bench/cli` returns 404
+**Evidence**: `npm ERR! 404  '@terminal-bench/cli@*' is not in this registry.`
+**Impact**: Cannot run Terminal-Bench until package is published
+**Workaround**: Manual validation tasks (see ai/MANUAL_VALIDATION_TASKS.md)
+
+### Issue 2: Rust Version Mismatch
+**Problem**: Dockerfile uses `rust:1.70-slim`, but Cargo.lock requires Rust 1.79+
+**Evidence**: `lock file version 4 was found, but this version of Cargo does not understand`
+**Impact**: Docker build fails to compile project
+**Fix**: Update Dockerfile to use `rust:1.79-slim` or newer
+
+### Issue 3: Docker Build Size (FIXED ✅)
+**Problem**: Docker transferred 61GB during build (target/ directory = 57GB)
+**Evidence**:
+```
+$ du -sh /Users/nick/github/nijaru/aircher
+57G	/Users/nick/github/nijaru/aircher
+
+$ du -sh target/*
+52G	target/debug
+4.9G	target/release
+```
+**Impact**: Slow builds, wasted bandwidth
+**Fix**: Created `.dockerignore` excluding target/, models/, and other large directories
+
+### Issue 4: Model Files in Docker Image
+**Problem**: models/ directory (261MB) contains swerank-embed-small.safetensors
+**Impact**: Larger Docker images
+**Fix**: `.dockerignore` excludes models/, download inside container if needed
+
+## Alternative Validation Strategies
+
+Given the blockers above, consider these alternatives:
+
+### Option A: Manual Validation Tasks ⭐ RECOMMENDED
+**Why**: Can run immediately, validates real capabilities
+**How**: See ai/MANUAL_VALIDATION_TASKS.md (5 realistic tasks)
+**Time**: 1-2 hours
+**Proves**: Agent can complete actual coding tasks
+
+### Option B: Wait for Terminal-Bench Release
+**Why**: Industry-standard benchmark, public leaderboard
+**How**: Monitor https://www.tbench.ai/ for npm package release
+**Time**: Unknown (weeks? months?)
+**Proves**: Competitive positioning vs other agents
+
+### Option C: SWE-bench Verified
+**Why**: More credible than Terminal-Bench, widely recognized
+**How**: Set up SWE-bench harness (Python evaluation framework)
+**Time**: 1-2 days setup + 4-6 hours running
+**Proves**: Real-world bug fixing capability
+
+### Option D: Context Awareness Improvement
+**Why**: High-value feature from user insight
+**How**: Implement Phase 1 from ai/CONTEXT_AWARENESS_IMPROVEMENT.md
+**Time**: 1 hour
+**Proves**: Agent can make better decisions with context visibility

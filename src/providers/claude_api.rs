@@ -7,8 +7,9 @@ use reqwest::{
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::time::Duration;
+use std::path::PathBuf;
 use tokio::sync::mpsc;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use super::{
@@ -107,21 +108,186 @@ struct ClaudeError {
     message: String,
 }
 
-impl ClaudeApiProvider {
-    pub async fn new(config: ProviderConfig, auth_manager: Arc<AuthManager>) -> Result<Self> {
-        // Try to get API key from auth manager first, fall back to environment variable
-        let api_key = auth_manager.get_api_key("claude")
-            .await
-            .or_else(|_| env::var(&config.api_key_env))
-            .with_context(|| format!("No API key found for Claude provider (checked auth storage and {})", config.api_key_env))?;
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct OAuthTokens {
+    #[serde(rename = "type", skip_serializing)]
+    pub token_type: Option<String>,  // "oauth" field in the auth file
+    pub refresh: String,
+    pub access: String,
+    pub expires: i64,  // Unix timestamp in milliseconds
+}
 
+#[derive(Debug, Deserialize)]
+struct AuthFileFormat {
+    anthropic: Option<OAuthTokens>,
+}
+
+impl OAuthTokens {
+    fn is_expired(&self) -> bool {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+        now_ms >= self.expires
+    }
+}
+
+impl ClaudeApiProvider {
+    /// Load OAuth tokens from auth file
+    async fn load_oauth_tokens() -> Result<Option<OAuthTokens>> {
+        let auth_path = Self::get_auth_file_path()?;
+        info!("Checking for OAuth tokens at: {:?}", auth_path);
+
+        if !auth_path.exists() {
+            info!("Auth file does not exist at {:?}", auth_path);
+            return Ok(None);
+        }
+
+        info!("Auth file exists, reading...");
+        let content = tokio::fs::read_to_string(&auth_path)
+            .await
+            .context("Failed to read auth file")?;
+
+        info!("Auth file content length: {} bytes", content.len());
+        debug!("Auth file content: {}", content);
+
+        match serde_json::from_str::<AuthFileFormat>(&content) {
+            Ok(auth_data) => {
+                if auth_data.anthropic.is_some() {
+                    info!("Successfully loaded OAuth tokens");
+                } else {
+                    info!("Auth file exists but has no 'anthropic' section");
+                }
+                Ok(auth_data.anthropic)
+            }
+            Err(e) => {
+                error!("Failed to parse auth file: {}", e);
+                error!("Auth file content: {}", content);
+                Err(anyhow!("Failed to parse auth file: {}", e))
+            }
+        }
+    }
+
+    /// Get auth file path (~/.local/share/aircher/auth.json)
+    fn get_auth_file_path() -> Result<PathBuf> {
+        let data_dir = dirs::data_local_dir()
+            .context("Failed to get data directory")?;
+        Ok(data_dir.join("aircher").join("auth.json"))
+    }
+
+    /// Refresh OAuth access token using refresh token
+    async fn refresh_oauth_token(refresh_token: &str) -> Result<OAuthTokens> {
+        info!("Refreshing Claude OAuth token");
+
+        let client = Client::new();
+
+        let request_body = serde_json::json!({
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+        });
+        info!("Sending token refresh request to console.anthropic.com");
+
+        let response = client
+            .post("https://console.anthropic.com/oauth/token")
+            .json(&request_body)
+            .send()
+            .await
+            .context("Failed to send token refresh request")?;
+
+        let status = response.status();
+        info!("Token refresh response status: {}", status);
+
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            error!("Token refresh failed with status {}: {}", status, error_text);
+            return Err(anyhow!("Token refresh failed with status {}: {}", status, error_text));
+        }
+
+        let token_response: serde_json::Value = response
+            .json()
+            .await
+            .context("Failed to parse token response")?;
+
+        let access = token_response["access_token"]
+            .as_str()
+            .ok_or_else(|| anyhow!("No access_token in response"))?
+            .to_string();
+
+        let expires_in = token_response["expires_in"]
+            .as_i64()
+            .unwrap_or(3600);  // Default to 1 hour
+
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+
+        let expires = now_ms + (expires_in * 1000);
+
+        Ok(OAuthTokens {
+            token_type: Some("oauth".to_string()),
+            refresh: refresh_token.to_string(),
+            access,
+            expires,
+        })
+    }
+
+    /// Save updated OAuth tokens to auth file
+    async fn save_oauth_tokens(tokens: &OAuthTokens) -> Result<()> {
+        let auth_path = Self::get_auth_file_path()?;
+
+        // Ensure directory exists
+        if let Some(parent) = auth_path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+
+        let auth_data = serde_json::json!({
+            "anthropic": {
+                "type": "oauth",
+                "refresh": tokens.refresh,
+                "access": tokens.access,
+                "expires": tokens.expires
+            }
+        });
+
+        let content = serde_json::to_string_pretty(&auth_data)?;
+        tokio::fs::write(&auth_path, content).await?;
+
+        info!("Saved refreshed OAuth tokens");
+        Ok(())
+    }
+
+    pub async fn new(config: ProviderConfig, auth_manager: Arc<AuthManager>) -> Result<Self> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
+
+        // Try OAuth tokens first
+        let auth_token = if let Some(mut tokens) = Self::load_oauth_tokens().await? {
+            info!("Found OAuth tokens for Claude");
+
+            // Check if expired and refresh if needed
+            if tokens.is_expired() {
+                info!("OAuth token expired, refreshing...");
+                tokens = Self::refresh_oauth_token(&tokens.refresh).await?;
+                Self::save_oauth_tokens(&tokens).await?;
+            }
+
+            info!("Using OAuth token from Max subscription");
+            tokens.access
+        } else {
+            // Fall back to API key
+            info!("No OAuth tokens found, using API key");
+            auth_manager.get_api_key("claude")
+                .await
+                .or_else(|_| env::var(&config.api_key_env))
+                .with_context(|| format!("No OAuth tokens or API key found for Claude provider (checked auth file and {})", config.api_key_env))?
+        };
+
         headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", api_key))
-                .context("Invalid API key format")?,
+            HeaderValue::from_str(&format!("Bearer {}", auth_token))
+                .context("Invalid auth token format")?,
         );
 
         let client = Client::builder()
@@ -133,7 +299,7 @@ impl ClaudeApiProvider {
         Ok(Self {
             client,
             config,
-            _api_key: api_key,
+            _api_key: auth_token,
         })
     }
 

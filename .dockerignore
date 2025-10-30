@@ -1,0 +1,45 @@
+# Build artifacts (57GB - DO NOT copy to Docker)
+target/
+
+# Git history
+.git/
+.github/
+
+# Benchmark results
+benchmark-results/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Development
+private/
+.agents/
+.aircher/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Large model files (if needed, download in container)
+models/*.safetensors
+models/*.bin
+models/*.onnx
+models/*.pt
+models/*.pth

@@ -78,7 +78,14 @@
   - 21 edge case failures (minor, non-critical)
   - See: ai/TEST_RESULTS_2025-10-30.md
 - ✅ **Compilation Errors Fixed**: 3 type errors resolved
-- 🎯 **Next**: Performance benchmarks (memory queries, event latency, pruning)
+- ✅ **Docker Investigation COMPLETE**: Fixed 61GB build issue
+  - Created .dockerignore (excludes 57GB target/ directory)
+  - Project size breakdown documented
+- ⚠️ **Benchmark Blockers Identified**:
+  - Terminal-Bench npm package doesn't exist yet (404 error)
+  - Rust version mismatch (Dockerfile uses 1.70, need 1.79+ for Cargo.lock v4)
+  - Alternative: Manual validation tasks or SWE-bench
+- 🎯 **Next**: Context awareness improvement (user insight) OR manual validation
 - 📊 **Gap Identified**: End-to-end benefits unproven (60% reduction, 90% speedup)
 
 **What's New (Week 7-8 Achievements)**:
@@ -168,14 +175,21 @@
 3. ❌ No result limits in search (should max 50 results)
 4. ❌ No context management (should keep last 5 interactions)
 
-**Model Routing Issues** (Identified Oct 29, RESOLVED Oct 29 ✅):
+**Model Routing Issues** (Identified Oct 29, RESOLVED Oct 29-30 ✅):
 **Phase 1 Complete** (Commits: 9423e55, d411998, 507bcc4):
 1. ✅ **Outdated model names**: FIXED - Updated to claude-opus-4-1, claude-sonnet-4-5, claude-haiku-4-5
 2. ✅ **Too much Opus usage**: FIXED - All agents now use Sonnet 4.5 for medium/high, Opus removed from routing
 3. ✅ **Single-model default**: FIXED - Added config.model_routing.single_model support
 4. ⏸️ **Provider flexibility**: PARTIAL - Config supports provider field, but Agent only implements Anthropic (TODO: OpenAI, Google, OpenRouter)
-5. ⏸️ **OAuth subscriptions**: DEFERRED - Phase 2 feature (requires separate auth flow)
-**Status**: No longer blocking empirical validation. Phase 2 enhancements in ai/MODEL_CONFIG_PLAN.md
+5. ✅ **OAuth subscriptions**: IMPLEMENTED (Oct 30, 2025) ✨
+   - ✅ OAuth token loading from ~/.local/share/aircher/auth.json
+   - ✅ Token refresh logic using Anthropic OAuth endpoint
+   - ✅ Auto-refresh on expiration
+   - ✅ Fallback to API key if no OAuth tokens
+   - ✅ Tokens copied from OpenCode (Max subscription)
+   - ✅ ClaudeApiProvider now checks OAuth first
+   - **Status**: READY FOR TESTING
+**Status**: OAuth complete, ready for SWE-bench validation. Phase 2 enhancements in ai/MODEL_CONFIG_PLAN.md
 
 **Episodic Memory System (Week 3 ✅ IMPLEMENTED)**:
 - **DuckDB schema**: 5 tables operational (tool_executions, file_interactions, task_history, context_snapshots, learned_patterns)

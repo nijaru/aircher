@@ -607,6 +607,85 @@ Replace 1685-line MultiTurnReasoningEngine with 300-line enhanced prompting syst
 
 ---
 
+## 2025-10-30: OAuth for Claude Pro/Max Subscriptions - Partial Implementation
+
+### Decision
+Implement OAuth authentication for Claude Pro/Max subscriptions to enable unlimited usage (vs per-token API billing).
+
+### Context
+- **Problem**: API keys bill separately from Max subscriptions ($3/$15 per 1M tokens)
+- **Solution**: OAuth tokens use Max subscription (unlimited usage within sub)
+- **Examples**: Claude Code, OpenCode both use OAuth for subscription access
+- **Cost Impact**: SWE-bench Lite ~$90-120 with API key, $0 with OAuth
+
+### Current State (Oct 30, 2025)
+**Partial implementation exists but NOT integrated**:
+- ✅ OAuth flow structure in `src/auth/oauth.rs` (browser auth, callback server)
+- ✅ Token storage methods in `src/auth/mod.rs` (store/get/remove OAuth tokens)
+- ✅ CLI command structure in `src/auth/cli.rs`
+- ❌ **NOT integrated** into `ClaudeApiProvider` (still only uses API keys at line 134-139)
+- ❌ Token refresh logic incomplete (method exists but not called)
+- ❌ Wrong OAuth endpoints (placeholder URLs, not actual Anthropic endpoints)
+
+### Implementation Plan (4-6 hours)
+
+**Phase 1: Fix OAuth Endpoints & Add Refresh** (2 hours):
+1. Update `OAuthHandler::new_anthropic_pro()` with correct endpoints:
+   - Auth: `https://auth.prod.claude.ai/authorize`
+   - Token: `https://auth.prod.claude.ai/oauth/token`
+   - Client ID: `9d1c250a-e61b-44d9-88ed-5944d1962f5e` (OpenCode's known-working ID)
+2. Implement `refresh_access_token()` method
+3. Add `OAuthTokens` struct with `is_expired()` check
+
+**Phase 2: Integrate into ClaudeApiProvider** (2 hours):
+1. Update `ClaudeApiProvider::new()` to try OAuth first, fallback to API key
+2. Check token expiration and auto-refresh if needed
+3. Store refreshed tokens back to AuthManager
+
+**Phase 3: Add CLI Command** (1 hour):
+1. Add `LoginOAuth` variant to `AuthCommand`
+2. Implement `handle_login_oauth()` with browser flow
+3. Handle SSH sessions (manual code entry)
+
+**Phase 4: Update Token Storage** (30 min):
+1. Define JSON format for `~/.local/share/aircher/auth.json`
+2. Store as: `{"anthropic": {"type": "oauth", "refresh": "...", "access": "...", "expires": 123456}}`
+
+### Impact
+**Benefits**:
+- Free usage with Max subscription (vs $90-120 per benchmark run)
+- Enables cost-effective empirical validation
+- Competitive with Claude Code/OpenCode (same auth method)
+
+**Risks**:
+- OAuth flow complexity (browser auth, token refresh)
+- Endpoint changes could break authentication
+- Manual testing required (can't automate browser login)
+
+### Alternative Considered
+
+**Option A: Use API key, accept per-token billing**
+- Pros: Already works, no implementation needed
+- Cons: ~$90-120 for SWE-bench Lite, unsustainable for multiple runs
+- Rejected: Cost adds up quickly for validation
+
+**Option B: Extract tokens from Claude Code manually**
+- Pros: Fastest (15 min), gets OAuth working
+- Cons: Manual process, not user-friendly
+- Use case: Short-term workaround while implementing full flow
+
+**Option C: Wait until benchmarking**
+- Pros: Don't implement until needed
+- Cons: Blocks cost-effective validation
+- Rejected: Need this for Week 9 validation
+
+### Review Date
+After implementing and testing OAuth flow - validate it works with Claude Pro/Max subscription.
+
+**Reference**: See `ai/CLAUDE_OAUTH_SETUP.md` for complete implementation guide.
+
+---
+
 ## Template for Future Decisions
 
 ## YYYY-MM-DD: [Decision Title]
