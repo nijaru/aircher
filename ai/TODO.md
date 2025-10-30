@@ -52,6 +52,13 @@
   - TODO comment in src/agent/core.rs:169
 - [ ] Test with actual execution and different providers
 - [ ] Verify logs show correct model selection
+- [ ] **OAuth Integration for Claude Pro/Max** (4-6 hours)
+  - Fix OAuth endpoints (use auth.prod.claude.ai)
+  - Add token refresh logic in oauth.rs
+  - Integrate OAuth into ClaudeApiProvider (try OAuth first, fallback to API key)
+  - Add CLI command for OAuth login flow
+  - Update token storage format
+  - **See**: ai/CLAUDE_OAUTH_SETUP.md for full plan
 
 **Current State**:
 - ✅ Smart routing works with correct Anthropic model names
@@ -139,27 +146,48 @@
 - [x] Created scripts/run-benchmark.sh (helper script)
 - [x] Created ai/BENCHMARK_SETUP.md (comprehensive guide)
 - [x] Added benchmark-results/ to .gitignore
+- [x] Created .dockerignore (excludes 57GB target/ directory)
+- [x] Investigated Docker build issues
 
-**Remaining Tasks**:
-- [ ] **Phase 1**: Validate integration (10 tasks, 30 min)
-  ```bash
-  ./scripts/run-benchmark.sh phase1
-  ```
-  - Proves: ACP protocol works, container setup correct, Aircher responds
-  - Success: At least 1 task completes (pass/fail doesn't matter)
+**⚠️ Blockers Discovered** (Oct 30):
+- ❌ **Terminal-Bench npm package doesn't exist** (404 error)
+- ❌ **Rust version mismatch**: Dockerfile uses 1.70, need 1.79+ for Cargo.lock v4
+- ✅ **Docker build size**: FIXED via .dockerignore (was 61GB → now <100MB)
 
-- [ ] **Phase 2**: Baseline run (80 tasks, 4-6 hours)
-  ```bash
-  ./scripts/run-benchmark.sh phase2
-  ```
-  - Proves: Agent can handle real tasks, establish competitive position
-  - Success: >25% (working), >35% (competitive), >45% (strong)
+**Alternative Approaches** (Pick One):
 
-- [ ] **Analysis**: Document results in ai/BENCHMARK_RESULTS.md
-  - Overall success rate
-  - Failure modes (what types of tasks fail)
-  - Competitive positioning
-  - Honest assessment
+**Option A: Manual Validation Tasks** ⭐ RECOMMENDED
+- [ ] Run 5 realistic tasks from ai/MANUAL_VALIDATION_TASKS.md
+  1. File analysis and reporting
+  2. Create new utility function
+  3. Fix test_needs_pruning bug
+  4. Git workflow (commit changes)
+  5. Multi-file refactoring
+- **Time**: 1-2 hours
+- **Proves**: Agent can complete actual coding tasks
+- **Advantage**: Can run immediately, no infrastructure needed
+
+**Option B: Context Awareness Improvement** ⭐ HIGH VALUE
+- [ ] Implement Phase 1 from ai/CONTEXT_AWARENESS_IMPROVEMENT.md
+  - Expose context stats to model in system prompt
+  - Model can see "97K/200K tokens remaining"
+  - Enable smarter decision-making about context
+- **Time**: 1 hour
+- **Proves**: User insight implemented, model can manage context better
+- **Advantage**: Immediate value, addresses user feedback
+
+**Option C: Wait for Terminal-Bench**
+- [ ] Monitor https://www.tbench.ai/ for npm package release
+- [ ] Fix Dockerfile Rust version (1.79+)
+- [ ] Re-run benchmark setup
+- **Time**: Unknown (weeks? months?)
+- **Advantage**: Industry-standard benchmark, public leaderboard
+
+**Option D: SWE-bench Verified**
+- [ ] Set up SWE-bench harness (Python evaluation framework)
+- [ ] Run on 500 human-validated tasks
+- **Time**: 1-2 days setup + 4-6 hours running
+- **Advantage**: More credible than Terminal-Bench
 
 **Expected Outcome**:
 - ✅ Empirical proof agent works on real tasks (not just unit tests)
