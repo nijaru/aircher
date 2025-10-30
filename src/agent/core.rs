@@ -159,8 +159,34 @@ impl Agent {
         }
 
         // Initialize model router for cost-aware model selection (Week 7 Day 6-7)
-        let model_router = Arc::new(ModelRouter::new());
-        info!("Model router initialized with default routing table");
+        // Load config to check for single model override
+        let config = crate::config::ConfigManager::load().await?;
+        let model_router = if let Some(ref single_model) = config.model_routing.single_model {
+            // User specified single model for all tasks (bypasses routing table)
+            info!("Initializing model router with single model override: {}", single_model);
+
+            // Map model string to ModelConfig
+            // TODO: Add support for other providers (openai, google, openrouter)
+            let model_config_opt = match single_model.as_str() {
+                "claude-sonnet-4-5" | "claude-sonnet-4.5" => Some(crate::agent::model_router::ModelConfig::claude_sonnet_4_5()),
+                "claude-haiku-4-5" | "claude-haiku-4.5" => Some(crate::agent::model_router::ModelConfig::claude_haiku_4_5()),
+                "claude-opus-4-1" | "claude-opus-4.1" => Some(crate::agent::model_router::ModelConfig::claude_opus_4_1()),
+                _ => {
+                    warn!("Unknown model '{}', falling back to smart routing", single_model);
+                    None
+                }
+            };
+
+            if let Some(model_config) = model_config_opt {
+                Arc::new(ModelRouter::with_single_model(model_config))
+            } else {
+                Arc::new(ModelRouter::new())
+            }
+        } else {
+            // Use smart routing by default (zero config)
+            info!("Model router initialized with smart routing (default)");
+            Arc::new(ModelRouter::new())
+        };
 
         // Initialize specialized agent registry (Week 8 Day 1-2)
         let agent_registry = Arc::new(AgentRegistry::new());
