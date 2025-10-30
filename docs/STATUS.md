@@ -308,10 +308,23 @@ cargo run --bin test_strategy_with_mock
 
 ## 🚨 Critical Limitations (READ FIRST)
 
-1. **Tools Are Stubs**: 9 out of 10 strategy tools return hardcoded responses (only analyze_errors is real)
-2. **Over-Engineered Reasoning**: 1685-line MultiTurnReasoningEngine when models do reasoning internally
-3. **Architecture Mismatch**: Agent tries to externalize what models already optimize for
-4. **Path Forward Clear**: Enhanced prompting system ready to replace complex orchestration
+1. **Model Routing Issues** (Identified Oct 29, 2025 - BLOCKING):
+   - ❌ **Outdated model names**: References claude-opus-4.1, claude-sonnet-4, claude-haiku (non-existent formats)
+   - ❌ **Too much Opus usage**: Current routing over-uses expensive Opus 4.1 (should favor Sonnet 4.5)
+   - ❌ **No provider flexibility**: Hardcoded Anthropic only (missing OpenAI, Google, OpenRouter, Ollama)
+   - ❌ **No single-model default**: Can't easily configure "use sonnet-4.5 for everything"
+   - ⚠️ **Missing OAuth subscriptions**: No Claude Max / ChatGPT Plus authentication (OpenCode has this)
+   - **Current models** (as of Oct 2025): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.1, GPT-5-Codex (released), gemini-2.5-pro/flash/flash-lite
+   - **Fix planned**: See ai/MODEL_CONFIG_PLAN.md - Phase 1 implements smart task-based routing with provider flexibility
+   - **Impact**: Blocking empirical validation (can't test with wrong model names)
+
+2. **Tools Are Stubs**: 9 out of 10 strategy tools return hardcoded responses (only analyze_errors is real)
+
+3. **Over-Engineered Reasoning**: 1685-line MultiTurnReasoningEngine when models do reasoning internally
+
+4. **Architecture Mismatch**: Agent tries to externalize what models already optimize for
+
+5. **Path Forward Clear**: Enhanced prompting system ready to replace complex orchestration
 
 ## 🎯 For New Contributors
 
