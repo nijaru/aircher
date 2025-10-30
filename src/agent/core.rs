@@ -381,6 +381,103 @@ impl Agent {
             }
         }
 
+        // === MEMORY SYSTEMS INTEGRATION (Issue 1 Fix) ===
+        info!("Querying memory systems for relevant context");
+        let mut memory_context = String::new();
+
+        // 1. Query episodic memory for recent file interactions
+        // Extract potential file paths from user message for context
+        let words: Vec<&str> = user_message.split_whitespace().collect();
+        for word in words.iter().take(20) { // Check first 20 words for file paths
+            if word.ends_with(".rs") || word.ends_with(".py") || word.ends_with(".ts")
+                || word.ends_with(".js") || word.ends_with(".go") {
+                // Found potential file path, query history
+                match self.intelligence.get_file_history(word, 5).await {
+                    Ok(history) if !history.is_empty() => {
+                        debug!("Found {} past interactions with {}", history.len(), word);
+                        memory_context.push_str(&format!("\n## Past Interactions with {}:\n", word));
+                        for interaction in history.iter().take(3) {
+                            memory_context.push_str(&format!(
+                                "- {} at {} ({})\n",
+                                interaction.operation,
+                                interaction.timestamp.format("%Y-%m-%d %H:%M"),
+                                if interaction.success { "success" } else { "failed" }
+                            ));
+                            if let Some(ref context) = interaction.context {
+                                memory_context.push_str(&format!("  Context: {}\n", context));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // 2. Query knowledge graph for relevant code structure
+        // If user mentions specific symbols (functions, classes), query knowledge graph
+        // Extract potential symbol names from user message
+        // Look for words that might be function/class names (capitalized or camelCase)
+        for word in words.iter().take(20) {
+            // Skip common words and check for potential symbol names
+            if word.len() > 3 && (word.chars().next().unwrap().is_uppercase() || word.contains('_')) {
+                // Use public IntelligenceEngine method instead of private field
+                match self.intelligence.find_symbol_definition(word).await {
+                    Ok(nodes) if !nodes.is_empty() => {
+                        debug!("Knowledge graph found {} nodes for symbol '{}'", nodes.len(), word);
+                        memory_context.push_str(&format!("\n## Knowledge Graph - Symbol '{}':\n", word));
+                        for node in nodes.iter().take(3) {
+                            match node {
+                                crate::intelligence::knowledge_graph::NodeType::Function { name, file_path, .. } => {
+                                    memory_context.push_str(&format!("- Function '{}' in {}\n", name, file_path.display()));
+                                }
+                                crate::intelligence::knowledge_graph::NodeType::Class { name, file_path, .. } => {
+                                    memory_context.push_str(&format!("- Class '{}' in {}\n", name, file_path.display()));
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        // If we found a function, also find its callers
+                        if let Ok(callers) = self.intelligence.find_callers(word).await {
+                            if !callers.is_empty() {
+                                memory_context.push_str(&format!("  Called by {} other functions\n", callers.len()));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Query for co-edit patterns (files often edited together)
+        if let Ok(patterns) = self.intelligence.find_co_edit_patterns(60).await { // Last hour
+            if !patterns.is_empty() {
+                debug!("Found {} co-edit patterns", patterns.len());
+                memory_context.push_str("\n## Frequently Co-Edited Files:\n");
+                for pattern in patterns.iter().take(3) {
+                    if let Ok(pattern_data) = serde_json::from_value::<serde_json::Value>(pattern.pattern_data.clone()) {
+                        if let Some(files) = pattern_data.get("files").and_then(|f| f.as_array()) {
+                            memory_context.push_str(&format!(
+                                "- Files: {} (confidence: {:.0}%)\n",
+                                files.iter()
+                                    .filter_map(|f| f.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                                pattern.confidence * 100.0
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Log memory context statistics
+        if memory_context.is_empty() {
+            debug!("No relevant memory context found for this query");
+        } else {
+            info!("Added {} chars of memory context to prompt", memory_context.len());
+        }
+
         // Validate authentication before making LLM calls
         if !matches!(provider.pricing_model(), PricingModel::Free) && !provider.name().eq_ignore_ascii_case("ollama") {
             debug!("Auth validated for provider: {}", provider.name());
@@ -478,7 +575,14 @@ impl Agent {
                 }
             }
         }
-        
+
+        // Add memory context from episodic memory and knowledge graph (Issue 1 Fix)
+        if !memory_context.is_empty() {
+            system_prompt.push_str("\n\n## Memory System Context:\n");
+            system_prompt.push_str(&memory_context);
+            info!("Memory context added to system prompt ({} chars)", memory_context.len());
+        }
+
         let mut messages = vec![
             Message {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -655,6 +759,45 @@ impl Agent {
                                             timestamp: std::time::SystemTime::now(),
                                         });
                                         debug!("Emitted FileChanged event for: {}", path);
+                                    }
+                                }
+                            }
+
+                            // Record interaction in episodic memory (Issue 1 Fix)
+                            // Record file interactions for all file-related tools
+                            if call.name == "read_file" || call.name == "edit_file" || call.name == "write_file" || call.name == "list_files" {
+                                if let Some(path) = call.parameters.get("path").or(call.parameters.get("file_path")).and_then(|p| p.as_str()) {
+                                    let operation = match call.name.as_str() {
+                                        "read_file" => "read",
+                                        "write_file" => "write",
+                                        "edit_file" => "edit",
+                                        "list_files" => "list",
+                                        _ => "unknown",
+                                    };
+
+                                    // Get current session_id from conversation or generate new one
+                                    let session_id = "current_session".to_string(); // TODO: Get from actual session management
+
+                                    let interaction = crate::intelligence::duckdb_memory::FileInteraction {
+                                        id: uuid::Uuid::new_v4().to_string(),
+                                        timestamp: chrono::Utc::now(),
+                                        session_id: session_id.clone(),
+                                        task_id: None, // TODO: Track task IDs
+                                        file_path: path.to_string(),
+                                        operation: operation.to_string(),
+                                        line_range: None, // TODO: Extract from edit_file params
+                                        success: output.success,
+                                        context: Some(user_message.chars().take(200).collect()), // First 200 chars of request
+                                        changes_summary: if output.success {
+                                            Some(format!("Tool {} executed successfully", call.name))
+                                        } else {
+                                            output.error.clone()
+                                        },
+                                    };
+
+                                    match self.intelligence.record_file_interaction(interaction).await {
+                                        Ok(_) => debug!("Recorded file interaction for {} in episodic memory", path),
+                                        Err(e) => warn!("Failed to record file interaction: {}", e),
                                     }
                                 }
                             }
@@ -1635,7 +1778,23 @@ impl Agent {
         if let Some(tool) = self.tools.get(tool_name) {
             match tool.execute(params.clone()).await {
                 Ok(output) => {
+                    // === GIT ROLLBACK ON FAILURE (Issue 4 Fix) ===
+                    // If tool failed and we created a snapshot, rollback
+                    if !output.success && _snapshot_id.is_some() {
+                        warn!("Tool '{}' failed, rolling back to snapshot", tool_name);
+                        if let Some(snapshot_mgr) = &self.snapshot_manager {
+                            if let Some(id) = _snapshot_id {
+                                let reason = format!("Tool '{}' failed", tool_name);
+                                match snapshot_mgr.rollback(id, &reason) {
+                                    Ok(_) => info!("Successfully rolled back to snapshot {}", id),
+                                    Err(e) => warn!("Failed to rollback snapshot {}: {}", id, e),
+                                }
+                            }
+                        }
+                    }
+
                     // Emit FileChanged event for file modification tools
+                    let mut diagnostics_text = String::new();
                     if output.success && (tool_name == "write_file" || tool_name == "edit_file") {
                         if let Some(path_str) = params.get("path").and_then(|v| v.as_str()) {
                             use crate::agent::events::{AgentEvent, FileOperation};
@@ -1647,12 +1806,76 @@ impl Agent {
                             };
 
                             self.event_bus.publish(AgentEvent::FileChanged {
-                                path,
+                                path: path.clone(),
                                 operation,
                                 timestamp: std::time::SystemTime::now(),
                             });
+
+                            // === LSP DIAGNOSTICS FEEDBACK (Issue 2 Fix) ===
+                            // Wait for LSP to process the file change and return diagnostics
+                            debug!("Waiting for LSP diagnostics for {:?}", path);
+                            tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+
+                            // Fetch diagnostics from LSP manager (not Option, just Arc)
+                            let diagnostics = self.lsp_manager.get_diagnostics(&path).await;
+                            if !diagnostics.is_empty() {
+                                let (errors, warnings) = self.lsp_manager.get_diagnostic_counts(&path).await;
+                                warn!("LSP found {} errors and {} warnings in {}", errors, warnings, path.display());
+
+                                // Format diagnostics for agent to see
+                                diagnostics_text.push_str(&format!("\n\n⚠️ LSP Diagnostics ({} errors, {} warnings):\n", errors, warnings));
+                                for diag in diagnostics.iter().take(10) { // Show max 10 diagnostics
+                                    let severity = match diag.severity {
+                                        crate::agent::events::DiagnosticSeverity::Error => "ERROR",
+                                        crate::agent::events::DiagnosticSeverity::Warning => "WARN",
+                                        crate::agent::events::DiagnosticSeverity::Information => "INFO",
+                                        crate::agent::events::DiagnosticSeverity::Hint => "HINT",
+                                    };
+                                    diagnostics_text.push_str(&format!(
+                                        "  [{severity}] Line {}:{} - {}\n",
+                                        diag.range.start_line,
+                                        diag.range.start_column,
+                                        diag.message
+                                    ));
+                                }
+                                if diagnostics.len() > 10 {
+                                    diagnostics_text.push_str(&format!("  ... and {} more diagnostics\n", diagnostics.len() - 10));
+                                }
+
+                                info!("Added LSP diagnostics to tool result for agent self-correction");
+                            } else {
+                                debug!("No LSP diagnostics for {:?}", path);
+                            }
                         }
                     }
+
+                    // Append diagnostics to tool result (if any)
+                    // result is a Value, so we need to append to it properly
+                    let final_result = if diagnostics_text.is_empty() {
+                        output.result.clone()
+                    } else {
+                        // If result is an object, add diagnostics field
+                        // If result is a string/other, wrap in object with both fields
+                        match &output.result {
+                            serde_json::Value::Object(obj) => {
+                                let mut new_obj = obj.clone();
+                                new_obj.insert("lsp_diagnostics".to_string(), serde_json::Value::String(diagnostics_text));
+                                serde_json::Value::Object(new_obj)
+                            }
+                            serde_json::Value::String(s) => {
+                                serde_json::json!({
+                                    "output": s,
+                                    "lsp_diagnostics": diagnostics_text
+                                })
+                            }
+                            other => {
+                                serde_json::json!({
+                                    "result": other,
+                                    "lsp_diagnostics": diagnostics_text
+                                })
+                            }
+                        }
+                    };
 
                     Ok(crate::client::ToolCallInfo {
                         name: tool_name.to_string(),
@@ -1661,11 +1884,26 @@ impl Agent {
                         } else {
                             crate::client::ToolStatus::Failed
                         },
-                        result: Some(output.result),
+                        result: Some(final_result),
                         error: output.error,
                     })
                 }
                 Err(e) => {
+                    // === GIT ROLLBACK ON ERROR (Issue 4 Fix) ===
+                    // Tool execution threw error, rollback if snapshot exists
+                    if _snapshot_id.is_some() {
+                        warn!("Tool '{}' threw error, rolling back to snapshot", tool_name);
+                        if let Some(snapshot_mgr) = &self.snapshot_manager {
+                            if let Some(id) = _snapshot_id {
+                                let reason = format!("Tool '{}' error: {}", tool_name, e);
+                                match snapshot_mgr.rollback(id, &reason) {
+                                    Ok(_) => info!("Successfully rolled back to snapshot {}", id),
+                                    Err(rollback_err) => warn!("Failed to rollback snapshot {}: {}", id, rollback_err),
+                                }
+                            }
+                        }
+                    }
+
                     Ok(crate::client::ToolCallInfo {
                         name: tool_name.to_string(),
                         status: crate::client::ToolStatus::Failed,
