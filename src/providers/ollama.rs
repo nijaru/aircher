@@ -600,6 +600,24 @@ impl LLMProvider for OllamaProvider {
             .await
             .context("Failed to parse response")?;
 
+        // Debug: Log response details
+        debug!("Ollama response - content length: {} chars", ollama_response.message.content.len());
+        debug!("Ollama response - thinking present: {}", ollama_response.message.thinking.is_some());
+        if let Some(ref thinking) = ollama_response.message.thinking {
+            debug!("Ollama response - thinking length: {} chars", thinking.len());
+        }
+
+        // Use content if available, otherwise fallback to thinking
+        // Some models put the response in 'thinking' field when reasoning
+        let response_content = if !ollama_response.message.content.is_empty() {
+            ollama_response.message.content.clone()
+        } else if let Some(thinking) = &ollama_response.message.thinking {
+            debug!("Content empty, using thinking field as fallback");
+            thinking.clone()
+        } else {
+            String::new()
+        };
+
         // Convert Ollama tool calls to our standard format
         let tool_calls = if let Some(ollama_tool_calls) = &ollama_response.message.tool_calls {
             Some(
@@ -619,7 +637,7 @@ impl LLMProvider for OllamaProvider {
 
         Ok(ChatResponse {
             id: Uuid::new_v4().to_string(),
-            content: ollama_response.message.content,
+            content: response_content,
             role: MessageRole::Assistant,
             model: ollama_response.model,
             tokens_used: ollama_response.prompt_eval_count.unwrap_or(0) + ollama_response.eval_count.unwrap_or(0),
