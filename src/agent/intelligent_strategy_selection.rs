@@ -140,9 +140,6 @@ impl IntelligentStrategySelector {
 
             // Mixed intents need flexible approach
             (UserIntent::Mixed { .. }, _) => "reflexion", // Reflection helps with complex mixed tasks
-
-            // Default to ReAct for unknown or simple cases
-            _ => "react",
         };
 
         let strategy = self.strategy_selector.get_strategy(strategy_name)

@@ -15,7 +15,7 @@ use petgraph::Direction;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Node types in the knowledge graph
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

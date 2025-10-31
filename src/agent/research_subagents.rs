@@ -8,9 +8,9 @@
 // - ai/research/competitive-analysis-2025.md (Claude Code section)
 // - ai/DECISIONS.md (2025-10-27 - Hybrid Sub-Agent Strategy)
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -18,8 +18,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, info, warn};
 
 use super::model_router::{AgentType as RouterAgentType, TaskComplexity};
-use super::specialized_agents::AgentConfig;
-use super::tools::{ToolRegistry, ToolOutput};
+use super::tools::ToolRegistry;
 
 /// Maximum concurrent sub-agents (from Claude Code research)
 pub const MAX_CONCURRENT_SUBAGENTS: usize = 10;

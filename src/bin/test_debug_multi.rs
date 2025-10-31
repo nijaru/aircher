@@ -4,12 +4,6 @@ use std::sync::Arc;
 
 use aircher::auth::AuthManager;
 use aircher::config::ConfigManager;
-use aircher::storage::DatabaseManager;
-use aircher::intelligence::IntelligenceEngine;
-use aircher::agent::{
-    core::Agent,
-    conversation::{ProjectContext, ProgrammingLanguage},
-};
 use aircher::providers::{ProviderManager, ChatRequest, Message, MessageRole};
 
 #[tokio::main]

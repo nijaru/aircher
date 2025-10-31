@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tracing::info;
 
-use super::model_router::{AgentType as RouterAgentType, TaskComplexity};
+use super::model_router::AgentType as RouterAgentType;
 
 /// Specialized agent configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

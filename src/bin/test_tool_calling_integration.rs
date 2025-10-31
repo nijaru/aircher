@@ -8,12 +8,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
 
-use aircher::agent::core::Agent;
 use aircher::auth::AuthManager;
 use aircher::client::local::LocalClient;
 use aircher::config::ConfigManager;
 use aircher::providers::ProviderManager;
-use aircher::storage::DatabaseManager;
 
 #[tokio::main]
 async fn main() -> Result<()> {
