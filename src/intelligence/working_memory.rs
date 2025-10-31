@@ -158,7 +158,7 @@ impl ContextWindow {
     /// Check if pruning is needed (at 80% capacity)
     pub fn needs_pruning(&self) -> bool {
         let threshold = (self.max_tokens as f32 * 0.8) as usize;
-        self.token_count > threshold
+        self.token_count >= threshold
     }
 
     /// Calculate relevance score for an item
@@ -299,15 +299,7 @@ pub struct ContextWindowStats {
 
 impl std::fmt::Display for ContextWindowStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Context: {} items, {}/{} tokens ({:.1}% full), {} prunings",
-            self.total_items,
-            self.total_tokens,
-            self.max_tokens,
-            self.utilization,
-            self.pruning_count
-        )
+        write!(f, "{}", crate::utils::context_stats::format_context_stats(self))
     }
 }
 
