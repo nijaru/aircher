@@ -1,10 +1,38 @@
 # STATUS
 
-**Last Updated**: 2025-10-30 (SOTA Research Complete + Skills System Design)
+**Last Updated**: 2025-10-31 (Context Awareness Phase 1 + Component Validation)
 
 ## Current State
 
-### SOTA Research COMPLETE ✅ → Skills System Next Priority!
+### Context Awareness Phase 1 COMPLETE ✅ → User Insight Implemented!
+
+**Completed (Oct 31, 2025)**:
+- ✅ **Context Awareness Implementation** (Commits: 146144b, 800ca3f)
+  - Agent now exposes context stats to model in every turn
+  - Model sees: "45K/180K tokens used (25.1% full)"
+  - Enables informed decision-making about verbosity and strategy
+  - Addresses user insight: "Claude should know how much context is left"
+- ✅ **Component Validation** (Tasks 1-4 complete)
+  - Analyzed src/agent/core.rs structure (22 fields, 20+ API methods)
+  - Created src/utils/context_stats.rs formatting utility (102 lines, 3 tests)
+  - Fixed test_needs_pruning bug (>= threshold fix)
+  - All changes committed and building successfully
+- 📄 **User Feedback Addressed**: Context stats now visible to model for smart resource management
+
+**Implementation Details**:
+- Uses `DynamicContextManager.get_context_summary()` for token usage stats
+- Appended to system prompt after memory context section
+- Format: Clear, actionable guidance for model behavior adaptation
+- Logging: Context stats logged on every turn for debugging
+- Next: Phase 2 (list_context tool), Phase 3 (edit_context tool)
+
+**Impact**:
+- Model can adapt verbosity based on remaining capacity
+- Proactive context management (summarize when >80% full)
+- No surprise "context full" errors
+- Transparent token usage tracking
+
+### SOTA Research COMPLETE ✅ → Skills System Paused
 
 **Completed (Oct 30, 2025)**:
 - ✅ **Comprehensive TUI Agent Analysis**: Researched 8 leading agents
