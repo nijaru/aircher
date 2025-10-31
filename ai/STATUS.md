@@ -23,13 +23,18 @@
 - 📄 **Created**: ai/research/tui-agents-sota-2025.md (64KB comprehensive analysis)
 - 📐 **Designed**: docs/architecture/skills-system-design.md (Skills architecture)
 
-**Skills System Phase 1 COMPLETE** (Commit: 6149bd6):
-- ✅ Core infrastructure: SkillMetadata, SkillDiscovery, SkillTool, SkillManager (~1,600 lines)
+**Skills System Phase 1-2 COMPLETE** (Commits: 6149bd6, 35262c5):
+- ✅ **Phase 1**: Core infrastructure (SkillMetadata, SkillDiscovery, SkillTool, SkillManager - ~1,600 lines)
+- ✅ **Phase 2**: SkillExecutor + Agent integration (~460 lines, Commit: 35262c5)
+  - SkillExecutor with approval workflow (360 lines, 10 tests)
+  - Integrated into SkillTool and Agent struct
+  - Agent API: list_skills(), get_skill(), reload_skills()
+  - Capability-based tool access control
 - ✅ SKILL.md format with YAML frontmatter + progressive loading
 - ✅ Three-tier discovery: project > user > system
-- ✅ 22 comprehensive tests across all modules
+- ✅ 32 comprehensive tests across all modules (22 Phase 1 + 10 Phase 2)
 - ✅ Compiles successfully with zero errors
-- ⏸️ **Phase 2-4 PAUSED**: Execution engine, examples, docs (resuming after validation)
+- ⏸️ **Phase 3-4 PAUSED**: Example skills, documentation (awaiting validation results)
 
 **Next Priority**: Week 9 Empirical Validation (REFOCUSED)
 - Validate memory systems work (3,725 lines unproven)
