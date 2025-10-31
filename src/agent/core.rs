@@ -615,6 +615,39 @@ impl Agent {
             info!("Memory context added to system prompt ({} chars)", memory_context.len());
         }
 
+        // === CONTEXT AWARENESS (Phase 1) ===
+        // Expose context stats to model for informed decision-making
+        let context_summary = self.context_manager.get_context_summary().await;
+        let remaining_tokens = context_summary.token_limit.saturating_sub(context_summary.token_usage);
+
+        system_prompt.push_str(&format!(
+            "\n\n**Context Status**:\n\
+            - Tokens: {}/{} used ({:.1}% full)\n\
+            - Items: {} context items\n\
+            - Capacity: {} tokens remaining\n\
+            \n\
+            Use this information to:\n\
+            - Decide whether to continue current approach\n\
+            - Adapt verbosity based on remaining space\n\
+            - Summarize completed work if approaching limit (>80%)\n\
+            - Focus on essential information\n\
+            \n\
+            If approaching limit (>80%), consider:\n\
+            1. Being more concise in responses\n\
+            2. Summarizing completed tasks\n\
+            3. Focusing on current task only",
+            context_summary.token_usage,
+            context_summary.token_limit,
+            context_summary.utilization,
+            context_summary.total_items,
+            remaining_tokens
+        ));
+
+        info!("Context stats added to system prompt: {}/{} tokens ({:.1}% full)",
+              context_summary.token_usage,
+              context_summary.token_limit,
+              context_summary.utilization);
+
         let mut messages = vec![
             Message {
                 id: uuid::Uuid::new_v4().to_string(),
