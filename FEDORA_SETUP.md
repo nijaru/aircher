@@ -2,6 +2,7 @@
 
 **Hardware**: i9-13900KF, 32GB DDR5, RTX 4090 (24GB VRAM)
 **Tailscale**: `nick@fedora`
+**Recommended Model**: gpt-oss:20b (13GB, fits comfortably on RTX 4090)
 
 ## Quick Start (When Fedora Available)
 
@@ -9,13 +10,17 @@
 # SSH to Fedora
 ssh nick@fedora
 
-# Install Python development headers (CRITICAL - missing this caused vLLM failure)
-sudo dnf install -y python3.13-devel
+# Install DuckDB (needed for Aircher build)
+cd ~/github/nijaru/aircher
+./scripts/install-duckdb-fedora.sh
 
-# Kill any existing vLLM processes
-pkill -9 -f "vllm serve"
+# Pull latest code
+git pull origin main
 
-# Start vLLM with GPT-OSS-20B
+# Build Aircher (first build takes ~5 minutes)
+cargo build --release
+
+# Start vLLM with gpt-oss:20b
 source ~/vllm-env/bin/activate
 bash ~/start_vllm.sh > ~/vllm.log 2>&1 &
 
@@ -23,6 +28,9 @@ bash ~/start_vllm.sh > ~/vllm.log 2>&1 &
 tail -f ~/vllm.log
 
 # Wait for: "Uvicorn running on http://0.0.0.0:11435"
+
+# Run Aircher with vLLM
+./target/release/aircher --provider openai --model "gpt-oss:20b"
 ```
 
 ## Test from Mac
@@ -44,19 +52,20 @@ curl http://nick@fedora:11435/v1/models
 #!/bin/bash
 source ~/vllm-env/bin/activate
 
-vllm serve openai/gpt-oss-20b \
+# Use gpt-oss:20b (13GB model, fast on RTX 4090)
+vllm serve gpt-oss:20b \
   --gpu-memory-utilization 0.8 \
   --max-model-len 16384 \
   --host 0.0.0.0 \
   --port 11435 \
-  --quantization mxfp4
+  --dtype auto
 ```
 
 **Mac Config**: `~/.config/aircher/config.toml`
 ```toml
 [model]
 provider = "openai"
-model = "openai/gpt-oss-20b"
+model = "gpt-oss:20b"
 
 [providers.openai]
 base_url = "http://nick@fedora:11435/v1"
@@ -77,17 +86,21 @@ max_retries = 3
 
 ## Performance Expectations
 
-**vLLM (expected)**:
+**vLLM + gpt-oss:20b on RTX 4090**:
 - First load: ~30-60 seconds (model into VRAM)
-- Per-response: ~2-3 seconds (much faster than Ollama)
-- VRAM usage: ~14-16 GB (MXFP4 quantization)
+- Per-response: ~2-3 seconds (fast GPU inference)
+- VRAM usage: ~14-16 GB (plenty of headroom on 24GB)
+- Tokens/second: ~50-100 (depends on context length)
 
-**Ollama (current)**:
-- First load: ~4-5 seconds
-- Per-response: ~7 seconds
-- Local on Mac (13GB model)
+**vs Ollama on Mac M3 Max**:
+- Per-response: ~7-10 seconds (CPU inference)
+- **Speedup**: vLLM is ~3-4x faster
 
-**Speedup**: vLLM should be ~2-3x faster than Ollama
+**Why vLLM is faster**:
+- GPU acceleration (CUDA on RTX 4090)
+- Optimized attention kernels
+- Better batching and caching
+- PagedAttention for memory efficiency
 
 ## Alternative: Eager Mode (No Compilation)
 
