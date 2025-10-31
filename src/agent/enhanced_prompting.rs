@@ -4,6 +4,7 @@
 /// instead of complex external orchestration.
 
 use std::collections::HashMap;
+use crate::intelligence::working_memory::ContextWindowStats;
 
 /// Enhanced prompting system that leverages model's internal reasoning
 pub struct EnhancedPromptingSystem {
@@ -18,11 +19,11 @@ impl EnhancedPromptingSystem {
     }
 
     /// Create enhanced system prompt based on task type and research patterns
-    pub fn create_enhanced_prompt(&self, user_message: &str) -> String {
+    pub fn create_enhanced_prompt(&self, user_message: &str, context_stats: Option<&ContextWindowStats>) -> String {
         let message_lower = user_message.to_lowercase();
 
-        // Determine task type and select appropriate research-based pattern
-        if self.is_debug_task(&message_lower) {
+        // Get base prompt based on task type
+        let base_prompt = if self.is_debug_task(&message_lower) {
             self.create_reflexion_enhanced_prompt(user_message)
         } else if self.is_complex_analysis_task(&message_lower) {
             self.create_tree_of_thoughts_prompt(user_message)
@@ -32,7 +33,10 @@ impl EnhancedPromptingSystem {
             self.create_systematic_exploration_prompt(user_message)
         } else {
             self.create_standard_enhanced_prompt(user_message)
-        }
+        };
+
+        // Inject context stats
+        self.inject_context_stats(&base_prompt, context_stats)
     }
 
     /// ReAct-enhanced prompt for multi-step tasks
@@ -213,6 +217,40 @@ Available tools: {{tools}}",
         message_lower.contains("search for")
     }
 
+    /// Add context awareness section to any prompt
+    pub fn inject_context_stats(&self, base_prompt: &str, stats: Option<&ContextWindowStats>) -> String {
+        let Some(stats) = stats else {
+            return base_prompt.to_string();
+        };
+
+        let context_section = format!(
+            "\n\n**Context Status**:\n\
+            - Tokens: {}/{} used ({}%)\n\
+            - Items: {} context items\n\
+            - Capacity: {} tokens remaining\n\
+            - Pruning operations: {}\n\
+            \n\
+            Use this information to:\n\
+            - Decide whether to continue current approach\n\
+            - Adapt verbosity based on remaining space\n\
+            - Summarize completed work if approaching limit (>80%)\n\
+            - Focus on essential information\n\
+            \n\
+            If approaching limit (>80%), consider:\n\
+            1. Being more concise in responses\n\
+            2. Summarizing completed tasks\n\
+            3. Focusing on current task only",
+            stats.total_tokens,
+            stats.max_tokens,
+            (stats.utilization * 100.0) as u32,
+            stats.total_items,
+            stats.max_tokens.saturating_sub(stats.total_tokens),
+            stats.pruning_count
+        );
+
+        format!("{}{}", base_prompt, context_section)
+    }
+
     // Memory management methods
     fn get_relevant_learnings(&self, _user_message: &str) -> Vec<String> {
         // TODO: Implement intelligent retrieval of relevant past learnings
@@ -239,5 +277,79 @@ Available tools: {{tools}}",
 impl Default for EnhancedPromptingSystem {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_context_stats_injection() {
+        let system = EnhancedPromptingSystem::new();
+        let base_prompt = "You are Aircher.";
+
+        let stats = ContextWindowStats {
+            total_items: 47,
+            total_tokens: 97_234,
+            max_tokens: 200_000,
+            utilization: 0.4861,
+            pruning_count: 0,
+            sticky_items: 3,
+        };
+
+        let result = system.inject_context_stats(base_prompt, Some(&stats));
+
+        assert!(result.contains("97234"));
+        assert!(result.contains("200000"));
+        assert!(result.contains("48%"));
+        assert!(result.contains("102766 tokens remaining"));
+        assert!(result.contains("47 context items"));
+        assert!(result.contains("You are Aircher."));
+    }
+
+    #[test]
+    fn test_context_stats_none() {
+        let system = EnhancedPromptingSystem::new();
+        let base_prompt = "You are Aircher.";
+
+        let result = system.inject_context_stats(base_prompt, None);
+
+        // Should return unchanged when no stats
+        assert_eq!(result, base_prompt);
+    }
+
+    #[test]
+    fn test_create_enhanced_prompt_with_stats() {
+        let system = EnhancedPromptingSystem::new();
+        let user_message = "Fix the authentication bug";
+
+        let stats = ContextWindowStats {
+            total_items: 20,
+            total_tokens: 50_000,
+            max_tokens: 200_000,
+            utilization: 0.25,
+            pruning_count: 0,
+            sticky_items: 2,
+        };
+
+        let result = system.create_enhanced_prompt(user_message, Some(&stats));
+
+        // Should contain both the Reflexion prompt (debug task) and context stats
+        assert!(result.contains("Reflexion"));
+        assert!(result.contains("50000"));
+        assert!(result.contains("25%"));
+    }
+
+    #[test]
+    fn test_create_enhanced_prompt_without_stats() {
+        let system = EnhancedPromptingSystem::new();
+        let user_message = "Fix the authentication bug";
+
+        let result = system.create_enhanced_prompt(user_message, None);
+
+        // Should contain the Reflexion prompt but no context stats
+        assert!(result.contains("Reflexion"));
+        assert!(!result.contains("Context Status"));
     }
 }
