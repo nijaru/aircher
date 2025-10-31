@@ -22,7 +22,7 @@ fn main() {
         println!("Task: {}", task_message);
         println!("{}", "=".repeat(80));
 
-        let enhanced_prompt = prompt_system.create_enhanced_prompt(task_message);
+        let enhanced_prompt = prompt_system.create_enhanced_prompt(task_message, None);
 
         println!("🎯 Generated Enhanced Prompt:");
         println!("{}", enhanced_prompt);
