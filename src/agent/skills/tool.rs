@@ -5,7 +5,6 @@
 
 use crate::agent::skills::metadata::SkillMetadata;
 use crate::agent::tools::{AgentTool, ToolOutput, ToolError};
-use anyhow::Context;
 use async_trait::async_trait;
 use serde_json::Value;
 use tracing::{debug, info};

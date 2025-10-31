@@ -34,6 +34,7 @@ pub mod unified_intelligence;
 pub use context::*;
 pub use narrative::*;
 pub use memory::*;
+#[allow(ambiguous_glob_reexports)]
 pub use persistent_memory::*;
 // pub use simple_lance_memory::*;  // Disabled due to arrow dependency conflict
 // pub use intelligent_memory::*;   // Disabled due to arrow dependency conflict

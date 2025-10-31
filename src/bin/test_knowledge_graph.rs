@@ -11,7 +11,6 @@
 
 use aircher::intelligence::{GraphBuilder, KnowledgeGraph};
 use anyhow::Result;
-use std::path::PathBuf;
 use std::time::Instant;
 
 fn main() -> Result<()> {

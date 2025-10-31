@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 use tokio::sync::mpsc;
 
 use super::{
-    ChatRequest, ChatResponse, FinishReason, LLMProvider, Message, MessageRole,
+    ChatRequest, ChatResponse, FinishReason, LLMProvider, MessageRole,
     PricingInfo, PricingModel, ResponseStream, StreamChunk, SubscriptionTier, ToolCall, UsageInfo,
 };
 

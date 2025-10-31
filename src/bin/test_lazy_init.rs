@@ -1,6 +1,5 @@
 /// Test if removing refresh_models() from Ollama init improves performance
 use anyhow::Result;
-use std::time::Instant;
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -8,7 +8,7 @@ use chrono::Utc;
 
 use crate::auth::AuthManager;
 use crate::intelligence::IntelligenceEngine;
-use crate::intelligence::duckdb_memory::{AgentAction, ToolExecution, FileInteraction, TaskRecord};
+use crate::intelligence::duckdb_memory::{AgentAction, ToolExecution, FileInteraction};
 use crate::providers::{LLMProvider, ChatRequest, Message, MessageRole, PricingModel};
 use crate::agent::tools::{ToolRegistry, ToolCall};
 use crate::agent::parser::{ToolCallParser, format_tool_results};

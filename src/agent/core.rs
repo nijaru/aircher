@@ -19,7 +19,7 @@ use crate::agent::plan_mode::{PlanGenerator, PlanMode};
 use crate::agent::multi_turn_reasoning::MultiTurnReasoningEngine;
 use crate::agent::events::{SharedEventBus, create_event_bus, AgentEvent, FileOperation, AgentMode};
 use crate::agent::lsp_manager::LspManager;
-use crate::agent::agent_mode::{ModeClassifier, ModeTransition};
+use crate::agent::agent_mode::ModeTransition;
 use crate::agent::git_snapshots::SnapshotManager;
 use crate::agent::model_router::ModelRouter;
 use crate::agent::specialized_agents::AgentRegistry;

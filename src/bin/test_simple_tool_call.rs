@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use aircher::auth::AuthManager;
-use aircher::client::{local::LocalClient, AgentClient};
+use aircher::client::local::LocalClient;
 use aircher::config::ConfigManager;
 use aircher::providers::ProviderManager;
 

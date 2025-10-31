@@ -7,10 +7,8 @@
 // - docs/architecture/SYSTEM_DESIGN_2025.md
 // - Research: OpenCode uses Plan/Build separation in production
 
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use tracing::{debug, info};
+use tracing::info;
 
 use super::events::{AgentEvent, AgentMode};
 use crate::intelligence::unified_intelligence::UserIntent;

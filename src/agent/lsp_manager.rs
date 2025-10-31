@@ -17,7 +17,7 @@ use tokio::sync::{broadcast, RwLock};
 use tracing::{debug, info, warn};
 
 use super::events::{
-    AgentEvent, Diagnostic, DiagnosticRange, DiagnosticSeverity,
+    AgentEvent, Diagnostic, DiagnosticSeverity,
     FileOperation, SharedEventBus
 };
 

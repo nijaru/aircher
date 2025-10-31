@@ -1,3 +1,6 @@
+//! Aircher - Intelligent coding agent
+#![allow(dead_code, unused_variables)]
+
 pub mod agent;
 pub mod app;
 pub mod auth;
