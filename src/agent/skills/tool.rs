@@ -4,9 +4,11 @@
 // skill-specific workflows using the skill's documentation.
 
 use crate::agent::skills::metadata::SkillMetadata;
+use crate::agent::skills::executor::SkillExecutor;
 use crate::agent::tools::{AgentTool, ToolOutput, ToolError};
 use async_trait::async_trait;
 use serde_json::Value;
+use std::sync::Arc;
 use tracing::{debug, info};
 
 /// A tool that executes a skill
@@ -16,12 +18,23 @@ use tracing::{debug, info};
 pub struct SkillTool {
     /// Skill metadata (name, description, parameters, etc.)
     metadata: SkillMetadata,
+
+    /// Skill executor (handles execution and approval workflow)
+    executor: Arc<SkillExecutor>,
 }
 
 impl SkillTool {
-    /// Create a new SkillTool from metadata
+    /// Create a new SkillTool from metadata with default executor
     pub fn new(metadata: SkillMetadata) -> Self {
-        Self { metadata }
+        Self {
+            metadata,
+            executor: Arc::new(SkillExecutor::new()),
+        }
+    }
+
+    /// Create a new SkillTool with custom executor
+    pub fn with_executor(metadata: SkillMetadata, executor: Arc<SkillExecutor>) -> Self {
+        Self { metadata, executor }
     }
 
     /// Validate parameters against skill schema
@@ -126,28 +139,9 @@ impl AgentTool for SkillTool {
         // 3. Build skill execution prompt
         let prompt = self.build_skill_prompt(&params).await?;
 
-        // 4. Return skill prompt as output
-        // The actual execution happens when the agent processes this prompt
-        // and uses its tools to fulfill the skill's steps.
-        //
-        // For now, we return the prompt so it can be integrated into the
-        // agent's execution flow. In Phase 2, we'll implement the full
-        // SkillExecutor that handles the execution loop.
-
-        let content = format!(
-            "Skill '{}' loaded successfully. Ready for execution.\n\nPrompt:\n{}",
-            self.metadata.name, prompt
-        );
-
-        Ok(ToolOutput {
-            success: true,
-            result: serde_json::json!({
-                "skill": self.metadata.name,
-                "prompt": prompt,
-            }),
-            error: None,
-            usage: None,
-        })
+        // 4. Execute skill via executor
+        // The executor handles approval workflow and prepares execution context
+        self.executor.execute_skill(&self.metadata, params, &prompt).await
     }
 
     fn name(&self) -> &str {

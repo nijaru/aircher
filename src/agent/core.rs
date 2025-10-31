@@ -24,6 +24,7 @@ use crate::agent::git_snapshots::SnapshotManager;
 use crate::agent::model_router::ModelRouter;
 use crate::agent::specialized_agents::AgentRegistry;
 use crate::agent::research_subagents::ResearchSubAgentManager;
+use crate::agent::skills::SkillManager;
 use crate::semantic_search::SemanticCodeSearch;
 
 /// Unified Agent implementation that serves both TUI and ACP modes
@@ -60,6 +61,8 @@ pub struct Agent {
     agent_registry: Arc<AgentRegistry>,
     /// Research sub-agent manager for parallel research (Week 8 Day 3-4)
     research_manager: Arc<ResearchSubAgentManager>,
+    /// Skills manager for user-extensible capabilities (Week 10 Phase 2)
+    skill_manager: Arc<SkillManager>,
 }
 
 impl Agent {
@@ -197,6 +200,10 @@ impl Agent {
         info!("Research sub-agent manager initialized (max {} concurrent) with tool execution",
               crate::agent::research_subagents::MAX_CONCURRENT_SUBAGENTS);
 
+        // Week 10 Phase 2: Skills manager for user-extensible capabilities
+        let skill_manager = Arc::new(SkillManager::new());
+        info!("Skills manager initialized");
+
         Ok(Self {
             tools,
             intelligence,
@@ -223,6 +230,7 @@ impl Agent {
             model_router,
             agent_registry,
             research_manager,
+            skill_manager,
         })
     }
     
@@ -239,6 +247,30 @@ impl Agent {
     /// Get reference to model router (Week 7 Day 6-7)
     pub fn model_router(&self) -> &Arc<ModelRouter> {
         &self.model_router
+    }
+
+    /// Get reference to skills manager (Week 10 Phase 2)
+    pub fn skill_manager(&self) -> &Arc<SkillManager> {
+        &self.skill_manager
+    }
+
+    /// List all discovered skills (Week 10 Phase 2)
+    ///
+    /// Returns cached skills if available, otherwise scans directories.
+    pub async fn list_skills(&self) -> Result<Vec<crate::agent::skills::SkillMetadata>> {
+        self.skill_manager.list_skills().await
+    }
+
+    /// Get a specific skill by name (Week 10 Phase 2)
+    pub async fn get_skill(&self, name: &str) -> Result<Option<crate::agent::skills::SkillMetadata>> {
+        self.skill_manager.get_skill(name).await
+    }
+
+    /// Reload skills from disk (Week 10 Phase 2)
+    ///
+    /// Forces a rescan of skill directories.
+    pub async fn reload_skills(&self) -> Result<Vec<crate::agent::skills::SkillMetadata>> {
+        self.skill_manager.reload().await
     }
 
     /// Get reference to agent registry (Week 8 Day 1-2)
@@ -1439,6 +1471,7 @@ impl Agent {
                 model_router: self.model_router.clone(), // Week 7 Day 6-7: Share model router
                 agent_registry: self.agent_registry.clone(), // Week 8 Day 1-2: Share agent registry
                 research_manager: self.research_manager.clone(), // Week 8 Day 3-4: Share research manager
+                skill_manager: self.skill_manager.clone(), // Week 10 Phase 2: Share skills manager
             }),
             self.reasoning.clone(),
             self.context_manager.clone(),
