@@ -7,10 +7,12 @@
 pub mod metadata;
 pub mod discovery;
 pub mod tool;
+pub mod executor;
 
 pub use metadata::{SkillMetadata, ParameterSchema, ParameterType};
 pub use discovery::SkillDiscovery;
 pub use tool::SkillTool;
+pub use executor::{SkillExecutor, SkillContext};
 
 use anyhow::Result;
 use std::path::PathBuf;
