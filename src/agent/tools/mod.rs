@@ -22,6 +22,7 @@ pub mod approved_file_ops;
 pub mod approval_registry;
 pub mod strategy_tools;
 pub mod real_analyze_errors;
+pub mod context_tools;
 
 #[cfg(test)]
 mod tests;
@@ -36,6 +37,7 @@ pub use code_analysis::{SearchCodeTool, FindDefinitionTool, AnalyzeCodeTool};
 pub use system_ops::RunCommandTool;
 pub use web_tools::{WebBrowsingTool, WebSearchTool};
 pub use build_tools::BuildSystemTool;
+pub use context_tools::ListContextTool;
 pub use permission_channel::{PermissionRequest, PermissionResponse, PermissionRequestSender, PermissionRequestReceiver, create_permission_channel};
 
 #[derive(Debug, Error)]
@@ -92,29 +94,73 @@ pub trait AgentTool: Send + Sync {
 /// Registry for all available tools
 pub struct ToolRegistry {
     tools: HashMap<String, Box<dyn AgentTool>>,
+    // Late-registration tools that need dependencies
+    late_tools: std::sync::Arc<std::sync::RwLock<HashMap<String, Box<dyn AgentTool>>>>,
 }
 
 impl ToolRegistry {
     pub fn new() -> Self {
         Self {
             tools: HashMap::new(),
+            late_tools: std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
     }
-    
+
     pub fn register(&mut self, tool: Box<dyn AgentTool>) {
         self.tools.insert(tool.name().to_string(), tool);
     }
-    
-    pub fn get(&self, name: &str) -> Option<&Box<dyn AgentTool>> {
-        self.tools.get(name)
+
+    /// Register a tool that requires dependencies created after the registry
+    /// Can be called even when ToolRegistry is wrapped in Arc
+    pub fn register_late(&self, tool: Box<dyn AgentTool>) {
+        let mut late_tools = self.late_tools.write().unwrap();
+        late_tools.insert(tool.name().to_string(), tool);
     }
-    
+
+    pub fn get(&self, name: &str) -> Option<&Box<dyn AgentTool>> {
+        // Check main tools first
+        if let some_tool @ Some(_) = self.tools.get(name) {
+            return some_tool;
+        }
+
+        // Check late-registered tools
+        // Note: We can't return a reference from the RwLock, so tools needing
+        // late registration should be accessed via execute_tool or list_tools
+        None
+    }
+
+    /// Execute a tool by name (works with both early and late-registered tools)
+    pub async fn execute_tool(&self, name: &str, params: Value) -> Result<ToolOutput, ToolError> {
+        // Check main tools
+        if let Some(tool) = self.tools.get(name) {
+            return tool.execute(params).await;
+        }
+
+        // Check late tools
+        let late_tools = self.late_tools.read().unwrap();
+        if let Some(tool) = late_tools.get(name) {
+            return tool.execute(params).await;
+        }
+
+        Err(ToolError::NotFound(format!("Tool '{}' not found", name)))
+    }
+
     pub fn list_tools(&self) -> Vec<ToolInfo> {
-        self.tools.values().map(|tool| ToolInfo {
+        let mut tools: Vec<ToolInfo> = self.tools.values().map(|tool| ToolInfo {
             name: tool.name().to_string(),
             description: tool.description().to_string(),
             parameters: tool.parameters_schema(),
-        }).collect()
+        }).collect();
+
+        // Add late-registered tools
+        let late_tools = self.late_tools.read().unwrap();
+        tools.extend(late_tools.values().map(|tool| ToolInfo {
+            name: tool.name().to_string(),
+            description: tool.description().to_string(),
+            parameters: tool.parameters_schema(),
+        }));
+
+        tools
     }
 }
 

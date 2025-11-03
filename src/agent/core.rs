@@ -116,6 +116,11 @@ impl Agent {
             search,
         ));
 
+        // Register context awareness tool (Phase 2) - requires context_manager dependency
+        use crate::agent::tools::ListContextTool;
+        tools.register_late(Box::new(ListContextTool::new(context_manager.clone())));
+        info!("Registered list_context tool for context awareness");
+
         // Create the reasoning engine with intelligent planning capabilities
         let reasoning = Arc::new(AgentReasoning::new(
             intelligence.clone(),
