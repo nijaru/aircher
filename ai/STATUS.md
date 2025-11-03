@@ -1,17 +1,23 @@
 # STATUS
 
-**Last Updated**: 2025-10-31 (Context Awareness Phase 1 + Component Validation)
+**Last Updated**: 2025-10-31 (Context Awareness Phase 1-2 + Component Validation)
 
 ## Current State
 
-### Context Awareness Phase 1 COMPLETE ✅ → User Insight Implemented!
+### Context Awareness Phase 1-2 COMPLETE ✅ → User Insight + Inspection Tool!
 
 **Completed (Oct 31, 2025)**:
-- ✅ **Context Awareness Implementation** (Commits: 146144b, 800ca3f)
+- ✅ **Phase 1: Context Stats in System Prompt** (Commits: 146144b, 800ca3f)
   - Agent now exposes context stats to model in every turn
   - Model sees: "45K/180K tokens used (25.1% full)"
   - Enables informed decision-making about verbosity and strategy
   - Addresses user insight: "Claude should know how much context is left"
+- ✅ **Phase 2: list_context Tool** (Commit: a3d3e05)
+  - Agent can now inspect conversation context items
+  - Shows token usage, utilization %, remaining capacity
+  - Lists items by relevance with scores
+  - Provides recommendations based on utilization
+  - Registered via new register_late() method for tools with dependencies
 - ✅ **Component Validation** (Tasks 1-4 complete)
   - Analyzed src/agent/core.rs structure (22 fields, 20+ API methods)
   - Created src/utils/context_stats.rs formatting utility (102 lines, 3 tests)
