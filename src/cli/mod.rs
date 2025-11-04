@@ -991,7 +991,8 @@ impl CliApp {
     fn check_api_key(&self, provider_name: &str) -> Result<()> {
         let env_var = match provider_name {
             "claude" | "anthropic" => "ANTHROPIC_API_KEY",
-            "gemini" => "GOOGLE_API_KEY", 
+            "openai" => "OPENAI_API_KEY",
+            "gemini" => "GOOGLE_API_KEY",
             "openrouter" => "OPENROUTER_API_KEY",
             "ollama" => return Ok(()), // Ollama doesn't need API key
             "" => return Err(anyhow::anyhow!("No provider specified")), // Handle empty provider
