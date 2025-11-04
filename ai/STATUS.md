@@ -4,18 +4,33 @@
 
 ## Current State
 
-### SWE-bench Lite Manual Pilot COMPLETE ✅ → Bug Identified & Validated!
+### SWE-bench Lite: Task 0 Complete ✅ → Aircher Produced Incorrect Fix ❌
 
-**Completed (Nov 4, 2025)** - Pilot validation successful:
+**Completed (Nov 4, 2025)** - First empirical validation with mixed results:
+
+**Pilot Analysis (Manual)**:
 - ✅ **Environment Setup**: SWE-bench installed with all dependencies
 - ✅ **Dataset Loaded**: 10 tasks from Lite (6 astropy + 4 django)
-- ✅ **Task #1 Analysis** (astropy__astropy-12907): **BUG FOUND!**
+- ✅ **Task #0 Analysis** (astropy__astropy-12907): **BUG FOUND!**
   - Repository cloned at base commit: d16bfe05a744909de4b27f5875fe0d4ed41ce607
-  - File: `astropy/modeling/separable.py` line 245
+  - File: `astropy/modeling/separable.py` line 246
   - Bug: `cright[-right.shape[0]:, -right.shape[1]:] = 1` (should be `= right`)
   - Impact: Nested CompoundModels report incorrect separability
-  - Fix: Single-line change (character-level edit: `1` → `right`)
-  - Difficulty: Medium (requires understanding coordinate matrices)
+  - Fix: Single character change (`1` → `right`)
+  - Difficulty: Easy (once bug is located)
+
+**Aircher Execution (vLLM gpt-oss-20b)**:
+- ✅ **Successfully ran**: 1173 tokens, ~1.16s latency
+- ✅ **Generated patch**: Analyzed code and produced diff
+- ❌ **INCORRECT SOLUTION**: Fixed wrong part of code
+  - **Aircher's change**: `cright[idx_i, idx_j] = sep_i` → `cright[idx_i, idx_j] |= sep_i`
+  - **Actual bug**: `cright[-right.shape[0]:, -right.shape[1]:] = 1` → `= right` (line 246)
+  - **Root cause**: Prompt wasn't specific enough, agent over-engineered solution
+
+**Task 0 Result**: ❌ 0/1 (Failed)
+- Patch generated but incorrect location
+- Agent focused on nested CompoundModel logic instead of simple assignment bug
+- Demonstrates need for more specific prompts or better code analysis
 
 **Key Findings**:
 1. **Task Quality**: SWE-bench tasks are well-defined and solvable
