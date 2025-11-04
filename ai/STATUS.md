@@ -1,8 +1,43 @@
 # STATUS
 
-**Last Updated**: 2025-11-04 (vLLM GPU Integration Complete)
+**Last Updated**: 2025-11-04 (SWE-bench Lite Setup In Progress)
 
 ## Current State
+
+### SWE-bench Lite Setup IN PROGRESS 🔄 → Validation Framework Ready
+
+**Started (Nov 4, 2025)**:
+- ✅ **Environment Setup**: SWE-bench installed with all dependencies
+  - Repository: /tmp/SWE-bench
+  - Python 3.14.0 verified
+  - System: 788GB disk, 128GB RAM, 16 cores (adequate for evaluation)
+- ✅ **Dataset Loaded**: 10 tasks from SWE-bench Lite selected
+  - Total available: 300 tasks in Lite
+  - Sample: 6 astropy + 4 django tasks
+  - Saved to: /tmp/swe_bench_lite_10_tasks.json
+- ✅ **Integration Script Created**: Framework for Aircher evaluation
+  - Script: /tmp/SWE-bench/aircher_integration.py
+  - Connects vLLM backend to SWE-bench harness
+
+**Next Steps** (Realistic Breakdown):
+1. **Repository Setup**: Clone repos at base_commit for each task
+2. **Aircher Execution**: Run agent to generate patches
+3. **Patch Application**: Apply generated patches
+4. **Test Execution**: Run FAIL_TO_PASS and PASS_TO_PASS tests
+5. **Manual Pilot**: Test with 1-2 tasks before full automation
+
+**Task Structure Example** (astropy__astropy-12907):
+- Repository: astropy/astropy
+- Base commit: d16bfe05a744909de4b27f5875fe0d4ed41ce607
+- Problem: Modeling's `separability_matrix` nested CompoundModels bug
+- Gold patch: 200+ lines unified diff
+- Tests: FAIL_TO_PASS + PASS_TO_PASS test suites
+
+**Challenge**: Full SWE-bench evaluation is complex
+- Requires Docker for test isolation
+- Each task needs repo setup + patch application + test execution
+- Estimated time: ~1-2 days for full automation
+- Recommendation: Start with manual 1-2 task pilot
 
 ### vLLM GPU Integration COMPLETE ✅ → 6-8x Performance Improvement!
 
