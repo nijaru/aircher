@@ -32,11 +32,23 @@
 
 **Detailed Analysis**: `/tmp/swe_bench_workspace/pilot_analysis.md`
 
-**Next Steps** (Recommendation: Minimal Automation):
-1. ⏳ **Automate repo setup + prompt generation** (2 hours)
-2. ⏳ **Add patch extraction from Aircher output** (1 hour)
-3. ⏳ **Run 3-5 tasks semi-automated** (2-3 hours)
-4. ⏳ **Decide: Full automation vs alternative validation**
+**Minimal Automation COMPLETE** ✅ (Nov 4, 2025):
+1. ✅ **Repository setup automated** - Clones repo at base commit
+2. ✅ **Prompt generation automated** - Converts task JSON → Aircher prompt
+3. ✅ **Patch extraction automated** - Extracts unified diffs from output
+4. ✅ **Tested with 2 tasks** - astropy (task 0) + django (task 6) validated
+5. ✅ **Documentation complete** - `/tmp/SWE-bench/README_AUTOMATION.md`
+
+**Automation Script**: `/tmp/SWE-bench/swe_bench_runner.py`
+- **Features**: Repo setup, prompt generation, patch extraction
+- **Usage**: `python3 swe_bench_runner.py --task N [--dry-run]`
+- **Output**: `/tmp/swe_bench_results/<task_id>/`
+- **Time**: ~1 minute per task (excluding Aircher execution)
+
+**Next Steps** (Ready for Execution):
+1. ⏳ **Run Aircher on 2-3 tasks** - Use vLLM backend with generated prompts
+2. ⏳ **Extract and evaluate patches** - Quality, correctness, completeness
+3. ⏳ **Measure success rate** - Target: 30-40% (3-4 tasks out of 10)
 
 **Estimated Success Rate**: 3-4 tasks out of 10 (30-40%)
 - Competitive with industry baselines
