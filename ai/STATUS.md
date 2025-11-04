@@ -276,7 +276,28 @@
 
 ## Active Work
 
-**Current (2025-10-30)**: Week 9 Empirical Validation - REFOCUSED
+**Current (2025-11-03)**: vLLM GPU Acceleration ✅ SUCCESS
+
+**Completed (Nov 3, 2025)**:
+- ✅ **vLLM Server Running on Fedora**: GPU-accelerated inference operational
+  - Model: openai/gpt-oss-20b (13GB in 24GB RTX 4090 VRAM)
+  - Performance: 2-3s latency (vs 7-10s with Ollama on M3 Max) - ~3-4x speedup
+  - Configuration: GPU utilization 0.7, dtype auto, no quantization
+  - KV cache: 18,736 tokens (0.86 GiB), CUDA graphs captured (4s, 0.84 GiB)
+  - Endpoints validated: `/v1/models`, `/v1/chat/completions` working
+- ✅ **Aircher OpenAI Provider Fix**: Added "openai" to CLI check_api_key() (Commit: f217e77)
+- ✅ **Binary Rebuild**: 67M binary with OpenAI support (Nov 3 16:54)
+- ✅ **Documentation**: FEDORA_SETUP.md updated with working configuration (Commit: 561c9c2)
+- ⏳ **Integration Test**: Blocked - need to restart vLLM with --api-key flag when Fedora online
+
+**Key Learnings**:
+1. Model path: HuggingFace format `openai/gpt-oss-20b` (not Ollama `gpt-oss:20b`)
+2. GPU utilization 0.7 reliable (0.8 caused CUDA OOM during graph capture)
+3. vLLM validates API keys - must use `--api-key` flag to set expected key
+4. Config location: `~/.aircher/config.toml` (NOT `~/.config/aircher/config.toml`)
+5. User helped by stopping GDM to free GPU resources (good troubleshooting)
+
+**Previous (2025-10-30)**: Week 9 Empirical Validation - REFOCUSED
 
 **Completed (Oct 30, 2025)**:
 - ✅ **SOTA Research**: 8 agents analyzed, 40+ feature matrix (ai/research/tui-agents-sota-2025.md)
