@@ -50,9 +50,29 @@ struct OpenAIRequest {
 #[derive(Debug, Serialize, Deserialize)]
 struct OpenAIMessage {
     role: String,
+    #[serde(deserialize_with = "deserialize_content")]
     content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_calls: Option<Vec<OpenAIToolCall>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_content: Option<String>,
+    // vLLM-specific fields
+    #[serde(skip_serializing_if = "Option::is_none")]
+    refusal: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    annotations: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    audio: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    function_call: Option<serde_json::Value>,
+}
+
+fn deserialize_content<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt: Option<String> = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -72,18 +92,36 @@ struct OpenAIFunction {
 #[derive(Debug, Deserialize)]
 struct OpenAIResponse {
     id: String,
-    _object: String,
-    _created: u64,
+    object: String,
+    created: u64,
     model: String,
     choices: Vec<OpenAIChoice>,
     usage: Option<OpenAIUsage>,
+    // vLLM-specific fields
+    #[serde(skip_serializing_if = "Option::is_none")]
+    service_tier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    system_fingerprint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt_logprobs: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt_token_ids: Option<Vec<u32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    kv_transfer_params: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OpenAIChoice {
-    _index: u32,
+    index: u32,
     message: OpenAIMessage,
     finish_reason: Option<String>,
+    // vLLM-specific fields
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stop_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    token_ids: Option<Vec<u32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    logprobs: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -91,27 +129,30 @@ struct OpenAIUsage {
     prompt_tokens: u32,
     completion_tokens: u32,
     total_tokens: u32,
+    // vLLM-specific fields
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt_tokens_details: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OpenAIStreamEvent {
-    _id: String,
-    _object: String,
-    _created: u64,
-    _model: String,
+    id: String,
+    object: String,
+    created: u64,
+    model: String,
     choices: Vec<OpenAIStreamChoice>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OpenAIStreamChoice {
-    _index: u32,
+    index: u32,
     delta: OpenAIStreamDelta,
     finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OpenAIStreamDelta {
-    _role: Option<String>,
+    role: Option<String>,
     content: Option<String>,
 }
 
@@ -124,8 +165,8 @@ struct OpenAIError {
 struct OpenAIErrorDetails {
     message: String,
     #[serde(rename = "type")]
-    _error_type: Option<String>,
-    _code: Option<String>,
+    error_type: Option<String>,
+    code: Option<String>,
 }
 
 impl OpenAIProvider {
@@ -158,6 +199,14 @@ impl OpenAIProvider {
         Ok(headers)
     }
 
+    fn get_base_url(&self) -> &str {
+        if self.config.base_url.is_empty() {
+            "https://api.openai.com/v1"
+        } else {
+            &self.config.base_url
+        }
+    }
+
     fn convert_request(&self, req: &ChatRequest) -> OpenAIRequest {
         let mut messages = Vec::new();
         
@@ -173,6 +222,11 @@ impl OpenAIProvider {
                 role: role.to_string(),
                 content: msg.content.clone(),
                 tool_calls: None, // Tool calls are only in responses, not requests
+                reasoning_content: None,
+                refusal: None,
+                annotations: None,
+                audio: None,
+                function_call: None,
             });
         }
 
@@ -222,9 +276,16 @@ impl OpenAIProvider {
             }).collect()
         });
 
+        // Prefer reasoning_content if content is empty (vLLM compatibility)
+        let content = if choice.message.content.is_empty() {
+            choice.message.reasoning_content.clone().unwrap_or_default()
+        } else {
+            choice.message.content.clone()
+        };
+
         Ok(ChatResponse {
             id: resp.id,
-            content: choice.message.content.clone(),
+            content,
             role: MessageRole::Assistant,
             model: resp.model,
             tokens_used: resp.usage.as_ref().map(|u| u.total_tokens).unwrap_or(0),
@@ -251,9 +312,10 @@ impl LLMProvider for OpenAIProvider {
 
         debug!("Sending OpenAI API request for model: {}", req.model);
 
+        let url = format!("{}/chat/completions", self.get_base_url());
         let response = self
             .client
-            .post("https://api.openai.com/v1/chat/completions")
+            .post(&url)
             .headers(headers)
             .json(&openai_req)
             .send()
@@ -296,9 +358,10 @@ impl LLMProvider for OpenAIProvider {
 
         debug!("Starting OpenAI streaming for model: {}", req.model);
 
+        let url = format!("{}/chat/completions", self.get_base_url());
         let response = self
             .client
-            .post("https://api.openai.com/v1/chat/completions")
+            .post(&url)
             .headers(headers)
             .json(&openai_req)
             .send()
@@ -475,6 +538,11 @@ impl LLMProvider for OpenAIProvider {
                 role: "user".to_string(),
                 content: "test".to_string(),
                 tool_calls: None,
+                reasoning_content: None,
+                refusal: None,
+                annotations: None,
+                audio: None,
+                function_call: None,
             }],
             max_tokens: Some(1),
             temperature: Some(0.0),
@@ -482,9 +550,10 @@ impl LLMProvider for OpenAIProvider {
             tools: None,
         };
 
+        let url = format!("{}/chat/completions", self.get_base_url());
         let response = self
             .client
-            .post("https://api.openai.com/v1/chat/completions")
+            .post(&url)
             .headers(headers)
             .json(&test_request)
             .send()
@@ -497,10 +566,11 @@ impl LLMProvider for OpenAIProvider {
         let headers = self.create_headers()?;
         
         debug!("Fetching available models from OpenAI API");
-        
+
+        let url = format!("{}/models", self.get_base_url());
         let response = self
             .client
-            .get("https://api.openai.com/v1/models")
+            .get(&url)
             .headers(headers)
             .send()
             .await
