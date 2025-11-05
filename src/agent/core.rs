@@ -2203,6 +2203,264 @@ impl Agent {
         }
         Ok(())
     }
+
+    // ========================================================================
+    // Validation Loop Methods (Option B - AutoGen pattern)
+    // ========================================================================
+
+    /// Find potential bug locations (Explorer agent role)
+    ///
+    /// Uses specialized prompts to search for bug locations and returns
+    /// candidates ranked by confidence.
+    pub async fn find_bug_locations(
+        &self,
+        bug_description: &str,
+        repository_path: &std::path::Path,
+        provider: &dyn crate::providers::LLMProvider,
+        model: &str,
+    ) -> Result<Vec<crate::agent::validation_loop::LocationCandidate>> {
+        use crate::agent::validation_loop::LocationCandidate;
+
+        info!("Finding bug locations for: {}", bug_description);
+
+        let prompt = format!(
+            r#"You are a code investigator finding bug locations.
+
+Bug Description:
+{}
+
+Repository: {}
+
+Task: Find the most likely file(s) and line(s) where this bug exists.
+
+IMPORTANT STEPS:
+1. Use grep to search for relevant code patterns mentioned in bug description
+2. Use read_file to examine candidate files
+3. Identify the EXACT location (file + line number if possible)
+4. Verify the code at that location matches the bug description
+
+Return 1-3 location candidates ranked by confidence.
+
+For each candidate provide a JSON object with:
+- file_path: Exact path to file
+- line_number: Line number if identifiable (or null)
+- confidence: 0.0 to 1.0 (how sure are you?)
+- reasoning: Why you think the bug is here
+
+Output format: Return ONLY a JSON array of candidates, nothing else.
+Example: [{{"file_path": "src/main.rs", "line_number": 42, "confidence": 0.9, "reasoning": "Variable matches bug description"}}]
+"#,
+            bug_description,
+            repository_path.display()
+        );
+
+        // Execute with provider
+        let (response, _status_messages) = self.process_message(&prompt, provider, model).await?;
+
+        // Parse JSON response
+        let response_text = response.trim();
+
+        // Extract JSON from response (might be wrapped in markdown code blocks)
+        let json_text = if response_text.contains("```json") {
+            response_text
+                .split("```json")
+                .nth(1)
+                .and_then(|s| s.split("```").next())
+                .unwrap_or(response_text)
+                .trim()
+        } else if response_text.contains("```") {
+            response_text
+                .split("```")
+                .nth(1)
+                .and_then(|s| s.split("```").next())
+                .unwrap_or(response_text)
+                .trim()
+        } else {
+            response_text
+        };
+
+        let candidates: Vec<LocationCandidate> = serde_json::from_str(json_text)
+            .map_err(|e| anyhow::anyhow!("Failed to parse location candidates: {}. Response: {}", e, json_text))?;
+
+        info!("Found {} location candidates", candidates.len());
+        Ok(candidates)
+    }
+
+    /// Verify that a proposed patch targets the correct location (Explorer agent role)
+    ///
+    /// Reads the target file and verifies the patch location actually contains
+    /// the code mentioned in the bug description.
+    pub async fn verify_patch_location(
+        &self,
+        proposal: &crate::agent::validation_loop::PatchProposal,
+        bug_description: &str,
+        provider: &dyn crate::providers::LLMProvider,
+        model: &str,
+    ) -> Result<crate::agent::validation_loop::VerificationResult> {
+        use crate::agent::validation_loop::VerificationResult;
+
+        info!("Verifying patch location: {:?}", proposal.location.file_path);
+
+        let prompt = format!(
+            r#"You are a code reviewer verifying patch correctness.
+
+Bug Description:
+{}
+
+Proposed Patch:
+File: {}
+Line: {}
+Reasoning from patch author: {}
+
+Patch:
+{}
+
+Task: Verify this patch targets the CORRECT location.
+
+VERIFICATION STEPS:
+1. Read the target file: {}
+2. Check if the target location contains the code mentioned in bug description
+3. Verify the patch makes sense for this location
+4. Confirm this is the ACTUAL bug location (not just related code)
+
+Answer with a JSON object containing:
+- is_correct: true/false
+- reasoning: Explain your verification decision
+- issues: Array of problems if not correct (e.g., ["File doesn't contain variable X", "Line is in documentation not implementation"])
+
+Output format: Return ONLY a JSON object, nothing else.
+Example: {{"is_correct": false, "reasoning": "The file doesn't contain the expected variable", "issues": ["Variable not found", "Wrong file"]}}
+"#,
+            bug_description,
+            proposal.location.file_path.display(),
+            proposal.location.line_number.map_or("unknown".to_string(), |n| n.to_string()),
+            proposal.reasoning,
+            proposal.patch,
+            proposal.location.file_path.display(),
+        );
+
+        let (response, _status_messages) = self.process_message(&prompt, provider, model).await?;
+
+        // Parse JSON response
+        let response_text = response.trim();
+
+        // Extract JSON from response
+        let json_text = if response_text.contains("```json") {
+            response_text
+                .split("```json")
+                .nth(1)
+                .and_then(|s| s.split("```").next())
+                .unwrap_or(response_text)
+                .trim()
+        } else if response_text.contains("```") {
+            response_text
+                .split("```")
+                .nth(1)
+                .and_then(|s| s.split("```").next())
+                .unwrap_or(response_text)
+                .trim()
+        } else {
+            response_text
+        };
+
+        let verification: VerificationResult = serde_json::from_str(json_text)
+            .map_err(|e| anyhow::anyhow!("Failed to parse verification result: {}. Response: {}", e, json_text))?;
+
+        info!("Verification result: {}", if verification.is_correct { "✓ CORRECT" } else { "✗ INCORRECT" });
+        Ok(verification)
+    }
+
+    /// Generate a patch for a verified location (Builder agent role)
+    ///
+    /// Creates a unified diff patch to fix the bug at the specified location.
+    pub async fn generate_patch(
+        &self,
+        bug_description: &str,
+        location: &crate::agent::validation_loop::LocationCandidate,
+        provider: &dyn crate::providers::LLMProvider,
+        model: &str,
+    ) -> Result<crate::agent::validation_loop::PatchProposal> {
+        use crate::agent::validation_loop::PatchProposal;
+
+        info!("Generating patch for: {:?}", location.file_path);
+
+        let prompt = format!(
+            r#"You are a code fixer generating patches.
+
+Bug Description:
+{}
+
+Target Location (verified by investigator):
+File: {}
+Line: {}
+Confidence: {:.1}%
+Reasoning: {}
+
+Task: Generate a unified diff patch to fix this bug.
+
+IMPORTANT:
+1. Read the target file: {}
+2. Understand the context around the target location
+3. Generate MINIMAL patch (smallest change that fixes bug)
+4. Output valid unified diff format
+
+Provide a JSON object with:
+- patch: Unified diff string
+- reasoning: Explain what your patch does and why
+
+Output format: Return ONLY a JSON object, nothing else.
+Example: {{"patch": "--- a/file.rs\n+++ b/file.rs\n@@ -42,1 +42,1 @@\n-    old line\n+    new line", "reasoning": "Changed X to Y to fix bug"}}
+"#,
+            bug_description,
+            location.file_path.display(),
+            location.line_number.map_or("unknown".to_string(), |n| n.to_string()),
+            location.confidence * 100.0,
+            location.reasoning,
+            location.file_path.display(),
+        );
+
+        let (response, _status_messages) = self.process_message(&prompt, provider, model).await?;
+
+        // Parse JSON response
+        let response_text = response.trim();
+
+        // Extract JSON from response
+        let json_text = if response_text.contains("```json") {
+            response_text
+                .split("```json")
+                .nth(1)
+                .and_then(|s| s.split("```").next())
+                .unwrap_or(response_text)
+                .trim()
+        } else if response_text.contains("```") {
+            response_text
+                .split("```")
+                .nth(1)
+                .and_then(|s| s.split("```").next())
+                .unwrap_or(response_text)
+                .trim()
+        } else {
+            response_text
+        };
+
+        let patch_data: serde_json::Value = serde_json::from_str(json_text)
+            .map_err(|e| anyhow::anyhow!("Failed to parse patch data: {}. Response: {}", e, json_text))?;
+
+        let proposal = PatchProposal {
+            location: location.clone(),
+            patch: patch_data.get("patch")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing 'patch' field in response"))?
+                .to_string(),
+            reasoning: patch_data.get("reasoning")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing 'reasoning' field in response"))?
+                .to_string(),
+        };
+
+        info!("Generated patch: {} lines", proposal.patch.lines().count());
+        Ok(proposal)
+    }
 }
 
 /// ACP (Agent Client Protocol) implementation
