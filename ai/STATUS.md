@@ -1,8 +1,40 @@
 # STATUS
 
-**Last Updated**: 2025-11-04 (SWE-bench Lite Setup In Progress)
+**Last Updated**: 2025-11-05 (Option B Day 1 Complete)
 
 ## Current State
+
+### Option B Validation Loop: Day 1 COMPLETE ✅
+
+**Completed (Nov 5, 2025)** - Commit: 230bede
+
+**Infrastructure Built**:
+- ✅ `src/agent/validation_loop.rs` - Core data structures (215 lines, 4 tests)
+  - `LocationCandidate`: Bug location candidates with confidence scores
+  - `PatchProposal`: Proposed patches for specific locations
+  - `VerificationResult`: Patch location verification results
+  - `ValidatedPatch`: Successfully verified patches
+  - `ValidationLoopCoordinator`: Coordinates validation attempts (max 3)
+
+- ✅ Agent validation methods (src/agent/core.rs, +258 lines):
+  - `find_bug_locations()`: Explorer role - finds candidates with explicit navigation prompts
+  - `verify_patch_location()`: Explorer role - verifies proposed patches target correct location
+  - `generate_patch()`: Builder role - generates unified diff patches
+
+- ✅ Exported from `src/agent/mod.rs` for use in SWE-bench runner
+
+**Key Features**:
+- JSON output format for structured responses
+- Handles markdown code block wrapping
+- Confidence-based candidate sorting
+- Explicit verification steps in prompts ("Read target file", "Check if line contains code")
+- Max 3 attempts with detailed logging
+
+**Status**: Compiles cleanly, ready for Day 2 integration tests
+
+**Next**: Wire into SWE-bench runner to test validation loop on Tasks 0 & 6
+
+---
 
 ### SWE-bench Lite: 2 Tasks Complete → Pattern Identified ⚠️
 
