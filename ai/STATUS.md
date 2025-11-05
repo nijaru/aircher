@@ -50,7 +50,13 @@
 5. Multiple attempts: 3 tries until success (7 LLM calls)
 6. Max attempts exceeded: all candidates fail verification
 
-**Next Steps** (Day 3):
+**Current Status**: Infrastructure complete and ready to test, but blocked by authentication
+
+**Blocker**: OAuth tokens expired, Cloudflare blocking token refresh (403 Forbidden)
+- Solution: Set ANTHROPIC_API_KEY environment variable OR manually refresh OAuth tokens
+- Once fixed, just run: `cargo run --example swe_bench_validation_loop -- --task-id astropy__astropy-12907`
+
+**Next Steps** (Day 3 - pending auth fix):
 1. Run Task 0 (astropy__astropy-12907) with validation loop
 2. Run Task 6 (django__django-10914) with validation loop
 3. Measure improvement: 0/2 (old) → ?/2 (new)
