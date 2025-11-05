@@ -4,77 +4,128 @@
 
 ## Current State
 
-### SWE-bench Lite: Task 0 Complete ✅ → Aircher Produced Incorrect Fix ❌
+### SWE-bench Lite: 2 Tasks Complete → Pattern Identified ⚠️
 
-**Completed (Nov 4, 2025)** - First empirical validation with mixed results:
+**Status (Nov 4, 2025)**: 2/10 tasks tested, 0/2 succeeded (0% success rate)
 
-**Pilot Analysis (Manual)**:
-- ✅ **Environment Setup**: SWE-bench installed with all dependencies
-- ✅ **Dataset Loaded**: 10 tasks from Lite (6 astropy + 4 django)
-- ✅ **Task #0 Analysis** (astropy__astropy-12907): **BUG FOUND!**
-  - Repository cloned at base commit: d16bfe05a744909de4b27f5875fe0d4ed41ce607
-  - File: `astropy/modeling/separable.py` line 246
-  - Bug: `cright[-right.shape[0]:, -right.shape[1]:] = 1` (should be `= right`)
-  - Impact: Nested CompoundModels report incorrect separability
-  - Fix: Single character change (`1` → `right`)
-  - Difficulty: Easy (once bug is located)
+**Critical Finding**: Consistent location identification failure across both tasks
 
-**Aircher Execution (vLLM gpt-oss-20b)**:
-- ✅ **Successfully ran**: 1173 tokens, ~1.16s latency
-- ✅ **Generated patch**: Analyzed code and produced diff
-- ❌ **INCORRECT SOLUTION**: Fixed wrong part of code
-  - **Aircher's change**: `cright[idx_i, idx_j] = sep_i` → `cright[idx_i, idx_j] |= sep_i`
-  - **Actual bug**: `cright[-right.shape[0]:, -right.shape[1]:] = 1` → `= right` (line 246)
-  - **Root cause**: Prompt wasn't specific enough, agent over-engineered solution
+#### Task Results Summary
 
-**Task 0 Result**: ❌ 0/1 (Failed)
-- Patch generated but incorrect location
-- Agent focused on nested CompoundModel logic instead of simple assignment bug
-- Demonstrates need for more specific prompts or better code analysis
+| Task | Repository | Bug Type | Aircher Result | Failure Mode |
+|------|-----------|----------|----------------|--------------|
+| Task 0 | astropy | Wrong variable in assignment | ❌ INCORRECT | Wrong location in file |
+| Task 6 | django | Missing default setting | ❌ INCORRECT | Wrong file entirely |
 
-**Key Findings**:
-1. **Task Quality**: SWE-bench tasks are well-defined and solvable
-   - Clear problem statements with code examples
-   - Gold patches available for validation
-   - Test suites (FAIL_TO_PASS + PASS_TO_PASS)
-2. **Code Complexity**: Realistic real-world bugs
-   - Task #1: 342 lines in `separable.py`, bug at line 245
-   - Requires understanding: coordinate matrices, compound models
-   - Logic error (not syntax): using literal `1` instead of variable `right`
-3. **Aircher Capability**: Within reach with proper prompting
-   - Estimated success probability: 60-70% for this task
-   - Industry baseline: 30-45% success rate on SWE-bench Lite
+#### Task 0: astropy__astropy-12907 ❌
 
-**Detailed Analysis**: `/tmp/swe_bench_workspace/pilot_analysis.md`
+**The Bug**:
+- File: `astropy/modeling/separable.py` line 246
+- Issue: `cright[-right.shape[0]:, -right.shape[1]:] = 1` (should be `= right`)
+- Fix: Single character change
 
-**Minimal Automation COMPLETE** ✅ (Nov 4, 2025):
-1. ✅ **Repository setup automated** - Clones repo at base commit
-2. ✅ **Prompt generation automated** - Converts task JSON → Aircher prompt
-3. ✅ **Patch extraction automated** - Extracts unified diffs from output
-4. ✅ **Tested with 2 tasks** - astropy (task 0) + django (task 6) validated
-5. ✅ **Documentation complete** - `/tmp/SWE-bench/README_AUTOMATION.md`
+**Aircher's Attempt**:
+- ✅ Understood problem correctly
+- ✅ Generated patch (1,173 tokens, ~1.16s)
+- ❌ **WRONG LOCATION**: Changed loop logic instead of assignment
+- Change proposed: `cright[idx_i, idx_j] = sep_i` → `|= sep_i`
+- Actual bug: Line 246 assignment using `1` instead of `right`
 
-**Automation Script**: `/tmp/SWE-bench/swe_bench_runner.py`
-- **Features**: Repo setup, prompt generation, patch extraction
-- **Usage**: `python3 swe_bench_runner.py --task N [--dry-run]`
-- **Output**: `/tmp/swe_bench_results/<task_id>/`
-- **Time**: ~1 minute per task (excluding Aircher execution)
+**Evaluation**: `/tmp/swe_bench_results/astropy__astropy-12907/EVALUATION.md`
 
-**Next Steps** (Ready for Execution):
-1. ⏳ **Run Aircher on 2-3 tasks** - Use vLLM backend with generated prompts
-2. ⏳ **Extract and evaluate patches** - Quality, correctness, completeness
-3. ⏳ **Measure success rate** - Target: 30-40% (3-4 tasks out of 10)
+#### Task 6: django__django-10914 ❌
 
-**Estimated Success Rate**: 3-4 tasks out of 10 (30-40%)
-- Competitive with industry baselines
-- Validates hybrid architecture in practice
-- Proves Aircher handles real-world bugs
+**The Bug**:
+- File: `django/conf/global_settings.py` line 307
+- Issue: `FILE_UPLOAD_PERMISSIONS = None` (should be `0o644`)
+- Fix: Simple value change
 
-**Value Demonstrated**:
-- SWE-bench is feasible validation approach
-- vLLM integration enables cost-effective benchmarking
-- Tasks test real debugging skills (not toy examples)
-- Competitive positioning possible
+**Aircher's Attempt**:
+- ✅ Understood problem correctly
+- ✅ Identified correct value (0o644)
+- ✅ Generated patch (966 tokens, ~1.2s)
+- ❌ **WRONG FILE**: Changed `django/conf/__init__.py` instead
+- Target should be: `global_settings.py` (where defaults are defined)
+- Aircher targeted: `__init__.py` (settings loader, doesn't contain the setting)
+
+**Evaluation**: `/tmp/swe_bench_results/django__django-10914/EVALUATION.md`
+
+#### Pattern Analysis: Location Identification Problem
+
+**What Aircher Gets Right** ✅:
+1. Problem understanding (both tasks)
+2. Reasoning about correct fix (both tasks)
+3. Solution values/logic (Task 6: correctly identified 0o644)
+
+**What Aircher Gets Wrong** ❌:
+1. **Location identification** (both tasks failed here)
+2. Codebase navigation (confuses docs with implementation)
+3. No verification step (doesn't check target file contains code)
+
+**Failure Pattern**:
+```
+Understanding (✅) → Reasoning (✅) → Location (❌) → Fix (❌)
+```
+
+**Root Cause**:
+- Prompts lack explicit navigation guidance ("use grep to find definition")
+- Model searches for text mentions, not actual code definitions
+- No verification loop ("does this file contain the target line?")
+
+**Critical Insight**: Problem is NOT reasoning quality—it's codebase navigation.
+
+#### Automation Infrastructure COMPLETE ✅
+
+**Built (Nov 4, 2025)**:
+1. ✅ Repository setup - Clones at base commit, handles git history
+2. ✅ Prompt generation - Converts SWE-bench JSON → Aircher format
+3. ✅ Patch extraction - Parses unified diffs from output
+4. ✅ Cross-repository validation - Tested astropy + django
+5. ✅ Documentation - Full automation guide in `/tmp/SWE-bench/`
+
+**Script**: `/tmp/SWE-bench/swe_bench_runner.py` (430 lines)
+- Usage: `python3 swe_bench_runner.py --task N`
+- Output: `/tmp/swe_bench_results/<task_id>/`
+- Time: ~1 min per task (excluding Aircher execution)
+
+#### Next Steps Decision Point
+
+**Current Success Rate**: 0/2 (0%)
+**Target Success Rate**: 30-40% (3-4 out of 10)
+**Pattern Confidence**: Medium (2 tasks show same failure mode)
+
+**Option A: Test 2 More Tasks** (Recommended):
+- Run Tasks 1 + 7 to confirm pattern
+- If 0/4: Pattern confirmed → improve prompts
+- If 1-2/4: Pattern nuanced → analyze what worked
+- Time: ~30 minutes
+
+**Option B: Improve Prompts Now**:
+- Add explicit navigation steps (grep, verify, fix)
+- Add verification requirements
+- Re-test Tasks 0 + 6 with new prompts
+- Time: ~1-2 hours
+
+**Option C: Try Different Model**:
+- Test Claude Sonnet 4.5 or GPT-4
+- Better code navigation capabilities
+- Higher cost but might improve success rate
+- Time: ~1 hour setup + testing
+
+**Recommendation**: Option A—need 2 more tasks for statistical confidence before investing in improvements.
+
+#### Value Demonstrated
+
+**Positive** ✅:
+- Infrastructure works end-to-end
+- vLLM provides fast execution (~1-2s latency)
+- Automation handles multiple repositories
+- Good problem understanding and reasoning
+
+**Challenges** ❌:
+- Location identification consistently fails
+- 0% success rate vs 30-40% target
+- Need prompt improvements or better model
 
 ### vLLM GPU Integration COMPLETE ✅ → 6-8x Performance Improvement!
 
