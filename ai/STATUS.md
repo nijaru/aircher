@@ -50,17 +50,42 @@
 5. Multiple attempts: 3 tries until success (7 LLM calls)
 6. Max attempts exceeded: all candidates fail verification
 
-**Current Status**: Infrastructure complete and ready to test, but blocked by authentication
+**Current Status**: Infrastructure complete and READY TO TEST ✅
 
-**Blocker**: OAuth tokens expired, Cloudflare blocking token refresh (403 Forbidden)
-- Solution: Set ANTHROPIC_API_KEY environment variable OR manually refresh OAuth tokens
-- Once fixed, just run: `cargo run --example swe_bench_validation_loop -- --task-id astropy__astropy-12907`
+**Authentication Solution IMPLEMENTED** (Nov 5, 2025):
+- ✅ OAuth login command fully implemented: `cargo run -- auth login-oauth anthropic`
+- ✅ Browser-based authentication with local callback server (localhost:8765)
+- ✅ Token storage in ~/.local/share/aircher/auth.json
+- ✅ SSH session detection with manual URL fallback
+- ✅ Full OAuth flow: auth URL → code exchange → token storage
+- ⏳ **Waiting for**: User to run authentication command
 
-**Next Steps** (Day 3 - pending auth fix):
-1. Run Task 0 (astropy__astropy-12907) with validation loop
-2. Run Task 6 (django__django-10914) with validation loop
-3. Measure improvement: 0/2 (old) → ?/2 (new)
-4. Document results in evaluation files
+**Ready to Execute**:
+```bash
+# Step 1: Authenticate (user action required)
+cargo run -- auth login-oauth anthropic
+
+# Step 2: Run validation loop on Task 0
+cargo run --example swe_bench_validation_loop -- --task-id astropy__astropy-12907
+
+# Step 3: Run validation loop on Task 6
+cargo run --example swe_bench_validation_loop -- --task-id django__django-10914
+```
+
+**Expected Improvement**:
+- Without validation: 0/2 (0%) - wrong locations/files
+- With validation: 1-2/2 (50-100%) - should find correct locations after 1-2 attempts
+
+**Next Steps** (Day 3 - ready once user authenticates):
+1. User runs OAuth authentication
+2. Run Task 0 (astropy__astropy-12907) with validation loop
+3. Run Task 6 (django__django-10914) with validation loop
+4. Measure improvement: 0/2 (old) → ?/2 (new)
+5. Document results in evaluation files
+
+**Documentation Created**:
+- `/tmp/VALIDATION_LOOP_STATUS.md` - Current status and execution plan
+- `/tmp/VALIDATION_LOOP_EXECUTION_GUIDE.md` - Complete step-by-step guide
 
 ---
 

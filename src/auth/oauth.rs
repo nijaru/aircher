@@ -23,11 +23,11 @@ impl OAuthHandler {
         }
     }
 
-    /// Start the OAuth flow
-    pub async fn start_auth_flow(&self) -> Result<String> {
+    /// Start the OAuth flow - returns (auth_url, state)
+    pub async fn start_auth_flow(&self) -> Result<(String, String)> {
         // Generate a random state parameter for security
         let state = Self::generate_state();
-        
+
         // Build the authorization URL
         let auth_url = format!(
             "{}?client_id={}&redirect_uri={}&response_type=code&state={}",
@@ -38,17 +38,17 @@ impl OAuthHandler {
         );
 
         info!("🌐 Starting OAuth flow for {}", self.provider);
-        
+
         // Try to open the browser
         match Self::open_browser(&auth_url) {
             Ok(()) => {
                 info!("✓ Opened browser for authentication");
-                Ok(auth_url)
+                Ok((auth_url, state))
             }
             Err(e) => {
                 warn!("Failed to open browser: {}", e);
                 // Return the URL for manual opening
-                Ok(auth_url)
+                Ok((auth_url, state))
             }
         }
     }
