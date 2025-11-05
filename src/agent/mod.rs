@@ -24,6 +24,7 @@ pub mod model_router; // NEW (Week 7 Day 6-7): Cost-aware model routing
 pub mod specialized_agents; // NEW (Week 8 Day 1-2): Specialized agent configurations
 pub mod research_subagents; // NEW (Week 8 Day 3-4): Research sub-agents (parallel research only)
 pub mod skills; // NEW (Week 10 Day 1-2): User-extensible skills system (SKILL.md format)
+pub mod validation_loop; // NEW (Option B): AutoGen-style validation loop for location identification
 // pub mod background_tasks; // NEW: Background task execution system (disabled due to compilation errors)
 // pub mod runtime_validation; // NEW: Runtime validation and testing system (disabled due to compilation errors)
 // pub mod orchestrator; // DEPRECATED - used sub-agents, replaced by task_orchestrator
@@ -41,3 +42,4 @@ pub use model_router::{ModelRouter, ModelConfig, TaskComplexity, AgentType as Ro
 pub use specialized_agents::{AgentConfig, AgentRegistry, MemoryAccessLevel};
 pub use research_subagents::{ResearchSubAgentManager, ResearchTask, ResearchResult, ResearchHandle, ResearchProgress, MAX_CONCURRENT_SUBAGENTS};
 pub use skills::{SkillManager, SkillMetadata, SkillDiscovery, SkillTool, ParameterSchema, ParameterType};
+pub use validation_loop::{ValidationLoopCoordinator, LocationCandidate, PatchProposal, VerificationResult, ValidatedPatch};
