@@ -1,40 +1,60 @@
 # STATUS
 
-**Last Updated**: 2025-11-05 (Option B Day 2 In Progress)
+**Last Updated**: 2025-11-05 (Option B Day 2 Complete)
 
 ## Current State
 
-### Option B Validation Loop: Day 1-2 Progress ✅
+### Option B Validation Loop: Day 1-2 COMPLETE ✅
 
 **Day 1 COMPLETE** (Nov 5, 2025) - Commit: 230bede
 
 **Infrastructure Built**:
 - ✅ `src/agent/validation_loop.rs` - Core data structures (215 lines, 4 tests)
+  - LocationCandidate, PatchProposal, VerificationResult, ValidatedPatch
+  - ValidationLoopCoordinator (configurable max attempts)
 - ✅ Agent validation methods (src/agent/core.rs, +258 lines)
-- ✅ Exported from `src/agent/mod.rs`
+  - find_bug_locations(): Explorer finds 1-3 candidates with confidence scores
+  - verify_patch_location(): Explorer verifies patch targets correct location
+  - generate_patch(): Builder generates unified diff for verified location
+- ✅ Exported from `src/agent/mod.rs` for use in SWE-bench runner
 
-**Day 2 IN PROGRESS** (Nov 5, 2025)
+**Day 2 COMPLETE** (Nov 5, 2025)
 
 **Completed**:
-- ✅ **Integration Tests Created** (Commit: bec1876) - 455 lines, 10 test cases
-  - `tests/validation_loop_integration_test.rs` with MockProvider
-  - Tests all three Agent methods: find/verify/generate
-  - Full validation loop simulation (3 attempts)
-  - Multiple failure scenarios
+1. ✅ **Integration Tests** (Commit: bec1876) - 455 lines, 10 comprehensive test cases
+   - `tests/validation_loop_integration_test.rs` with MockProvider
+   - Tests all three Agent methods: find/verify/generate
+   - Full validation loop simulation (3 attempts)
+   - Multiple failure scenarios (all candidates fail verification)
+
+2. ✅ **SWE-bench Runner** (Commit: 311bfe4) - Full working example
+   - `examples/swe_bench_validation_loop.rs` (283 lines)
+   - Proper initialization of Agent, providers, intelligence
+   - Hardcoded Task 0 (astropy) and Task 6 (django) information
+   - Compiles successfully with zero errors
+   - Ready to run actual validation loop tests
+
+3. ✅ **Complete Documentation** - `docs/VALIDATION_LOOP_USAGE.md` (371 lines)
+   - Flow diagram and explanation of validation loop
+   - All data structures with code examples
+   - All three agent methods with full signatures
+   - Complete validation loop implementation example
+   - SWE-bench integration scenarios for Task 0 & 6
+   - Prompt engineering strategies, testing, error handling
 
 **Test Coverage**:
-1. find_bug_locations: success, no markdown, multiple candidates
-2. verify_patch_location: correct location, incorrect location
-3. generate_patch: unified diff generation
-4. Full validation loop: find → generate → verify
-5. Multiple attempts: 3 tries until success
-6. Max attempts exceeded: all candidates fail
+1. find_bug_locations: success, no markdown wrapping, multiple candidates
+2. verify_patch_location: correct location, incorrect location with issues
+3. generate_patch: unified diff generation with reasoning
+4. Full validation loop: find → generate → verify cycle
+5. Multiple attempts: 3 tries until success (7 LLM calls)
+6. Max attempts exceeded: all candidates fail verification
 
-**Next Steps**:
-1. Create SWE-bench runner with validation loop
-2. Re-test Task 0 (astropy) with validation loop
-3. Re-test Task 6 (django) with validation loop
-4. Measure improvement: 0/2 (old) → ?/2 (new)
+**Next Steps** (Day 3):
+1. Run Task 0 (astropy__astropy-12907) with validation loop
+2. Run Task 6 (django__django-10914) with validation loop
+3. Measure improvement: 0/2 (old) → ?/2 (new)
+4. Document results in evaluation files
 
 ---
 
