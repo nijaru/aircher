@@ -1,38 +1,40 @@
 # STATUS
 
-**Last Updated**: 2025-11-05 (Option B Day 1 Complete)
+**Last Updated**: 2025-11-05 (Option B Day 2 In Progress)
 
 ## Current State
 
-### Option B Validation Loop: Day 1 COMPLETE ✅
+### Option B Validation Loop: Day 1-2 Progress ✅
 
-**Completed (Nov 5, 2025)** - Commit: 230bede
+**Day 1 COMPLETE** (Nov 5, 2025) - Commit: 230bede
 
 **Infrastructure Built**:
 - ✅ `src/agent/validation_loop.rs` - Core data structures (215 lines, 4 tests)
-  - `LocationCandidate`: Bug location candidates with confidence scores
-  - `PatchProposal`: Proposed patches for specific locations
-  - `VerificationResult`: Patch location verification results
-  - `ValidatedPatch`: Successfully verified patches
-  - `ValidationLoopCoordinator`: Coordinates validation attempts (max 3)
+- ✅ Agent validation methods (src/agent/core.rs, +258 lines)
+- ✅ Exported from `src/agent/mod.rs`
 
-- ✅ Agent validation methods (src/agent/core.rs, +258 lines):
-  - `find_bug_locations()`: Explorer role - finds candidates with explicit navigation prompts
-  - `verify_patch_location()`: Explorer role - verifies proposed patches target correct location
-  - `generate_patch()`: Builder role - generates unified diff patches
+**Day 2 IN PROGRESS** (Nov 5, 2025)
 
-- ✅ Exported from `src/agent/mod.rs` for use in SWE-bench runner
+**Completed**:
+- ✅ **Integration Tests Created** (Commit: bec1876) - 455 lines, 10 test cases
+  - `tests/validation_loop_integration_test.rs` with MockProvider
+  - Tests all three Agent methods: find/verify/generate
+  - Full validation loop simulation (3 attempts)
+  - Multiple failure scenarios
 
-**Key Features**:
-- JSON output format for structured responses
-- Handles markdown code block wrapping
-- Confidence-based candidate sorting
-- Explicit verification steps in prompts ("Read target file", "Check if line contains code")
-- Max 3 attempts with detailed logging
+**Test Coverage**:
+1. find_bug_locations: success, no markdown, multiple candidates
+2. verify_patch_location: correct location, incorrect location
+3. generate_patch: unified diff generation
+4. Full validation loop: find → generate → verify
+5. Multiple attempts: 3 tries until success
+6. Max attempts exceeded: all candidates fail
 
-**Status**: Compiles cleanly, ready for Day 2 integration tests
-
-**Next**: Wire into SWE-bench runner to test validation loop on Tasks 0 & 6
+**Next Steps**:
+1. Create SWE-bench runner with validation loop
+2. Re-test Task 0 (astropy) with validation loop
+3. Re-test Task 6 (django) with validation loop
+4. Measure improvement: 0/2 (old) → ?/2 (new)
 
 ---
 
