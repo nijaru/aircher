@@ -10,6 +10,7 @@ pub struct OAuthHandler {
     client_id: String,
     redirect_uri: String,
     auth_endpoint: String,
+    code_verifier: Option<String>,  // PKCE code verifier
 }
 
 impl OAuthHandler {
@@ -22,22 +23,50 @@ impl OAuthHandler {
             redirect_uri: "http://localhost:8765/callback".to_string(),
             // Actual Claude OAuth endpoint (from claude-code-login repo)
             auth_endpoint: "https://claude.ai/oauth/authorize".to_string(),
+            code_verifier: None,
         }
     }
 
-    /// Start the OAuth flow - returns (auth_url, state)
-    pub async fn start_auth_flow(&self) -> Result<(String, String)> {
+    /// Generate PKCE code verifier (random string)
+    fn generate_code_verifier() -> String {
+        use rand::{distributions::Alphanumeric, Rng};
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(128)
+            .map(char::from)
+            .collect()
+    }
+
+    /// Generate PKCE code challenge from verifier (SHA-256 hash, base64url encoded)
+    fn generate_code_challenge(verifier: &str) -> String {
+        use sha2::{Sha256, Digest};
+        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+
+        let mut hasher = Sha256::new();
+        hasher.update(verifier.as_bytes());
+        let hash = hasher.finalize();
+
+        URL_SAFE_NO_PAD.encode(hash)
+    }
+
+    /// Start the OAuth flow - returns (auth_url, state, code_verifier)
+    pub async fn start_auth_flow(&self) -> Result<(String, String, String)> {
         // Generate a random state parameter for security
         let state = Self::generate_state();
 
-        // Build the authorization URL with Claude-specific scopes
+        // Generate PKCE parameters
+        let code_verifier = Self::generate_code_verifier();
+        let code_challenge = Self::generate_code_challenge(&code_verifier);
+
+        // Build the authorization URL with Claude-specific scopes and PKCE
         // Scopes from claude-code-login: org:create_api_key user:profile user:inference
         let auth_url = format!(
-            "{}?client_id={}&redirect_uri={}&response_type=code&scope=org:create_api_key%20user:profile%20user:inference&state={}",
+            "{}?client_id={}&redirect_uri={}&response_type=code&scope=org:create_api_key%20user:profile%20user:inference&state={}&code_challenge={}&code_challenge_method=S256",
             self.auth_endpoint,
             urlencoding::encode(&self.client_id),
             urlencoding::encode(&self.redirect_uri),
-            urlencoding::encode(&state)
+            urlencoding::encode(&state),
+            urlencoding::encode(&code_challenge)
         );
 
         info!("🌐 Starting OAuth flow for {}", self.provider);
@@ -46,12 +75,12 @@ impl OAuthHandler {
         match Self::open_browser(&auth_url) {
             Ok(()) => {
                 info!("✓ Opened browser for authentication");
-                Ok((auth_url, state))
+                Ok((auth_url, state, code_verifier))
             }
             Err(e) => {
                 warn!("Failed to open browser: {}", e);
                 // Return the URL for manual opening
-                Ok((auth_url, state))
+                Ok((auth_url, state, code_verifier))
             }
         }
     }
@@ -215,18 +244,19 @@ impl OAuthHandler {
         None
     }
 
-    /// Exchange authorization code for access token
-    pub async fn exchange_code_for_token(&self, code: &str) -> Result<String> {
+    /// Exchange authorization code for access token (with PKCE)
+    pub async fn exchange_code_for_token(&self, code: &str, code_verifier: &str) -> Result<String> {
         let client = reqwest::Client::new();
 
         // Claude OAuth token endpoint (from claude-code-login repo)
         let token_endpoint = "https://console.anthropic.com/v1/oauth/token";
-        
+
         let params = [
             ("grant_type", "authorization_code"),
             ("code", code),
             ("client_id", &self.client_id),
             ("redirect_uri", &self.redirect_uri),
+            ("code_verifier", code_verifier),  // PKCE parameter
         ];
         
         let response = client
