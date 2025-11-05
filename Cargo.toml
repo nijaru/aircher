@@ -165,6 +165,7 @@ safetensors = "0.6.0"
 rmcp = { version = "0.1", optional = true }
 rmcp-macros = { version = "0.1", optional = true }
 serde_yaml = "0.9.34"
+base64 = "0.22.1"
 
 [dev-dependencies]
 fastrand = "2.3.0"

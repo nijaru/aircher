@@ -220,8 +220,8 @@ impl AuthCommand {
         // Create OAuth handler
         let oauth_handler = OAuthHandler::new_anthropic_pro();
 
-        // Start auth flow (opens browser with URL, returns state for verification)
-        let (auth_url, state) = oauth_handler.start_auth_flow().await?;
+        // Start auth flow (opens browser with URL, returns state and code_verifier for PKCE)
+        let (auth_url, state, code_verifier) = oauth_handler.start_auth_flow().await?;
 
         println!("\n📋 If the browser didn't open automatically, visit:");
         println!("   {}\n", auth_url);
@@ -233,9 +233,9 @@ impl AuthCommand {
 
         info!("✓ Received authorization code from OAuth callback");
 
-        // Exchange code for access token
+        // Exchange code for access token (with PKCE code_verifier)
         println!("🔄 Exchanging authorization code for access token...");
-        let access_token = oauth_handler.exchange_code_for_token(&auth_code).await
+        let access_token = oauth_handler.exchange_code_for_token(&auth_code, &code_verifier).await
             .context("Failed to exchange code for token")?;
 
         // Store OAuth token (using a special key to differentiate from API key)

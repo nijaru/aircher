@@ -489,12 +489,12 @@ impl AuthManager {
                 // Check if we're in SSH session
                 if OAuthHandler::is_ssh_session() {
                     info!("📋 SSH session detected - manual authentication required");
-                    let (auth_url, _state) = oauth_handler.start_auth_flow().await?;
+                    let (auth_url, _state, _code_verifier) = oauth_handler.start_auth_flow().await?;
                     return Ok(auth_url);
                 }
 
                 // Start the OAuth flow
-                let (auth_url, _state) = oauth_handler.start_auth_flow().await?;
+                let (auth_url, _state, _code_verifier) = oauth_handler.start_auth_flow().await?;
 
                 // Note: OAuth callback handling would typically be done here
                 // For now, users will need to manually complete the OAuth flow
