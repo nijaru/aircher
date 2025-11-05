@@ -386,6 +386,14 @@ impl CliApp {
                                 .value_name("API_KEY"))
                     )
                     .subcommand(
+                        Command::new("login-oauth")
+                            .about("Authenticate using OAuth (Claude Max subscription)")
+                            .arg(Arg::new("provider")
+                                .help("Provider name (anthropic for Claude Max)")
+                                .required(true)
+                                .index(1))
+                    )
+                    .subcommand(
                         Command::new("logout")
                             .about("Remove API key for a provider")
                             .arg(Arg::new("provider")
@@ -1335,6 +1343,10 @@ impl CliApp {
                     args.push("--key".to_string());
                     args.push(key.clone());
                 }
+            }
+            Some(("login-oauth", sub_matches)) => {
+                args.push("login-oauth".to_string());
+                args.push(sub_matches.get_one::<String>("provider").unwrap().clone());
             }
             Some(("logout", sub_matches)) => {
                 args.push("logout".to_string());

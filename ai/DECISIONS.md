@@ -607,7 +607,7 @@ Replace 1685-line MultiTurnReasoningEngine with 300-line enhanced prompting syst
 
 ---
 
-## 2025-10-30: OAuth for Claude Pro/Max Subscriptions - Partial Implementation
+## 2025-11-05: OAuth for Claude Pro/Max Subscriptions - IMPLEMENTED ✅
 
 ### Decision
 Implement OAuth authentication for Claude Pro/Max subscriptions to enable unlimited usage (vs per-token API billing).
@@ -618,16 +618,32 @@ Implement OAuth authentication for Claude Pro/Max subscriptions to enable unlimi
 - **Examples**: Claude Code, OpenCode both use OAuth for subscription access
 - **Cost Impact**: SWE-bench Lite ~$90-120 with API key, $0 with OAuth
 
-### Current State (Oct 30, 2025)
-**Partial implementation exists but NOT integrated**:
-- ✅ OAuth flow structure in `src/auth/oauth.rs` (browser auth, callback server)
-- ✅ Token storage methods in `src/auth/mod.rs` (store/get/remove OAuth tokens)
-- ✅ CLI command structure in `src/auth/cli.rs`
-- ❌ **NOT integrated** into `ClaudeApiProvider` (still only uses API keys at line 134-139)
-- ❌ Token refresh logic incomplete (method exists but not called)
-- ❌ Wrong OAuth endpoints (placeholder URLs, not actual Anthropic endpoints)
+### Implementation Complete (Nov 5, 2025) ✅
+**All phases completed**:
+- ✅ OAuth flow in `src/auth/oauth.rs` (browser auth, callback server)
+- ✅ Token storage in `src/auth/mod.rs` (store/get/remove OAuth tokens)
+- ✅ CLI command `auth login-oauth anthropic` fully integrated
+- ✅ Main CLI integration in `src/cli/mod.rs` (subcommand handling)
+- ✅ State verification (start_auth_flow returns tuple with state)
+- ✅ Browser opening (macOS: `open`, Linux: `xdg-open`, Windows: `cmd /C start`)
+- ✅ SSH session detection with manual URL fallback
+- ✅ Local callback server on localhost:8765
+- ✅ OAuth code exchange for access token
+- ✅ Token storage in ~/.local/share/aircher/auth.json
 
-### Implementation Plan (4-6 hours)
+### Usage
+```bash
+# Authenticate with Claude Max subscription
+cargo run -- auth login-oauth anthropic
+
+# This will:
+# 1. Open browser for Claude Max authentication
+# 2. Start local callback server (localhost:8765)
+# 3. Receive OAuth tokens automatically
+# 4. Store tokens in ~/.local/share/aircher/auth.json
+```
+
+### Implementation Timeline (3.5 hours)
 
 **Phase 1: Fix OAuth Endpoints & Add Refresh** (2 hours):
 1. Update `OAuthHandler::new_anthropic_pro()` with correct endpoints:

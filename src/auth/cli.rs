@@ -1,15 +1,17 @@
 use anyhow::{Context, Result};
 use clap::{Arg, Command};
 use std::io::{self, Write};
-use tracing::warn;
+use tracing::{info, warn};
 
 use super::{AuthManager, AuthStatus};
+use super::oauth::OAuthHandler;
 use crate::config::ConfigManager;
 use crate::providers::ProviderManager;
 
 #[derive(Debug)]
 pub enum AuthCommand {
     Login { provider: String, api_key: Option<String> },
+    LoginOAuth { provider: String },
     Logout { provider: String },
     Status { provider: Option<String> },
     Test { provider: String },
@@ -33,6 +35,14 @@ impl AuthCommand {
                         .long("key")
                         .short('k')
                         .value_name("API_KEY"))
+            )
+            .subcommand(
+                Command::new("login-oauth")
+                    .about("Authenticate using OAuth (Claude Max subscription)")
+                    .arg(Arg::new("provider")
+                        .help("Provider name (anthropic for Claude Max)")
+                        .required(true)
+                        .index(1))
             )
             .subcommand(
                 Command::new("logout")
@@ -73,6 +83,10 @@ impl AuthCommand {
                 let api_key = sub_matches.get_one::<String>("key").cloned();
                 Ok(AuthCommand::Login { provider, api_key })
             }
+            Some(("login-oauth", sub_matches)) => {
+                let provider = sub_matches.get_one::<String>("provider").unwrap().clone();
+                Ok(AuthCommand::LoginOAuth { provider })
+            }
             Some(("logout", sub_matches)) => {
                 let provider = sub_matches.get_one::<String>("provider").unwrap().clone();
                 Ok(AuthCommand::Logout { provider })
@@ -106,6 +120,9 @@ impl AuthCommand {
         match self {
             AuthCommand::Login { provider, api_key } => {
                 self.handle_login(provider, api_key.as_deref(), config, auth_manager).await
+            }
+            AuthCommand::LoginOAuth { provider } => {
+                self.handle_login_oauth(provider, auth_manager).await
             }
             AuthCommand::Logout { provider } => {
                 self.handle_logout(provider, auth_manager).await
@@ -179,6 +196,55 @@ impl AuthCommand {
 
         println!("✓ API key stored for provider '{}'", provider);
         println!("💡 You can test it with: aircher auth test {}", provider);
+
+        Ok(())
+    }
+
+    async fn handle_login_oauth(
+        &self,
+        provider: &str,
+        auth_manager: &AuthManager,
+    ) -> Result<()> {
+        // Currently only support Anthropic/Claude Max OAuth
+        if provider != "anthropic" && provider != "claude" {
+            anyhow::bail!("OAuth login is currently only supported for 'anthropic' (Claude Max subscription)");
+        }
+
+        println!("🔐 Starting OAuth login for Claude Max subscription...");
+
+        // Check if in SSH session
+        if OAuthHandler::is_ssh_session() {
+            println!("⚠️  SSH session detected. You'll need to manually open the URL in a browser.");
+        }
+
+        // Create OAuth handler
+        let oauth_handler = OAuthHandler::new_anthropic_pro();
+
+        // Start auth flow (opens browser with URL, returns state for verification)
+        let (auth_url, state) = oauth_handler.start_auth_flow().await?;
+
+        println!("\n📋 If the browser didn't open automatically, visit:");
+        println!("   {}\n", auth_url);
+
+        // Start callback server and wait for OAuth code
+        println!("⏳ Waiting for authentication in browser...");
+        let auth_code = oauth_handler.start_callback_server(&state).await
+            .context("Failed to receive OAuth callback")?;
+
+        info!("✓ Received authorization code from OAuth callback");
+
+        // Exchange code for access token
+        println!("🔄 Exchanging authorization code for access token...");
+        let access_token = oauth_handler.exchange_code_for_token(&auth_code).await
+            .context("Failed to exchange code for token")?;
+
+        // Store OAuth token (using a special key to differentiate from API key)
+        auth_manager.store_oauth_token("anthropic", &access_token).await
+            .context("Failed to store OAuth token")?;
+
+        println!("✓ OAuth token stored successfully!");
+        println!("💡 You can now use Claude Max subscription models");
+        println!("   Test with: aircher auth test anthropic");
 
         Ok(())
     }
