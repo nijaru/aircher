@@ -17,11 +17,11 @@ impl OAuthHandler {
     pub fn new_anthropic_pro() -> Self {
         Self {
             provider: "anthropic-pro".to_string(),
-            // Use OpenCode's client ID (publicly known, works with Claude Max)
+            // OpenCode's client ID (from claude-code-login repo)
             client_id: "9d1c250a-e61b-44d9-88ed-5944d1962f5e".to_string(),
             redirect_uri: "http://localhost:8765/callback".to_string(),
-            // Correct Anthropic OAuth endpoint
-            auth_endpoint: "https://auth.prod.claude.ai/authorize".to_string(),
+            // Actual Claude OAuth endpoint (from claude-code-login repo)
+            auth_endpoint: "https://claude.ai/oauth/authorize".to_string(),
         }
     }
 
@@ -30,9 +30,10 @@ impl OAuthHandler {
         // Generate a random state parameter for security
         let state = Self::generate_state();
 
-        // Build the authorization URL with required scope parameter
+        // Build the authorization URL with Claude-specific scopes
+        // Scopes from claude-code-login: org:create_api_key user:profile user:inference
         let auth_url = format!(
-            "{}?client_id={}&redirect_uri={}&response_type=code&scope=openid+profile+email&state={}",
+            "{}?client_id={}&redirect_uri={}&response_type=code&scope=org:create_api_key%20user:profile%20user:inference&state={}",
             self.auth_endpoint,
             urlencoding::encode(&self.client_id),
             urlencoding::encode(&self.redirect_uri),
@@ -218,8 +219,8 @@ impl OAuthHandler {
     pub async fn exchange_code_for_token(&self, code: &str) -> Result<String> {
         let client = reqwest::Client::new();
 
-        // Correct Anthropic OAuth token endpoint
-        let token_endpoint = "https://auth.prod.claude.ai/oauth/token";
+        // Claude OAuth token endpoint (from claude-code-login repo)
+        let token_endpoint = "https://console.anthropic.com/v1/oauth/token";
         
         let params = [
             ("grant_type", "authorization_code"),
