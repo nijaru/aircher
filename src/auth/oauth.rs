@@ -17,9 +17,11 @@ impl OAuthHandler {
     pub fn new_anthropic_pro() -> Self {
         Self {
             provider: "anthropic-pro".to_string(),
-            client_id: "aircher-cli".to_string(),
+            // Use OpenCode's client ID (publicly known, works with Claude Max)
+            client_id: "9d1c250a-e61b-44d9-88ed-5944d1962f5e".to_string(),
             redirect_uri: "http://localhost:8765/callback".to_string(),
-            auth_endpoint: "https://claude.ai/oauth/authorize".to_string(),
+            // Correct Anthropic OAuth endpoint
+            auth_endpoint: "https://auth.prod.claude.ai/authorize".to_string(),
         }
     }
 
@@ -28,9 +30,9 @@ impl OAuthHandler {
         // Generate a random state parameter for security
         let state = Self::generate_state();
 
-        // Build the authorization URL
+        // Build the authorization URL with required scope parameter
         let auth_url = format!(
-            "{}?client_id={}&redirect_uri={}&response_type=code&state={}",
+            "{}?client_id={}&redirect_uri={}&response_type=code&scope=openid+profile+email&state={}",
             self.auth_endpoint,
             urlencoding::encode(&self.client_id),
             urlencoding::encode(&self.redirect_uri),
@@ -215,8 +217,9 @@ impl OAuthHandler {
     /// Exchange authorization code for access token
     pub async fn exchange_code_for_token(&self, code: &str) -> Result<String> {
         let client = reqwest::Client::new();
-        
-        let token_endpoint = "https://claude.ai/oauth/token";
+
+        // Correct Anthropic OAuth token endpoint
+        let token_endpoint = "https://auth.prod.claude.ai/oauth/token";
         
         let params = [
             ("grant_type", "authorization_code"),
