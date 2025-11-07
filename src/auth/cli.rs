@@ -233,9 +233,9 @@ impl AuthCommand {
 
         info!("✓ Received authorization code from OAuth callback");
 
-        // Exchange code for access token (with PKCE code_verifier)
+        // Exchange code for access token (with PKCE code_verifier and state)
         println!("🔄 Exchanging authorization code for access token...");
-        let access_token = oauth_handler.exchange_code_for_token(&auth_code, &code_verifier).await
+        let access_token = oauth_handler.exchange_code_for_token(&auth_code, &code_verifier, &state).await
             .context("Failed to exchange code for token")?;
 
         // Store OAuth token (using a special key to differentiate from API key)
