@@ -52,12 +52,15 @@
 
 **Current Status**: Infrastructure complete and READY TO TEST ✅
 
-**Authentication Solution IMPLEMENTED** (Nov 5, 2025):
+**Authentication Solution COMPLETE** (Nov 6, 2025):
 - ✅ OAuth login command fully implemented: `cargo run -- auth login-oauth anthropic`
 - ✅ Browser-based authentication with local callback server (localhost:8765)
 - ✅ Token storage in ~/.local/share/aircher/auth.json
 - ✅ SSH session detection with manual URL fallback
 - ✅ Full OAuth flow: auth URL → code exchange → token storage
+- ✅ **PKCE security**: Proof Key for Code Exchange implemented (Commit: e879e6a)
+- ✅ **OAuth state validation**: State parameter added to token exchange (Commit: 52bd249)
+- ✅ **JSON body + CORS headers**: Anthropic-compliant token exchange (Commit: 52bd249)
 - ⏳ **Waiting for**: User to run authentication command
 
 **Ready to Execute**:
