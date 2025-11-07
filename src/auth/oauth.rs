@@ -245,23 +245,29 @@ impl OAuthHandler {
     }
 
     /// Exchange authorization code for access token (with PKCE)
-    pub async fn exchange_code_for_token(&self, code: &str, code_verifier: &str) -> Result<String> {
+    pub async fn exchange_code_for_token(&self, code: &str, code_verifier: &str, state: &str) -> Result<String> {
         let client = reqwest::Client::new();
 
         // Claude OAuth token endpoint (from claude-code-login repo)
         let token_endpoint = "https://console.anthropic.com/v1/oauth/token";
 
-        let params = [
-            ("grant_type", "authorization_code"),
-            ("code", code),
-            ("client_id", &self.client_id),
-            ("redirect_uri", &self.redirect_uri),
-            ("code_verifier", code_verifier),  // PKCE parameter
-        ];
-        
+        // Build JSON body (Anthropic expects JSON, not form-encoded)
+        let body = serde_json::json!({
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
+            "code_verifier": code_verifier,  // PKCE parameter
+            "state": state,  // Required by Anthropic
+        });
+
         let response = client
             .post(token_endpoint)
-            .form(&params)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .header("Origin", "https://claude.ai")
+            .header("Referer", "https://claude.ai/")
+            .json(&body)
             .send()
             .await
             .context("Failed to exchange authorization code")?;
