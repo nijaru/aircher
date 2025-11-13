@@ -19,6 +19,7 @@ from ..memory.integration import MemoryIntegration, create_memory_system
 from ..models import ModelRouter
 from ..modes import AgentMode, get_mode_capabilities
 from ..tools import BashTool, ListDirectoryTool, ReadFileTool, SearchFilesTool, WriteFileTool
+from ..tools.manager import ToolManager
 
 
 class AgentState(BaseModel):
@@ -73,6 +74,9 @@ class AircherAgent:
         # Initialize model router for smart model selection and cost tracking
         self.model_router: ModelRouter | None = None  # Created per-session
 
+        # Initialize tool manager for bundled tools
+        self.tool_manager = ToolManager()
+
         # Initialize tools
         self.tools: list[Any] = self._load_tools()
         logger.info(f"Loaded {len(self.tools)} tools")
@@ -95,14 +99,15 @@ class AircherAgent:
         """Load available tools based on configuration."""
         tools = []
 
+        # Command execution tool (needed by SearchFilesTool)
+        bash_tool = BashTool(self.tool_manager)
+        tools.append(bash_tool)
+
         # File operation tools
         tools.append(ReadFileTool())
         tools.append(WriteFileTool())
         tools.append(ListDirectoryTool())
-        tools.append(SearchFilesTool())
-
-        # Command execution tool
-        tools.append(BashTool())
+        tools.append(SearchFilesTool(bash_tool))
 
         return tools
 

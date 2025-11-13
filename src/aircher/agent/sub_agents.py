@@ -12,8 +12,10 @@ from loguru import logger
 from pydantic import BaseModel
 
 from ..memory.integration import MemoryIntegration
+from ..models import ModelRouter
 from ..modes import AgentMode, get_mode_capabilities
 from ..tools import BashTool, ListDirectoryTool, ReadFileTool, SearchFilesTool, WriteFileTool
+from ..tools.manager import ToolManager
 
 
 class SubAgentState(BaseModel):
@@ -43,16 +45,12 @@ class BaseSubAgent(ABC):
         self.parent_session_id = parent_session_id or "root"
         self.agent_type = self.__class__.__name__
 
-        # Initialize LLM with cost-optimized model
-        try:
-            self.llm = ChatOpenAI(
-                model=self.model_name,
-                temperature=0.5,  # Lower temp for more focused responses
-            )
-            logger.info(f"{self.agent_type} initialized with {self.model_name}")
-        except Exception as e:
-            logger.warning(f"Failed to initialize LLM for {self.agent_type}: {e}")
-            self.llm = None
+        # Initialize model router for cost tracking (will be set per-run)
+        self.model_router: ModelRouter | None = None
+        self.llm = None  # Will be set when model_router is initialized
+
+        # Initialize tool manager for bundled tools
+        self.tool_manager = ToolManager()
 
         # Load allowed tools
         self.tools = self._load_tools()
@@ -248,6 +246,25 @@ Response:"""
         if session_id is None:
             session_id = f"{self.agent_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+        # Initialize model router for this sub-agent execution
+        self.model_router = ModelRouter(
+            default_model=self.model_name,
+            enable_fallback=True,
+            session_id=session_id,
+        )
+        logger.info(f"{self.agent_type} initialized model router for session {session_id}")
+
+        # Get the LLM for sub-agent (use sub_agent task routing)
+        try:
+            self.llm = self.model_router.get_model(
+                model_name=self.model_router.select_model_for_task("sub_agent"),
+                temperature=0.5,  # Lower temp for focused responses
+            )
+            logger.info(f"{self.agent_type} using model: {self.model_name}")
+        except Exception as e:
+            logger.warning(f"{self.agent_type} failed to get model from router: {e}")
+            self.llm = None
+
         # Set memory context if available
         if self.memory:
             self.memory.set_context(
@@ -264,6 +281,19 @@ Response:"""
 
         result = await self.graph.ainvoke(initial_state)
 
+        # Get cost summary after execution
+        if self.model_router:
+            cost_summary = self.model_router.get_cost_summary()
+            logger.info(
+                f"{self.agent_type} cost: ${cost_summary['total_cost']:.4f} "
+                f"({cost_summary['total_tokens']} tokens, {cost_summary['call_count']} calls)"
+            )
+            # Add cost info to result
+            if isinstance(result, dict):
+                result["cost_summary"] = cost_summary
+            elif hasattr(result, "context"):
+                result.context["cost_summary"] = cost_summary
+
         # Handle both dict and SubAgentState return types
         if hasattr(result, "model_dump"):
             return result.model_dump()
@@ -276,10 +306,12 @@ class CodeReadingAgent(BaseSubAgent):
 
     def _load_tools(self) -> list[Any]:
         """Load READ mode tools only."""
+        # Create bash_tool for SearchFilesTool (but don't expose it)
+        bash_tool = BashTool(self.tool_manager)
         return [
             ReadFileTool(),
             ListDirectoryTool(),
-            SearchFilesTool(),
+            SearchFilesTool(bash_tool),
         ]
 
     def get_system_prompt(self) -> str:
@@ -298,11 +330,13 @@ class CodeWritingAgent(BaseSubAgent):
 
     def _load_tools(self) -> list[Any]:
         """Load WRITE mode tools."""
+        # Create bash_tool for SearchFilesTool (but don't expose it)
+        bash_tool = BashTool(self.tool_manager)
         return [
             ReadFileTool(),
             WriteFileTool(),
             ListDirectoryTool(),
-            SearchFilesTool(),
+            SearchFilesTool(bash_tool),
         ]
 
     def get_system_prompt(self) -> str:
@@ -321,12 +355,13 @@ class ProjectFixingAgent(BaseSubAgent):
 
     def _load_tools(self) -> list[Any]:
         """Load full toolset including bash."""
+        bash_tool = BashTool(self.tool_manager)
         return [
+            bash_tool,
             ReadFileTool(),
             WriteFileTool(),
             ListDirectoryTool(),
-            SearchFilesTool(),
-            BashTool(),
+            SearchFilesTool(bash_tool),
         ]
 
     def get_system_prompt(self) -> str:

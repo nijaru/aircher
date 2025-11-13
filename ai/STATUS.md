@@ -100,9 +100,17 @@
   - ✅ Per-session router initialization
   - ✅ Cost summary logging after execution
   - ✅ Cost data included in results
-- ⚠️ **Sub-agent integration**: Sub-agents still use direct ChatOpenAI (needs update)
-- ⚠️ **Streaming responses**: Not yet implemented (deferred)
-- ✅ **Testing**: 11 unit tests for model router (100% pass)
+- ✅ **Sub-agent integration**: All sub-agents use ModelRouter
+  - ✅ CodeReadingAgent, CodeWritingAgent, ProjectFixingAgent
+  - ✅ Per-sub-agent cost tracking
+  - ✅ Task-based routing (sub_agent → small tier)
+  - ✅ Cost summaries in sub-agent results
+- ✅ **Tool initialization fixes**: ToolManager integration
+  - ✅ BashTool requires ToolManager for bundled tools
+  - ✅ SearchFilesTool requires BashTool dependency
+  - ✅ All agents and sub-agents properly initialize tools
+- ⚠️ **Streaming responses**: Not yet implemented (deferred to Week 5)
+- ✅ **Testing**: 166 unit tests total (100% pass, includes 11 model router tests)
 
 ## Blockers (2025-11-13 Update)
 - ✅ **RESOLVED: ai/ directory refactor** - Consolidated redundant files, updated PLAN.md
