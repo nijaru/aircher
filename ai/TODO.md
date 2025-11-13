@@ -111,18 +111,19 @@
 - [ ] Implement ResearchAgent (external search/docs) - deferred to Week 4
 - [ ] Test: Sub-agents spawn correctly, tool restrictions work
 
-### Dynamic Context Management
-- [ ] Implement relevance scoring algorithm:
-  - [ ] Time decay factor
-  - [ ] Task association boost
-  - [ ] Dependency boost
-  - [ ] Type multiplier
-- [ ] Implement intelligent pruning (remove bottom 30% at 80% capacity)
-- [ ] Save context snapshots to episodic memory before pruning
-- [ ] Implement prefetch from knowledge graph
-- [ ] Test: Continuous multi-turn conversations without restarts
+### Dynamic Context Management (✅ COMPLETE)
+- [x] Implement relevance scoring algorithm:
+  - [x] Time decay factor (exponential, half-life 60 minutes)
+  - [x] Task association boost (2x for current task)
+  - [x] Dependency boost (0.2 per dependent item)
+  - [x] Type multiplier (system=100, task=2.0, user=1.5, assistant=1.2, tool=0.8, code=0.7, kg=0.6)
+- [x] Implement intelligent pruning (remove bottom 30% at 80% capacity)
+- [x] Save context snapshots to episodic memory before pruning
+- [x] Integrate ContextWindow with agent workflow (system prompt, user/assistant messages)
+- [ ] Implement prefetch from knowledge graph (deferred to Week 4)
+- [ ] Test: Continuous multi-turn conversations without restarts (deferred to Week 4)
 
-**Week 3 Success**: Sub-agents working, context pruning prevents overflow
+**Week 3 Success**: Sub-agents working, context pruning foundation complete
 
 ## Week 4: Model Routing & Cost Optimization
 

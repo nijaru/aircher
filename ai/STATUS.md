@@ -73,7 +73,13 @@
   - ✅ Cost optimization (gpt-4o-mini default for sub-agents)
   - ✅ Memory tracking and parent session hierarchy
   - ✅ spawn_sub_agent() method in main agent
-- ⚠️ **Dynamic context pruning**: Started (foundation in place)
+- ✅ **Dynamic context management**: ContextWindow with intelligent pruning implemented
+  - ✅ ContextItem and ContextWindow classes
+  - ✅ 5-factor relevance scoring (time decay, task association, dependencies, type, explicit)
+  - ✅ Intelligent pruning (remove bottom 30% at 80% capacity)
+  - ✅ Episodic memory summarization before pruning
+  - ✅ Integration with agent workflow (system prompt, user messages, responses)
+  - ⚠️ **Testing needed**: End-to-end context pruning with real workloads
 - ✅ **Model routing**: Implemented via model_name parameter (cheaper for sub-agents)
 
 ## Blockers (2025-11-13 Update)
@@ -81,7 +87,8 @@
 - ✅ **RESOLVED: Memory systems implementation** - Core 3-layer architecture complete
 - ✅ **RESOLVED: Testing Required** - Comprehensive unit tests complete (152 tests, 96% coverage)
 - ✅ **RESOLVED: Integration Pending** - Memory systems fully integrated into agent workflow
-- **Tool Execution**: Current tool selection still uses rule-based planning (needs LLM integration)
+- ✅ **RESOLVED: LLM integration** - Tool planning and response generation now use LLM with fallback
+- **SQLite cleanup**: Unused tool_calls table in sessions storage (technical debt)
 
 ## Next Immediate Tasks (2025-11-13 Update)
 **Week 1 & 2: ✅ COMPLETE (memory systems + agent integration)**

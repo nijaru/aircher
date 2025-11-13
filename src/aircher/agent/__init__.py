@@ -14,6 +14,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from ..config import get_settings
+from ..context import ContextItemType, ContextWindow
 from ..memory.integration import MemoryIntegration, create_memory_system
 from ..modes import AgentMode, get_mode_capabilities
 from ..tools import BashTool, ListDirectoryTool, ReadFileTool, SearchFilesTool, WriteFileTool
@@ -64,6 +65,9 @@ class AircherAgent:
         else:
             self.memory = None
             logger.info("Memory systems disabled")
+
+        # Initialize context window for dynamic context management
+        self.context_window: ContextWindow | None = None  # Created per-session
 
         # Initialize tools
         self.tools: list[Any] = self._load_tools()
@@ -656,6 +660,18 @@ Response:"""
             response = self._generate_response_fallback(intent, tool_results)
             state.response = response
 
+        # Add assistant response to context window
+        if self.context_window:
+            assistant_msg = AIMessage(content=state.response)
+            self.context_window.add_item(
+                item_type=ContextItemType.ASSISTANT_RESPONSE,
+                content=assistant_msg,
+            )
+            logger.debug(
+                f"Added assistant response to context window "
+                f"({self.context_window.token_count}/{self.context_window.token_limit} tokens)"
+            )
+
         state.context["response_generated"] = True
         return state
 
@@ -760,9 +776,33 @@ Response:"""
         if session_id is None:
             session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+        # Initialize context window for this session
+        self.context_window = ContextWindow(
+            session_id=session_id,
+            memory=self.memory,
+        )
+        logger.info(f"Initialized context window for session {session_id}")
+
+        # Add system prompt as sticky item
+        system_prompt = SystemMessage(
+            content="You are Aircher, an intelligent coding assistant with memory capabilities."
+        )
+        self.context_window.add_item(
+            item_type=ContextItemType.SYSTEM_PROMPT,
+            content=system_prompt,
+            sticky=True,  # Never remove system prompt
+        )
+
+        # Add user message
+        user_msg = HumanMessage(content=message)
+        self.context_window.add_item(
+            item_type=ContextItemType.USER_MESSAGE,
+            content=user_msg,
+        )
+
         initial_state = AgentState(
             current_mode=mode,
-            messages=[HumanMessage(content=message)],
+            messages=[system_prompt, user_msg],
             session_id=session_id,
             user_request=message,
         )
