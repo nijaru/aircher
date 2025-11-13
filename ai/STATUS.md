@@ -82,6 +82,28 @@
   - ⚠️ **Testing needed**: End-to-end context pruning with real workloads
 - ✅ **Model routing**: Implemented via model_name parameter (cheaper for sub-agents)
 
+**Week 4 (IN PROGRESS)**: Model Routing & Cost Optimization
+- ✅ **Smart Model Router**: ModelRouter class with provider support
+  - ✅ Support for OpenAI (GPT-4, GPT-4o, GPT-4o-mini)
+  - ✅ Support for Anthropic (Opus-4, Sonnet-4, Haiku-4)
+  - ✅ Support for Ollama (local models with zero cost)
+  - ✅ ModelTier system (LARGE, MEDIUM, SMALL, LOCAL)
+  - ✅ Task-based model selection (main_agent → medium, sub_agent → small)
+- ✅ **Cost tracking per session**: SessionCostTracker with per-model usage
+  - ✅ Token counting (input/output/total)
+  - ✅ Cost calculation based on current pricing
+  - ✅ Summary reports (total cost, tokens, call count)
+- ✅ **Automatic fallback on failures**: Fallback chain by tier
+  - ✅ Fallback chain: large → medium → small → local
+  - ✅ Graceful degradation when primary model fails
+- ✅ **Agent integration**: ModelRouter integrated into main agent
+  - ✅ Per-session router initialization
+  - ✅ Cost summary logging after execution
+  - ✅ Cost data included in results
+- ⚠️ **Sub-agent integration**: Sub-agents still use direct ChatOpenAI (needs update)
+- ⚠️ **Streaming responses**: Not yet implemented (deferred)
+- ✅ **Testing**: 11 unit tests for model router (100% pass)
+
 ## Blockers (2025-11-13 Update)
 - ✅ **RESOLVED: ai/ directory refactor** - Consolidated redundant files, updated PLAN.md
 - ✅ **RESOLVED: Memory systems implementation** - Core 3-layer architecture complete

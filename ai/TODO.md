@@ -125,27 +125,29 @@
 
 **Week 3 Success**: Sub-agents working, context pruning foundation complete
 
-## Week 4: Model Routing & Cost Optimization
+## Week 4: Model Routing & Cost Optimization (IN PROGRESS)
 
-### Smart Model Router
-- [ ] Implement model selection logic:
-  - [ ] Large/expensive: Opus, GPT-4 for main agent
-  - [ ] Small/cheap: Haiku, GPT-4o-mini for sub-agents
-  - [ ] Local: Ollama for unlimited usage
-- [ ] Add cost tracking per session
-- [ ] Implement automatic fallback on rate limits
-- [ ] Add user-configurable model preferences
-- [ ] Test: Validate 40% cost savings vs always-large-model
+### Smart Model Router (✅ COMPLETE)
+- [x] Implement model selection logic:
+  - [x] Large/expensive: Opus-4, GPT-4 for complex reasoning
+  - [x] Medium: Sonnet-4, GPT-4o for main agent
+  - [x] Small/cheap: Haiku-4, GPT-4o-mini for sub-agents
+  - [x] Local: Ollama for unlimited usage (zero cost)
+- [x] Add cost tracking per session (SessionCostTracker)
+- [x] Implement automatic fallback on rate limits (fallback chain by tier)
+- [x] Add task-based model selection (select_model_for_task)
+- [ ] Add user-configurable model preferences (deferred - use defaults)
+- [ ] Test: Validate 40% cost savings vs always-large-model (needs real workload)
 
-### LLM Provider Integration
-- [ ] Complete OpenAI integration (GPT-4, GPT-4o-mini)
-- [ ] Complete Anthropic integration (Opus, Sonnet, Haiku)
-- [ ] Add Ollama integration for local models
-- [ ] Implement streaming response support
-- [ ] Add error handling and retries
-- [ ] Test: All providers working, graceful fallbacks
+### LLM Provider Integration (✅ COMPLETE)
+- [x] Complete OpenAI integration (GPT-4, GPT-4o, GPT-4o-mini)
+- [x] Complete Anthropic integration (Opus-4, Sonnet-4, Haiku-4)
+- [x] Add Ollama integration for local models
+- [x] Add error handling and automatic fallback
+- [x] Test: All providers working, graceful fallbacks (11 tests passing)
+- [ ] Implement streaming response support (deferred to Week 5)
 
-**Week 4 Success**: Model routing operational, cost savings validated
+**Week 4 Progress**: Model routing operational (70% complete), cost tracking working
 
 ## Week 5: ACP Protocol & Testing
 

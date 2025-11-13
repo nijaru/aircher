@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from ..config import get_settings
 from ..context import ContextItemType, ContextWindow
 from ..memory.integration import MemoryIntegration, create_memory_system
+from ..models import ModelRouter
 from ..modes import AgentMode, get_mode_capabilities
 from ..tools import BashTool, ListDirectoryTool, ReadFileTool, SearchFilesTool, WriteFileTool
 
@@ -69,11 +70,14 @@ class AircherAgent:
         # Initialize context window for dynamic context management
         self.context_window: ContextWindow | None = None  # Created per-session
 
+        # Initialize model router for smart model selection and cost tracking
+        self.model_router: ModelRouter | None = None  # Created per-session
+
         # Initialize tools
         self.tools: list[Any] = self._load_tools()
         logger.info(f"Loaded {len(self.tools)} tools")
 
-        # Initialize LLM
+        # Initialize LLM (will be replaced with model router in run())
         try:
             self.llm = ChatOpenAI(
                 model=self.model_name,
@@ -776,6 +780,27 @@ Response:"""
         if session_id is None:
             session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+        # Initialize model router for this session
+        self.model_router = ModelRouter(
+            default_model=self.model_name,
+            enable_fallback=True,
+            session_id=session_id,
+        )
+        logger.info(f"Initialized model router for session {session_id}")
+
+        # Get the LLM for main agent (use task-based routing)
+        try:
+            self.llm = self.model_router.get_model(
+                model_name=self.model_router.select_model_for_task("main_agent"),
+                temperature=0.7,
+            )
+            logger.info(f"Using model: {self.model_name} for main agent")
+        except Exception as e:
+            logger.warning(f"Failed to get model from router: {e}")
+            # Fallback to existing self.llm if available
+            if not self.llm:
+                raise
+
         # Initialize context window for this session
         self.context_window = ContextWindow(
             session_id=session_id,
@@ -812,6 +837,20 @@ Response:"""
         )
 
         result = await self.graph.ainvoke(initial_state, config=config)
+
+        # Get cost summary after execution
+        if self.model_router:
+            cost_summary = self.model_router.get_cost_summary()
+            logger.info(
+                f"Session cost: ${cost_summary['total_cost']:.4f} "
+                f"({cost_summary['total_tokens']} tokens, {cost_summary['call_count']} calls)"
+            )
+            # Add cost info to result
+            if isinstance(result, dict):
+                result["cost_summary"] = cost_summary
+            elif hasattr(result, "metadata"):
+                result.metadata["cost_summary"] = cost_summary
+
         # Handle both dict and AgentState return types
         if hasattr(result, "model_dump"):
             return result.model_dump()
