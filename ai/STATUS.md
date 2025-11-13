@@ -112,6 +112,38 @@
 - ⚠️ **Streaming responses**: Not yet implemented (deferred to Week 5)
 - ✅ **Testing**: 166 unit tests total (100% pass, includes 11 model router tests)
 
+**Week 5 (IN PROGRESS)**: ACP Protocol & Testing
+- ✅ **ACP Protocol Core**: Message types and protocol handler
+  - ✅ ACPMessage, ACPRequest, ACPResponse, ACPError, ACPNotification
+  - ✅ ToolCall and ToolCallStatus enums
+  - ✅ ACPSession with mode validation
+  - ✅ ACPProtocol handler with session management
+  - ✅ Message serialization/deserialization (JSON)
+- ✅ **Stdio Transport**: JSON-RPC over stdin/stdout
+  - ✅ StdioTransport class with async message loop
+  - ✅ JSON-RPC 2.0 compliance
+  - ✅ Error handling with standard error codes
+  - ✅ Graceful shutdown on EOF/interrupt
+- ✅ **ACP Server**: Full server implementation
+  - ✅ ACPServer with agent integration
+  - ✅ JSON-RPC method handlers (initialize, session.*, agent.*, tool.*)
+  - ✅ Session management (create, get, end)
+  - ✅ Agent prompt handling with mode support
+  - ✅ Tool execution via protocol
+  - ✅ Cost tracking integration
+- ✅ **CLI Integration**: Serve command for ACP mode
+  - ✅ `aircher serve` command with stdio transport
+  - ✅ Model selection (--model flag)
+  - ✅ Memory toggle (--enable-memory/--no-memory)
+- ✅ **Testing**: 14 ACP protocol tests (100% pass)
+  - ✅ Message creation and serialization
+  - ✅ Session creation and retrieval
+  - ✅ Request/response lifecycle
+  - ✅ Mode permission validation
+  - ✅ Tool call handling
+- ⚠️ **Streaming responses**: Not yet implemented (complex)
+- ⚠️ **Integration testing**: Need end-to-end ACP client tests
+
 ## Blockers (2025-11-13 Update)
 - ✅ **RESOLVED: ai/ directory refactor** - Consolidated redundant files, updated PLAN.md
 - ✅ **RESOLVED: Memory systems implementation** - Core 3-layer architecture complete
