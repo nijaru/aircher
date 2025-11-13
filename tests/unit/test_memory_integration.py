@@ -625,6 +625,9 @@ class TestEdgeCases:
 
     def test_search_empty_vector_store(self, memory_system):
         """Test searching when no code is indexed."""
+        # Clear any existing data from previous tests
+        memory_system.vector.clear()
+
         results = memory_system.search_similar_code("test query")
 
         assert results == []
