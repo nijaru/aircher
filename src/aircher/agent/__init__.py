@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
+from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
@@ -67,6 +68,17 @@ class AircherAgent:
         # Initialize tools
         self.tools: list[Any] = self._load_tools()
         logger.info(f"Loaded {len(self.tools)} tools")
+
+        # Initialize LLM
+        try:
+            self.llm = ChatOpenAI(
+                model=self.model_name,
+                temperature=0.7,
+            )
+            logger.info(f"Initialized LLM: {self.model_name}")
+        except Exception as e:
+            logger.warning(f"Failed to initialize LLM: {e}. Will use fallback.")
+            self.llm = None
 
         # Initialize LangGraph workflow
         self.graph = self._build_graph()
