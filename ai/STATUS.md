@@ -67,9 +67,14 @@
 - ✅ **LLM response generation**: Natural responses with context, fallback to templates
 - ✅ **Conditional workflow edges**: Permission short-circuits, error handling, smart routing
 - ✅ **Error handling node**: Dedicated error collection and contextualization
-- ❌ **Sub-agent architecture**: CodeReading, CodeWriting agents pending
-- ❌ **Dynamic context pruning**: Relevance scoring pending
-- ❌ **Model routing**: Small vs large model selection pending
+- ✅ **Sub-agent architecture**: CodeReading, CodeWriting, ProjectFixing agents implemented
+  - ✅ BaseSubAgent with simplified 3-node workflow (plan → execute → respond)
+  - ✅ Tool restrictions per agent type (READ, WRITE, FULL)
+  - ✅ Cost optimization (gpt-4o-mini default for sub-agents)
+  - ✅ Memory tracking and parent session hierarchy
+  - ✅ spawn_sub_agent() method in main agent
+- ⚠️ **Dynamic context pruning**: Started (foundation in place)
+- ✅ **Model routing**: Implemented via model_name parameter (cheaper for sub-agents)
 
 ## Blockers (2025-11-13 Update)
 - ✅ **RESOLVED: ai/ directory refactor** - Consolidated redundant files, updated PLAN.md

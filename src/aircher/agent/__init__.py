@@ -788,3 +788,40 @@ Response:"""
             }
             for tool in self.tools
         ]
+
+    async def spawn_sub_agent(
+        self,
+        agent_type: str,
+        task: str,
+        session_id: str | None = None,
+        model_name: str = "gpt-4o-mini",  # Cheaper model for sub-agents
+    ) -> dict[str, Any]:
+        """Spawn a specialized sub-agent to handle a specific task.
+
+        Args:
+            agent_type: Type of agent ("code_reading", "code_writing", "project_fixing")
+            task: The task for the sub-agent to perform
+            session_id: Optional session ID (will be auto-generated if not provided)
+            model_name: LLM model to use (defaults to cheaper model)
+
+        Returns:
+            dict with sub-agent results including response and tool executions
+        """
+        from .sub_agents import create_sub_agent
+
+        # Create sub-agent with access to memory
+        sub_agent = create_sub_agent(
+            agent_type=agent_type,
+            model_name=model_name,
+            memory=self.memory,
+            parent_session_id=session_id or "main",
+        )
+
+        logger.info(f"Spawned {agent_type} sub-agent for task: {task[:50]}...")
+
+        # Run the sub-agent
+        result = await sub_agent.run(task=task, session_id=session_id)
+
+        logger.info(f"{agent_type} sub-agent completed with response: {result.get('response', 'N/A')[:100]}...")
+
+        return result

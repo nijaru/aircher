@@ -98,14 +98,17 @@
 - [ ] Implement early termination for simple queries
 - [ ] Test: Workflow handles errors gracefully
 
-### Sub-Agent Architecture
-- [ ] Implement CodeReading agent (READ mode tools only)
-- [ ] Implement CodeWriting agent (WRITE mode tools)
-- [ ] Implement ProjectFixing agent (full toolset)
-- [ ] Implement ResearchAgent (external search/docs)
-- [ ] Add tool restriction per agent type (Crush patterns)
-- [ ] Implement session hierarchy (parent/child tracking)
-- [ ] Add cost optimization (small models for sub-agents)
+### Sub-Agent Architecture (✅ COMPLETE)
+- [x] Implement CodeReading agent (READ mode tools only)
+- [x] Implement CodeWriting agent (WRITE mode tools)
+- [x] Implement ProjectFixing agent (full toolset)
+- [x] Create BaseSubAgent abstract class with 3-node workflow
+- [x] Add tool restriction per agent type (tool filtering per specialization)
+- [x] Implement session hierarchy (parent/child tracking via parent_session_id)
+- [x] Add cost optimization (gpt-4o-mini default for sub-agents)
+- [x] Implement spawn_sub_agent() factory method in main agent
+- [x] Add memory tracking for sub-agent executions
+- [ ] Implement ResearchAgent (external search/docs) - deferred to Week 4
 - [ ] Test: Sub-agents spawn correctly, tool restrictions work
 
 ### Dynamic Context Management
