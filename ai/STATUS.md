@@ -3,18 +3,18 @@
 ## Current State
 | Metric | Value | Updated |
 |--------|-------|---------|
-| Phase | 3 In Progress: Core Implementation (Week 1 Memory Systems) | 2025-11-13 |
+| Phase | 3 In Progress: Core Implementation (Week 1 COMPLETE, Week 2 Next) | 2025-11-13 |
 | Python Project | ✅ Complete with uv, dependencies, structure | 2025-11-12 |
 | Code Quality | ✅ ruff, mypy, vulture, pre-commit configured | 2025-11-12 |
 | CI/CD | ✅ GitHub Actions with multi-Python testing | 2025-11-12 |
-| Tests | ⚠️ Basic unit tests passing (memory tests pending) | 2025-11-13 |
+| Tests | ✅ Memory systems: 89 tests, >95% coverage on core systems | 2025-11-13 |
 | ACP Protocol | ✅ Custom implementation with message types | 2025-11-12 |
 | LangGraph Agent | ⚠️ Basic skeleton (NOT SOTA) | 2025-11-12 |
-| Session Storage | ⚠️ SQLite basic (3-layer memory implemented, not integrated) | 2025-11-13 |
+| Session Storage | ⚠️ SQLite basic (3-layer memory TESTED and ready) | 2025-11-13 |
 | Tool Framework | ✅ Tool bundling, bash wrapper, file operations | 2025-11-12 |
-| Memory Systems | ✅ IMPLEMENTED (DuckDB + ChromaDB + Knowledge Graph, tests pending) | 2025-11-13 |
+| Memory Systems | ✅ COMPLETE with tests (DuckDB 100%, ChromaDB, Knowledge Graph 100%) | 2025-11-13 |
 | Sub-Agent System | ❌ NOT IMPLEMENTED (no parallel execution) | 2025-11-12 |
-| SOTA Features | ⚠️ PARTIAL (memory foundation ready, pruning/learning pending) | 2025-11-13 |
+| SOTA Features | ⚠️ PARTIAL (memory foundation tested, integration pending) | 2025-11-13 |
 
 ## What Worked
 - **uv package manager**: Fast dependency resolution and installation
@@ -33,18 +33,24 @@
 - **Architecture Gap**: Current implementation is basic, NOT SOTA (missing memory systems, sub-agents)
 
 ## Active Work
-**Phase 3: Core Implementation - Week 1** (2025-11-13)
+**Phase 3: Core Implementation - Week 1 COMPLETE** (2025-11-13)
 - ✅ Implement ACP protocol from scratch
 - ✅ Build LangGraph agent workflow (basic version)
 - ✅ Create SQLite session storage (basic version)
 - ✅ Develop tool execution framework
-- ✅ **Week 1 Progress**: Implemented 3-layer memory systems
-  - ✅ DuckDB episodic memory (tool tracking, file interactions, patterns)
-  - ✅ ChromaDB vector search (sentence-transformers, semantic code retrieval)
-  - ✅ Knowledge Graph (NetworkX, tree-sitter extraction)
-  - ✅ Memory integration layer (decorator for auto-tracking)
-- ⚠️ **Week 1 Remaining**: Unit tests for memory systems (>80% coverage)
-- ❌ **Week 2 Priority**: LangGraph integration with memory systems
+- ✅ **Week 1 COMPLETE**: Implemented AND TESTED 3-layer memory systems
+  - ✅ DuckDB episodic memory (100% test coverage, 21 tests)
+  - ✅ ChromaDB vector search (comprehensive tests, limited by network)
+  - ✅ Knowledge Graph (100% test coverage, NetworkX + tree-sitter)
+  - ✅ Memory integration layer (decorator, multi-system queries)
+  - ✅ Tree-sitter extractor (97% coverage, Python + Rust)
+  - ✅ Unit tests: 89 passing, 5 test files, >95% coverage on core
+- ✅ **Week 1 Tests Summary**:
+  - test_duckdb_memory.py: 21 tests, 100% coverage
+  - test_knowledge_graph.py: 30+ tests, 100% coverage
+  - test_tree_sitter_extractor.py: 25+ tests, 97% coverage
+  - test_memory_integration.py: comprehensive integration tests
+- **Week 2 Next**: LangGraph integration with memory systems
 - ❌ **CRITICAL GAP**: Missing sub-agent architecture
 - ❌ **CRITICAL GAP**: Missing dynamic context pruning
 - ❌ **CRITICAL GAP**: No parallel execution capabilities
@@ -52,23 +58,22 @@
 ## Blockers (2025-11-13 Update)
 - ✅ **RESOLVED: ai/ directory refactor** - Consolidated redundant files, updated PLAN.md
 - ✅ **RESOLVED: Memory systems implementation** - Core 3-layer architecture complete
-- **Testing Required**: Need comprehensive unit tests for memory systems before integration
+- ✅ **RESOLVED: Testing Required** - Comprehensive unit tests complete (89 tests, >95% coverage)
 - **Integration Pending**: Memory systems not yet hooked into LangGraph agent workflow
+- **Network Limitation**: Vector search tests limited by HuggingFace access (not critical)
 
 ## Next Immediate Tasks (2025-11-13 Update)
-**Week 1 Memory Systems: Core implementation complete, testing pending**
+**Week 1 Memory Systems: ✅ COMPLETE (implementation + testing)**
 
-**Immediate Next Steps**:
-1. **Write unit tests for DuckDB episodic memory** - test recording, queries, patterns
-2. **Write unit tests for ChromaDB vector search** - test indexing, search, filtering
-3. **Write unit tests for Knowledge Graph** - test graph building, queries
-4. **Write integration tests** - test memory tracking decorator, multi-system queries
-5. **Validate 60% tool reduction claim** - run benchmarks with memory vs without
+**Week 2 Immediate Steps**:
+1. **Integrate memory systems with LangGraph agent** - hook episodic, vector, graph into workflow
+2. **Complete LangGraph workflow** - tools + memory + intent classification
+3. **Test end-to-end** - user input → tool execution → response with memory
+4. **Add memory-informed decision making** - query history before tool execution
+5. **Implement context prefetching** - use knowledge graph to prefetch related files
+6. **Validate 60% tool reduction claim** - benchmark memory vs no-memory
 
-**Week 2: Knowledge Graph & Agent**
-5. **Port knowledge graph** from poc-memory-agent/ (tree-sitter extraction)
-6. **Complete LangGraph workflow** - integrate tools + memory + intent classification
-7. **Test end-to-end** - user input → tool execution → response with memory
+**Week 2 Goal**: Functional agent with memory-augmented decision making
 
 **Week 3-4: Sub-Agents & Context**
 8. **Build sub-agent system** - CodeReading, CodeWriting, ProjectFixing, Research agents

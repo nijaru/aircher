@@ -27,10 +27,17 @@ class DuckDBMemory:
 
     def _create_schema(self) -> None:
         """Create all episodic memory tables."""
+        # Create sequences for auto-incrementing IDs
+        self.conn.execute("CREATE SEQUENCE IF NOT EXISTS seq_tool_executions START 1")
+        self.conn.execute("CREATE SEQUENCE IF NOT EXISTS seq_file_interactions START 1")
+        self.conn.execute("CREATE SEQUENCE IF NOT EXISTS seq_task_history START 1")
+        self.conn.execute("CREATE SEQUENCE IF NOT EXISTS seq_context_snapshots START 1")
+        self.conn.execute("CREATE SEQUENCE IF NOT EXISTS seq_learned_patterns START 1")
+
         # Tool execution history
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS tool_executions (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY DEFAULT nextval('seq_tool_executions'),
                 timestamp TIMESTAMP NOT NULL,
                 session_id VARCHAR NOT NULL,
                 task_id VARCHAR,
@@ -56,7 +63,7 @@ class DuckDBMemory:
         # File interaction tracking
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS file_interactions (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY DEFAULT nextval('seq_file_interactions'),
                 timestamp TIMESTAMP NOT NULL,
                 session_id VARCHAR NOT NULL,
                 task_id VARCHAR,
@@ -81,7 +88,7 @@ class DuckDBMemory:
         # Task history
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS task_history (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY DEFAULT nextval('seq_task_history'),
                 task_id VARCHAR UNIQUE NOT NULL,
                 session_id VARCHAR NOT NULL,
                 description TEXT NOT NULL,
@@ -104,7 +111,7 @@ class DuckDBMemory:
         # Context window snapshots
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS context_snapshots (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY DEFAULT nextval('seq_context_snapshots'),
                 timestamp TIMESTAMP NOT NULL,
                 session_id VARCHAR NOT NULL,
                 task_id VARCHAR,
@@ -121,7 +128,7 @@ class DuckDBMemory:
         # Learned patterns
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS learned_patterns (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY DEFAULT nextval('seq_learned_patterns'),
                 pattern_type VARCHAR NOT NULL,
                 pattern_data JSON NOT NULL,
                 confidence FLOAT NOT NULL,
@@ -151,13 +158,12 @@ class DuckDBMemory:
         Returns:
             ID of the inserted record.
         """
-        cursor = self.conn.execute(
+        result_cursor = self.conn.execute(
             """
             INSERT INTO tool_executions
             (timestamp, session_id, task_id, tool_name, parameters, result,
              success, error_message, duration_ms, context_tokens)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id
             """,
             [
                 datetime.now(),
@@ -172,7 +178,9 @@ class DuckDBMemory:
                 context_tokens,
             ],
         )
-        return cursor.fetchone()[0]
+        # Get the last inserted ID
+        id_cursor = self.conn.execute("SELECT currval('seq_tool_executions')")
+        return id_cursor.fetchone()[0]
 
     def record_file_interaction(
         self,
@@ -193,13 +201,12 @@ class DuckDBMemory:
         Returns:
             ID of the inserted record.
         """
-        cursor = self.conn.execute(
+        self.conn.execute(
             """
             INSERT INTO file_interactions
             (timestamp, session_id, task_id, file_path, operation,
              line_range, success, context, changes_summary)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id
             """,
             [
                 datetime.now(),
@@ -213,7 +220,9 @@ class DuckDBMemory:
                 changes_summary,
             ],
         )
-        return cursor.fetchone()[0]
+        # Get the last inserted ID
+        id_cursor = self.conn.execute("SELECT currval('seq_file_interactions')")
+        return id_cursor.fetchone()[0]
 
     def get_file_history(self, file_path: str, limit: int = 5) -> list[dict]:
         """Get recent interaction history for a file.
@@ -293,11 +302,11 @@ class DuckDBMemory:
                 SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful_calls,
                 AVG(duration_ms) as avg_duration_ms
             FROM tool_executions
-            WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL ? DAYS
+            WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL (? || ' days')::INTERVAL
             GROUP BY tool_name
             ORDER BY total_calls DESC
             """,
-            [days],
+            [str(days)],
         )
         return [
             {
@@ -325,16 +334,17 @@ class DuckDBMemory:
         Returns:
             ID of the inserted record.
         """
-        cursor = self.conn.execute(
+        self.conn.execute(
             """
             INSERT INTO task_history
             (task_id, session_id, description, intent, status, started_at)
             VALUES (?, ?, ?, ?, 'active', ?)
-            RETURNING id
             """,
             [task_id, session_id, description, intent, datetime.now()],
         )
-        return cursor.fetchone()[0]
+        # Get the last inserted ID
+        id_cursor = self.conn.execute("SELECT currval('seq_task_history')")
+        return id_cursor.fetchone()[0]
 
     def complete_task(
         self,
@@ -348,25 +358,33 @@ class DuckDBMemory:
         Returns:
             True if task was found and updated.
         """
-        self.conn.execute(
-            """
-            UPDATE task_history
-            SET status = 'completed',
-                completed_at = ?,
-                outcome = ?,
-                files_touched = ?,
-                tools_used = ?
-            WHERE task_id = ?
-            """,
-            [
-                datetime.now(),
-                outcome,
-                json.dumps(files_touched) if files_touched else None,
-                json.dumps(tools_used) if tools_used else None,
-                task_id,
-            ],
-        )
-        return self.conn.execute("SELECT changes() as affected").fetchone()[0] > 0
+        # Check if task exists before updating
+        result = self.conn.execute(
+            "SELECT COUNT(*) FROM task_history WHERE task_id = ?", [task_id]
+        ).fetchone()
+        task_exists = result[0] > 0
+
+        if task_exists:
+            self.conn.execute(
+                """
+                UPDATE task_history
+                SET status = 'completed',
+                    completed_at = ?,
+                    outcome = ?,
+                    files_touched = ?,
+                    tools_used = ?
+                WHERE task_id = ?
+                """,
+                [
+                    datetime.now(),
+                    outcome,
+                    json.dumps(files_touched) if files_touched else None,
+                    json.dumps(tools_used) if tools_used else None,
+                    task_id,
+                ],
+            )
+
+        return task_exists
 
     def snapshot_context(
         self,
@@ -385,13 +403,12 @@ class DuckDBMemory:
         Returns:
             ID of the inserted record.
         """
-        cursor = self.conn.execute(
+        self.conn.execute(
             """
             INSERT INTO context_snapshots
             (timestamp, session_id, task_id, context_items, total_tokens,
              pruned_items, reason)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-            RETURNING id
             """,
             [
                 datetime.now(),
@@ -403,7 +420,9 @@ class DuckDBMemory:
                 reason,
             ],
         )
-        return cursor.fetchone()[0]
+        # Get the last inserted ID
+        id_cursor = self.conn.execute("SELECT currval('seq_context_snapshots')")
+        return id_cursor.fetchone()[0]
 
     def close(self) -> None:
         """Close the database connection."""
