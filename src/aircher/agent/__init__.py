@@ -99,7 +99,7 @@ class AircherAgent:
         return tools
 
     def _build_graph(self) -> Any:
-        """Build the LangGraph workflow."""
+        """Build the LangGraph workflow with conditional edges."""
         workflow = StateGraph(AgentState)
 
         # Add nodes
@@ -109,17 +109,105 @@ class AircherAgent:
         workflow.add_node("execute_task", self._execute_task)
         workflow.add_node("generate_response", self._generate_response)
         workflow.add_node("update_memory", self._update_memory)
+        workflow.add_node("handle_error", self._handle_error)
 
-        # Add edges
+        # Add edges with conditional routing
         workflow.add_edge(START, "classify_intent")
         workflow.add_edge("classify_intent", "validate_permissions")
-        workflow.add_edge("validate_permissions", "select_tools")
-        workflow.add_edge("select_tools", "execute_task")
-        workflow.add_edge("execute_task", "generate_response")
+
+        # Conditional: Skip to response if permissions denied
+        workflow.add_conditional_edges(
+            "validate_permissions",
+            self._route_after_permissions,
+            {
+                "continue": "select_tools",
+                "denied": "generate_response",
+            }
+        )
+
+        # Conditional: Skip execution if no tools selected
+        workflow.add_conditional_edges(
+            "select_tools",
+            self._route_after_tool_selection,
+            {
+                "execute": "execute_task",
+                "skip": "generate_response",
+            }
+        )
+
+        # Conditional: Handle errors or continue to response
+        workflow.add_conditional_edges(
+            "execute_task",
+            self._route_after_execution,
+            {
+                "success": "generate_response",
+                "error": "handle_error",
+                "partial": "generate_response",
+            }
+        )
+
+        workflow.add_edge("handle_error", "generate_response")
         workflow.add_edge("generate_response", "update_memory")
         workflow.add_edge("update_memory", END)
 
         return workflow.compile()
+
+    def _route_after_permissions(self, state: AgentState) -> str:
+        """Route based on permission validation result."""
+        if state.context.get("permissions_validated"):
+            return "continue"
+        else:
+            return "denied"
+
+    def _route_after_tool_selection(self, state: AgentState) -> str:
+        """Route based on whether tools were selected."""
+        if state.tool_calls and len(state.tool_calls) > 0:
+            return "execute"
+        else:
+            logger.info("No tools selected, skipping execution")
+            return "skip"
+
+    def _route_after_execution(self, state: AgentState) -> str:
+        """Route based on execution results."""
+        tool_results = state.metadata.get("tool_results", [])
+
+        if not tool_results:
+            return "success"
+
+        # Check for errors
+        errors = [r for r in tool_results if "error" in r]
+        successes = [r for r in tool_results if "result" in r]
+
+        if errors and not successes:
+            return "error"
+        elif errors and successes:
+            return "partial"
+        else:
+            return "success"
+
+    async def _handle_error(self, state: AgentState) -> AgentState:
+        """Handle errors from tool execution."""
+        tool_results = state.metadata.get("tool_results", [])
+        errors = [r for r in tool_results if "error" in r]
+
+        logger.error(f"Handling {len(errors)} tool execution errors")
+
+        # Store error context
+        state.context["has_errors"] = True
+        state.context["error_count"] = len(errors)
+        state.context["errors"] = [
+            {
+                "tool": r["tool"],
+                "error": r["error"],
+                "parameters": r.get("parameters", {})
+            }
+            for r in errors
+        ]
+
+        # Could implement retry logic here in the future
+        # For now, just log and continue to response generation
+
+        return state
 
     async def _classify_intent(self, state: AgentState) -> AgentState:
         """Classify user intent from messages with memory context."""
@@ -298,18 +386,130 @@ class AircherAgent:
     def _generate_tool_plan(
         self, intent: str, request: str, capabilities: Any
     ) -> list[dict[str, Any]]:
-        """Generate a plan of tool calls based on intent."""
+        """Generate a plan of tool calls based on intent using LLM."""
         tool_calls: list[dict[str, Any]] = []
 
-        # For now, just return empty tool calls until tools are fully implemented
-        if intent == "read" and capabilities.can_read_files:
-            # Will add read_file tool call later
-            pass
-        elif intent == "write" and capabilities.can_write_files:
-            # Will add write_file tool call later
-            pass
+        # If no LLM available, fall back to simple rule-based planning
+        if not self.llm:
+            return self._generate_tool_plan_fallback(intent, request, capabilities)
+
+        # Get available tools based on capabilities
+        available_tools = self._get_available_tools_for_capabilities(capabilities)
+
+        if not available_tools:
+            logger.warning("No tools available for current capabilities")
+            return tool_calls
+
+        # Create tool planning prompt
+        tool_descriptions = "\n".join([
+            f"- {tool.name}: {tool.description}"
+            for tool in available_tools
+        ])
+
+        planning_prompt = f"""You are an intelligent agent planner. Given a user request, determine which tools to use and in what order.
+
+Available Tools:
+{tool_descriptions}
+
+User Intent: {intent}
+User Request: {request}
+
+Respond with a JSON array of tool calls. Each tool call should have:
+- "tool": the tool name
+- "parameters": a dict of parameters for the tool
+- "reasoning": why this tool is needed
+
+Example response:
+[
+  {{
+    "tool": "read_file",
+    "parameters": {{"path": "src/main.py"}},
+    "reasoning": "Need to read the file to understand its contents"
+  }}
+]
+
+If no tools are needed, respond with an empty array: []
+
+Tool plan:"""
+
+        try:
+            # Use LLM to plan tool calls
+            response = self.llm.invoke(planning_prompt)
+            response_text = response.content
+
+            # Extract JSON from response (handle markdown code blocks)
+            import json as json_module
+            import re
+
+            # Try to find JSON in code blocks first
+            json_match = re.search(r'```(?:json)?\s*(\[[\s\S]*?\])\s*```', response_text)
+            if json_match:
+                json_text = json_match.group(1)
+            else:
+                # Try to find JSON array directly
+                json_match = re.search(r'\[[\s\S]*\]', response_text)
+                json_text = json_match.group(0) if json_match else "[]"
+
+            tool_calls = json_module.loads(json_text)
+            logger.info(f"LLM generated {len(tool_calls)} tool calls")
+
+        except Exception as e:
+            logger.error(f"Failed to generate tool plan with LLM: {e}")
+            # Fallback to rule-based planning
+            tool_calls = self._generate_tool_plan_fallback(intent, request, capabilities)
 
         return tool_calls
+
+    def _generate_tool_plan_fallback(
+        self, intent: str, request: str, capabilities: Any
+    ) -> list[dict[str, Any]]:
+        """Fallback rule-based tool planning when LLM is unavailable."""
+        tool_calls: list[dict[str, Any]] = []
+
+        # Simple rule-based planning
+        if intent == "read" and capabilities.can_read_files:
+            # Extract file paths from request
+            file_paths = self._extract_file_paths(request)
+            for file_path in file_paths[:1]:  # Limit to first file for now
+                tool_calls.append({
+                    "tool": "read_file",
+                    "parameters": {"path": file_path},
+                    "reasoning": "User requested to read file"
+                })
+        elif intent == "write" and capabilities.can_write_files:
+            file_paths = self._extract_file_paths(request)
+            for file_path in file_paths[:1]:
+                tool_calls.append({
+                    "tool": "write_file",
+                    "parameters": {"path": file_path, "content": ""},
+                    "reasoning": "User requested to write file"
+                })
+        elif intent == "search" and capabilities.can_read_files:
+            tool_calls.append({
+                "tool": "search_files",
+                "parameters": {"pattern": "", "path": "."},
+                "reasoning": "User requested to search"
+            })
+
+        return tool_calls
+
+    def _get_available_tools_for_capabilities(self, capabilities: Any) -> list[Any]:
+        """Filter tools based on mode capabilities."""
+        available_tools = []
+
+        for tool in self.tools:
+            # Map tool names to required capabilities
+            if tool.name in ["read_file", "list_directory", "search_files"]:
+                if capabilities.can_read_files:
+                    available_tools.append(tool)
+            elif tool.name in ["write_file"]:
+                if capabilities.can_write_files:
+                    available_tools.append(tool)
+            elif tool.name in ["bash"]:
+                if capabilities.can_execute_commands:
+                    available_tools.append(tool)
+
+        return available_tools
 
     async def _execute_task(self, state: AgentState) -> AgentState:
         """Execute the task using selected tools."""
@@ -386,19 +586,87 @@ class AircherAgent:
         return state
 
     async def _generate_response(self, state: AgentState) -> AgentState:
-        """Generate final response to the user."""
+        """Generate final response to the user using LLM."""
         intent = state.intent
+        user_request = state.user_request
         tool_results = state.metadata.get("tool_results", [])
 
-        # Generate response based on tool results
-        if tool_results:
-            response = self._format_tool_results(tool_results)
-        else:
-            response = f"I understand you want to {intent}. This is a simulated response - tools will be fully implemented soon."
+        # If no LLM, use template-based response
+        if not self.llm:
+            response = self._generate_response_fallback(intent, tool_results)
+            state.response = response
+            state.context["response_generated"] = True
+            return state
 
-        state.response = response
+        # Build context for LLM
+        context_parts = [
+            f"User Request: {user_request}",
+            f"Intent: {intent}",
+        ]
+
+        # Add memory context if available
+        if state.context.get("suggested_files"):
+            context_parts.append(
+                f"Related Files (from memory): {', '.join(state.context['suggested_files'])}"
+            )
+
+        # Add tool execution results
+        if tool_results:
+            results_summary = "\n".join([
+                f"- {result.get('tool', 'unknown')}: "
+                f"{'Success' if 'result' in result else 'Failed'} "
+                f"({result.get('duration_ms', 0)}ms)"
+                for result in tool_results
+            ])
+            context_parts.append(f"\nTool Executions:\n{results_summary}")
+
+            # Add detailed results
+            for result in tool_results:
+                if "result" in result:
+                    context_parts.append(
+                        f"\n{result['tool']} result:\n{result['result']}"
+                    )
+                elif "error" in result:
+                    context_parts.append(
+                        f"\n{result['tool']} error:\n{result['error']}"
+                    )
+
+        context = "\n".join(context_parts)
+
+        # Create response generation prompt
+        response_prompt = f"""You are Aircher, an intelligent coding agent. Generate a helpful, natural response to the user based on the context below.
+
+{context}
+
+Respond directly to the user. Be concise but informative. If tools were executed, explain what was done and what was found. If there were errors, explain them clearly. If you suggested related files from memory, mention them helpfully.
+
+Response:"""
+
+        try:
+            # Generate response with LLM
+            response = self.llm.invoke(response_prompt)
+            response_text = response.content
+
+            logger.info("Generated LLM response")
+            state.response = response_text
+
+        except Exception as e:
+            logger.error(f"Failed to generate response with LLM: {e}")
+            # Fallback to template response
+            response = self._generate_response_fallback(intent, tool_results)
+            state.response = response
+
         state.context["response_generated"] = True
         return state
+
+    def _generate_response_fallback(
+        self, intent: str, tool_results: list[dict[str, Any]]
+    ) -> str:
+        """Fallback template-based response generation."""
+        if tool_results:
+            return self._format_tool_results(tool_results)
+        else:
+            return f"I understand you want to {intent}. Ready to assist when tools are executed."
 
     def _format_tool_results(self, tool_results: list[dict[str, Any]]) -> str:
         """Format tool results into a human-readable response."""

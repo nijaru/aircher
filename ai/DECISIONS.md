@@ -198,3 +198,45 @@
 - **Package Manager**: Stick with uv, can integrate with pixi later
 
 **Evidence**: Mojo development roadmap, Python-Mojo interop analysis
+
+---
+
+## 2025-11-13: LangGraph over Pydantic AI
+
+**Context**: Framework evaluation after Week 1-2 memory system implementation
+**Decision**: Continue with LangGraph, avoid hybrid approach
+**Rationale**:
+- **Multi-agent requirements**: Week 3-4 roadmap requires CodeReading, CodeWriting, ProjectFixing sub-agents
+- **State management**: 3-layer memory system needs LangGraph's sophisticated checkpointing and persistent state
+- **Already invested**: Memory systems fully integrated with LangGraph workflows
+- **Production readiness**: Built-in fault tolerance, durable execution, human-in-the-loop
+- **Complexity fits**: Graph-based architecture handles context pruning, model routing, dynamic decisions
+- **Maintenance**: Single framework simpler than hybrid LangGraph + Pydantic AI approach
+
+**Pydantic AI Strengths Considered**:
+- Type safety and IDE support
+- Performance (faster than LangGraph in benchmarks)
+- Simpler API for single agents
+- OpenTelemetry observability
+
+**Why Not Pydantic AI**:
+- Not designed for complex multi-agent orchestration
+- Migration cost too high at this stage
+- Less mature state management for complex workflows
+- Would need custom orchestration layer
+
+**Tradeoffs**:
+| Pro | Con |
+|-----|-----|
+| Built for multi-agent systems | More complex API |
+| Sophisticated state management | Slower performance |
+| Already integrated | Larger learning curve |
+| Production-grade features | More abstraction layers |
+
+**Future Considerations**:
+- Evaluate Pydantic models for LLM output validation
+- Consider Pydantic Logfire for observability (Week 5)
+- Use type hints following Pydantic patterns
+
+**Evidence**: Web research, framework comparison analysis, roadmap requirements
+**Impact**: Week 3-6 development continues with LangGraph
