@@ -6,7 +6,7 @@ from typing import Any
 
 from loguru import logger
 
-from ..tools import BaseTool, ToolInput, ToolOutput
+from .base import BaseTool, ToolInput, ToolOutput
 
 
 class ReadFileTool(BaseTool):

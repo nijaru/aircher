@@ -1,6 +1,7 @@
 """Core agent implementation using LangGraph."""
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
@@ -12,7 +13,9 @@ from loguru import logger
 from pydantic import BaseModel
 
 from ..config import get_settings
+from ..memory.integration import MemoryIntegration, create_memory_system
 from ..modes import AgentMode, get_mode_capabilities
+from ..tools import BashTool, ListDirectoryTool, ReadFileTool, SearchFilesTool, WriteFileTool
 
 
 class AgentState(BaseModel):
@@ -33,15 +36,55 @@ class AgentState(BaseModel):
 class AircherAgent:
     """Main agent implementation using LangGraph."""
 
-    def __init__(self, model_name: str = "gpt-4o-mini") -> None:
+    def __init__(
+        self,
+        model_name: str = "gpt-4o-mini",
+        data_dir: Path | None = None,
+        enable_memory: bool = True,
+    ) -> None:
         self.settings = get_settings()
         self.model_name = model_name
+        self.enable_memory = enable_memory
 
-        # Initialize tools (will be added later)
-        self.tools: list[Any] = []
+        # Set up data directory
+        if data_dir is None:
+            data_dir = Path.home() / ".aircher" / "data"
+        self.data_dir = data_dir
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize memory systems
+        if self.enable_memory:
+            db_path = self.data_dir / "episodic.duckdb"
+            vector_dir = self.data_dir / "vectors"
+            self.memory: MemoryIntegration | None = create_memory_system(
+                db_path=db_path, vector_persist_dir=vector_dir
+            )
+            logger.info("Memory systems initialized")
+        else:
+            self.memory = None
+            logger.info("Memory systems disabled")
+
+        # Initialize tools
+        self.tools: list[Any] = self._load_tools()
+        logger.info(f"Loaded {len(self.tools)} tools")
 
         # Initialize LangGraph workflow
         self.graph = self._build_graph()
+
+    def _load_tools(self) -> list[Any]:
+        """Load available tools based on configuration."""
+        tools = []
+
+        # File operation tools
+        tools.append(ReadFileTool())
+        tools.append(WriteFileTool())
+        tools.append(ListDirectoryTool())
+        tools.append(SearchFilesTool())
+
+        # Command execution tool
+        tools.append(BashTool())
+
+        return tools
 
     def _build_graph(self) -> Any:
         """Build the LangGraph workflow."""
@@ -67,13 +110,35 @@ class AircherAgent:
         return workflow.compile()
 
     async def _classify_intent(self, state: AgentState) -> AgentState:
-        """Classify user intent from messages."""
+        """Classify user intent from messages with memory context."""
         user_request = state.user_request or (
             state.messages[-1].content if state.messages else ""
         )
 
         # Simple intent classification (can be enhanced with ML)
         intent = self._classify_intent_simple(str(user_request))
+
+        # Enhance with memory context if available
+        if self.memory:
+            try:
+                # Check if we've seen similar requests before
+                # This would use vector search in production
+                tool_stats = self.memory.get_tool_statistics(days=7)
+                state.context["recent_tool_usage"] = tool_stats
+
+                # Store common patterns for context
+                if tool_stats:
+                    most_used_tools = [
+                        stat["tool_name"]
+                        for stat in sorted(
+                            tool_stats, key=lambda x: x["total_calls"], reverse=True
+                        )[:3]
+                    ]
+                    state.context["most_used_tools"] = most_used_tools
+                    logger.debug(f"Most used tools: {most_used_tools}")
+
+            except Exception as e:
+                logger.warning(f"Failed to query memory for intent classification: {e}")
 
         logger.info(f"Classified intent: {intent} for session {state.session_id}")
 
@@ -145,12 +210,50 @@ class AircherAgent:
         return getattr(capabilities, required_capability, False)
 
     async def _select_tools(self, state: AgentState) -> AgentState:
-        """Select appropriate tools based on intent and mode."""
+        """Select appropriate tools based on intent, mode, and memory."""
         intent = state.intent
         user_request = state.user_request
 
         # Get mode capabilities
         capabilities = get_mode_capabilities(state.current_mode)
+
+        # Query memory for context to inform tool selection
+        memory_context = {}
+        if self.memory:
+            try:
+                # Extract file paths from request
+                files_mentioned = self._extract_file_paths(user_request)
+
+                for file_path in files_mentioned:
+                    # Get file history from episodic memory
+                    history = self.memory.query_file_history(file_path, limit=3)
+                    if history:
+                        memory_context[file_path] = {
+                            "last_operation": history[0]["operation"],
+                            "recent_changes": len(history),
+                        }
+
+                # Find co-edit patterns (files frequently edited together)
+                co_edit_patterns = self.memory.find_co_edit_patterns(min_count=2)
+                if co_edit_patterns and files_mentioned:
+                    # Suggest related files based on co-edit patterns
+                    related_files = set()
+                    for pattern in co_edit_patterns:
+                        if pattern["file1"] in files_mentioned:
+                            related_files.add(pattern["file2"])
+                        elif pattern["file2"] in files_mentioned:
+                            related_files.add(pattern["file1"])
+
+                    if related_files:
+                        state.context["suggested_files"] = list(related_files)
+                        logger.info(
+                            f"Memory suggests also checking: {related_files}"
+                        )
+
+                state.context["memory_context"] = memory_context
+
+            except Exception as e:
+                logger.warning(f"Failed to query memory for tool selection: {e}")
 
         # Generate tool call plan based on intent
         tool_calls = self._generate_tool_plan(intent, user_request, capabilities)
@@ -161,6 +264,24 @@ class AircherAgent:
         state.tools_available = [tool.name for tool in self.tools]
         state.context["tool_plan"] = tool_calls
         return state
+
+    def _extract_file_paths(self, text: str) -> list[str]:
+        """Extract file paths from text using simple heuristics."""
+        import re
+
+        # Match common file path patterns
+        patterns = [
+            r"[\w/\.\-]+\.(py|rs|js|ts|md|json|yaml|yml|toml|txt)",  # Files with extensions
+            r"/[\w/\.\-]+",  # Absolute paths
+            r"[\w/\.\-]+/[\w/\.\-]+",  # Relative paths with subdirectories
+        ]
+
+        file_paths = set()
+        for pattern in patterns:
+            matches = re.findall(pattern, text)
+            file_paths.update(matches)
+
+        return list(file_paths)
 
     def _generate_tool_plan(
         self, intent: str, request: str, capabilities: Any
@@ -181,22 +302,71 @@ class AircherAgent:
     async def _execute_task(self, state: AgentState) -> AgentState:
         """Execute the task using selected tools."""
         tool_calls = state.tool_calls
-
         results = []
+
+        # Find tools by name
+        tool_map = {tool.name: tool for tool in self.tools}
 
         for tool_call in tool_calls:
             tool_name = tool_call["tool"]
             parameters = tool_call["parameters"]
 
-            # For now, just log the tool call
-            logger.info(f"Would execute tool {tool_name} with parameters {parameters}")
-            results.append(
-                {
-                    "tool": tool_name,
-                    "parameters": parameters,
-                    "result": f"Tool {tool_name} execution simulated",
-                }
-            )
+            start_time = datetime.now()
+
+            try:
+                # Find the tool
+                tool = tool_map.get(tool_name)
+                if not tool:
+                    logger.warning(f"Tool {tool_name} not found")
+                    results.append(
+                        {
+                            "tool": tool_name,
+                            "parameters": parameters,
+                            "error": f"Tool {tool_name} not found",
+                        }
+                    )
+                    continue
+
+                # Execute the tool
+                logger.info(f"Executing tool {tool_name} with parameters {parameters}")
+
+                # Wrap memory tracking if enabled
+                if self.memory:
+                    tool_func = self.memory.track_tool_execution(tool.execute)
+                else:
+                    tool_func = tool.execute
+
+                # Execute (handle both sync and async)
+                if hasattr(tool.execute, "__call__"):
+                    result = await tool_func(**parameters)
+                else:
+                    result = await tool_func(**parameters)
+
+                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+                results.append(
+                    {
+                        "tool": tool_name,
+                        "parameters": parameters,
+                        "result": result,
+                        "duration_ms": duration_ms,
+                    }
+                )
+
+                logger.info(f"Tool {tool_name} completed in {duration_ms}ms")
+
+            except Exception as e:
+                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                logger.error(f"Tool {tool_name} failed: {e}")
+
+                results.append(
+                    {
+                        "tool": tool_name,
+                        "parameters": parameters,
+                        "error": str(e),
+                        "duration_ms": duration_ms,
+                    }
+                )
 
         # Update state with results
         state.metadata["tool_results"] = results
@@ -235,8 +405,69 @@ class AircherAgent:
 
     async def _update_memory(self, state: AgentState) -> AgentState:
         """Update memory systems with interaction."""
-        # TODO: Implement memory updates
-        state.context["memory_updated"] = True
+        if not self.memory:
+            state.context["memory_updated"] = False
+            return state
+
+        try:
+            # Set context for memory tracking
+            self.memory.set_context(
+                session_id=state.session_id,
+                task_id=state.context.get("task_id"),
+            )
+
+            # Record tool executions from metadata
+            tool_results = state.metadata.get("tool_results", [])
+            for result in tool_results:
+                tool_name = result.get("tool")
+                parameters = result.get("parameters", {})
+                success = "error" not in result
+                error_msg = result.get("error") if not success else None
+                duration_ms = result.get("duration_ms")
+
+                self.memory.episodic.record_tool_execution(
+                    session_id=state.session_id,
+                    tool_name=tool_name,
+                    parameters=parameters,
+                    result=result.get("result"),
+                    success=success,
+                    error_message=error_msg,
+                    duration_ms=duration_ms,
+                )
+
+            # Save context snapshot
+            context_items = [
+                {
+                    "type": "message",
+                    "content": state.user_request,
+                    "role": "user",
+                },
+                {
+                    "type": "intent",
+                    "intent": state.intent,
+                },
+                {
+                    "type": "tool_results",
+                    "count": len(tool_results),
+                },
+            ]
+
+            self.memory.snapshot_context(
+                context_items=context_items,
+                total_tokens=0,  # Will be calculated when LLM is integrated
+                reason="task_completion",
+            )
+
+            logger.info(
+                f"Updated memory: {len(tool_results)} tool executions recorded"
+            )
+            state.context["memory_updated"] = True
+
+        except Exception as e:
+            logger.error(f"Failed to update memory: {e}")
+            state.context["memory_updated"] = False
+            state.context["memory_error"] = str(e)
+
         return state
 
     async def run(
