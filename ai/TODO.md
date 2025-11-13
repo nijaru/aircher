@@ -1,28 +1,42 @@
 # Aircher TODO
 
-## Week 1: Memory Systems Foundation (CURRENT)
+## Week 1: Memory Systems Foundation (CURRENT - Core Complete, Testing Pending)
 
 ### DuckDB Episodic Memory
-- [ ] Create `src/aircher/memory/duckdb_memory.py` with schema from ai/research/memory-system-architecture.md
-  - [ ] Implement tool_executions table
-  - [ ] Implement file_interactions table
-  - [ ] Implement task_history table
-  - [ ] Implement context_snapshots table
-  - [ ] Implement learned_patterns table
-- [ ] Create `src/aircher/memory/episodic.py` high-level API
-- [ ] Hook into tool execution to auto-record operations
-- [ ] Implement queries: "Have I seen this?", "Co-edit patterns"
+- [x] Create `src/aircher/memory/duckdb_memory.py` with schema from ai/research/memory-system-architecture.md
+  - [x] Implement tool_executions table
+  - [x] Implement file_interactions table
+  - [x] Implement task_history table
+  - [x] Implement context_snapshots table
+  - [x] Implement learned_patterns table
+- [x] Create high-level API in `src/aircher/memory/integration.py`
+- [x] Hook into tool execution to auto-record operations (decorator pattern)
+- [x] Implement queries: "Have I seen this?", "Co-edit patterns"
 - [ ] Write unit tests for all memory operations
 
 ### ChromaDB Vector Search
-- [ ] Initialize sentence-transformers embedding model
-- [ ] Create ChromaDB collection for code snippets
-- [ ] Implement async codebase indexing (background task on startup)
-- [ ] Create query interface for semantic code search
-- [ ] Integrate with LangGraph agent workflow
+- [x] Initialize sentence-transformers embedding model
+- [x] Create ChromaDB collection for code snippets
+- [x] Implement async codebase indexing (background task on startup)
+- [x] Create query interface for semantic code search
+- [ ] Integrate with LangGraph agent workflow (Week 2)
 - [ ] Test: Verify semantic search returns relevant snippets
 
-**Week 1 Success**: Memory systems operational, tool calls recorded, semantic search working
+### Knowledge Graph & Tree-sitter
+- [x] Create `src/aircher/memory/tree_sitter_extractor.py` (Python, Rust support)
+- [x] Create `src/aircher/memory/knowledge_graph.py` (NetworkX-based)
+- [x] Implement build_from_file() for automatic extraction
+- [x] Implement queries: get_file_contents(), get_callers(), find_symbol()
+- [ ] Test: Graph builds correctly, queries return accurate results
+
+### Memory Integration
+- [x] Create `src/aircher/memory/integration.py` unified interface
+- [x] Implement @track_tool_execution decorator
+- [x] Add factory function create_memory_system()
+- [ ] Write integration tests for multi-system queries
+- [ ] Validate 60% tool reduction mechanism operational
+
+**Week 1 Status**: Core implementation ✅ complete (5 files, ~1000 lines), testing ⚠️ pending
 
 ## Week 2: Knowledge Graph & LangGraph Integration
 

@@ -1,39 +1,43 @@
-"""Memory system interfaces for Aircher."""
+"""Memory system interfaces for Aircher.
 
-from abc import ABC, abstractmethod
-from typing import Any
+Three-layer memory architecture:
+1. DuckDB - Episodic memory for tracking agent actions and learning patterns
+2. ChromaDB - Vector search for semantic code retrieval
+3. Knowledge Graph - Code structure and relationships via tree-sitter
 
-from pydantic import BaseModel
+Usage:
+    from aircher.memory import create_memory_system
 
+    memory = create_memory_system(
+        db_path=Path("data/memory.duckdb"),
+        vector_persist_dir=Path("data/chroma"),
+    )
 
-class MemoryEntry(BaseModel):
-    """Base class for memory entries."""
+    # Set context
+    memory.set_context(session_id="sess_123", task_id="task_456")
 
-    id: str
-    timestamp: float
-    content: dict[str, Any]
-    metadata: dict[str, Any] | None = None
+    # Track tool executions automatically
+    @memory.track_tool_execution
+    def read_file(file_path: str) -> str:
+        return Path(file_path).read_text()
 
+    # Query memory
+    history = memory.query_file_history("src/main.py")
+    similar = memory.search_similar_code("function to read files")
+    structure = memory.get_file_structure("src/main.py")
+"""
 
-class BaseMemory(ABC):
-    """Base class for memory systems."""
+from .duckdb_memory import DuckDBMemory
+from .integration import MemoryIntegration, create_memory_system
+from .knowledge_graph import KnowledgeGraph
+from .tree_sitter_extractor import TreeSitterExtractor
+from .vector_search import VectorSearch
 
-    @abstractmethod
-    async def store(self, entry: MemoryEntry) -> bool:
-        """Store a memory entry."""
-        pass
-
-    @abstractmethod
-    async def retrieve(self, query: str, limit: int = 10) -> list[MemoryEntry]:
-        """Retrieve relevant memory entries."""
-        pass
-
-    @abstractmethod
-    async def update(self, entry_id: str, updates: dict[str, Any]) -> bool:
-        """Update a memory entry."""
-        pass
-
-    @abstractmethod
-    async def delete(self, entry_id: str) -> bool:
-        """Delete a memory entry."""
-        pass
+__all__ = [
+    "DuckDBMemory",
+    "VectorSearch",
+    "KnowledgeGraph",
+    "TreeSitterExtractor",
+    "MemoryIntegration",
+    "create_memory_system",
+]
