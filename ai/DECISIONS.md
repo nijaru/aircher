@@ -1,722 +1,200 @@
-# Technical Decisions Log
+# Aircher Decisions
 
-**Purpose**: Document WHY significant technical decisions were made.
+## 2025-11-12: Python over Rust for Agent Backend
 
-## 2025-10-27: Architecture Pivot to Hybrid SOTA Design
+**Context**: Architecture migration decision after Rust prototype analysis
+**Decision**: Python with LangGraph framework
+**Rationale**:
+- Development velocity: Python ecosystem 3-5x faster for agent development
+- LangGraph: Production-validated agent framework with built-in state management
+- Library ecosystem: Rich AI/ML tooling (sentence-transformers, ChromaDB, etc.)
+- Team expertise: Strong Python skills vs learning Rust async patterns
 
-### Decision
-Redesign Aircher architecture combining best patterns from 4 leading agents:
-1. **OpenCode**: Plan/Build separation + LSP integration + Git snapshots
-2. **Factory Droid**: Specialized agents for different tasks
-3. **Claude Code**: Research sub-agents (BUT learned when NOT to use them)
-4. **Amp**: Multi-model routing for cost optimization
+**Tradeoffs**:
+| Pro | Con |
+|-----|-----|
+| Faster development cycles | Lower raw performance |
+| Rich AI ecosystem | GIL limitations for CPU work |
+| LangGraph state management | Memory overhead |
+| Easier testing/debugging | Deployment complexity |
 
-### Context
-After Week 6 ACP completion, conducted comprehensive SOTA research to validate our architecture decisions from September 2024. Research revealed critical insights that warranted major redesign.
-
-### Research Findings
-
-**Factory Droid** (58.8% Terminal-Bench, #1):
-- Uses specialized "Droids" with pre-configured prompts for specific tasks
-- Pattern: Focused agents > generic multi-purpose agent
-- Closed source, but concept is validated
-
-**OpenCode** (thdxr, open source):
-- **Plan/Build separation**: Read-only exploration vs modification-capable
-- **LSP integration**: Real-time diagnostics after edits prevents hallucination
-- **Git snapshots**: Temporary commits before risky ops, auto-rollback on failure
-- **Event bus**: Global diagnostics map, event-driven architecture
-- Validated in production, proven pattern
-
-**Claude Code** (Anthropic):
-- **Critical discovery**: Sub-agents have OPPOSITE effects for different tasks
-  - ✅ Research: 90% improvement (parallel information gathering)
-  - ❌ Coding: 15x token waste (context isolation is fatal)
-- Users complaining: 160k tokens for 3k work, 20k overhead per sub-agent
-- **Lesson**: NEVER use sub-agents for coding, ONLY for research
-
-**Amp** (Sourcegraph):
-- Multi-model routing: Haiku for simple, Opus for complex
-- Cost-aware selection: 40% reduction via intelligent routing
-- Model flexibility: User can override, per-task selection
-
-### Rationale
-
-**Our September 2024 Decision Was Partially Wrong**:
-- ✅ **Correct**: Rejected sub-agents for coding (they're terrible)
-- ❌ **Mistake**: Dismissed sub-agents entirely (they're great for research)
-- ❌ **Missed**: Plan/Build separation, LSP integration, Git snapshots
-
-**New Hybrid Architecture Advantages**:
-1. **Plan/Build Separation** (from OpenCode)
-   - Plan mode: Safe read-only exploration, can spawn research sub-agents
-   - Build mode: Controlled modification, NEVER uses sub-agents
-   - Prevents accidental modifications, clear mode distinction
-
-2. **LSP Integration** (from OpenCode)
-   - Edit → LSP diagnostics → Agent sees errors → Self-correct
-   - Prevents hallucination before code runs
-   - Real-time feedback loop
-
-3. **Specialized Agents** (from Factory Droid)
-   - Explorer (CodeReading), Builder (CodeWriting), Debugger (ProjectFixing), Refactorer
-   - Focused system prompts per agent type
-   - Smaller tool sets = less decision paralysis
-
-4. **Smart Sub-Agents** (learned from Claude Code)
-   - ✅ Spawn for research tasks: 90% improvement
-   - ❌ NEVER for coding: Avoid 15x token waste
-   - Decision matrix based on task type
-
-5. **Git Snapshots** (from OpenCode)
-   - Snapshot before risky operations
-   - Auto-rollback on errors or rejections
-   - 100% recovery from failures
-
-6. **Model Router** (from Amp)
-   - Haiku for simple tasks (fast, cheap)
-   - Sonnet for moderate complexity
-   - Opus for complex reasoning
-   - 40% cost reduction target
-
-7. **Memory Systems** (our unique advantage)
-   - Episodic: Prevents duplicate research
-   - Knowledge Graph: Instant codebase queries
-   - Working Memory: Dynamic context pruning
-   - **Nobody else has this**
-
-### Implementation Timeline
-
-**Week 7**: Event bus, LSP, Plan/Build modes, Git snapshots, model router
-**Week 8**: Specialized agents, research sub-agents, integration testing
-**Week 9**: Benchmarks vs Claude Code
-**Week 10**: Research paper + release
-
-### Expected Results
-
-| Metric | Target | Source |
-|--------|--------|--------|
-| Tool call reduction | 60% | Memory systems |
-| Research speedup | 90% | Parallel sub-agents |
-| Coding sub-agent usage | 0% | Avoid 15x waste |
-| LSP self-correction | 50% | Real-time diagnostics |
-| Cost reduction | 40% | Model routing |
-| Operation recovery | 100% | Git snapshots |
-
-### Impact
-
-**Research Contributions**:
-1. First agent to combine all these patterns
-2. Validated hybrid architecture (not single-strategy)
-3. Decision matrix for sub-agent usage (when yes, when no)
-4. LSP-augmented feedback loop
-5. Memory-augmented intelligence
-
-**Competitive Advantages**:
-- Only agent with all patterns combined
-- Memory systems (nobody has)
-- Intent-driven strategy selection
-- Empirically validated design
-
-### Trade-offs
-
-**Complexity**: More patterns = more code to maintain
-- Mitigation: Each pattern is independently valuable
-- Can implement incrementally, validate each
-
-**Implementation Time**: 4 weeks vs 2 weeks for simple approach
-- Mitigation: Research-validated patterns reduce risk
-- Better to get it right than ship fast
-
-**Learning Curve**: Users must understand modes
-- Mitigation: Mode selection is automatic (intent-driven)
-- Clear documentation for manual override
-
-### Alternative Considered
-
-**Keep September 2024 Architecture**: Single agent with dynamic context only
-- **Rejected**: Leaves too much performance on the table
-  - Missing 90% research speedup (sub-agents)
-  - Missing 50% error reduction (LSP feedback)
-  - Missing 100% recovery (Git snapshots)
-  - Missing 40% cost savings (model routing)
-
-**Reasoning**: SOTA research shows clear advantages. Would be irresponsible to ignore.
-
-### Review Date
-
-After Week 9 benchmarks - validate all improvement claims with empirical data.
+**Evidence**: ai/research/python_vs_rust_analysis.md
+**Commits**: Phase 2 complete setup
 
 ---
 
-## 2025-10-27: Toad as Primary Frontend + Stick with Rust
+## 2025-11-12: Multi-Database Strategy
 
-### Decision
-Use Toad (universal terminal UI) as primary frontend, keep Rust for agent backend.
+**Context**: Memory system architecture design
+**Decision**: SQLite + DuckDB + ChromaDB
+**Rationale**:
+- **SQLite**: Proven, embedded, ACID compliance for session data
+- **DuckDB**: Columnar analytics, complex queries for episodic memory
+- **ChromaDB**: Specialized vector database with embedding support
 
-### Context
-After POC validation (60% improvement), needed to decide:
-1. Frontend: Build custom TUI vs use existing ACP-compatible frontend
-2. Backend: Continue Rust vs rewrite in Python
+**Tradeoffs**:
+| Pro | Con |
+|-----|-----|
+| Right tool for each job | Complexity of 3 systems |
+| Optimized performance | Data synchronization overhead |
+| Proven technologies | Learning curve |
 
-**Research findings**:
-- Toad: Universal terminal UI for agentic coding (Python/Textual by Will McGugan)
-- ACP support announced July 2025
-- OpenCode uses TypeScript + Go (split responsibilities)
-- Factory Droid scores highest (58.8% Terminal-Bench) but closed source
-- Research shows Rust > Python for agent scalability (GIL limitations)
-
-### Rationale
-**Frontend: Toad over Custom TUI**:
-- Toad provides universal terminal UI (we don't build/maintain)
-- ACP protocol means language-agnostic communication (JSON-RPC over stdio)
-- Saves 4-6 weeks vs custom Ratatui TUI development
-- Works in 5+ frontends: Toad, Zed, Neovim, Emacs, JetBrains
-
-**Backend: Rust over Python**:
-- Keep 86K lines investment (semantic search, tools, providers)
-- Performance critical for benchmarks (true parallelism, no GIL)
-- hnswlib-rs 45x faster than Python alternatives
-- Single binary deployment (easy to reproduce benchmarks)
-- Research: "Developers moving from Python to Rust for agentic AI"
-
-**Python POC served its purpose**: Validated memory approach in 1-2 weeks
-
-### Implementation
-- Week 2: Code understanding tools (search, analyze, references, definitions)
-- Week 3-4: ACP protocol (stdio, JSON-RPC) + memory port to Rust
-- Week 5-6: Test with Toad (when stable), wire intelligence
-- Week 7-8: Benchmarks vs Claude Code
-
-### Impact
-- **Time saved**: 4-6 weeks (custom TUI avoided)
-- **Reach**: 5+ frontends vs 1 custom TUI
-- **Performance**: Rust maintains benchmark advantage
-- **Maintenance**: Toad team handles UI, we focus on intelligence
-
-### Alternative Considered
-**Rewrite in Python + custom TUI**: 14-16 weeks total, slower benchmarks, harder deployment
-**Rejected**: POC already validated approach, Rust infrastructure is competitive advantage
+**Evidence**: ai/research/database_strategy_analysis.md
 
 ---
 
-## 2025-10-27: DuckDB + petgraph for Memory Systems
+## 2025-11-12: Custom ACP Implementation
 
-### Decision
-Use **DuckDB for episodic memory** and **petgraph for knowledge graph**.
+**Context**: agent-protocol Python package conflicts with pydantic v2
+**Decision**: Implement custom ACP protocol
+**Rationale**:
+- Avoid dependency conflicts with modern pydantic
+- Full control over protocol features and extensions
+- Better integration with our architecture
+- Learning opportunity for protocol implementation
 
-### Context
-Memory system architecture requires two storage strategies:
-1. **Episodic memory**: Track tool executions, file interactions, tasks, patterns
-2. **Knowledge graph**: Codebase structure (files, functions, calls, imports)
+**Tradeoffs**:
+| Pro | Con |
+|-----|-----|
+| No dependency conflicts | More implementation work |
+| Custom extensions possible | Maintenance responsibility |
+| Full control | Need to ensure compatibility |
 
-**Requirements**:
-- Episodic: Analytical queries ("files edited together?", "have I seen this before?")
-- Graph: Fast traversals ("what calls this?", "what's in file X?")
-- Both: Persist across sessions, incremental updates
-
-### Rationale
-
-**DuckDB for Episodic Memory**:
-- ✅ Already have infrastructure (`src/intelligence/memory/duckdb_memory.rs`)
-- ✅ Better than SQLite for analytical queries (vectorized execution)
-- ✅ JSON columns for flexible schema (parameters, patterns, metadata)
-- ✅ Embedded (no server, single file)
-- ✅ Arrow integration (export to DataFrame for analysis)
-- ✅ Size estimate: ~20MB for typical session (1000 tool calls, 10K interactions)
-
-**petgraph for Knowledge Graph**:
-- ✅ In-memory = microsecond graph traversals (vs milliseconds in database)
-- ✅ Mature Rust crate (3.2M downloads, stable API)
-- ✅ Supports directed graphs with typed nodes/edges
-- ✅ Binary serialization (serde) for persistence
-- ✅ POC validated: 3,942 nodes, 5,217 edges for Aircher codebase
-- ✅ Incremental updates: Re-parse only changed files
-
-**Alternatives Considered**:
-
-1. **SQLite for episodic**: Good but DuckDB better for analytical queries
-   - Rejected: DuckDB already integrated, better performance
-
-2. **Graph database (Neo4j, etc.)**: Powerful but heavyweight
-   - Rejected: Overkill for our use case, deployment complexity
-
-3. **All-in-one solution (PostgreSQL + graph extension)**: Possible
-   - Rejected: More complex, petgraph in-memory is faster
-
-### Implementation
-
-**DuckDB Schema (5 tables)**:
-- tool_executions: Every tool call, success/failure, duration
-- file_interactions: Every file operation, in what context
-- task_history: User-level goals, status, outcome
-- context_snapshots: Periodic state for debugging
-- learned_patterns: Co-edit patterns, error fixes
-
-**petgraph Structure**:
-- Nodes: File, Function, Class, Import, Variable (enum)
-- Edges: Contains, Calls, Imports, Uses, Inherits (enum)
-- Queries: get_file_contents, get_callers, find_symbol
-- Storage: Binary file (`knowledge_graph.bin`) loaded on startup
-
-**Week-by-week**:
-- Week 3: DuckDB episodic memory (schema + recording + queries)
-- Week 4: petgraph knowledge graph (build + query + incremental)
-- Week 5: Dynamic context management (integrate both)
-
-### Impact
-- **Continuous work**: Dynamic pruning removes low-value context, summarizes to episodic memory
-- **60% fewer tool calls**: Knowledge graph answers "what calls this?" without file scanning
-- **Pattern learning**: Co-edit detection, error-fix patterns improve over time
-- **Cross-session memory**: Both systems persist, agent learns across conversations
-
-### Trade-offs
-- **Memory usage**: petgraph in-memory (~50-100MB for large codebases)
-  - Mitigation: Serialize when not in use, lazy load on query
-- **Build time**: Initial graph construction 10-30 seconds
-  - Mitigation: Cache graph, incremental updates on file change
-- **Complexity**: Two storage systems to maintain
-  - Mitigation: Clear separation of concerns, well-tested
-
-### Research Contribution
-This architecture enables the **continuous work capability** that distinguishes Aircher from Claude Code:
-- Claude Code: Restarts when context fills
-- Aircher: Prunes intelligently, remembers via episodic memory, queries knowledge graph
-
-**Paper title**: "Memory-Augmented Coding Agents: Empirical Validation"
-**Key metric**: 60% reduction in tool calls (POC validated)
+**Evidence**: Dependency resolution failures with agent-protocol package
 
 ---
 
-## 2025-10-27: Make Repository Public
+## 2025-11-12: READ/WRITE + --admin Mode System
 
-### Decision
-Made Aircher repository public at https://github.com/nijaru/aircher during Week 1 of development.
+**Context**: Safety and usability requirements
+**Decision**: READ/WRITE modes with optional --admin flag
+**Rationale**:
+- **READ**: Safe exploration, file reading only
+- **WRITE**: File modifications with confirmation
+- **--admin**: Full access without confirmations (overrides config)
 
-### Context
-- Pivoted from TUI-focused project to ACP agent backend research project
-- 10-week timeline targeting publication with empirical validation
-- Repository contained no sensitive information (API keys, credentials)
-- README rewritten to clearly position as research project (Week 1 of 10, 17-21% parity)
-- First production-quality tool (read_file) implemented and committed
+**Tradeoffs**:
+| Pro | Con |
+|-----|-----|
+| Intuitive terminology | Admin flag adds complexity |
+| Clear permission model | Need --no-admin override |
+| Progressive trust | Implementation overhead |
 
-### Rationale
-**For Research**:
-- Open source from day 1 enables community contributions
-- Transparent development builds trust and credibility
-- Early feedback helps validate approach
-- Publication requires open source implementation
-
-**For Development**:
-- No reason to stay private - all infrastructure is standard
-- Clear honest positioning (Week 1 of 10) sets expectations
-- Public commits create accountability and momentum
-
-**Risk Mitigation**:
-- Comprehensive .gitignore (target/, private/, .env files)
-- No sensitive data in repository
-- Honest README about current status (not overpromising)
-- Clear it's research project, not production tool
-
-### Impact
-- **Positive**: Community can contribute, track progress, validate claims
-- **Accountability**: Public commits create pressure to deliver on 10-week plan
-- **Positioning**: Early research project, not failed product
-- **Collaboration**: Easier to work with others on tool implementations
-
-### Alternative Considered
-- Keep private until Week 10 (research paper ready)
-- Rejected: No benefit to privacy, misses collaboration opportunities
+**Evidence**: User experience analysis, comparison with Claude Code/opencode patterns
 
 ---
 
-## 2025-09-14: Dynamic Context Management over Sub-Agents
+## 2025-11-12: Modern Python Tooling
 
-### Decision
-Implement Dynamic Context Management instead of autonomous sub-agents for handling complex tasks.
+**Context**: Development environment setup
+**Decision**: uv + ruff + ty + vulture + pytest
+**Rationale**:
+- **uv**: Fast package manager, resolves dependencies 10-100x faster
+- **ruff**: Rust-based linting/formatting, 50-100x faster than traditional tools
+- **ty**: Type checking from uv creators (replaces mypy)
+- **vulture**: Dead code detection
+- **pytest**: De facto testing standard with asyncio support
 
-### Context
-- Research shows sub-agents cause 19% performance degradation for experienced developers
-- Sub-agents suffer from tunnel vision and context pollution issues
-- Coordination overhead between multiple agents is problematic
-- Industry moving toward structured context engineering in 2025
+**Tradeoffs**:
+| Pro | Con |
+|-----|-----|
+| Modern, fast tooling | Learning curve for team |
+| Integrated workflows | Potential compatibility issues |
+| Best practices | Dependency on newer tools |
 
-### Implementation
-- DynamicContextManager actively manages context during execution
-- Intelligent pruning and fetching of relevant context
-- Predictive context loading based on task analysis
-- Context importance scoring and token limit enforcement
-- No autonomous agents - single agent with smart context
-
-### Impact
-- Better performance without multi-agent overhead
-- Cleaner context management without pollution
-- More predictable behavior than autonomous agents
-- Maintains benefits of specialization through context templates
-
-### Alternative Considered
-- Sub-agents (Claude Code style): Too much overhead, tunnel vision issues
-- Static context windows: Not flexible enough for complex tasks
-- Multiple autonomous agents: Coordination problems, context pollution
+**Evidence**: Modern Python development best practices research
 
 ---
 
-## 2025-08-25: Fix Ollama Provider Tool Support
+## 2025-11-12: Phased TUI Approach
 
-### Decision
-Fixed hardcoded `false` return value in Ollama provider's `supports_tools()` method.
+**Context**: Frontend architecture decision
+**Decision**: CLI now, Toad integration later
+**Rationale**:
+- **Phase 3-4**: Focus on agent backend, simple CLI interface
+- **Phase 5+**: Integrate Toad when released and stable
+- **Priority**: Agent functionality over UI development
+- **Resources**: Focus on core systems first
 
-### Context
-- Testing revealed gpt-oss model sends proper OpenAI-style tool calls
-- Provider was ignoring `tool_calls` field in responses
-- Documentation claimed agent system was disconnected (incorrect)
+**Tradeoffs**:
+| Pro | Con |
+|-----|-----|
+| Faster to market | Limited UI initially |
+| Focus on core | Later integration work |
+| Toad maturity | Wait for release |
 
-### Implementation
-1. Updated `OllamaMessage` struct to include `tool_calls` and `thinking` fields
-2. Modified `chat()` method to parse and convert tool calls to standard format
-3. Changed `supports_tools()` to return `true` for modern models
-
-### Impact
-- Enables local testing without API keys using Ollama
-- Tool calling now works with gpt-oss, qwen2.5-coder, deepseek-r1
-- Validates agent system is more functional than documented
-
-### Alternative Considered
-- Keep tool support disabled and require API providers
-- Rejected: Local testing critical for development velocity
+**Evidence**: Development timeline analysis, Toad release status
 
 ---
 
-## 2025-08-09: Adopt hnswlib-rs Backend
+## 2025-11-12: Python 3.13+ Minimum
 
-### Decision
-Replace custom vector search with hnswlib-rs for 45x performance improvement.
+**Context**: Python version selection
+**Decision**: Target Python 3.13+ instead of 3.12+
+**Rationale**:
+- **Performance**: 3.13+ has significant improvements
+- **Dependencies**: All major deps support 3.13+
+- **Future-proof**: 3.14 available, most libs compatible
+- **Modern syntax**: Latest language features
 
-### Context
-- Index building took 2+ minutes for medium codebases
-- Search performance degraded with >1000 vectors
-- Users complained about slow first search
+**Tradeoffs**:
+| Pro | Con |
+|-----|-----|
+| Latest performance | Reduced compatibility |
+| Modern syntax | Fewer supported systems |
+| Future-proof | Newer runtime requirements |
 
-### Implementation
-- Integrated hnswlib-rs with SIMD optimizations
-- Added proper index serialization/deserialization
-- Maintained compatibility with existing embeddings
-
-### Impact
-- Index building: 2+ minutes → 15-20 seconds
-- Search latency: 200ms → 2ms
-- Handles 10,000+ vectors efficiently
-
-### Alternative Considered
-- GPU acceleration: Too complex for CLI tool
-- Custom optimization: Would take months
+**Evidence**: Dependency compatibility analysis, Python 3.13 performance benchmarks
 
 ---
 
-## 2025-08-08: Shell-First Agent Architecture
+## 2025-11-12: Bash/Code Tools over MCP
 
-### Decision
-Use shell commands for language tooling instead of native integrations.
+**Context**: Tool architecture philosophy
+**Decision**: Simple bash/code tools instead of MCP servers
+**Rationale**:
+- **Context efficiency**: 225 tokens vs 13-18k tokens for MCP
+- **Composability**: Tools can be chained, results saved to files
+- **Flexibility**: Easy to modify/extend tools
+- **Performance**: Direct execution vs protocol overhead
 
-### Context
-- Need to support multiple languages and tools
-- Native integrations would require language-specific dependencies
-- Users want transparency in what agent does
-
-### Implementation
-- Agent executes shell commands through `RunCommandTool`
-- Structured output parsed with JSON when available
-- Language servers accessed via stdio
-
-### Impact
-- No complex integrations to maintain
-- Works with any CLI tool immediately
-- Users can reproduce agent actions manually
-
-### Alternative Considered
-- Native language bindings: Too much maintenance
-- LSP client libraries: Complex and heavy
+**Evidence**: pi-mono browser tools analysis, MCP token usage benchmarks
 
 ---
 
-## 2025-08-01: User-Choice Embedding Model Strategy
+## 2025-11-12: Modern Tools Integration
 
-### Decision
-Offer multiple embedding models with clear licensing.
+**Context**: Tool selection for agent operations
+**Decision**: Assume modern tools, fallback to standard tools
+**Rationale**:
+- **Performance**: ripgrep, fd, sd significantly faster
+- **User experience**: Most developers have these tools
+- **Fallback**: Graceful degradation to grep, find, sed
+- **Structured data**: nushell for complex data processing
 
-### Context
-- SweRank (best quality) has restrictive license
-- Users need commercial-safe options
-- Different use cases need different quality/size tradeoffs
+**Tool Strategy**:
+- **Essential**: ripgrep, fd, sd, jq (assume, fallback available)
+- **Optional**: ast-grep, nushell, bat, delta (detect, use if available)
+- **Python-based**: tree-sitter, PyYAML, toml (always available)
 
-### Implementation
-- MiniLM-L6-v2: Default, Apache 2.0, 90MB
-- GTE-Large: Premium, Apache 2.0, 670MB  
-- SweRankEmbed: Best, non-commercial, 260MB
-
-### Impact
-- Commercial users have safe defaults
-- Power users can opt into best models
-- Clear licensing prevents legal issues
-
-### Alternative Considered
-- Single model only: Too limiting
-- Auto-selection: Legal risk
+**Evidence**: Modern tooling performance benchmarks, developer tooling surveys
 
 ---
 
-## 2025-07-15: Rust + Ratatui for TUI
+## 2025-11-12: Python/Mojo Long-term Stack
 
-### Decision
-Build TUI in Rust with Ratatui instead of Electron or web UI.
+**Context**: Language stack evolution planning
+**Decision**: Python now, Mojo integration later
+**Rationale**:
+- **Current**: Python ecosystem unmatched for AI/ML
+- **Performance**: Mojo for critical paths when 1.0 released
+- **Interop**: Mojo-Python interop is excellent
+- **Timeline**: Mojo 1.0 expected summer 2025
 
-### Context
-- Need fast, responsive interface
-- Target audience uses terminal extensively
-- Electron alternatives are resource-heavy
+**Migration Strategy**:
+- **Phase 3-4**: Pure Python development
+- **Phase 5+**: Identify performance bottlenecks
+- **Phase 6+**: Mojo for critical components
+- **Package Manager**: Stick with uv, can integrate with pixi later
 
-### Implementation
-- Pure Rust TUI with Ratatui
-- Crossterm for terminal handling
-- Custom components for chat interface
-
-### Impact
-- Instant startup (<100ms)
-- Low memory usage (<200MB)
-- Native terminal integration
-
-### Alternative Considered
-- Electron: 500MB+ memory, slow startup
-- Web UI: Requires browser, breaks terminal flow
-- Blessed.js: Node dependency
-
----
-
-## 2025-06-20: Tree-sitter for Code Parsing
-
-### Decision
-Use tree-sitter for syntax highlighting and AST analysis.
-
-### Context
-- Need to parse 19+ languages
-- Syntax highlighting essential for search results
-- Future AST-based intelligence features
-
-### Implementation
-- Tree-sitter with language-specific parsers
-- Lazy loading of grammars
-- Cached parse trees
-
-### Impact
-- Accurate syntax highlighting
-- Fast incremental parsing
-- Foundation for code intelligence
-
-### Alternative Considered
-- Regex-based: Too limited
-- Language-specific parsers: Too many dependencies
-- TextMate grammars: Less accurate
-
----
-
-## 2025-09-17: Competitive Positioning Strategy Based on User Feedback
-
-### Context
-Analysis of HN discussions and user feedback revealed key frustrations with existing AI coding agents:
-- Rate limits causing workflow interruptions (Claude Code/Cursor both affected)
-- Lack of transparency in execution steps (Claude Code "flying blind")
-- Unpredictable costs for heavy usage ($100+/month required)
-- Complex UI with multiple "Accept" buttons (Cursor pain point)
-- Neither tool handles Jupyter notebooks well
-
-### Options Considered
-1. **Copy Market Leaders**
-   - Pros: Proven features, easier to build
-   - Cons: Commodity product, no differentiation
-
-2. **Focus on Single Workflow**
-   - Pros: Deep optimization, clear positioning
-   - Cons: Limited market, locks out use cases
-
-3. **Hybrid Approach - Best of Both Worlds**
-   - Pros: Unique positioning, addresses real pain points
-   - Cons: More complex to build, requires execution excellence
-
-### Decision
-**Chosen: Hybrid Approach - Autonomous Transparency**
-
-### Rationale
-- Users want Claude Code's autonomy BUT Cursor's visibility
-- Local models eliminate rate limit frustrations (major differentiator)
-- Our architecture already supports both modes (approval workflows)
-- Safety improvements (SafeWriteFileTool) exceed both competitors
-- Semantic search advantage provides better codebase understanding
-
-### Implementation
-1. **Multi-step autonomous execution** with visible progress
-2. **Transparent step-by-step display** of what agent is doing
-3. **Local model optimization** for rate-limit-free usage
-4. **Model switching mid-conversation** for flexibility
-5. **Predictable cost tracking** with local model fallbacks
-6. **Jupyter notebook support** as differentiator
-
-### Impact
-- **vs Cursor**: Better autonomy, no rate limits, lower cost
-- **vs Claude Code**: Better transparency, model flexibility, safety
-- **Market positioning**: "Autonomous coding with complete visibility"
-- **User value**: Unlimited usage + trust through transparency
-
-### Consequences
-- Need to deliver on both autonomy AND transparency (execution risk)
-- Must optimize local models to compete with API speed
-- Documentation/UX becomes critical differentiator
-- Success depends on execution quality over feature count
-
-### Review Date
-After 6 weeks of implementation - measure user adoption patterns
-
----
-
-## 2025-09-19: Enhanced Prompting over Complex Orchestration
-
-### Decision
-Replace 1685-line MultiTurnReasoningEngine with 300-line enhanced prompting system.
-
-### Context
-- Discovered we were externalizing reasoning that models do internally
-- Research shows 25-70% improvements come from better prompts, not orchestration
-- MultiTurnReasoningEngine tried to manage external reasoning phases
-- Models already optimize for chain-of-thought, reflection, multi-path reasoning
-
-### Implementation
-- Created EnhancedPromptingSystem with research-based patterns
-- ReAct prompts for multi-step tasks (Think→Act→Observe)
-- Reflexion prompts for debugging (systematic reflection)
-- Tree-of-Thoughts prompts for complex analysis (multi-path)
-- Direct prompting leverages model's internal reasoning
-
-### Impact
-- **-1685 lines** of complex orchestration code
-- **Faster execution** without plan generation overhead
-- **Better reasoning** by leveraging model optimization
-- **Simpler architecture** with clear separation of concerns
-
-### Alternative Considered
-- Keep MultiTurnReasoningEngine and improve it
-- Rejected: Fundamentally wrong approach, models already do this better
-
----
-
-## 2025-11-05: OAuth for Claude Pro/Max Subscriptions - IMPLEMENTED ✅
-
-### Decision
-Implement OAuth authentication for Claude Pro/Max subscriptions to enable unlimited usage (vs per-token API billing).
-
-### Context
-- **Problem**: API keys bill separately from Max subscriptions ($3/$15 per 1M tokens)
-- **Solution**: OAuth tokens use Max subscription (unlimited usage within sub)
-- **Examples**: Claude Code, OpenCode both use OAuth for subscription access
-- **Cost Impact**: SWE-bench Lite ~$90-120 with API key, $0 with OAuth
-
-### Implementation Complete (Nov 5, 2025) ✅
-**All phases completed**:
-- ✅ OAuth flow in `src/auth/oauth.rs` (browser auth, callback server)
-- ✅ Token storage in `src/auth/mod.rs` (store/get/remove OAuth tokens)
-- ✅ CLI command `auth login-oauth anthropic` fully integrated
-- ✅ Main CLI integration in `src/cli/mod.rs` (subcommand handling)
-- ✅ State verification (start_auth_flow returns tuple with state)
-- ✅ Browser opening (macOS: `open`, Linux: `xdg-open`, Windows: `cmd /C start`)
-- ✅ SSH session detection with manual URL fallback
-- ✅ Local callback server on localhost:8765
-- ✅ OAuth code exchange for access token
-- ✅ Token storage in ~/.local/share/aircher/auth.json
-
-### Usage
-```bash
-# Authenticate with Claude Max subscription
-cargo run -- auth login-oauth anthropic
-
-# This will:
-# 1. Open browser for Claude Max authentication
-# 2. Start local callback server (localhost:8765)
-# 3. Receive OAuth tokens automatically
-# 4. Store tokens in ~/.local/share/aircher/auth.json
-```
-
-### Implementation Timeline (3.5 hours)
-
-**Phase 1: Fix OAuth Endpoints & Add Refresh** (2 hours):
-1. Update `OAuthHandler::new_anthropic_pro()` with correct endpoints:
-   - Auth: `https://auth.prod.claude.ai/authorize`
-   - Token: `https://auth.prod.claude.ai/oauth/token`
-   - Client ID: `9d1c250a-e61b-44d9-88ed-5944d1962f5e` (OpenCode's known-working ID)
-2. Implement `refresh_access_token()` method
-3. Add `OAuthTokens` struct with `is_expired()` check
-
-**Phase 2: Integrate into ClaudeApiProvider** (2 hours):
-1. Update `ClaudeApiProvider::new()` to try OAuth first, fallback to API key
-2. Check token expiration and auto-refresh if needed
-3. Store refreshed tokens back to AuthManager
-
-**Phase 3: Add CLI Command** (1 hour):
-1. Add `LoginOAuth` variant to `AuthCommand`
-2. Implement `handle_login_oauth()` with browser flow
-3. Handle SSH sessions (manual code entry)
-
-**Phase 4: Update Token Storage** (30 min):
-1. Define JSON format for `~/.local/share/aircher/auth.json`
-2. Store as: `{"anthropic": {"type": "oauth", "refresh": "...", "access": "...", "expires": 123456}}`
-
-### Impact
-**Benefits**:
-- Free usage with Max subscription (vs $90-120 per benchmark run)
-- Enables cost-effective empirical validation
-- Competitive with Claude Code/OpenCode (same auth method)
-
-**Risks**:
-- OAuth flow complexity (browser auth, token refresh)
-- Endpoint changes could break authentication
-- Manual testing required (can't automate browser login)
-
-### Alternative Considered
-
-**Option A: Use API key, accept per-token billing**
-- Pros: Already works, no implementation needed
-- Cons: ~$90-120 for SWE-bench Lite, unsustainable for multiple runs
-- Rejected: Cost adds up quickly for validation
-
-**Option B: Extract tokens from Claude Code manually**
-- Pros: Fastest (15 min), gets OAuth working
-- Cons: Manual process, not user-friendly
-- Use case: Short-term workaround while implementing full flow
-
-**Option C: Wait until benchmarking**
-- Pros: Don't implement until needed
-- Cons: Blocks cost-effective validation
-- Rejected: Need this for Week 9 validation
-
-### Review Date
-After implementing and testing OAuth flow - validate it works with Claude Pro/Max subscription.
-
-**Reference**: See `ai/CLAUDE_OAUTH_SETUP.md` for complete implementation guide.
-
----
-
-## Template for Future Decisions
-
-## YYYY-MM-DD: [Decision Title]
-
-### Decision
-[What was decided]
-
-### Context
-[Why this decision was needed]
-
-### Implementation
-[How it was/will be implemented]
-
-### Impact
-[What changed as a result]
-
-### Alternative Considered
-[What else was considered and why rejected]
+**Evidence**: Mojo development roadmap, Python-Mojo interop analysis

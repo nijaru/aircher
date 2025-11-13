@@ -1,16 +1,17 @@
-# Comprehensive Plan: Toad + Rust Strategy
+# Aircher Implementation Plan: Python + LangGraph Strategy
 
-**Last Updated**: 2025-10-27
-**Decision**: Use Toad as primary frontend, stick with Rust backend
-**Timeline**: 10 weeks to research paper + release
+**Last Updated**: 2025-11-12
+**Decision**: Python-only with LangGraph framework
+**Timeline**: 4-6 weeks to SOTA implementation
+**Target**: Terminal-Bench >58.8% (beat Factory Droid)
 
 ## Strategic Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
-│         Toad (Universal Terminal UI)             │
-│         Python/Textual by Will McGugan           │
-│         (Someone else builds/maintains)          │
+│         Frontend (Any ACP-Compatible)            │
+│         Toad | Zed | Neovim | Emacs | VSCode     │
+│         (When Toad releases, primary frontend)   │
 └─────────────────────────────────────────────────┘
                      ↓
         ┌────────────────────────┐
@@ -20,341 +21,462 @@
         └────────────────────────┘
                      ↓
 ┌─────────────────────────────────────────────────┐
-│         Aircher Agent (Rust)                     │
-│         (What we build)                          │
+│         Aircher Agent (Python 3.13+)             │
+│         LangGraph + Modern Python Stack          │
 ├─────────────────────────────────────────────────┤
-│ Semantic Search: 6,468 vectors, <2ms latency   │
-│ 5 Production Tools: 2,110+ lines tested        │
-│ Multi-Provider: OpenAI, Anthropic, Gemini      │
-│ Memory System: 60% improvement (POC)           │
-│ Knowledge Graph: 3,942 nodes, 5,217 edges      │
+│ Memory Systems: 3-layer architecture           │
+│   - DuckDB: Episodic memory (60% improvement)  │
+│   - ChromaDB: Vector search (semantic code)    │
+│   - Knowledge Graph: Code structure (3,942+)   │
+│                                                  │
+│ LangGraph Workflow: State-based agent          │
+│   - Intent classification                       │
+│   - Tool execution with approval               │
+│   - Dynamic context management                 │
+│   - Sub-agent coordination                     │
+│                                                  │
+│ Tool Framework: Modern CLI tools               │
+│   - Bundled: ripgrep + ast-grep                │
+│   - Assumed: fd, jq, sd, git (with fallbacks)  │
+│   - Python: tree-sitter, PyYAML, toml          │
+│                                                  │
+│ Multi-Provider: OpenAI, Anthropic, local       │
+│   - Smart model routing (40% cost savings)     │
+│   - Ollama for unlimited local usage           │
 └─────────────────────────────────────────────────┘
 ```
 
-## Current Inventory (What We Have)
+## Current State Assessment
 
-### ✅ Production-Ready Infrastructure (86K lines Rust)
+### ✅ Completed (Phase 1-2)
 
-**Semantic Search** (irreplaceable advantage):
-- hnswlib-rs backend (45x faster than alternatives)
-- 6,468 vectors indexed across Aircher codebase
-- 19+ language support via tree-sitter
-- <2ms search latency
-- Location: `src/intelligence/semantic_search/`
+**Python Project Setup**:
+- Modern tooling: uv, ruff, ty, vulture, pytest
+- Dependencies configured: LangGraph, ChromaDB, DuckDB, tree-sitter
+- CI/CD: GitHub Actions with multi-Python (3.13, 3.14) testing
+- Project structure: Clean separation (agent/, memory/, protocol/, tools/)
+- CLI: Basic `aircher status` command working
+- Tests: Basic unit tests passing
 
-**Multi-Provider Auth** (working):
-- OpenAI: GPT-4, GPT-4o, GPT-4o-mini
-- Anthropic: Claude Opus 4.1, Sonnet 4, Haiku
-- Google: Gemini 1.5 Pro, Flash
-- Ollama: Local models
-- Location: `src/providers/`
+**Research & Architecture**:
+- 15 research files, 5,155+ lines of SOTA analysis
+- Memory system architecture fully designed (60% tool reduction validated)
+- Sub-agent patterns researched (Crush analysis)
+- Competitive analysis complete (OpenCode, Claude Code, Factory Droid)
+- Benchmarking strategy documented (Terminal-Bench, SWE-bench)
+- Strategic decisions documented (Python, multi-DB, READ/WRITE modes)
 
-**Tree-sitter Parsing** (19+ languages):
-- Rust, C, C++, Go, Zig
-- JavaScript, TypeScript, Python, Ruby, PHP
-- Java, C#, Kotlin, Swift
-- Bash, SQL, TOML, JSON, YAML, Markdown
-- Location: `src/intelligence/code_analysis/`
+**Tool Framework**:
+- Tool manager with bundling system (`src/aircher/tools/manager.py`)
+- Bash wrapper for shell execution
+- File operations (read, write, edit basics)
+- Platform detection and download logic
 
-**Tool Framework** (proven):
-- End-to-end execution without crashes
-- Approval workflows (for dangerous operations)
-- Streaming support
-- Location: `src/agent/tools/`
+### ❌ Critical Gaps (Phase 3-4)
 
-### ✅ 5 Production Tools (2,110+ lines, 21+ tests)
+**Memory Systems** (Fully Designed, NOT Implemented):
+- ❌ DuckDB episodic memory (schema specified, queries designed)
+- ❌ ChromaDB vector search (dependency installed, not integrated)
+- ❌ Knowledge graph (tree-sitter extraction not ported from POC)
+- **Research**: 667 lines of detailed architecture in ai/research/memory-system-architecture.md
+- **Implementation**: 0 lines (empty `memory/__init__.py`)
 
-1. **analyze_errors** (378 lines, 4 tests)
-   - Error pattern matching
-   - Actionable fix suggestions
-   - Cross-file context
-   - Location: `src/agent/tools/analyze_errors.rs`
+**LangGraph Agent** (Skeleton Only):
+- ⚠️ State definition exists (50 lines)
+- ❌ Workflow graph: TODOs only
+- ❌ Tool integration missing
+- ❌ Memory integration missing
+- ❌ Sub-agent support missing
 
-2. **read_file** (430 lines, 4 tests)
-   - Syntax highlighting with tree-sitter
-   - AST context extraction
-   - Smart truncation
-   - Location: `src/agent/tools/read_file.rs`
+**Sub-Agent System** (Patterns Researched, NOT Implemented):
+- ❌ Specialized agent routing (CodeReading, CodeWriting, ProjectFixing)
+- ❌ Parallel execution capabilities
+- ❌ Tool restriction per agent type (Crush patterns)
+- **Research**: 425 lines from ai/research/crush-subagent-architecture.md
+- **Implementation**: 0 lines
 
-3. **write_file** (450 lines, 6 tests)
-   - Atomic writes (temp file + rename)
-   - Automatic backups
-   - Protected file detection
-   - Location: `src/agent/tools/write_file.rs`
+**Dynamic Context Management** (Algorithm Designed, NOT Implemented):
+- ❌ Relevance scoring (time decay, task association, dependencies)
+- ❌ Intelligent pruning (remove bottom 30% by relevance)
+- ❌ Context snapshot tracking for recovery
+- **Research**: 300+ lines of algorithm specification
+- **Implementation**: 0 lines
 
-4. **edit_file** (530 lines, 7 tests)
-   - Dual modes: search/replace + line-based
-   - Change validation
-   - Diff preview
-   - Location: `src/agent/tools/edit_file.rs`
+## 4-6 Week Implementation Plan
 
-5. **list_files** (700 lines, 8 tests)
-   - Recursive traversal
-   - Gitignore respect
-   - Metadata (size, modified)
-   - Smart filtering
-   - Location: `src/agent/tools/list_files.rs`
+### Week 1: Memory Systems Foundation
 
-### ✅ Memory POC (60% improvement validated)
+**DuckDB Episodic Memory** (Days 1-4):
+```sql
+-- Implement schema from ai/research/memory-system-architecture.md
+CREATE TABLE tool_executions (
+    id INTEGER PRIMARY KEY,
+    timestamp TIMESTAMP NOT NULL,
+    session_id VARCHAR NOT NULL,
+    tool_name VARCHAR NOT NULL,
+    parameters JSON NOT NULL,
+    result JSON,
+    success BOOLEAN NOT NULL,
+    duration_ms INTEGER,
+    context_tokens INTEGER
+);
 
-**Python POC** (proven design):
-- Knowledge graph: 3,942 nodes, 5,217 edges
-- Episodic memory: SQLite tracking
-- 60% reduction in tool calls (7.5 → 3.0)
-- 100% elimination of irrelevant files
-- Location: `poc-memory-agent/`
+CREATE TABLE file_interactions (
+    id INTEGER PRIMARY KEY,
+    timestamp TIMESTAMP NOT NULL,
+    session_id VARCHAR NOT NULL,
+    file_path VARCHAR NOT NULL,
+    operation VARCHAR NOT NULL,
+    success BOOLEAN NOT NULL,
+    context TEXT
+);
 
-**Components to port**:
-- Graph extraction: tree-sitter → NetworkX
-- Memory layer: SQLite episodic tracking
-- Query interface: "What's in file X? What calls Y?"
-- Pattern learning: Co-edit detection
+CREATE TABLE learned_patterns (
+    id INTEGER PRIMARY KEY,
+    pattern_type VARCHAR NOT NULL,
+    pattern_data JSON NOT NULL,
+    confidence FLOAT NOT NULL,
+    observed_count INTEGER NOT NULL
+);
+```
 
-### ❌ 5 Stub Tools (Week 2 target)
+**Implementation**:
+- `src/aircher/memory/duckdb_memory.py` - Connection, schema, basic queries
+- `src/aircher/memory/episodic.py` - High-level API for tracking
+- Hook into tool execution to record all operations
+- Query interface: "Have I seen this before?", "Co-edit patterns"
 
-6. **search_code** (STUB)
-   - Should: Leverage semantic search + query expansion
-   - Currently: Returns hardcoded JSON
-   - Week 2 priority #1
-
-7. **analyze_code** (STUB)
-   - Should: AST analysis, complexity metrics, pattern detection
-   - Currently: Returns hardcoded JSON
-   - Week 2 priority #2
-
-8. **find_references** (STUB)
-   - Should: Cross-file symbol tracking with tree-sitter
-   - Currently: Returns hardcoded JSON
-   - Week 2 priority #3
-
-9. **find_definition** (STUB)
-   - Should: Symbol lookup with context
-   - Currently: Returns hardcoded JSON
-   - Week 2 priority #4
-
-10. **run_command** (STUB)
-    - Should: Shell execution with safety checks
-    - Currently: Returns hardcoded JSON
-    - Week 3-4 (lower priority)
-
-## 10-Week Execution Plan
-
-### Week 2: Code Understanding Tools (Current)
-**Goal**: 9/10 tools real (up from 5/10)
-
-**Task 1: search_code** (2-3 days)
-- Integrate existing semantic search
-- Add query expansion (synonyms, related terms)
-- Implement result ranking
-- Max 50 results (research: LM-centric interfaces)
-- Tests: 4+ covering edge cases
-
-**Task 2: analyze_code** (2-3 days)
-- AST extraction with tree-sitter
-- Complexity metrics (cyclomatic, nesting depth)
-- Pattern detection (antipatterns, best practices)
-- Tests: 4+ covering different languages
-
-**Task 3: find_references** (1-2 days)
-- Symbol tracking with tree-sitter
-- Cross-file search
-- Import/export analysis
-- Tests: 3+ covering scopes
-
-**Task 4: find_definition** (1-2 days)
-- Symbol lookup with tree-sitter
-- Context extraction (surrounding code)
-- Multi-definition handling (overloads)
-- Tests: 3+ covering edge cases
+**ChromaDB Vector Search** (Days 5-7):
+- Initialize embedding model (sentence-transformers)
+- Create collection for code snippets
+- Index codebase on startup (async background task)
+- Query interface for semantic code search
+- Integration with LangGraph agent workflow
 
 **Success Criteria**:
-- 9/10 tools real and tested
-- All pass existing test suite
-- Competitive parity: 23-27% → 30-35%
+- All tables created and queries working
+- Tool executions automatically recorded
+- Semantic search returns relevant code snippets
+- POC 60% improvement mechanism operational
 
-### Week 3-4: ACP Protocol + Memory Port
-**Goal**: Agent works via ACP, memory system in Rust
+### Week 2: Knowledge Graph & LangGraph Integration
 
-**ACP Implementation** (1.5 weeks):
-- stdio transport (JSON-RPC over stdin/stdout)
-- ACP Agent trait full compliance
-- Session management (create, resume, end)
+**Knowledge Graph** (Days 1-3):
+- Port tree-sitter extraction from POC (`poc-memory-agent/`)
+- Build graph structure: files → classes → functions
+- Edges: contains, calls, imports, inherits
+- Serialize to DuckDB for persistence
+- Query interface: "What's in file X?", "What calls Y?"
+
+**LangGraph Agent Workflow** (Days 4-7):
+- Complete workflow graph definition
+- Integrate tools (file ops, bash, search)
+- Add memory system queries
+- Implement intent classification node
+- Add permission/approval nodes for WRITE mode
+- Test end-to-end: user input → tool execution → response
+
+**Success Criteria**:
+- Knowledge graph builds on startup
+- LangGraph workflow executes complete cycles
+- Tools integrated and working
+- Memory queries inform agent decisions
+
+### Week 3: Sub-Agent System & Context Management
+
+**Sub-Agent Architecture** (Days 1-3):
+- Implement specialized agents (Crush patterns):
+  - CodeReading: File analysis (READ mode tools only)
+  - CodeWriting: Edits and refactoring (WRITE mode tools)
+  - ProjectFixing: Bug fixing and testing (full tools)
+  - ResearchAgent: Documentation, web search (external tools)
+- Tool restriction per agent type
+- Session hierarchy (parent/child tracking)
+- Cost optimization (small models for sub-agents)
+
+**Dynamic Context Management** (Days 4-7):
+- Implement relevance scoring algorithm (from memory-system-architecture.md):
+  ```python
+  score = time_score * task_boost * dependency_boost * type_multiplier * relevance
+  ```
+- Intelligent pruning (remove bottom 30% by relevance when at 80% capacity)
+- Context snapshot to episodic memory before pruning
+- Prefetch relevant code from knowledge graph
+- Test continuous work without context restarts
+
+**Success Criteria**:
+- Sub-agents spawn and execute correctly
+- Tool restrictions enforced per agent type
+- Context pruning prevents overflow
+- Continuous multi-turn conversations work
+
+### Week 4: Model Routing & Cost Optimization
+
+**Smart Model Router** (Days 1-3):
+- Implement model selection logic:
+  - Large/expensive (Opus, GPT-4): Main agent reasoning
+  - Small/cheap (Haiku, GPT-4o-mini): Sub-agents, simple tasks
+  - Local (Ollama): Unlimited usage, development
+- Cost tracking per session
+- Automatic fallback on rate limits
+- User-configurable model preferences
+
+**LLM Provider Integration** (Days 4-7):
+- Complete OpenAI integration (GPT-4, GPT-4o-mini)
+- Complete Anthropic integration (Opus, Sonnet, Haiku)
+- Ollama integration for local models
 - Streaming response support
+- Error handling and retries
+
+**Success Criteria**:
+- Model router selects appropriately
+- Cost savings validated (target 40%)
+- All providers working
+- Graceful fallback on failures
+
+### Week 5: ACP Protocol & Testing
+
+**ACP Protocol Implementation** (Days 1-3):
+- stdio transport (JSON-RPC over stdin/stdout)
+- Session management (create, resume, end)
 - Tool execution via protocol
-- Tests: 10+ covering protocol edge cases
+- Streaming responses
 - Reference: https://agentclientprotocol.com/
 
-**Memory System Port** (1.5 weeks):
-- Knowledge graph: tree-sitter + petgraph (vs NetworkX)
-- Episodic memory: DuckDB (already have infrastructure)
-- Repository auto-scanning on startup
-- Query interface: Rust API
-- Tests: 8+ covering graph operations
-- Validate 60% improvement holds in Rust
+**Comprehensive Testing** (Days 4-7):
+- Unit tests for all memory operations
+- Integration tests for agent workflow
+- Tool execution tests with approval mocking
+- Memory persistence tests
+- Performance benchmarks (response time, memory usage)
 
 **Success Criteria**:
-- Aircher launches from Zed via ACP
-- Memory system operational in Rust
-- Benchmarks show 60% improvement
+- ACP protocol compliant
+- Can launch from Zed or other ACP clients
+- Test coverage >80%
+- Performance targets met (<100ms p95 for simple queries)
 
-### Week 5-6: Toad Integration + Intelligence Wiring
-**Goal**: Works in Toad, intelligence active
+### Week 6: Benchmarking & Optimization
 
-**Toad Integration** (1 week):
-- Test with Toad (when ACP support stabilizes)
-- Fix any protocol compatibility issues
-- Performance tuning for terminal UX
-- Documentation for Toad users
+**Terminal-Bench Integration** (Days 1-3):
+- Set up Terminal-Bench evaluation harness
+- Run baseline evaluation (expect 35-45% initially)
+- Identify failure patterns
+- Optimize based on findings
 
-**Intelligence Wiring** (1 week):
-- Connect intent classification to execution
-- Activate dynamic context management
-- Wire memory retrieval to tool calls
-- Integrate knowledge graph queries
+**SWE-bench Sample Run** (Days 4-5):
+- Run SWE-bench Verified sample (50 tasks)
+- Analyze performance
+- Compare with SOTA (75% current best)
 
-**Success Criteria**:
-- Smooth experience in Toad + Zed
-- Intent classification >80% accuracy
-- Memory reduces tool calls by 60%
-
-### Week 7-8: Benchmarks + Blog Posts
-**Goal**: Empirical validation vs Claude Code
-
-**Benchmark Tasks** (1 week):
-1. Multi-file refactoring (measure tool calls)
-2. Bug fixing (measure time to resolution)
-3. Code generation (measure style consistency)
-4. Codebase exploration (measure context efficiency)
-
-**Metrics to validate**:
-- 60% reduction in tool calls (memory system)
-- 19% context efficiency gain (dynamic context)
-- 15-30% improvement in specialized tasks (intent classification)
-
-**Blog Post Series** (1 week):
-- Post 1: Memory system validation (with graphs)
-- Post 2: Toad + ACP architecture (why it works)
-- Post 3: Benchmark results vs Claude Code
-- Post 4: Open source release announcement
+**Optimization & Polish** (Days 6-7):
+- Address benchmark failures
+- Tune prompts and workflows
+- Optimize memory queries
+- Validate 60% tool reduction claim
+- Final testing and bug fixes
 
 **Success Criteria**:
-- Empirical proof of improvements
-- Reproducible benchmarks
-- Blog posts ready to publish
+- Terminal-Bench: >43.2% (beat Claude Code baseline)
+- Competitive target: >50% (approach Factory Droid 58.8%)
+- Stretch goal: >58.8% (beat Factory Droid, claim SOTA)
+- Tool call reduction validated
 
-### Week 9-10: Research Paper + Release
-**Goal**: Publication-ready contribution
+## Technical Stack
 
-**Research Paper** (1 week):
-- Title: "Memory-Augmented Coding Agents: Empirical Validation"
-- Sections: Intro, Related Work, Architecture, Evaluation, Results
-- Focus: 60% improvement from knowledge graph + episodic memory
-- Venue: arXiv + submit to conference (ICSE, FSE, or similar)
+### Core Dependencies
+```toml
+# Agent Framework
+langgraph>=0.2.0          # State-based agent workflows
+langchain>=0.3.0          # LLM abstraction layer
+langchain-openai>=0.2.0   # OpenAI integration
+langchain-anthropic>=0.2.0 # Anthropic integration
 
-**Open Source Release** (1 week):
-- Installation guide for Toad + Zed
-- Contributor documentation
-- Example usage patterns
-- Demo video (Toad terminal workflow)
-- Reddit/HN announcement
+# Memory Systems
+duckdb>=0.10.0            # Episodic memory, analytics
+chromadb>=0.5.0           # Vector search, embeddings
+sentence-transformers     # Embedding model
 
-**Success Criteria**:
-- Paper draft complete
-- Installation < 5 minutes
-- Community can reproduce benchmarks
+# Code Analysis
+tree-sitter>=0.21.0       # Multi-language parsing
+tree-sitter-python        # Python parsing
+tree-sitter-rust          # Rust parsing
+tree-sitter-javascript    # JavaScript parsing
 
-## Competitive Position After 10 Weeks
+# CLI & Async
+click>=8.1.0              # CLI framework
+rich>=13.7.0              # Terminal formatting
+aiohttp>=3.9.0            # Async HTTP
+aiofiles>=24.0.0          # Async file I/O
 
-### vs Claude Code
-- ✅ Better: 60% fewer tool calls (memory system)
-- ✅ Better: Works in more frontends (Toad, Zed, Neovim, Emacs, JetBrains)
-- ✅ Better: Open source (community contributions)
-- ⚠️ Similar: Intent classification (need to benchmark)
-- ❌ Behind: Fewer total tools (but higher quality)
+# Development
+pytest>=8.0.0             # Testing framework
+ruff>=0.6.0               # Linting and formatting
+vulture>=2.10             # Dead code detection
+```
 
-### vs Factory Droid
-- ❌ Behind: Benchmark scores (58.8% vs our unknown)
-- ✅ Better: Open source (Droid is closed/commercial)
-- ✅ Better: Memory system (Droid doesn't have this)
-- ✅ Better: Multi-frontend (Droid is proprietary)
+### Bundled Tools (Zero Setup)
+- **ripgrep**: Fast code search (10-100x faster than grep)
+- **ast-grep**: Semantic code patterns (AST-aware queries)
+- Total size: ~15MB, downloaded to `~/.aircher/tools/bin`
 
-### vs Goose
-- ✅ Better: Memory system (Goose doesn't have)
-- ✅ Better: Semantic search (hnswlib-rs advantage)
-- ⚠️ Similar: ACP compatibility (both support)
-- ❌ Behind: Market adoption (Goose has Block backing)
+### Assumed Tools (with Fallbacks)
+- **fd → find**: Fast file discovery
+- **jq → Python json**: JSON processing
+- **sd → sed**: Stream editing
+- **git**: Required (no fallback)
 
-## Key Dependencies & Risks
+## Architecture Decisions
 
-### Dependencies
-1. **Toad ACP support**: Announced July 2025, may not be stable yet
-   - Mitigation: Use Zed (stable ACP) as primary test platform
-   - Toad can come later (Week 5-6)
+### Why Python Over Rust?
+(From ai/DECISIONS.md, 2025-11-12)
 
-2. **ACP protocol stability**: Still evolving
-   - Mitigation: Track github.com/zed-industries/agent-client-protocol
-   - Implement core spec, extend as needed
+**Rationale**:
+- Development velocity: 3-5x faster for agent development
+- LangGraph: Production-validated framework, built for agents
+- Rich AI/ML ecosystem: sentence-transformers, ChromaDB, DuckDB
+- Strong Python skills vs learning Rust async patterns
 
-3. **Rust ecosystem**: petgraph vs NetworkX for knowledge graph
-   - Mitigation: petgraph is mature, 3.2M downloads
-   - Fallback: Use serde_json for graph storage
+**Tradeoffs**:
+- ✅ Faster development, rich ecosystem, easier testing
+- ❌ Lower raw performance, GIL limitations, memory overhead
+- **Mitigation**: Mojo for performance-critical components (Phase 7+)
 
-### Risks
-1. **Memory port complexity**: Python POC → Rust may be harder
-   - Mitigation: Keep POC design simple, port incrementally
-   - Budget: 1.5 weeks, can extend to 2 weeks
+### Why Multi-Database Strategy?
+(From ai/DECISIONS.md, 2025-11-12)
 
-2. **Benchmark reproducibility**: Hard to match exact conditions
-   - Mitigation: Use SWE-bench or Terminal-bench (public datasets)
-   - Document exact setup (models, prompts, hardware)
+**Rationale**:
+- SQLite: Sessions (ACID, embedded, proven)
+- DuckDB: Analytics, episodic memory (columnar, fast queries)
+- ChromaDB: Vector search (specialized, embedding support)
 
-3. **Toad timeline**: May not stabilize by Week 5-6
-   - Mitigation: Focus on Zed + Neovim as proven frontends
-   - Toad is bonus, not blocker
+**Tradeoffs**:
+- ✅ Right tool for each job, optimized performance
+- ❌ Complexity of 3 systems, synchronization overhead
+- **Mitigation**: Clean abstractions, async operations
 
-## Success Metrics (Week by Week)
+### Why Custom ACP Implementation?
+(From ai/DECISIONS.md, 2025-11-12)
 
-| Week | Tools Real | Parity | Key Milestone |
-|------|-----------|--------|---------------|
-| 1    | 5/10      | 23-27% | File ops complete |
-| 2    | 9/10      | 30-35% | Code tools complete |
-| 3    | 9/10      | 35-40% | ACP working in Zed |
-| 4    | 9/10      | 40-45% | Memory system ported |
-| 5    | 9/10      | 45-50% | Toad integration |
-| 6    | 9/10      | 50-55% | Intelligence wired |
-| 7    | 9/10      | 55-60% | Benchmarks run |
-| 8    | 9/10      | 60-65% | Blog posts written |
-| 9    | 9/10      | 65-70% | Paper draft done |
-| 10   | 9/10      | 70-75% | Released + documented |
+**Rationale**:
+- agent-protocol package conflicts with pydantic v2
+- Full control over features and extensions
+- Better integration with our architecture
 
-## Why This Plan Works
+**Tradeoffs**:
+- ✅ No dependency conflicts, custom extensions
+- ❌ More implementation work, maintenance responsibility
+- **Mitigation**: Follow spec closely, comprehensive tests
 
-1. **Leverage existing work**: 86K lines Rust stays (semantic search irreplaceable)
-2. **Save time**: Toad handles UI (4-6 weeks saved)
-3. **Proven design**: Memory POC validated (60% improvement)
-4. **Clear milestones**: Week-by-week deliverables
-5. **Research contribution**: Empirical validation + publication
-6. **Multi-frontend**: Works in 5+ editors via ACP
+## Competitive Positioning
 
-## Next Actions (Week 2 Start)
+### Our Unique Advantages
 
-**Immediate (Today)**:
-1. Read `src/agent/tools/` to understand tool structure
-2. Start `search_code` implementation (leverage `src/intelligence/semantic_search/`)
-3. Create test plan for Week 2 tools
+**Memory-Augmented Architecture**:
+- 3-layer memory: Episodic + Semantic + Knowledge Graph
+- 60% tool call reduction (validated in POC)
+- Cross-session learning and pattern recognition
+- **Competitors**: Claude Code has no persistent memory
 
-**This Week**:
-- Day 1-3: search_code (integrate semantic search)
-- Day 3-5: analyze_code (tree-sitter AST analysis)
-- Day 5-6: find_references (symbol tracking)
-- Day 6-7: find_definition (lookup with context)
+**Dynamic Context Management**:
+- Intelligent pruning with relevance scoring
+- Continuous work without context restarts
+- Prefetch relevant code from knowledge graph
+- **Competitors**: Claude Code restarts when context fills
 
-**Success**: 9/10 tools real by end of Week 2.
+**Local-First with Unlimited Usage**:
+- Ollama integration for local models
+- No rate limits with local execution
+- Consistent performance (no infrastructure variability)
+- **Competitors**: Claude Code limited by API rate limits
+
+**Transparent Execution**:
+- Visible reasoning and decision steps
+- User control over approval workflows
+- Learn from agent's decision-making
+- **Competitors**: Claude Code "flying blind" experience
+
+### Performance Targets
+
+**Response Time**: <100ms p95 for simple queries
+**Memory Usage**: <1GB for typical workloads
+**Context Window**: 10K+ tokens with smart pruning
+**Tool Execution**: <500ms for file operations
+**Benchmarks**:
+- Terminal-Bench: >43.2% (beat Claude Code)
+- Target: >50% (approach Factory Droid)
+- Stretch: >58.8% (beat Factory Droid, claim SOTA)
+
+## Risk Mitigation
+
+### Implementation Risks
+
+**Memory System Complexity**:
+- Risk: 3 databases might be over-engineered
+- Mitigation: Each serves distinct purpose, clean abstractions
+- Fallback: Can simplify to SQLite + ChromaDB if needed
+
+**LangGraph Learning Curve**:
+- Risk: Team unfamiliar with LangGraph patterns
+- Mitigation: Excellent documentation, production examples available
+- Fallback: Can fall back to simpler LangChain if needed
+
+**Benchmark Performance**:
+- Risk: May not hit >58.8% Terminal-Bench initially
+- Mitigation: Systematic optimization based on failure analysis
+- Fallback: Focus on unique advantages (memory, local models)
+
+### Timeline Risks
+
+**Optimistic: 4 weeks** (if everything goes smoothly)
+**Realistic: 5-6 weeks** (account for debugging, optimization)
+**Pessimistic: 8 weeks** (if major architectural issues found)
+
+**Mitigation Strategy**:
+- Week 1-2: Focus on memory (biggest advantage)
+- Week 3-4: Core agent functionality
+- Week 5-6: Polish and benchmarking
+- Can skip benchmarking if timeline tight, focus on memory
+
+## Success Metrics
+
+### Technical Success
+- ✅ 3-layer memory operational (DuckDB + ChromaDB + Knowledge Graph)
+- ✅ Sub-agent system working (parallel execution, specialized routing)
+- ✅ Dynamic context pruning active (relevance-based, no restarts)
+- ✅ ACP protocol compliant (works with Zed, other clients)
+- ✅ Comprehensive tests (>80% coverage)
+
+### Performance Success
+- ✅ Response time: <100ms p95 for simple queries
+- ✅ Memory usage: <1GB typical workloads
+- ✅ Tool call reduction: 60% improvement validated
+- ✅ Benchmark: >43.2% Terminal-Bench (beat Claude Code)
+- 🎯 Stretch: >58.8% Terminal-Bench (beat Factory Droid)
+
+### Competitive Success
+- ✅ Clear differentiation: Memory + local + transparent
+- ✅ User pain points addressed: No rate limits, visible reasoning
+- ✅ SOTA features: All research findings implemented
+- ✅ Empirical validation: Benchmarks run, claims backed by data
+
+## Next Immediate Actions
+
+1. **Create ai/design/** directory with implementation specs
+2. **Implement DuckDB schema** from ai/research/memory-system-architecture.md
+3. **Start ChromaDB integration** with sentence-transformers
+4. **Complete LangGraph workflow** with tool integration
+5. **Update TODO.md** to reflect this implementation plan
+
+## References
+
+- **Architecture Research**: ai/research/memory-system-architecture.md (667 lines)
+- **Sub-Agent Patterns**: ai/research/crush-subagent-architecture.md (425 lines)
+- **Competitive Analysis**: ai/research/competitive-analysis-2025.md (573+ lines)
+- **Benchmarking Strategy**: ai/research/benchmark-integration-plan.md (483 lines)
+- **Tool Strategy**: ai/research/tools-strategy.md (consolidated)
+- **POC Validation**: poc-memory-agent/ (60% improvement validated)
 
 ---
 
-**Mission**: Build the smartest ACP-compatible agent backend with validated memory system and empirical benchmarks.
-
-**Focus**: Agent intelligence (tools, memory, intent), not UI (Toad handles that).
-
-**Timeline**: 10 weeks to research paper + open source release.
+**Key Insight**: We have comprehensive SOTA research and sound architecture. The gap is implementation. Follow the research systematically, implement the 3-layer memory first (biggest advantage), then build out agent workflow and sub-agents. Benchmark early and often. We can reach SOTA in 4-6 weeks if we execute this plan methodically.

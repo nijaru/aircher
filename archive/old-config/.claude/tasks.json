@@ -1,0 +1,307 @@
+{
+  "version": "1.0",
+  "description": "Agent task definitions for Aircher project automation",
+  "tasks": {
+    "test-runner": {
+      "name": "Automated Test Runner",
+      "description": "Run cargo test after significant code changes and report failures with actionable suggestions",
+      "matchers": [
+        "src/**/*.rs",
+        "tests/**/*.rs",
+        "Cargo.toml",
+        "Cargo.lock"
+      ],
+      "excludePatterns": [
+        "target/**",
+        ".git/**",
+        "**/*.tmp",
+        "**/.*"
+      ],
+      "commands": [
+        {
+          "name": "run_tests",
+          "command": "cargo test",
+          "workingDirectory": "/Users/nick/github/aircher",
+          "timeout": 300,
+          "onFailure": {
+            "action": "analyze",
+            "commands": [
+              "cargo test --message-format json 2>&1 | jq -r 'select(.type==\"test\") | select(.event==\"failed\") | \"❌ \\(.name): \\(.stdout // .message)\"'",
+              "cargo clippy --message-format json 2>&1 | jq -r 'select(.message) | \"⚠️ \\(.message.rendered)\"'"
+            ]
+          }
+        },
+        {
+          "name": "check_build",
+          "command": "cargo check",
+          "onFailure": {
+            "action": "report",
+            "message": "Build check failed - fix compilation errors before running tests"
+          }
+        }
+      ],
+      "triggers": [
+        "on_file_change",
+        "on_command"
+      ],
+      "priority": "high",
+      "tags": ["testing", "quality", "ci"]
+    },
+
+    "lint-checker": {
+      "name": "Code Quality Gate",
+      "description": "Run cargo clippy and cargo fmt --check before commits to maintain code quality standards",
+      "matchers": [
+        "src/**/*.rs",
+        "tests/**/*.rs"
+      ],
+      "commands": [
+        {
+          "name": "format_check",
+          "command": "cargo fmt --check",
+          "workingDirectory": "/Users/nick/github/aircher",
+          "onFailure": {
+            "action": "fix",
+            "commands": ["cargo fmt"],
+            "message": "Auto-formatted code to match project style"
+          }
+        },
+        {
+          "name": "clippy_check",
+          "command": "cargo clippy -- -D warnings",
+          "onFailure": {
+            "action": "analyze",
+            "commands": [
+              "cargo clippy --message-format json 2>&1 | jq -r 'select(.message) | \"\\(.message.level): \\(.message.rendered)\"' | head -10"
+            ],
+            "message": "Fix clippy warnings - zero tolerance policy in effect"
+          }
+        },
+        {
+          "name": "unused_imports",
+          "command": "cargo check --message-format json 2>&1 | jq -r 'select(.message.code.code==\"unused_imports\") | \"Unused import: \\(.message.rendered)\"'",
+          "allowFailure": true
+        }
+      ],
+      "triggers": [
+        "pre_commit",
+        "on_command"
+      ],
+      "priority": "high",
+      "tags": ["linting", "quality", "formatting"]
+    },
+
+    "tool-tester": {
+      "name": "Tool Execution Flow Tester",
+      "description": "Test tool execution paths with mock LLM responses to ensure Phase 2 reliability goals",
+      "matchers": [
+        "src/agent/tools/**/*.rs",
+        "src/agent/controller.rs",
+        "src/ui/mod.rs"
+      ],
+      "commands": [
+        {
+          "name": "test_tool_registry",
+          "command": "cargo test agent::tools --lib",
+          "workingDirectory": "/Users/nick/github/aircher",
+          "timeout": 120
+        },
+        {
+          "name": "test_mock_tool_calls",
+          "command": "cargo test test_tool_execution_flow --lib -- --nocapture",
+          "allowFailure": true,
+          "onFailure": {
+            "action": "create_test",
+            "suggestion": "Create test_tool_execution_flow test if missing - simulate XML/JSON tool call parsing"
+          }
+        },
+        {
+          "name": "validate_tool_parsing",
+          "command": "echo '<tool_use><tool>read_file</tool><params>{\"path\":\"test.rs\"}</params></tool_use>' | cargo run --bin validate_tool_parse 2>/dev/null || echo 'Tool parser validation needed'",
+          "allowFailure": true
+        },
+        {
+          "name": "check_agent_integration",
+          "command": "rg -n \"AgentController\" src/ui/mod.rs | head -3",
+          "validation": "Ensure AgentController is properly connected to TUI"
+        }
+      ],
+      "triggers": [
+        "on_file_change",
+        "on_command"
+      ],
+      "priority": "medium",
+      "tags": ["tools", "agent", "integration", "phase2"]
+    },
+
+    "ui-builder": {
+      "name": "TUI Component Builder",
+      "description": "Help implement TUI components with ratatui best practices and consistent styling",
+      "matchers": [
+        "src/ui/**/*.rs",
+        "src/ui.rs"
+      ],
+      "commands": [
+        {
+          "name": "check_ui_patterns",
+          "command": "rg -n \"use ratatui::\" src/ui/ | wc -l",
+          "validation": "Track ratatui usage patterns"
+        },
+        {
+          "name": "validate_tui_build",
+          "command": "cargo check --features tui",
+          "workingDirectory": "/Users/nick/github/aircher",
+          "onFailure": {
+            "action": "report",
+            "message": "TUI feature compilation failed - check ratatui dependencies"
+          }
+        },
+        {
+          "name": "test_tui_integration",
+          "command": "cargo test tui_integration --lib --features tui",
+          "allowFailure": true
+        },
+        {
+          "name": "check_notification_system",
+          "command": "rg -n \"toast|operations_line|status_bar\" src/ui/mod.rs | head -5",
+          "validation": "Verify notification system components exist"
+        }
+      ],
+      "triggers": [
+        "on_file_change",
+        "on_command"
+      ],
+      "priority": "medium",
+      "tags": ["ui", "tui", "ratatui", "components"]
+    },
+
+    "doc-updater": {
+      "name": "Documentation Synchronizer",
+      "description": "Keep AGENTS.md and roadmap.md in sync with actual implementation progress and reality",
+      "matchers": [
+        "AGENTS.md",
+        "docs/architecture/roadmap.md",
+        "STATUS.md",
+        "TECH_SPEC.md",
+        "TOOL_CALLING_REALITY_CHECK.md"
+      ],
+      "commands": [
+        {
+          "name": "check_agent_status",
+          "command": "rg -n \"Phase [0-9]|✅|❌|🚨\" docs/architecture/roadmap.md | head -10",
+          "validation": "Track phase completion status"
+        },
+        {
+          "name": "verify_implementation_claims",
+          "command": "rg -n \"AgentController.*TuiManager|tool.*execution|streaming.*tool\" src/ | wc -l",
+          "validation": "Verify documented features actually exist in code"
+        },
+        {
+          "name": "check_tool_count",
+          "command": "find src/agent/tools -name '*.rs' -not -name 'mod.rs' -not -name 'tests.rs' | wc -l",
+          "validation": "Count actual implemented tools vs documented count"
+        },
+        {
+          "name": "validate_provider_support",
+          "command": "rg -l \"tool.*support|tool.*calling\" src/providers/*.rs | wc -l",
+          "validation": "Check which providers actually support tools"
+        },
+        {
+          "name": "sync_status_with_code",
+          "command": "echo 'Doc sync check complete - verify reality matches documentation'",
+          "onFailure": {
+            "action": "suggest",
+            "message": "Update documentation to reflect actual implementation status"
+          }
+        }
+      ],
+      "triggers": [
+        "on_file_change",
+        "weekly"
+      ],
+      "priority": "low",
+      "tags": ["documentation", "sync", "status"]
+    }
+  },
+
+  "globalConfig": {
+    "defaultTimeout": 180,
+    "maxConcurrentTasks": 3,
+    "logLevel": "info",
+    "autoRun": {
+      "test-runner": {
+        "debounceMs": 2000,
+        "enabled": true
+      },
+      "lint-checker": {
+        "debounceMs": 1000,
+        "enabled": true
+      }
+    },
+    "notifications": {
+      "onSuccess": "summary",
+      "onFailure": "detailed",
+      "channels": ["console", "status_line"]
+    }
+  },
+
+  "contexts": {
+    "phase2_focus": {
+      "description": "Current Phase 2 priorities: tool calling reliability and UX polish",
+      "tasks": ["test-runner", "tool-tester", "lint-checker"],
+      "goals": [
+        "Multi-turn tool execution reliability",
+        "Zero compilation warnings",
+        "Tool result display improvements",
+        "Error handling and recovery"
+      ]
+    },
+    "pre_commit": {
+      "description": "Tasks to run before git commits",
+      "tasks": ["lint-checker", "test-runner"],
+      "blocking": true
+    },
+    "development": {
+      "description": "Active development workflow automation",
+      "tasks": ["test-runner", "lint-checker", "ui-builder"],
+      "autoRun": true
+    }
+  },
+
+  "aliases": {
+    "test": "test-runner",
+    "lint": "lint-checker",
+    "tools": "tool-tester",
+    "ui": "ui-builder",
+    "docs": "doc-updater",
+    "quality": ["lint-checker", "test-runner"],
+    "phase2": ["tool-tester", "test-runner", "lint-checker"]
+  },
+
+  "integration": {
+    "git": {
+      "preCommitHooks": ["lint-checker", "test-runner"],
+      "postMergeHooks": ["doc-updater"]
+    },
+    "cargo": {
+      "watchPatterns": ["src/**/*.rs", "Cargo.toml"],
+      "autoTest": true,
+      "autoCheck": true
+    }
+  },
+
+  "environments": {
+    "development": {
+      "variables": {
+        "RUST_LOG": "aircher=debug",
+        "RUST_BACKTRACE": "1"
+      },
+      "tasks": ["test-runner", "lint-checker", "tool-tester"]
+    },
+    "ci": {
+      "tasks": ["lint-checker", "test-runner"],
+      "strict": true,
+      "failFast": true
+    }
+  }
+}
