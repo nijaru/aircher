@@ -61,11 +61,12 @@
 - Co-edit patterns used to suggest related files
 - Tool statistics inform intent classification
 
-**Week 3 (STARTED)**: LLM Integration & Sub-Agent Architecture
+**Week 3 (IN PROGRESS)**: LLM Integration & Sub-Agent Architecture
 - ✅ **LLM initialization**: ChatOpenAI integrated with graceful fallback
-- ⚠️ **LLM tool planning**: Needs implementation (currently rule-based)
-- ⚠️ **LLM response generation**: Needs implementation (currently template-based)
-- ❌ **Conditional workflow edges**: Error handling, permission short-circuits pending
+- ✅ **LLM tool planning**: Intelligent planning with JSON schema, fallback to rule-based
+- ✅ **LLM response generation**: Natural responses with context, fallback to templates
+- ✅ **Conditional workflow edges**: Permission short-circuits, error handling, smart routing
+- ✅ **Error handling node**: Dedicated error collection and contextualization
 - ❌ **Sub-agent architecture**: CodeReading, CodeWriting agents pending
 - ❌ **Dynamic context pruning**: Relevance scoring pending
 - ❌ **Model routing**: Small vs large model selection pending

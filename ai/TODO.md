@@ -74,18 +74,27 @@
 
 ## Week 3: Sub-Agent System & Context Management (⚠️ IN PROGRESS)
 
-### LLM Integration (STARTED)
+### LLM Integration (✅ COMPLETE)
 - [x] Add ChatOpenAI initialization to agent (gpt-4o-mini, temperature=0.7)
 - [x] Add graceful fallback if LLM initialization fails
-- [ ] Implement LLM-based tool planning in _generate_tool_plan()
-- [ ] Implement LLM-based response generation in _generate_response()
-- [ ] Add streaming response support
+- [x] Implement LLM-based tool planning in _generate_tool_plan()
+  - [x] JSON schema-based planning prompts
+  - [x] Markdown code block extraction
+  - [x] Fallback to rule-based planning
+- [x] Implement LLM-based response generation in _generate_response()
+  - [x] Context-aware natural responses
+  - [x] Memory context integration
+  - [x] Fallback to template responses
+- [ ] Add streaming response support (deferred to Week 5)
 - [ ] Test: LLM generates appropriate tool plans and responses
 
-### Conditional Workflow Edges
-- [ ] Add error handling edges to workflow
-- [ ] Add permission short-circuit (skip to response if denied)
-- [ ] Add retry logic for failed tool executions
+### Conditional Workflow Edges (✅ COMPLETE)
+- [x] Add error handling edges to workflow (dedicated handle_error node)
+- [x] Add permission short-circuit (skip to response if denied)
+- [x] Add conditional routing after tool selection (skip if no tools)
+- [x] Add conditional routing after execution (success/error/partial)
+- [x] Implement error collection and contextualization
+- [ ] Add retry logic for failed tool executions (foundation in place)
 - [ ] Implement early termination for simple queries
 - [ ] Test: Workflow handles errors gracefully
 
