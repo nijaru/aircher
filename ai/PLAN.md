@@ -48,76 +48,23 @@
 
 ## Implementation Status
 
-### ✅ Phase 1-5 Complete
+### ✅ Phases 1-5 Complete
 
-**Python Project Setup**:
-- Modern tooling: uv, ruff, ty, vulture, pytest
-- Dependencies: LangGraph, ChromaDB, DuckDB, tree-sitter, langchain-anthropic
-- CI/CD: GitHub Actions with multi-Python (3.13, 3.14) testing
-- Project structure: Clean separation (agent/, memory/, protocol/, tools/, models/, context/)
-- CLI: `aircher serve` and `aircher status` commands working
-- Tests: 180 unit tests passing (100% pass rate)
+**Status**: 180 unit tests passing (100%), all core systems operational
 
-**Research & Architecture**:
-- 15 research files, 5,155+ lines of SOTA analysis
-- Memory system architecture fully implemented
-- Sub-agent patterns implemented
-- Competitive analysis complete
-- Benchmarking strategy ready
-- Strategic decisions documented in DECISIONS.md
+**Implemented**:
+- Phase 1-2: Memory systems (DuckDB + ChromaDB + Knowledge Graph)
+- Phase 2-3: LangGraph agent + sub-agents
+- Phase 3: Dynamic context management
+- Phase 4: Model routing + cost tracking
+- Phase 5: ACP protocol (stdio transport)
 
-**Phase 1-2: Memory Systems** (COMPLETE):
-- ✅ DuckDB episodic memory (tool_executions, file_interactions, learned_patterns)
-- ✅ ChromaDB vector search (sentence-transformers integration)
-- ✅ Knowledge graph (tree-sitter Python + Rust extraction, NetworkX)
-- ✅ Memory integration with 60% tool reduction validation
-- **Tests**: 152 unit tests (96% coverage)
+**Deferred** (non-critical):
+- Streaming responses (optimize if benchmarks show need)
+- Integration tests with real ACP client (manual testing works)
+- Performance benchmarks (<100ms p95 - measure during Terminal-Bench)
 
-**Phase 2-3: LangGraph Agent & Sub-Agents** (COMPLETE):
-- ✅ Complete workflow graph with conditional edges
-- ✅ Tool integration with ToolManager
-- ✅ Memory integration (episodic, vector, knowledge graph)
-- ✅ LLM-based tool planning with fallback
-- ✅ LLM-based response generation with fallback
-- ✅ Error handling node and retry logic
-- ✅ Permission validation (READ/WRITE/ADMIN modes)
-- ✅ CodeReadingAgent, CodeWritingAgent, ProjectFixingAgent
-- ✅ BaseSubAgent with 3-node workflow
-- ✅ Tool restriction per agent type
-- ✅ Session hierarchy and cost optimization
-
-**Phase 3: Dynamic Context Management** (COMPLETE):
-- ✅ ContextWindow with intelligent pruning
-- ✅ 5-factor relevance scoring (time, task, dependencies, type, explicit)
-- ✅ Automatic pruning at 80% capacity (120k/150k tokens)
-- ✅ Episodic memory summarization before pruning
-- ✅ Integration with agent workflow
-
-**Phase 4: Model Routing & Cost Tracking** (COMPLETE):
-- ✅ Smart Model Router with multi-provider support
-- ✅ OpenAI (GPT-4, GPT-4o, GPT-4o-mini)
-- ✅ Anthropic (Opus-4, Sonnet-4, Haiku-4)
-- ✅ Ollama (local models, zero cost)
-- ✅ Task-based routing (main_agent → medium, sub_agent → small)
-- ✅ SessionCostTracker with per-model usage
-- ✅ Automatic fallback chain by tier
-- **Tests**: 11 model router tests
-
-**Phase 5: ACP Protocol** (COMPLETE):
-- ✅ Stdio transport (JSON-RPC 2.0 over stdin/stdout)
-- ✅ ACP server with 7 method handlers
-- ✅ Session management (create, get, end)
-- ✅ Agent prompt handling with mode support
-- ✅ Tool execution via protocol
-- ✅ Cost tracking in responses
-- ✅ CLI serve command (`aircher serve --model gpt-4o`)
-- **Tests**: 14 ACP protocol tests
-
-### ⚠️ Phase 5 Deferred Items
-
-- ⚠️ Streaming responses (complex SSE implementation - not critical for benchmarking)
-- ⚠️ Integration tests with real ACP client (needs Zed/client setup - manual testing OK)
-- ⚠️ Performance benchmarks (<100ms p95 target - optimize after benchmarking)
+See ai/STATUS.md for detailed achievements and git history for implementation details.
 
 ### 🎯 Phase 6: Terminal-Bench Evaluation (NEXT)
 

@@ -58,13 +58,13 @@ uv run pytest tests/       # Run tests (180 tests, 100% pass)
 uv run ruff check . --fix  # Lint and format
 uv run ty src/ --strict    # Type checking
 
-# ACP Server (Week 5 - IMPLEMENTED)
+# ACP Server (IMPLEMENTED)
 aircher serve                              # Run as ACP server (stdio)
 aircher serve --model gpt-4o               # Use specific model
 aircher serve --no-memory                  # Disable memory systems
 aircher status                             # Show system status
 
-# Future commands (Week 6+)
+# Future commands
 uv run aircher run --mode read "Help me understand this code"
 uv run aircher run --mode write "Add new feature"
 uv run aircher run --admin --mode write "Full access, no confirmations"
@@ -133,20 +133,21 @@ Format: ✅ "X: 20x faster bulk inserts vs Y (both with durability). 10M rows. R
 - **MCP**: Planned for extensibility (not priority)
 
 ## Current Phase
-**Phase 3**: Core implementation (Week 1-6) - **Week 5 (80% complete)**
+**Phase 6**: Terminal-Bench evaluation (benchmarking & optimization)
 
-**Completed**:
-- ✅ Week 1-2: Memory systems (DuckDB + ChromaDB + Knowledge Graph) - 152 tests
-- ✅ Week 3: LLM integration, sub-agents, dynamic context management
-- ✅ Week 4: Model routing, cost tracking, multi-provider support - 166 tests
-- ✅ Week 5: ACP protocol (stdio transport, JSON-RPC server) - 180 tests
+**Completed** (Phases 1-5):
+- ✅ Memory systems (DuckDB + ChromaDB + Knowledge Graph) - 152 tests
+- ✅ LLM integration, sub-agents, dynamic context management
+- ✅ Model routing, cost tracking, multi-provider support - 166 tests
+- ✅ ACP protocol (stdio transport, JSON-RPC server) - 180 tests
 
 **In Progress**:
-- ⚠️ Week 5: Integration testing (needs ACP client setup)
-- ⚠️ Week 5: Streaming responses (deferred - complex)
+- Terminal-Bench adapter development
+- Baseline evaluation and optimization
 
-**Next**:
-- Week 6: Terminal-Bench evaluation (target >43.2%, stretch >58.8%)
+**Deferred** (non-critical):
+- Integration testing with ACP clients (manual testing works)
+- Streaming responses (optimize if benchmarks show need)
 
 **Read ai/STATUS.md for detailed current state and blockers**
 

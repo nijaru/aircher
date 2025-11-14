@@ -80,7 +80,7 @@
 ## Technical Debt
 
 - SQLite cleanup: Unused tool_calls table in sessions storage (low priority)
-- Consider Pydantic models for LLM output validation (Week 5 deferred)
+- Consider Pydantic models for LLM output validation (deferred)
 - Consider Pydantic Logfire for observability (nice-to-have)
 
 ## Key Learnings (Recent)
