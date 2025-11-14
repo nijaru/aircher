@@ -240,3 +240,51 @@
 
 **Evidence**: Web research, framework comparison analysis, roadmap requirements
 **Impact**: Week 3-6 development continues with LangGraph
+
+---
+
+## 2025-11-14: Custom ACP Protocol Implementation
+
+**Context**: Week 5 - Need ACP compatibility for editor integration (Zed, Neovim, etc.)
+**Decision**: Implement custom JSON-RPC stdio transport with full ACP server
+**Rationale**:
+- **Protocol core already existed**: `src/aircher/protocol/__init__.py` had message types (ACPRequest, ACPResponse, ACPSession)
+- **Avoid dependency conflicts**: `agent-protocol` package conflicts with Pydantic v2
+- **Full control**: Custom implementation allows optimization and customization
+- **Minimal surface area**: Only need stdio transport + JSON-RPC handlers
+- **Clean integration**: Reuse existing agent, memory, and model router systems
+
+**Implementation** (730 lines total):
+- **StdioTransport** (125 lines): Async message loop, JSON-RPC 2.0 compliance
+- **ACPServer** (315 lines): Method handlers for initialize, session.*, agent.*, tool.*
+- **CLI serve command**: `aircher serve --model gpt-4o --enable-memory`
+- **14 comprehensive tests**: 100% pass rate, no regressions
+
+**Alternative Considered - agent-protocol package**:
+- ❌ Pydantic v1 dependency (conflicts with our v2 codebase)
+- ❌ Additional abstraction layer
+- ❌ Less control over protocol details
+- ✅ Standard implementation (but not needed for stdio use case)
+
+**Tradeoffs**:
+| Pro | Con |
+|-----|-----|
+| No dependency conflicts | Maintain custom protocol code |
+| Full control & optimization | Potential spec drift |
+| Clean agent integration | Need to track ACP spec changes |
+| Minimal code (730 lines) | No community package support |
+
+**Capabilities Advertised**:
+- Sessions: ✅ Full support (create, get, end)
+- Tools: ✅ All 5 tools (read_file, write_file, list_directory, search_files, bash)
+- Streaming: ⚠️ Not implemented (deferred - complex SSE implementation)
+- Cost tracking: ✅ Automatic in all responses
+
+**Testing**:
+- 14 unit tests for protocol components
+- 180 total tests passing (166 previous + 14 ACP)
+- Integration testing deferred (needs real ACP client setup)
+
+**Evidence**: ai/research/acp-integration-analysis.md, protocol conflicts during dependency analysis
+**Impact**: Aircher is now ACP-compatible and can be used by Zed, Neovim, and other ACP-enabled editors
+**Commits**: `02833d1` - ACP protocol with JSON-RPC stdio transport

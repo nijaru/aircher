@@ -33,11 +33,17 @@ ai/                    # AI agent working context (read FIRST)
 ## Commands
 ```bash
 uv sync --dev              # Install dependencies
-uv run pytest tests/       # Run tests
+uv run pytest tests/       # Run tests (180 tests, 100% pass)
 uv run ruff check . --fix  # Lint and format
 uv run ty src/ --strict    # Type checking
 
-# Agent (when implemented)
+# ACP Server (Week 5 - IMPLEMENTED)
+aircher serve                              # Run as ACP server (stdio)
+aircher serve --model gpt-4o               # Use specific model
+aircher serve --no-memory                  # Disable memory systems
+aircher status                             # Show system status
+
+# Future commands (Week 6+)
 uv run aircher run --mode read "Help me understand this code"
 uv run aircher run --mode write "Add new feature"
 uv run aircher run --admin --mode write "Full access, no confirmations"
@@ -106,14 +112,22 @@ Format: ✅ "X: 20x faster bulk inserts vs Y (both with durability). 10M rows. R
 - **MCP**: Planned for extensibility (not priority)
 
 ## Current Phase
-**Phase 3**: Core implementation (Week 1-6)
-- Week 1: Memory systems (DuckDB + ChromaDB + Knowledge Graph)
-- Week 2: LangGraph workflow + sub-agents
-- Week 3-4: Context management + model routing
-- Week 5: ACP protocol + testing
-- Week 6: Benchmarking (Terminal-Bench >43.2%, stretch >58.8%)
+**Phase 3**: Core implementation (Week 1-6) - **Week 5 (80% complete)**
 
-**Read ai/STATUS.md for current state and blockers**
+**Completed**:
+- ✅ Week 1-2: Memory systems (DuckDB + ChromaDB + Knowledge Graph) - 152 tests
+- ✅ Week 3: LLM integration, sub-agents, dynamic context management
+- ✅ Week 4: Model routing, cost tracking, multi-provider support - 166 tests
+- ✅ Week 5: ACP protocol (stdio transport, JSON-RPC server) - 180 tests
+
+**In Progress**:
+- ⚠️ Week 5: Integration testing (needs ACP client setup)
+- ⚠️ Week 5: Streaming responses (deferred - complex)
+
+**Next**:
+- Week 6: Terminal-Bench evaluation (target >43.2%, stretch >58.8%)
+
+**Read ai/STATUS.md for detailed current state and blockers**
 
 ## Reference Repositories
 - `~/github/sst/opencode` - Production agent reference (28.8k stars)

@@ -1,9 +1,10 @@
 # Aircher Implementation Plan: Python + LangGraph Strategy
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-14 (Week 5 - ACP Protocol Complete)
 **Decision**: Python-only with LangGraph framework
-**Timeline**: 4-6 weeks to SOTA implementation
-**Target**: Terminal-Bench >58.8% (beat Factory Droid)
+**Timeline**: 4-6 weeks to SOTA implementation (Week 5/6 complete)
+**Target**: Terminal-Bench >58.8% (beat Factory Droid) - Week 6
+**Status**: 180 tests passing, ACP server operational
 
 ## Strategic Architecture
 
@@ -46,63 +47,100 @@
 └─────────────────────────────────────────────────┘
 ```
 
-## Current State Assessment
+## Current State Assessment (Week 5 Complete)
 
-### ✅ Completed (Phase 1-2)
+### ✅ Completed (Phase 1-5)
 
 **Python Project Setup**:
 - Modern tooling: uv, ruff, ty, vulture, pytest
-- Dependencies configured: LangGraph, ChromaDB, DuckDB, tree-sitter
+- Dependencies: LangGraph, ChromaDB, DuckDB, tree-sitter, langchain-anthropic
 - CI/CD: GitHub Actions with multi-Python (3.13, 3.14) testing
-- Project structure: Clean separation (agent/, memory/, protocol/, tools/)
-- CLI: Basic `aircher status` command working
-- Tests: Basic unit tests passing
+- Project structure: Clean separation (agent/, memory/, protocol/, tools/, models/, context/)
+- CLI: `aircher serve` and `aircher status` commands working
+- Tests: 180 unit tests passing (100% pass rate)
 
 **Research & Architecture**:
 - 15 research files, 5,155+ lines of SOTA analysis
-- Memory system architecture fully designed (60% tool reduction validated)
-- Sub-agent patterns researched (Crush analysis)
-- Competitive analysis complete (OpenCode, Claude Code, Factory Droid)
-- Benchmarking strategy documented (Terminal-Bench, SWE-bench)
-- Strategic decisions documented (Python, multi-DB, READ/WRITE modes)
+- Memory system architecture fully implemented (Week 1-2)
+- Sub-agent patterns implemented (Week 3)
+- Competitive analysis complete
+- Benchmarking strategy ready for Week 6
+- Strategic decisions documented in DECISIONS.md
+
+**Memory Systems** (Week 1-2 - IMPLEMENTED):
+- ✅ DuckDB episodic memory (tool_executions, file_interactions, learned_patterns)
+- ✅ ChromaDB vector search (sentence-transformers integration)
+- ✅ Knowledge graph (tree-sitter Python + Rust extraction, NetworkX)
+- ✅ Memory integration with 60% tool reduction validation
+- **Tests**: 152 unit tests (96% coverage)
+
+**LangGraph Agent** (Week 2-3 - IMPLEMENTED):
+- ✅ Complete workflow graph with conditional edges
+- ✅ Tool integration with ToolManager
+- ✅ Memory integration (episodic, vector, knowledge graph)
+- ✅ LLM-based tool planning with fallback
+- ✅ LLM-based response generation with fallback
+- ✅ Error handling node and retry logic
+- ✅ Permission validation (READ/WRITE/ADMIN modes)
+
+**Sub-Agent System** (Week 3 - IMPLEMENTED):
+- ✅ CodeReadingAgent (READ tools only)
+- ✅ CodeWritingAgent (WRITE tools)
+- ✅ ProjectFixingAgent (FULL toolset including bash)
+- ✅ BaseSubAgent with 3-node workflow (plan → execute → respond)
+- ✅ Tool restriction per agent type
+- ✅ Session hierarchy (parent/child tracking)
+- ✅ Cost optimization (gpt-4o-mini for sub-agents)
+
+**Dynamic Context Management** (Week 3 - IMPLEMENTED):
+- ✅ ContextWindow with intelligent pruning
+- ✅ 5-factor relevance scoring (time, task, dependencies, type, explicit)
+- ✅ Automatic pruning at 80% capacity (120k/150k tokens)
+- ✅ Episodic memory summarization before pruning
+- ✅ Integration with agent workflow
+
+**Model Routing & Cost Tracking** (Week 4 - IMPLEMENTED):
+- ✅ Smart Model Router with multi-provider support
+- ✅ OpenAI (GPT-4, GPT-4o, GPT-4o-mini)
+- ✅ Anthropic (Opus-4, Sonnet-4, Haiku-4)
+- ✅ Ollama (local models, zero cost)
+- ✅ Task-based routing (main_agent → medium, sub_agent → small)
+- ✅ SessionCostTracker with per-model usage
+- ✅ Automatic fallback chain by tier
+- **Tests**: 11 model router tests
+
+**ACP Protocol** (Week 5 - IMPLEMENTED):
+- ✅ Stdio transport (JSON-RPC 2.0 over stdin/stdout)
+- ✅ ACP server with 7 method handlers
+- ✅ Session management (create, get, end)
+- ✅ Agent prompt handling with mode support
+- ✅ Tool execution via protocol
+- ✅ Cost tracking in responses
+- ✅ CLI serve command (`aircher serve --model gpt-4o`)
+- **Tests**: 14 ACP protocol tests
 
 **Tool Framework**:
-- Tool manager with bundling system (`src/aircher/tools/manager.py`)
-- Bash wrapper for shell execution
-- File operations (read, write, edit basics)
-- Platform detection and download logic
+- ✅ ToolManager with bundling system
+- ✅ BashTool wrapper for shell execution
+- ✅ File operations (read, write, list, search)
+- ✅ SearchFilesTool with ripgrep integration
+- ✅ Platform detection and tool dependency management
 
-### ❌ Critical Gaps (Phase 3-4)
+### ⚠️ Remaining (Week 5-6)
 
-**Memory Systems** (Fully Designed, NOT Implemented):
-- ❌ DuckDB episodic memory (schema specified, queries designed)
-- ❌ ChromaDB vector search (dependency installed, not integrated)
-- ❌ Knowledge graph (tree-sitter extraction not ported from POC)
-- **Research**: 667 lines of detailed architecture in ai/research/memory-system-architecture.md
-- **Implementation**: 0 lines (empty `memory/__init__.py`)
+**Week 5 Deferred**:
+- ⚠️ Streaming responses (complex SSE implementation)
+- ⚠️ Integration tests with real ACP client (needs Zed/client setup)
+- ⚠️ Performance benchmarks (<100ms p95 target)
 
-**LangGraph Agent** (Skeleton Only):
-- ⚠️ State definition exists (50 lines)
-- ❌ Workflow graph: TODOs only
-- ❌ Tool integration missing
-- ❌ Memory integration missing
-- ❌ Sub-agent support missing
+**Week 6 - Terminal-Bench Evaluation**:
+- [ ] Set up Terminal-Bench harness
+- [ ] Run baseline evaluation (target >43.2%, stretch >58.8%)
+- [ ] Analyze failure patterns
+- [ ] Optimize based on findings
+- [ ] Validate improvements
 
-**Sub-Agent System** (Patterns Researched, NOT Implemented):
-- ❌ Specialized agent routing (CodeReading, CodeWriting, ProjectFixing)
-- ❌ Parallel execution capabilities
-- ❌ Tool restriction per agent type (Crush patterns)
-- **Research**: 425 lines from ai/research/crush-subagent-architecture.md
-- **Implementation**: 0 lines
-
-**Dynamic Context Management** (Algorithm Designed, NOT Implemented):
-- ❌ Relevance scoring (time decay, task association, dependencies)
-- ❌ Intelligent pruning (remove bottom 30% by relevance)
-- ❌ Context snapshot tracking for recovery
-- **Research**: 300+ lines of algorithm specification
-- **Implementation**: 0 lines
-
-## 4-6 Week Implementation Plan
+## 4-6 Week Implementation Plan (REFERENCE - Weeks 1-5 Complete)
 
 ### Week 1: Memory Systems Foundation
 
