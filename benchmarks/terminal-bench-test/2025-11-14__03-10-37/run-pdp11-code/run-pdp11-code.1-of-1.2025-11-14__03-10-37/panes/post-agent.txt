@@ -1,0 +1,40 @@
+root@512cebe1a28f:/app# xxd -r /app/data.hex /app/binary_file; tmux wait -S done
+bash: xxd: command not found
+root@512cebe1a28f:/app# file /app/binary_file > /tmp/filetype.txt; tmux wait -S done
+bash: file: command not found
+root@512cebe1a28f:/app# chmod +x /app/binary_file; tmux wait -S done
+chmod: cannot access '/app/binary_file': No such file or directory
+root@512cebe1a28f:/app# if grep -q 'ELF.*executable' /tmp/filetype.txt; then /app/binary_file > /app/out.txt; elif grep -q 'Python' /tmp/filetype.txt; then pyth
+on3 /app/binary_file > /app/out.txt; elif grep -q 'shell script' /tmp/filetype.txt; then bash /app/binary_file > /app/out.txt; elif grep -q 'ASCII text' /tmp/fi
+letype.txt; then bash /app/binary_file > /app/out.txt; else /app/binary_file > /app/out.txt 2>&1 || echo 'Unable to execute file' > /app/out.txt; fi; tmux wait
+-S done
+root@512cebe1a28f:/app#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,72 @@
+{
+    "lockfile_version": "1.0",
+    "created_at": "2025-11-14T03:10:48.088029-08:00",
+    "invocation": {
+        "command": "tb",
+        "args": [
+            "run",
+            "--agent-import-path",
+            "terminal_bench.agents.aircher_adapter.aircher_agent:AircherTerminalBenchAdapter",
+            "--model",
+            "anthropic/claude-sonnet-4.5",
+            "--dataset",
+            "terminal-bench-core",
+            "--n-tasks",
+            "10",
+            "--output-path",
+            "benchmarks/terminal-bench-test",
+            "--log-level",
+            "warning",
+            "--no-rebuild"
+        ]
+    },
+    "harness": {
+        "package": "terminal-bench",
+        "version": "0.2.18",
+        "is_editable_installation": false
+    },
+    "agent": {
+        "name": "aircher",
+        "import_path": "terminal_bench.agents.aircher_adapter.aircher_agent:AircherTerminalBenchAdapter",
+        "model_name": "anthropic/claude-sonnet-4.5",
+        "extra_kwargs": {
+            "no_rebuild": true,
+            "model_name": "anthropic/claude-sonnet-4.5"
+        }
+    },
+    "run_config": {
+        "log_level": "warning",
+        "livestream": false,
+        "n_concurrent_trials": 4,
+        "n_attempts": 1,
+        "no_rebuild": true,
+        "cleanup": true,
+        "global_timeout_multiplier": 1.0,
+        "global_agent_timeout_sec": null,
+        "global_test_timeout_sec": null
+    },
+    "dataset": {
+        "name": "terminal-bench-core",
+        "version": "head",
+        "local_path": null,
+        "task_ids": [
+            "conda-env-conflict-resolution",
+            "run-pdp11-code",
+            "assign-seats",
+            "polyglot-c-py",
+            "recover-accuracy-log",
+            "sha-puzzle",
+            "fmri-encoding-r",
+            "model-extraction-relu-logits",
+            "write-compressor",
+            "pytorch-model-cli"
+        ],
+        "registry_url": null,
+        "local_registry_path": null
+    },
+    "local_config": {
+        "output_path": "benchmarks/terminal-bench-test",
+        "run_id": "2025-11-14__03-10-37",
+        "upload_results": false
+    }
+}

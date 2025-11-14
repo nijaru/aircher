@@ -1,0 +1,61 @@
+root@85df54c4aa17:/app# cd /app && ls -la; tmux wait -S done
+total 0
+drwxr-xr-x 1 root root   8 Nov 14 11:10 .
+drwxr-xr-x 1 root root  54 Nov 14 11:10 ..
+drwxr-xr-x 1 root root 170 Nov 14 11:10 deps
+root@85df54c4aa17:/app# find /app -type f -name '*.pkl' -o -name '*.b64' -o -name '*.txt' | sort; tmux wait -S done
+/app/deps/ask_alice.pkl
+/app/deps/ask_bob.pkl
+/app/deps/ask_charlie.b64
+/app/deps/clue.txt
+/app/deps/frankie_preferences.txt
+/app/deps/random_fact.txt
+root@85df54c4aa17:/app# python3 << 'EOF'
+> import os
+> import pickle
+> import base64
+> from itertools import permutations
+>
+> # First, let's discover and decode all preference files
+> preferences = {}
+> guests = ['Alice', 'Bob', 'Charlie', 'David', 'Ethan', 'Frankie']
+>
+> # Find and process all files
+> for root, dirs, files in os.walk('/app'):
+>     for file in files:
+>         filepath = os.path.join(root, file)
+>         print(f"Found file: {filepath}")
+>
+>         if file.endswith('.pkl'):
+>             try:
+>                 with open(filepath, 'rb') as f:
+>                     data = pickle.load(f)
+>                     print(f"Pickle data from {file}: {data}")
+>                     preferences[file] = data
+>             except Exception as e:
+>                 print(f"Error reading pickle {file}: {e}")
+>
+>         elif file.endswith('.b64'):
+>             try:
+>                 with open(filepath, 'r') as f:
+>                     encoded = f.read().strip()
+>                     decoded = base64.b64decode(encoded).decode('utf-8')
+>                     print(f"Base64 data from {file}: {decoded}")
+>                     preferences[file] = decoded
+>             except Exception as e:
+>                 print(f"Error reading base64 {file}: {e}")
+>
+>         elif file.endswith('.txt'):
+>             try:
+>                 with open(filepath, 'r') as f:
+>                     content = f.read().strip()
+>                     print(f"Text data from {file}: {content}")
+>                     preferences[file] = content
+>             except Exception as e:
+>                 print(f"Error reading text {file}: {e}")
+>
+> print("\n=== All Preferences ===")
+> for key, value in preferences.items():
+>     print(f"{key}: {value}")
+> EOF; tmux wait -S done
+>

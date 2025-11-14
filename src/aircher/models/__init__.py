@@ -17,6 +17,8 @@ class ModelProvider(str, Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     OLLAMA = "ollama"
+    VLLM = "vllm"
+    OPENROUTER = "openrouter"
 
 
 class ModelTier(str, Enum):
@@ -102,6 +104,59 @@ SUPPORTED_MODELS = {
         cost_per_1k_output=0.0,
         context_window=128000,
         supports_streaming=True,
+    ),
+    # vLLM on fedora (RTX 4090) - zero cost
+    "vllm/qwen2.5-32b": ModelConfig(
+        name="vllm/qwen2.5-32b",
+        provider=ModelProvider.VLLM,
+        tier=ModelTier.MEDIUM,
+        cost_per_1k_input=0.0,
+        cost_per_1k_output=0.0,
+        context_window=32768,
+        supports_streaming=True,
+    ),
+    "vllm/llama-3.3-70b": ModelConfig(
+        name="vllm/llama-3.3-70b",
+        provider=ModelProvider.VLLM,
+        tier=ModelTier.LARGE,
+        cost_per_1k_input=0.0,
+        cost_per_1k_output=0.0,
+        context_window=128000,
+        supports_streaming=True,
+    ),
+    "vllm/deepseek-coder-33b": ModelConfig(
+        name="vllm/deepseek-coder-33b",
+        provider=ModelProvider.VLLM,
+        tier=ModelTier.MEDIUM,
+        cost_per_1k_input=0.0,
+        cost_per_1k_output=0.0,
+        context_window=16384,
+        supports_streaming=True,
+    ),
+    # OpenRouter - access to many models via single API
+    "anthropic/claude-sonnet-4.5": ModelConfig(
+        name="anthropic/claude-sonnet-4.5",
+        provider=ModelProvider.OPENROUTER,
+        tier=ModelTier.MEDIUM,
+        cost_per_1k_input=0.003,
+        cost_per_1k_output=0.015,
+        context_window=200000,
+    ),
+    "anthropic/claude-opus-4": ModelConfig(
+        name="anthropic/claude-opus-4",
+        provider=ModelProvider.OPENROUTER,
+        tier=ModelTier.LARGE,
+        cost_per_1k_input=0.015,
+        cost_per_1k_output=0.075,
+        context_window=200000,
+    ),
+    "openai/gpt-4o": ModelConfig(
+        name="openai/gpt-4o",
+        provider=ModelProvider.OPENROUTER,
+        tier=ModelTier.MEDIUM,
+        cost_per_1k_input=0.0025,
+        cost_per_1k_output=0.010,
+        context_window=128000,
     ),
 }
 
@@ -212,17 +267,23 @@ class ModelRouter:
         # Fallback chain: large -> medium -> small -> local
         self.fallback_chain = self._build_fallback_chain()
 
-        logger.info(f"ModelRouter initialized: default={default_model}, fallback={enable_fallback}")
+        logger.info(
+            f"ModelRouter initialized: default={default_model}, fallback={enable_fallback}"
+        )
 
     def _build_fallback_chain(self) -> list[str]:
         """Build fallback chain based on available models."""
         chain = []
 
         # Add models by tier
-        for tier in [ModelTier.LARGE, ModelTier.MEDIUM, ModelTier.SMALL, ModelTier.LOCAL]:
+        for tier in [
+            ModelTier.LARGE,
+            ModelTier.MEDIUM,
+            ModelTier.SMALL,
+            ModelTier.LOCAL,
+        ]:
             tier_models = [
-                name for name, config in SUPPORTED_MODELS.items()
-                if config.tier == tier
+                name for name, config in SUPPORTED_MODELS.items() if config.tier == tier
             ]
             chain.extend(tier_models)
 
@@ -247,7 +308,9 @@ class ModelRouter:
         model_name = model_name or self.default_model
 
         if model_name not in SUPPORTED_MODELS:
-            logger.warning(f"Unknown model {model_name}, falling back to {self.default_model}")
+            logger.warning(
+                f"Unknown model {model_name}, falling back to {self.default_model}"
+            )
             model_name = self.default_model
 
         config = SUPPORTED_MODELS[model_name]
@@ -274,6 +337,30 @@ class ModelRouter:
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
+            elif config.provider == ModelProvider.VLLM:
+                # vLLM on fedora via Tailscale (OpenAI-compatible API)
+                return ChatOpenAI(
+                    model=config.name.replace("vllm/", ""),
+                    base_url="http://100.93.39.25:8000/v1",
+                    api_key="vllm",  # vLLM doesn't need real API key
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            elif config.provider == ModelProvider.OPENROUTER:
+                # OpenRouter - access to many models via single API
+                import os
+
+                return ChatOpenAI(
+                    model=config.name,  # Keep full name (e.g., "anthropic/claude-sonnet-4.5")
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=os.getenv("OPENROUTER_API_KEY"),
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    default_headers={
+                        "HTTP-Referer": "https://github.com/nijaru/aircher",
+                        "X-Title": "Aircher",
+                    },
+                )
             else:
                 raise ValueError(f"Unsupported provider: {config.provider}")
 
@@ -295,7 +382,7 @@ class ModelRouter:
         # Find next model in fallback chain
         try:
             failed_idx = self.fallback_chain.index(failed_model)
-            remaining_models = self.fallback_chain[failed_idx + 1:]
+            remaining_models = self.fallback_chain[failed_idx + 1 :]
         except ValueError:
             remaining_models = self.fallback_chain
 
@@ -323,6 +410,28 @@ class ModelRouter:
                         api_key="ollama",
                         temperature=temperature,
                         max_tokens=max_tokens,
+                    )
+                elif config.provider == ModelProvider.VLLM:
+                    return ChatOpenAI(
+                        model=config.name.replace("vllm/", ""),
+                        base_url="http://100.93.39.25:8000/v1",
+                        api_key="vllm",
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
+                elif config.provider == ModelProvider.OPENROUTER:
+                    import os
+
+                    return ChatOpenAI(
+                        model=config.name,
+                        base_url="https://openrouter.ai/api/v1",
+                        api_key=os.getenv("OPENROUTER_API_KEY"),
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        default_headers={
+                            "HTTP-Referer": "https://github.com/nijaru/aircher",
+                            "X-Title": "Aircher",
+                        },
                     )
             except Exception as e:
                 logger.warning(f"Fallback {fallback_model} also failed: {e}")
@@ -355,7 +464,7 @@ class ModelRouter:
         # Task-based routing
         routing = {
             "main_agent": ModelTier.MEDIUM,  # gpt-4o, sonnet
-            "sub_agent": ModelTier.SMALL,    # gpt-4o-mini, haiku
+            "sub_agent": ModelTier.SMALL,  # gpt-4o-mini, haiku
             "simple_query": ModelTier.SMALL,
             "complex_reasoning": ModelTier.LARGE,  # opus, gpt-4
             "code_generation": ModelTier.MEDIUM,

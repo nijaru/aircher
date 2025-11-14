@@ -1,0 +1,6 @@
+{
+  "commands": [
+    "python3 -c \"import hashlib; response = 'For our research team yesterday'; print('First letters:', ''.join(word[0] for word in response.split())); hash_val = hashlib.sha1(response.encode()).hexdigest(); print('SHA1:', hash_val); print('Length:', len(hash_val)); print('Verification:', ''.join(word[0] for word in response.split()).upper() == 'FORTY'); print(response)\" > /app/solution.txt"
+  ],
+  "explanation": "Creates a response 'For our research team yesterday' where first letters spell FORTY, which is the word form of 40 (the character count of any SHA1 hash). Writes the response to /app/solution.txt."
+}

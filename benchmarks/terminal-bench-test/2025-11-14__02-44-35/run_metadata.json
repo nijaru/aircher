@@ -1,0 +1,30 @@
+{
+    "run_id": "2025-11-14__02-44-35",
+    "uuid": "cd2786ec-d580-4ec3-85fb-0000fd3a14c3",
+    "dataset_path": null,
+    "dataset_name": "terminal-bench-core",
+    "dataset_version": "head",
+    "output_path": "/Users/nick/github/nijaru/aircher/benchmarks/terminal-bench-test",
+    "agent_name": "aircher",
+    "no_rebuild": true,
+    "cleanup": true,
+    "log_level": 20,
+    "task_ids": [
+        "build-pov-ray"
+    ],
+    "exclude_task_ids": null,
+    "n_tasks": 1,
+    "n_concurrent_trials": 4,
+    "n_attempts": 1,
+    "dataset_size": 1,
+    "accuracy": 0.0,
+    "model_name": "anthropic/claude-sonnet-4.5",
+    "start_time": "2025-11-14T10:44:46.103824+00:00",
+    "end_time": "2025-11-14T10:46:20.056945+00:00",
+    "commit_hash": "462118da88801705430ed9459dfc95d3ead00719",
+    "username": "Nick Russo",
+    "s3_bucket": null,
+    "agent_kwargs": null,
+    "pass_at_k": {},
+    "resumed_at": null
+}

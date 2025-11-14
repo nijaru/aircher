@@ -1,0 +1,8 @@
+{
+  "commands": [
+    "mkdir -p /app/polyglot",
+    "cat > /app/polyglot/main.py.c << 'EOF'\n#if 0\n'''\n#endif\n#include <stdio.h>\n#include <stdlib.h>\n\nlong long fib(int n) {\n    if (n <= 1) return n;\n    long long a = 0, b = 1, temp;\n    for (int i = 2; i <= n; i++) {\n        temp = a + b;\n        a = b;\n        b = temp;\n    }\n    return b;\n}\n\nint main(int argc, char *argv[]) {\n    if (argc != 2) {\n        fprintf(stderr, \"Usage: %s N\\n\", argv[0]);\n        return 1;\n    }\n    int n = atoi(argv[1]);\n    printf(\"%lld\\n\", fib(n));\n    return 0;\n}\n\n#if 0\n'''\n#endif\n\nimport sys\n\ndef fib(n):\n    if n <= 1:\n        return n\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    return b\n\nif __name__ == \"__main__\":\n    if len(sys.argv) != 2:\n        print(f\"Usage: {sys.argv[0]} N\", file=sys.stderr)\n        sys.exit(1)\n    n = int(sys.argv[1])\n    print(fib(n))\n\n#if 0\n'''\n#endif\nEOF",
+    "chmod +x /app/polyglot/main.py.c"
+  ],
+  "explanation": "Creates a polyglot file that works as both Python and C by using C preprocessor directives (#if 0) to comment out Python code in C compilation, and Python triple-quoted strings to hide C code when running as Python. Both implementations calculate the Nth Fibonacci number using iterative approach."
+}

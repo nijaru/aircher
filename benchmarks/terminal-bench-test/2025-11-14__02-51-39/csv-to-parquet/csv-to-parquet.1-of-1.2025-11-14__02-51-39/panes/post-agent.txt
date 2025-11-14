@@ -1,0 +1,40 @@
+root@73e44ae5b823:/app# pip install pandas pyarrow; tmux wait -S done
+bash: pip: command not found
+root@73e44ae5b823:/app# python3 -c "import pandas as pd; df = pd.read_csv('/app/data.csv'); df.to_parquet('/app/data.parquet', engine='pyarrow', index=False)";
+tmux wait -S done
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'pandas'
+root@73e44ae5b823:/app#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

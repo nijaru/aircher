@@ -1,0 +1,11 @@
+{
+  "commands": [
+    "pip install grpcio==1.73.0 grpcio-tools==1.73.0",
+    "mkdir -p /app",
+    "cat > /app/kv-store.proto << 'EOF'\nsyntax = \"proto3\";\n\nservice KVStore {\n  rpc GetVal(GetValRequest) returns (GetValResponse);\n  rpc SetVal(SetValRequest) returns (SetValResponse);\n}\n\nmessage GetValRequest {\n  string key = 1;\n}\n\nmessage GetValResponse {\n  int32 val = 1;\n}\n\nmessage SetValRequest {\n  string key = 1;\n  int32 val = 2;\n}\n\nmessage SetValResponse {\n  int32 val = 1;\n}\nEOF",
+    "python -m grpc_tools.protoc -I/app --python_out=/app --grpc_python_out=/app /app/kv-store.proto",
+    "cat > /app/server.py << 'EOF'\nimport grpc\nfrom concurrent import futures\nimport kv_store_pb2\nimport kv_store_pb2_grpc\n\nclass Server(kv_store_pb2_grpc.KVStoreServicer):\n    def __init__(self):\n        self.store = {}\n    \n    def GetVal(self, request, context):\n        val = self.store.get(request.key, 0)\n        return kv_store_pb2.GetValResponse(val=val)\n    \n    def SetVal(self, request, context):\n        self.store[request.key] = request.val\n        return kv_store_pb2.SetValResponse(val=request.val)\n\nif __name__ == '__main__':\n    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))\n    kv_store_pb2_grpc.add_KVStoreServicer_to_server(Server(), server)\n    server.add_insecure_port('[::]:5328')\n    server.start()\n    server.wait_for_termination()\nEOF",
+    "cd /app && python server.py &"
+  ],
+  "explanation": "Installs grpcio packages, creates the proto file defining KVStore service with GetVal and SetVal RPCs, generates Python gRPC code using protoc, implements the server with a dict-based KV store, and runs it on port 5328 in the background."
+}

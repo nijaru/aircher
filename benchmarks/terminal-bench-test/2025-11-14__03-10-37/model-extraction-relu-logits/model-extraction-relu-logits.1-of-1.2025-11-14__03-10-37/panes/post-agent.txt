@@ -1,0 +1,111 @@
+root@f38ecc227359:/app# cd /app && python3 << 'EOF'
+> import numpy as np
+> from forward import forward
+>
+> # Test to determine hidden layer size
+> # Since it's ReLU(A1*x + b1) where A1 is (h, 10), we need to find h
+> # Strategy: Use the fact that ReLU creates piecewise linear regions
+>
+> # First, let's probe the function to understand its structure
+> test_input = np.zeros(10)
+> base_output = forward(test_input)
+>
+> # Find hidden dimension by testing linear independence
+> # We'll use finite differences to extract the gradient
+> def get_gradient(x, eps=1e-6):
+>     grad = np.zeros(10)
+>     fx = forward(x)
+>     for i in range(10):
+>         x_perturbed = x.copy()
+>         x_perturbed[i] += eps
+>         grad[i] = (forward(x_perturbed) - fx) / eps
+>     return grad
+>
+> # Collect gradients from different regions to find all neurons
+> # Each active neuron contributes a row of A1 to the gradient
+> gradients = []
+> rng = np.random.RandomState(42)
+>
+> # Sample many random points to find different activation patterns
+> for _ in range(1000):
+>     x = rng.randn(10) * 10
+>     grad = get_gradient(x)
+>     gradients.append(grad)
+>
+> gradients = np.array(gradients)
+>
+> # Find unique gradient directions (corresponding to active neuron combinations)
+> # Use SVD or rank to determine hidden dimension
+> from numpy.linalg import matrix_rank
+> rank = matrix_rank(gradients, tol=1e-3)
+> print(f"Estimated hidden dimension: {rank}")
+>
+> # Extract basis vectors (rows of A1) using more careful analysis
+> # Strategy: Find points where exactly one neuron is active
+>
+> # Use a systematic search to find the rows of A1
+> # For each potential neuron, find a region where only it is active
+>
+> unique_grads = []
+> for grad in gradients:
+>     is_new = True
+>     for ug in unique_grads:
+>         if np.allclose(grad, ug, atol=1e-3) or np.allclose(grad, -ug, atol=1e-3):
+>             is_new = False
+>             break
+>     if is_new and not np.allclose(grad, 0, atol=1e-3):
+>         unique_grads.append(grad)
+>
+> print(f"Found {len(unique_grads)} unique gradient directions")
+>
+> # The rows of A1 can be extracted by finding regions where single neurons activate
+> # Use optimization to find points in each orthant of the ReLU
+>
+> from scipy.optimize import minimize
+>
+> # Alternative approach: Use the fact that gradients are linear combinations of A1 rows
+> # Perform clustering or PCA on gradients to extract A1 rows
+>
+> if len(unique_grads) > 0:
+>     # Stack unique gradients and use SVD to find basis
+>     U, S, Vt = np.linalg.svd(np.array(unique_grads).T, full_matrices=False)
+>
+>     # The number of significant singular values tells us hidden dim
+>     hidden_dim = np.sum(S > 1e-2 * S[0])
+>     print(f"Hidden dimension from SVD: {hidden_dim}")
+>
+>     # Extract A1 by finding individual neuron activations
+>     A1_rows = []
+>
+>     # Try to find points where individual neurons activate
+>     for i in range(hidden_dim * 3):  # Try more than needed
+>         x = rng.randn(10) * 20
+>         grad = get_gradient(x)
+>         if not np.allclose(grad, 0, atol=1e-4):
+>             # Normalize and check if new
+>             grad_norm = grad / (np.linalg.norm(grad) + 1e-10)
+>             is_new = True
+>             for row in A1_rows:
+>                 row_norm = row / (np.linalg.norm(row) + 1e-10)
+>                 if np.allclose(grad_norm, row_norm, atol=0.1) or np.allclose(grad_norm, -row_norm, atol=0.1):
+>                     is_new = False
+>                     break
+>             if is_new:
+>                 A1_rows.append(grad)
+>
+>         if len(A1_rows) >= hidden_dim:
+>             break
+>
+>     if len(A1_rows) > 0:
+>         A1_recovered = np.array(A1_rows)
+>     else:
+>         A1_recovered = np.array(unique_grads[:hidden_dim])
+> else:
+>     # Fallback: just use collected gradients
+>     A1_recovered = np.array(gradients[:10])
+>
+> print(f"Recovered A1 shape: {A1_recovered.shape}")
+> np.save('/app/stolen_A1.npy', A1_recovered)
+> print("Saved to /app/stolen_A1.npy")
+> EOF; tmux wait -S done
+>

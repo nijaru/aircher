@@ -1,0 +1,6 @@
+{
+  "commands": [
+    "echo '(75 - 19) * 8 + 25 - 11' > /app/output.txt"
+  ],
+  "explanation": "Creates the arithmetic expression (75 - 19) * 8 + 25 - 11 which evaluates to 462, using the numbers 75, 19, 8, 25, and 11 from the given set, and writes it to /app/output.txt"
+}

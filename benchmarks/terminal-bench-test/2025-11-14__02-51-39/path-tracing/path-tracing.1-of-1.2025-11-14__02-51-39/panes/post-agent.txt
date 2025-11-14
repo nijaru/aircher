@@ -1,0 +1,124 @@
+root@e6dd125d36af:/app# head -20 /app/image.ppm; tmux wait -S done
+P3
+2400 1800
+255
+159 197 255
+159 197 255
+159 197 255
+159 197 255
+159 197 255
+159 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+root@e6dd125d36af:/app# file /app/image.ppm; tmux wait -S done
+bash: file: command not found
+root@e6dd125d36af:/app# wc -l /app/image.ppm; tmux wait -S done
+4320003 /app/image.ppm
+root@e6dd125d36af:/app# hexdump -C /app/image.ppm | head -50; tmux wait -S done
+bash: hexdump: command not found
+root@e6dd125d36af:/app# cat /app/image.ppm | head -100 | tail -50; tmux wait -S done
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+158 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+157 197 255
+root@e6dd125d36af:/app# identify /app/image.ppm 2>/dev/null || echo 'ImageMagick not available'; tmux wait -S done
+ImageMagick not available
+root@e6dd125d36af:/app# cat > analyze.c << 'EOF'
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <math.h>
+>
+> int main() {
+>     FILE *f = fopen("/app/image.ppm", "r");
+>     char magic[3];
+>     int w, h, maxval;
+>     fscanf(f, "%2s\n%d %d\n%d\n", magic, &w, &h, &maxval);
+>     printf("Format: %s, Size: %dx%d, MaxVal: %d\n", magic, w, h, maxval);
+>
+>     // Sample some pixels
+>     unsigned char r, g, b;
+>     printf("First 20 pixels:\n");
+>     for(int i = 0; i < 20 && !feof(f); i++) {
+>         fread(&r, 1, 1, f);
+>         fread(&g, 1, 1, f);
+>         fread(&b, 1, 1, f);
+>         printf("(%d,%d,%d) ", r, g, b);
+>     }
+>     printf("\n");
+>
+>     // Check pattern
+>     fseek(f, 0, SEEK_SET);
+>     fscanf(f, "%2s\n%d %d\n%d\n", magic, &w, &h, &maxval);
+>
+>     int same_row = 1, same_col = 1;
+>     unsigned char prev_r, prev_g, prev_b;
+>     for(int y = 0; y < h && y < 10; y++) {
+>         for(int x = 0; x < w && x < 10; x++) {
+>             fread(&r, 1, 1, f);
+>             fread(&g, 1, 1, f);
+>             fread(&b, 1, 1, f);
+>             printf("[%d,%d]=(%d,%d,%d) ", x, y, r, g, b);
+>         }
+>         printf("\n");
+>     }
+>
+>     fclose(f);
+>     return 0;
+> }
+> EOF; tmux wait -S done
+>

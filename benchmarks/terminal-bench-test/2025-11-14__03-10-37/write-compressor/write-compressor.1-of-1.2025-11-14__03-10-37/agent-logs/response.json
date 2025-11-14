@@ -1,0 +1,10 @@
+{
+  "commands": [
+    "set -e",
+    "cat /app/decomp.c",
+    "gcc -o /app/decomp /app/decomp.c",
+    "python3 << 'EOF'\nimport sys\nimport subprocess\n\n# Read the original data\nwith open('/app/data.txt', 'rb') as f:\n    original_data = f.read()\n\n# Try common compression formats\nformats = [\n    ('gzip', lambda d: __import__('gzip').compress(d)),\n    ('zlib', lambda d: __import__('zlib').compress(d)),\n    ('bz2', lambda d: __import__('bz2').compress(d)),\n    ('lzma', lambda d: __import__('lzma').compress(d)),\n]\n\nfor name, compress_func in formats:\n    try:\n        compressed = compress_func(original_data)\n        if len(compressed) <= 2500:\n            # Test if decompressor works with this format\n            proc = subprocess.Popen(['/app/decomp'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)\n            decompressed, _ = proc.communicate(compressed)\n            if decompressed == original_data:\n                with open('/app/data.comp', 'wb') as f:\n                    f.write(compressed)\n                print(f'Success with {name}: {len(compressed)} bytes', file=sys.stderr)\n                sys.exit(0)\n    except Exception as e:\n        pass\n\n# If standard formats don't work, examine decomp.c for custom format\nprint('Standard formats failed, need to analyze decomp.c', file=sys.stderr)\nsys.exit(1)\nEOF",
+    "test -f /app/data.comp && cat /app/data.comp | /app/decomp > /tmp/verify.txt && diff /app/data.txt /tmp/verify.txt"
+  ],
+  "explanation": "First compiles the decompressor, then uses Python to try common compression formats (gzip, zlib, bz2, lzma) against the decompressor to find which one it expects. For each format, it compresses the data, tests if the decompressor can decompress it correctly, and if successful and under 2500 bytes, writes it to data.comp. Finally verifies the result."
+}

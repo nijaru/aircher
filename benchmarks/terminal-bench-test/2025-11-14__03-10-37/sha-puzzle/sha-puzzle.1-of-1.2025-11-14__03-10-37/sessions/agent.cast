@@ -1,0 +1,12 @@
+{"version": 2, "width": 160, "height": 40, "timestamp": 1763118894, "env": {"SHELL": "/bin/bash", "TERM": "tmux-256color"}}
+[0.001378, "o", "\u001b[?2004hroot@359c5e29acd8:/app# "]
+[2.983541, "i", "clear\r"]
+[2.983673, "o", "clear\r\n\u001b[?2004l\r"]
+[2.984294, "o", "\u001b[H\u001b[J\u001b[3J"]
+[2.984435, "o", "\u001b[?2004hroot@359c5e29acd8:/app# "]
+[17.375394, "i", "python3 -c \"import hashlib; response = 'For our research team yesterday'; print('First letters:', ''.join(word[0] for word in response.split())); hash_val = hashlib.sha1(response.encode()).hexdigest(); print('SHA1:', hash_val); print('Length:', len(hash_val)); print('Verification:', ''.join(word[0] for word in response.split()).upper() == 'FORTY'); print(response)\" > /app/solution.txt; tmux wait -S done\r"]
+[17.375447, "o", "python3 -c \"import hashlib; response = 'For our research team yesterday'; print('First letters:', ''.join(word[0] for word in response.split())); hash_val = hashlib.sha1(response.encode()).hexdigest(); print('SHA1:', hash_val); print('Length:', len(hash_val)); print('Verification:', ''.join(word[0] for word in response.split()).upper() == 'FORTY'); print(response)\" > /app/solution.txt; tmux wait -S done\r\n"]
+[17.37571, "o", "\u001b[?2004l\r"]
+[17.389153, "o", "\u001b[?2004hroot@359c5e29acd8:/app# "]
+[26.683233, "i", "\u0004"]
+[26.683271, "o", "\u001b[?2004l\r\r\nexit\r\n"]

@@ -1,0 +1,91 @@
+root@61da2653ee41:/app# cat > extract.js << 'EOF'
+> const fs = require('fs');
+> const path = process.argv[2];
+>
+> if (!path) {
+>   console.error('Usage: node extract.js <binary-path>');
+>   process.exit(1);
+> }
+>
+> const buffer = fs.readFileSync(path);
+> const result = {};
+>
+> // ELF header parsing
+> if (buffer[0] !== 0x7f || buffer[1] !== 0x45 || buffer[2] !== 0x4c || buffer[3] !== 0x46) {
+>   console.error('Not a valid ELF file');
+>   process.exit(1);
+> }
+>
+> const is64bit = buffer[4] === 2;
+> const isLittleEndian = buffer[5] === 1;
+>
+> function readUInt32(offset) {
+>   return buffer.readUInt32LE(offset);
+> }
+>
+> function readUInt64(offset) {
+>   return Number(buffer.readBigUInt64LE(offset));
+> }
+>
+> let e_shoff, e_shentsize, e_shnum, e_shstrndx;
+>
+> if (is64bit) {
+>   e_shoff = readUInt64(0x28);
+>   e_shentsize = buffer.readUInt16LE(0x3a);
+>   e_shnum = buffer.readUInt16LE(0x3c);
+>   e_shstrndx = buffer.readUInt16LE(0x3e);
+> } else {
+>   e_shoff = readUInt32(0x20);
+>   e_shentsize = buffer.readUInt16LE(0x2e);
+>   e_shnum = buffer.readUInt16LE(0x30);
+>   e_shstrndx = buffer.readUInt16LE(0x32);
+> }
+>
+> // Read section headers
+> const sections = [];
+> for (let i = 0; i < e_shnum; i++) {
+>   const offset = e_shoff + i * e_shentsize;
+>   let section;
+>
+>   if (is64bit) {
+>     section = {
+>       sh_name: readUInt32(offset),
+>       sh_type: readUInt32(offset + 4),
+>       sh_flags: readUInt64(offset + 8),
+>       sh_addr: readUInt64(offset + 16),
+>       sh_offset: readUInt64(offset + 24),
+>       sh_size: readUInt64(offset + 32)
+>     };
+>   } else {
+>     section = {
+>       sh_name: readUInt32(offset),
+>       sh_type: readUInt32(offset + 4),
+>       sh_flags: readUInt32(offset + 8),
+>       sh_addr: readUInt32(offset + 12),
+>       sh_offset: readUInt32(offset + 16),
+>       sh_size: readUInt32(offset + 20)
+>     };
+>   }
+>   sections.push(section);
+> }
+>
+> // Extract data from loadable sections with data
+> for (const section of sections) {
+>   // SHT_PROGBITS = 1, check if allocated (SHF_ALLOC = 0x2)
+>   if (section.sh_type === 1 && (section.sh_flags & 0x2) && section.sh_size > 0) {
+>     const addr = section.sh_addr;
+>     const offset = section.sh_offset;
+>     const size = section.sh_size;
+>
+>     // Extract 4-byte integers from this section
+>     for (let i = 0; i + 4 <= size; i += 4) {
+>       const memAddr = addr + i;
+>       const value = buffer.readInt32LE(offset + i);
+>       result[memAddr] = value;
+>     }
+>   }
+> }
+>
+> console.log(JSON.stringify(result));
+> EOF; tmux wait -S done
+>

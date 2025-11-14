@@ -1,0 +1,51 @@
+root@7677b3ab2cd8:/app# cd /app; tmux wait -S done
+root@7677b3ab2cd8:/app# python3 -m pip install --quiet numpy pillow 2>/dev/null || true; tmux wait -S done
+root@7677b3ab2cd8:/app# cat > /app/mnist_inference.py << 'EOF'
+> import sys
+> import json
+> import numpy as np
+> from PIL import Image
+>
+> def sigmoid(x):
+>     return 1 / (1 + np.exp(-np.clip(x, -500, 500)))
+>
+> def softmax(x):
+>     exp_x = np.exp(x - np.max(x))
+>     return exp_x / exp_x.sum()
+>
+> def load_weights(weights_file):
+>     with open(weights_file, 'r') as f:
+>         return json.load(f)
+>
+> def preprocess_image(image_file):
+>     img = Image.open(image_file).convert('L')
+>     img = img.resize((28, 28))
+>     img_array = np.array(img).astype(np.float32) / 255.0
+>     return img_array.flatten()
+>
+> def predict(weights, image_vector):
+>     w1 = np.array(weights['w1'])
+>     b1 = np.array(weights['b1'])
+>     w2 = np.array(weights['w2'])
+>     b2 = np.array(weights['b2'])
+>
+>     h1 = sigmoid(np.dot(image_vector, w1) + b1)
+>     output = np.dot(h1, w2) + b2
+>     probs = softmax(output)
+>
+>     return np.argmax(probs)
+>
+> if __name__ == '__main__':
+>     if len(sys.argv) != 3:
+>         sys.exit(1)
+>
+>     weights_file = sys.argv[1]
+>     image_file = sys.argv[2]
+>
+>     weights = load_weights(weights_file)
+>     image_vector = preprocess_image(image_file)
+>     prediction = predict(weights, image_vector)
+>
+>     print(prediction)
+> EOF; tmux wait -S done
+>

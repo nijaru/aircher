@@ -1,0 +1,40 @@
+root@324eddea4c2a:/app# cd /app/project; tmux wait -S done
+root@324eddea4c2a:/app/project# cat environment.yml; tmux wait -S done
+name: datasci
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy=1.22.0
+  - scipy=1.9.0
+  - pandas=1.4.0
+  - tensorflow=2.8.0
+  - pytorch=1.12.0
+  - cudatoolkit=11.2
+  - scikit-learn=1.0.2
+  - transformers=4.18.0 root@324eddea4c2a:/app/project# cp environment.yml environment.yml.backup; tmux wait -S done
+root@324eddea4c2a:/app/project# cat > environment.yml << 'EOF'
+> name: datasci
+> channels:
+>   - conda-forge
+>   - defaults
+> dependencies:
+>   - python=3.9
+>   - numpy=1.21.5
+>   - scipy=1.7.3
+>   - pandas=1.4.2
+>   - matplotlib=3.5.1
+>   - scikit-learn=1.0.2
+>   - pip
+>   - pip:
+>     - tensorflow==2.8.0
+>     - torch==1.12.0
+>     - torchvision==0.13.0
+> EOF; tmux wait -S done
+>
+
+
+
+
+

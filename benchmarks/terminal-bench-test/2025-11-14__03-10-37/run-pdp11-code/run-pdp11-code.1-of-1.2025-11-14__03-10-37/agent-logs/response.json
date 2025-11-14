@@ -1,0 +1,9 @@
+{
+  "commands": [
+    "xxd -r /app/data.hex /app/binary_file",
+    "file /app/binary_file > /tmp/filetype.txt",
+    "chmod +x /app/binary_file",
+    "if grep -q 'ELF.*executable' /tmp/filetype.txt; then /app/binary_file > /app/out.txt; elif grep -q 'Python' /tmp/filetype.txt; then python3 /app/binary_file > /app/out.txt; elif grep -q 'shell script' /tmp/filetype.txt; then bash /app/binary_file > /app/out.txt; elif grep -q 'ASCII text' /tmp/filetype.txt; then bash /app/binary_file > /app/out.txt; else /app/binary_file > /app/out.txt 2>&1 || echo 'Unable to execute file' > /app/out.txt; fi"
+  ],
+  "explanation": "Converts the hexdump back to binary using xxd -r, identifies the file type, makes it executable, then runs it with the appropriate interpreter (direct execution for ELF, python3 for Python scripts, bash for shell scripts) and captures the output to /app/out.txt"
+}

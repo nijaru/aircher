@@ -1,0 +1,24 @@
+{
+    "id": "92bf8504-8f85-4c79-b2a1-00534fd5ca58",
+    "trial_name": "path-tracing.1-of-1.2025-11-14__02-51-39",
+    "task_id": "path-tracing",
+    "instruction": "I've put an image at /app/image.ppm that I rendered programmatically. Write a c program image.c that I can run and compile and will generate an image that's as close as possible to the image I put here.\nSpecifically, I will compute the normalized L2 similarity in [0,1] and yours must match with 0.99 similarity.\nYour image.c file should not read image.ppm.\nYour output should be to a new file reconstructed.ppm in the cwd.\nI will test it by calling gcc -static -o image image.c -lm && ./image and expect that the reconstructed file will be basically identical.\nYour c program must be <2k when compressed (`cat image.c | gzip | wc`) to ensure the solution is algorithmic rather than embedding data. It also may not put extra code in other .c or .h files to #include, but it can #include normal system files.",
+    "is_resolved": false,
+    "failure_mode": "fatal_llm_parse_error",
+    "parser_results": {
+        "test_image_c_exists": "failed",
+        "test_image_compiles": "failed",
+        "test_no_deps": "failed",
+        "test_runs_and_produces_output": "failed",
+        "test_image_similarity": "failed"
+    },
+    "recording_path": "2025-11-14__02-51-39/path-tracing/path-tracing.1-of-1.2025-11-14__02-51-39/sessions/agent.cast",
+    "total_input_tokens": 317,
+    "total_output_tokens": 468,
+    "trial_started_at": "2025-11-14T10:51:49.513885+00:00",
+    "trial_ended_at": "2025-11-14T10:57:19.858692+00:00",
+    "agent_started_at": "2025-11-14T10:53:28.930858+00:00",
+    "agent_ended_at": "2025-11-14T10:57:01.953348+00:00",
+    "test_started_at": "2025-11-14T10:57:05.160302+00:00",
+    "test_ended_at": "2025-11-14T10:57:09.112982+00:00"
+}

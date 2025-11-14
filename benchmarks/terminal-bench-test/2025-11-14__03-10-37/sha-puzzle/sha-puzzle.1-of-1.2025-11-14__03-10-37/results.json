@@ -1,0 +1,20 @@
+{
+    "id": "ad99f138-694f-42b8-891e-2374b93552db",
+    "trial_name": "sha-puzzle.1-of-1.2025-11-14__03-10-37",
+    "task_id": "sha-puzzle",
+    "instruction": "Find a response that satisfies the following condition: the first letter of each word \nin your answer has to spell, in words, the count of letters in its\nown sha1 hash. Print it to a file called /app/solution.txt. ",
+    "is_resolved": false,
+    "failure_mode": "unset",
+    "parser_results": {
+        "test_hello_file_exists_example": "failed"
+    },
+    "recording_path": "2025-11-14__03-10-37/sha-puzzle/sha-puzzle.1-of-1.2025-11-14__03-10-37/sessions/agent.cast",
+    "total_input_tokens": 200,
+    "total_output_tokens": 87,
+    "trial_started_at": "2025-11-14T11:14:51.711937+00:00",
+    "trial_ended_at": "2025-11-14T11:15:31.595332+00:00",
+    "agent_started_at": "2025-11-14T11:14:57.086944+00:00",
+    "agent_ended_at": "2025-11-14T11:15:11.475683+00:00",
+    "test_started_at": "2025-11-14T11:15:14.625638+00:00",
+    "test_ended_at": "2025-11-14T11:15:20.735040+00:00"
+}

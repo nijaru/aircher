@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     default_model: str = Field(default="gpt-4o-mini", description="Default LLM model")
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     anthropic_api_key: str | None = Field(default=None, description="Anthropic API key")
+    vllm_base_url: str = Field(
+        default="http://100.93.39.25:8000/v1", description="vLLM base URL"
+    )
 
     # Database Configuration
     data_dir: Path = Field(default=Path("./data"), description="Data directory")

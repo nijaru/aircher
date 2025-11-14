@@ -1,0 +1,178 @@
+root@d949c6188efa:/app# bash /tests/run-tests.sh; tmux wait -S done
+Hit:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease
+Hit:2 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease
+Hit:3 http://ports.ubuntu.com/ubuntu-ports noble-backports InRelease
+Hit:4 http://ports.ubuntu.com/ubuntu-ports noble-security InRelease
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following NEW packages will be installed:
+  curl
+0 upgraded, 1 newly installed, 0 to remove and 31 not upgraded.
+Need to get 222 kB of archives.
+After this operation, 566 kB of additional disk space will be used.
+Get:1 http://ports.ubuntu.com/ubuntu-ports noble-updates/main arm64 curl arm64 8.5.0-2ubuntu10.6 [222 kB]
+Fetched 222 kB in 1s (402 kB/s)
+debconf: delaying package configuration, since apt-utils is not installed
+Selecting previously unselected package curl.
+(Reading database ... 21307 files and directories currently installed.)
+Preparing to unpack .../curl_8.5.0-2ubuntu10.6_arm64.deb ...
+Unpacking curl (8.5.0-2ubuntu10.6) ...
+Setting up curl (8.5.0-2ubuntu10.6) ...
+downloading uv 0.7.13 aarch64-unknown-linux-gnu
+no checksums to verify
+installing to /root/.local/bin
+  uv
+  uvx
+everything's installed!
+
+To add $HOME/.local/bin to your PATH, either restart your shell or run:
+
+    source $HOME/.local/bin/env (sh, bash, zsh)
+    source $HOME/.local/bin/env.fish (fish)
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .tbench-testing
+Activate with: source .tbench-testing/bin/activate
+Using Python 3.12.3 environment at: .tbench-testing
+Resolved 6 packages in 196ms
+Prepared 6 packages in 408ms
+Installed 6 packages in 13ms
+ + iniconfig==2.3.0
+ + numpy==2.3.4
+ + packaging==25.0
+ + pluggy==1.6.0
+ + pygments==2.19.2
+ + pytest==9.0.1
+===================================================================== test session starts ======================================================================
+platform linux -- Python 3.12.3, pytest-9.0.1, pluggy-1.6.0 -- /app/.tbench-testing/bin/python3
+cachedir: .pytest_cache
+rootdir: /tests
+collected 14 items
+
+../tests/test_outputs.py::test_prediction_file_exists FAILED                                                                                             [  7%]
+../tests/test_outputs.py::test_prediction_file_format FAILED                                                                                             [ 14%]
+../tests/test_outputs.py::test_predictions_are_not_uniform FAILED                                                                                        [ 21%]
+../tests/test_outputs.py::test_predictions_are_reasonable FAILED                                                                                         [ 28%]
+../tests/test_outputs.py::test_model_comparison_file_exists FAILED                                                                                       [ 35%]
+../tests/test_outputs.py::test_model_comparison_format FAILED                                                                                            [ 42%]
+../tests/test_outputs.py::test_model_comparison_values FAILED                                                                                            [ 50%]
+../tests/test_outputs.py::test_lasso_selection_criteria_differ FAILED                                                                                    [ 57%]
+../tests/test_outputs.py::test_predictions_correlate_with_features FAILED                                                                                [ 64%]
+../tests/test_outputs.py::test_model_consistency FAILED                                                                                                  [ 71%]
+../tests/test_outputs.py::test_data_split_was_performed FAILED                                                                                           [ 78%]
+../tests/test_outputs.py::test_reproducible_results FAILED                                                                                               [ 85%]
+../tests/test_outputs.py::test_training_validation_split_sizes FAILED                                                                                    [ 92%]
+../tests/test_outputs.py::test_r_was_actually_used FAILED                                                                                                [100%]
+
+=========================================================================== FAILURES ===========================================================================
+_________________________________________________________________ test_prediction_file_exists __________________________________________________________________
+/tests/test_outputs.py:13: in test_prediction_file_exists
+    assert pred_path.exists(), f"Prediction file {pred_path} does not exist"
+E   AssertionError: Prediction file /app/predv1.txt does not exist
+E   assert False
+E    +  where False = exists()
+E    +    where exists = PosixPath('/app/predv1.txt').exists
+_________________________________________________________________ test_prediction_file_format __________________________________________________________________
+/tests/test_outputs.py:20: in test_prediction_file_format
+    with open(pred_path, "r") as f:
+         ^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/app/predv1.txt'
+_______________________________________________________________ test_predictions_are_not_uniform _______________________________________________________________
+/tests/test_outputs.py:40: in test_predictions_are_not_uniform
+    predictions = test_prediction_file_format()
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tests/test_outputs.py:20: in test_prediction_file_format
+    with open(pred_path, "r") as f:
+         ^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/app/predv1.txt'
+_______________________________________________________________ test_predictions_are_reasonable ________________________________________________________________
+/tests/test_outputs.py:51: in test_predictions_are_reasonable
+    predictions = test_prediction_file_format()
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tests/test_outputs.py:20: in test_prediction_file_format
+    with open(pred_path, "r") as f:
+         ^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/app/predv1.txt'
+______________________________________________________________ test_model_comparison_file_exists _______________________________________________________________
+/tests/test_outputs.py:64: in test_model_comparison_file_exists
+    assert csv_path.exists(), f"Model comparison file {csv_path} does not exist"
+E   AssertionError: Model comparison file /app/model_comparison.csv does not exist
+E   assert False
+E    +  where False = exists()
+E    +    where exists = PosixPath('/app/model_comparison.csv').exists
+_________________________________________________________________ test_model_comparison_format _________________________________________________________________
+/tests/test_outputs.py:71: in test_model_comparison_format
+    with open(csv_path, "r") as f:
+         ^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/app/model_comparison.csv'
+_________________________________________________________________ test_model_comparison_values _________________________________________________________________
+/tests/test_outputs.py:101: in test_model_comparison_values
+    rows = test_model_comparison_format()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tests/test_outputs.py:71: in test_model_comparison_format
+    with open(csv_path, "r") as f:
+         ^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/app/model_comparison.csv'
+_____________________________________________________________ test_lasso_selection_criteria_differ _____________________________________________________________
+/tests/test_outputs.py:140: in test_lasso_selection_criteria_differ
+    with open(csv_path, "r") as f:
+         ^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/app/model_comparison.csv'
+___________________________________________________________ test_predictions_correlate_with_features ___________________________________________________________
+/tests/test_outputs.py:168: in test_predictions_correlate_with_features
+    predictions = test_prediction_file_format()
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tests/test_outputs.py:20: in test_prediction_file_format
+    with open(pred_path, "r") as f:
+         ^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/app/predv1.txt'
+____________________________________________________________________ test_model_consistency ____________________________________________________________________
+/tests/test_outputs.py:200: in test_model_consistency
+    with open(csv_path, "r") as f:
+         ^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/app/model_comparison.csv'
+________________________________________________________________ test_data_split_was_performed _________________________________________________________________
+/tests/test_outputs.py:238: in test_data_split_was_performed
+    assert csv_path.exists(), f"Model comparison file {csv_path} does not exist"
+E   AssertionError: Model comparison file /app/model_comparison.csv does not exist
+E   assert False
+E    +  where False = exists()
+E    +    where exists = PosixPath('/app/model_comparison.csv').exists
+__________________________________________________________________ test_reproducible_results ___________________________________________________________________
+/tests/test_outputs.py:278: in test_reproducible_results
+    assert csv_path.exists(), f"Model comparison file {csv_path} does not exist"
+E   AssertionError: Model comparison file /app/model_comparison.csv does not exist
+E   assert False
+E    +  where False = exists()
+E    +    where exists = PosixPath('/app/model_comparison.csv').exists
+_____________________________________________________________ test_training_validation_split_sizes _____________________________________________________________
+/tests/test_outputs.py:314: in test_training_validation_split_sizes
+    assert csv_path.exists(), f"Model comparison file {csv_path} does not exist"
+E   AssertionError: Model comparison file /app/model_comparison.csv does not exist
+E   assert False
+E    +  where False = exists()
+E    +    where exists = PosixPath('/app/model_comparison.csv').exists
+___________________________________________________________________ test_r_was_actually_used ___________________________________________________________________
+/tests/test_outputs.py:384: in test_r_was_actually_used
+    assert len(r_evidence) > 0, msg
+E   AssertionError: No evidence of R execution found - task requires R implementation
+E   assert 0 > 0
+E    +  where 0 = len([])
+=================================================================== short test summary info ====================================================================
+FAILED ../tests/test_outputs.py::test_prediction_file_exists - AssertionError: Prediction file /app/predv1.txt does not exist
+FAILED ../tests/test_outputs.py::test_prediction_file_format - FileNotFoundError: [Errno 2] No such file or directory: '/app/predv1.txt'
+FAILED ../tests/test_outputs.py::test_predictions_are_not_uniform - FileNotFoundError: [Errno 2] No such file or directory: '/app/predv1.txt'
+FAILED ../tests/test_outputs.py::test_predictions_are_reasonable - FileNotFoundError: [Errno 2] No such file or directory: '/app/predv1.txt'
+FAILED ../tests/test_outputs.py::test_model_comparison_file_exists - AssertionError: Model comparison file /app/model_comparison.csv does not exist
+FAILED ../tests/test_outputs.py::test_model_comparison_format - FileNotFoundError: [Errno 2] No such file or directory: '/app/model_comparison.csv'
+FAILED ../tests/test_outputs.py::test_model_comparison_values - FileNotFoundError: [Errno 2] No such file or directory: '/app/model_comparison.csv'
+FAILED ../tests/test_outputs.py::test_lasso_selection_criteria_differ - FileNotFoundError: [Errno 2] No such file or directory: '/app/model_comparison.csv'
+FAILED ../tests/test_outputs.py::test_predictions_correlate_with_features - FileNotFoundError: [Errno 2] No such file or directory: '/app/predv1.txt'
+FAILED ../tests/test_outputs.py::test_model_consistency - FileNotFoundError: [Errno 2] No such file or directory: '/app/model_comparison.csv'
+FAILED ../tests/test_outputs.py::test_data_split_was_performed - AssertionError: Model comparison file /app/model_comparison.csv does not exist
+FAILED ../tests/test_outputs.py::test_reproducible_results - AssertionError: Model comparison file /app/model_comparison.csv does not exist
+FAILED ../tests/test_outputs.py::test_training_validation_split_sizes - AssertionError: Model comparison file /app/model_comparison.csv does not exist
+FAILED ../tests/test_outputs.py::test_r_was_actually_used - AssertionError: No evidence of R execution found - task requires R implementation
+====================================================================== 14 failed in 0.18s ======================================================================
+root@d949c6188efa:/app#

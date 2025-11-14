@@ -1,0 +1,11 @@
+{"version": 2, "width": 160, "height": 40, "timestamp": 1763117512, "env": {"SHELL": "/bin/bash", "TERM": "tmux-256color"}}
+[0.002104, "o", "\u001b[?2004hroot@d75f7578c67a:/app# "]
+[2.980689, "i", "clear\r"]
+[2.980895, "o", "clear\r\n\u001b[?2004l\r"]
+[2.981694, "o", "\u001b[H\u001b[J\u001b[3J"]
+[2.981793, "o", "\u001b[?2004hroot@d75f7578c67a:/app# "]
+[48.154729, "i", "echo '(75 - 19) * 8 + 25 - 11' > /app/output.txt; tmux wait -S done\r"]
+[48.154918, "o", "echo '(75 - 19) * 8 + 25 - 11' > /app/output.txt; tmux wait -S done\r\n\u001b[?2004l\r"]
+[48.157323, "o", "\u001b[?2004hroot@d75f7578c67a:/app# "]
+[59.00832, "i", "\u0004"]
+[59.008404, "o", "\u001b[?2004l\r\r\nexit\r\n"]

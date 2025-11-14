@@ -1,0 +1,8 @@
+['asciinema rec --stdin /logs/agent.cast', 'Enter']
+['clear', 'Enter']
+['python3 -c "import hashlib; response = \'For our research team yesterday\'; print(\'First letters:\', \'\'.join(word[0] for word in response.split())); hash_val = hashlib.sha1(response.encode()).hexdigest(); print(\'SHA1:\', hash_val); print(\'Length:\', len(hash_val)); print(\'Verification:\', \'\'.join(word[0] for word in response.split()).upper() == \'FORTY\'); print(response)" > /app/solution.txt', 'Enter']
+['asciinema rec --stdin /logs/tests.cast', 'Enter']
+['clear', 'Enter']
+['bash ', '/tests/run-tests.sh', 'Enter']
+['C-d']
+['C-d']

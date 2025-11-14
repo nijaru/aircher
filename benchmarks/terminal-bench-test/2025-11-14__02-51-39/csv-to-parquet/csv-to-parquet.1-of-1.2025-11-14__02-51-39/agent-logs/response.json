@@ -1,0 +1,7 @@
+{
+  "commands": [
+    "pip install pandas pyarrow",
+    "python3 -c \"import pandas as pd; df = pd.read_csv('/app/data.csv'); df.to_parquet('/app/data.parquet', engine='pyarrow', index=False)\""
+  ],
+  "explanation": "First installs the required Python libraries (pandas for data manipulation and pyarrow for Parquet support). Then uses a Python one-liner to read the CSV file with pandas and convert it to Parquet format, preserving the headers and excluding the index column."
+}

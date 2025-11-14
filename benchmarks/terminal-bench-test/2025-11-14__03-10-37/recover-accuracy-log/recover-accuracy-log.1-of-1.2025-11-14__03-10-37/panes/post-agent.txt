@@ -1,0 +1,107 @@
+root@7aa0ba912b35:/app# mkdir -p /app/recovered_logs; tmux wait -S done
+root@7aa0ba912b35:/app# python3 << 'EOF'
+> import json
+> import re
+> from collections import defaultdict
+> from decimal import Decimal, ROUND_HALF_UP
+>
+> # Read logs
+> with open('/app/raw_logs/generator.log') as f:
+>     gen_events = [json.loads(line) for line in f]
+>
+> with open('/app/raw_logs/judge.log') as f:
+>     judge_events = [json.loads(line) for line in f]
+>
+> # Group by question_id and sort by timestamp
+> gen_by_qid = defaultdict(list)
+> for event in gen_events:
+>     gen_by_qid[event['question_id']].append(event)
+>
+> judge_by_qid = defaultdict(list)
+> for event in judge_events:
+>     judge_by_qid[event['question_id']].append(event)
+>
+> # Sort each question's events by timestamp
+> for qid in gen_by_qid:
+>     gen_by_qid[qid].sort(key=lambda x: x['timestamp'])
+>
+> for qid in judge_by_qid:
+>     judge_by_qid[qid].sort(key=lambda x: x['timestamp'])
+>
+> # Assign to runs (earliest=run1, middle=run2, latest=run3)
+> runs = {1: {'generator': [], 'judge': []}, 2: {'generator': [], 'judge': []}, 3: {'generator': [], 'judge': []}}
+>
+> for qid in gen_by_qid:
+>     events = gen_by_qid[qid]
+>     runs[1]['generator'].append(events[0])
+>     runs[2]['generator'].append(events[1])
+>     runs[3]['generator'].append(events[2])
+>
+> for qid in judge_by_qid:
+>     events = judge_by_qid[qid]
+>     runs[1]['judge'].append(events[0])
+>     runs[2]['judge'].append(events[1])
+>     runs[3]['judge'].append(events[2])
+>
+> # Sort each run by timestamp and write to files
+> for run_id in [1, 2, 3]:
+>     runs[run_id]['generator'].sort(key=lambda x: x['timestamp'])
+>     runs[run_id]['judge'].sort(key=lambda x: x['timestamp'])
+>
+>     with open(f'/app/recovered_logs/run_{run_id}_generator.jsonl', 'w') as f:
+>         for event in runs[run_id]['generator']:
+>             f.write(json.dumps({'timestamp': event['timestamp'], 'question_id': event['question_id'], 'prediction': event['prediction']}, separators=(',', ':'
+)) + '\n')
+>
+>     with open(f'/app/recovered_logs/run_{run_id}_judge.jsonl', 'w') as f:
+>         for event in runs[run_id]['judge']:
+>             f.write(json.dumps({'timestamp': event['timestamp'], 'question_id': event['question_id'], 'target': event['target']}, separators=(',', ':')) + '\n
+')
+>
+> # Check if value is an error
+> def is_error(value):
+>     value_lower = value.lower()
+>     return 'quota exceeds' in value_lower or 'api error' in value_lower or 'timeout' in value_lower
+>
+> # Compute accuracy for each run
+> results = []
+> for run_id in [1, 2, 3]:
+>     gen_map = {e['question_id']: e['prediction'] for e in runs[run_id]['generator']}
+>     judge_map = {e['question_id']: e['target'] for e in runs[run_id]['judge']}
+>
+>     correct = 0
+>     total = 0
+>
+>     for qid in gen_map:
+>         if qid in judge_map:
+>             pred = gen_map[qid]
+>             tgt = judge_map[qid]
+>
+>             # Skip if either is an error
+>             if is_error(pred) or is_error(tgt):
+>                 continue
+>
+>             total += 1
+>             if pred == tgt:
+>                 correct += 1
+>
+>     if total == 0:
+>         accuracy = None
+>     else:
+>         # Round half up to 2 decimals
+>         acc_decimal = Decimal(correct) / Decimal(total)
+>         accuracy = float(acc_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+>
+>     results.append({
+>         'run_index': run_id,
+>         'correct': correct,
+>         'total': total,
+>         'accuracy': accuracy
+>     })
+>
+> # Write results
+> with open('/app/recovered_logs/results.json', 'w') as f:
+>     json.dump({'runs': results}, f)
+>
+> EOF; tmux wait -S done
+>

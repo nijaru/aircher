@@ -1,0 +1,16 @@
+{
+  "commands": [
+    "head -20 /app/image.ppm",
+    "file /app/image.ppm",
+    "wc -l /app/image.ppm",
+    "hexdump -C /app/image.ppm | head -50",
+    "cat /app/image.ppm | head -100 | tail -50",
+    "identify /app/image.ppm 2>/dev/null || echo 'ImageMagick not available'",
+    "cat > analyze.c << 'EOF'\n#include <stdio.h>\n#include <stdlib.h>\n#include <math.h>\n\nint main() {\n    FILE *f = fopen(\"/app/image.ppm\", \"r\");\n    char magic[3];\n    int w, h, maxval;\n    fscanf(f, \"%2s\\n%d %d\\n%d\\n\", magic, &w, &h, &maxval);\n    printf(\"Format: %s, Size: %dx%d, MaxVal: %d\\n\", magic, w, h, maxval);\n    \n    // Sample some pixels\n    unsigned char r, g, b;\n    printf(\"First 20 pixels:\\n\");\n    for(int i = 0; i < 20 && !feof(f); i++) {\n        fread(&r, 1, 1, f);\n        fread(&g, 1, 1, f);\n        fread(&b, 1, 1, f);\n        printf(\"(%d,%d,%d) \", r, g, b);\n    }\n    printf(\"\\n\");\n    \n    // Check pattern\n    fseek(f, 0, SEEK_SET);\n    fscanf(f, \"%2s\\n%d %d\\n%d\\n\", magic, &w, &h, &maxval);\n    \n    int same_row = 1, same_col = 1;\n    unsigned char prev_r, prev_g, prev_b;\n    for(int y = 0; y < h && y < 10; y++) {\n        for(int x = 0; x < w && x < 10; x++) {\n            fread(&r, 1, 1, f);\n            fread(&g, 1, 1, f);\n            fread(&b, 1, 1, f);\n            printf(\"[%d,%d]=(%d,%d,%d) \", x, y, r, g, b);\n        }\n        printf(\"\\n\");\n    }\n    \n    fclose(f);\n    return 0;\n}\nEOF",
+    "gcc -o analyze analyze.c -lm && ./analyze",
+    "cat > image.c << 'EOF'\n#include <stdio.h>\n#include <math.h>\n\nint main() {\n    int w = 512, h = 512;\n    FILE *f = fopen(\"reconstructed.ppm\", \"wb\");\n    fprintf(f, \"P6\\n%d %d\\n255\\n\", w, h);\n    \n    for(int y = 0; y < h; y++) {\n        for(int x = 0; x < w; x++) {\n            double dx = x - w/2.0;\n            double dy = y - h/2.0;\n            double d = sqrt(dx*dx + dy*dy);\n            double a = atan2(dy, dx);\n            \n            unsigned char r = (unsigned char)(128 + 127*sin(d/20.0));\n            unsigned char g = (unsigned char)(128 + 127*cos(a*3));\n            unsigned char b = (unsigned char)(128 + 127*sin(a*5));\n            \n            fwrite(&r, 1, 1, f);\n            fwrite(&g, 1, 1, f);\n            fwrite(&b, 1, 1, f);\n        }\n    }\n    \n    fclose(f);\n    return 0;\n}\nEOF",
+    "gcc -static -o image image.c -lm && ./image",
+    "cat image.c | gzip | wc -c"
+  ],
+  "explanation": "First examine the PPM image structure and pixel patterns, then create a C program that algorithmically generates a similar image based on the detected pattern (likely using mathematical functions like sine/cosine with distance/angle from center), compile and test it, and verify the compressed size is under 2KB."
+}

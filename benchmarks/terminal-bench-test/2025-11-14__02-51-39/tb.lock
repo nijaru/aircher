@@ -1,0 +1,67 @@
+{
+    "lockfile_version": "1.0",
+    "created_at": "2025-11-14T02:51:49.509786-08:00",
+    "invocation": {
+        "command": "tb",
+        "args": [
+            "run",
+            "--agent-import-path",
+            "terminal_bench.agents.aircher_adapter.aircher_agent:AircherTerminalBenchAdapter",
+            "--model",
+            "anthropic/claude-sonnet-4.5",
+            "--dataset",
+            "terminal-bench-core",
+            "--n-tasks",
+            "5",
+            "--output-path",
+            "benchmarks/terminal-bench-test",
+            "--log-level",
+            "info",
+            "--no-rebuild"
+        ]
+    },
+    "harness": {
+        "package": "terminal-bench",
+        "version": "0.2.18",
+        "is_editable_installation": false
+    },
+    "agent": {
+        "name": "aircher",
+        "import_path": "terminal_bench.agents.aircher_adapter.aircher_agent:AircherTerminalBenchAdapter",
+        "model_name": "anthropic/claude-sonnet-4.5",
+        "extra_kwargs": {
+            "no_rebuild": true,
+            "model_name": "anthropic/claude-sonnet-4.5"
+        }
+    },
+    "run_config": {
+        "log_level": "info",
+        "livestream": false,
+        "n_concurrent_trials": 4,
+        "n_attempts": 1,
+        "no_rebuild": true,
+        "cleanup": true,
+        "global_timeout_multiplier": 1.0,
+        "global_agent_timeout_sec": null,
+        "global_test_timeout_sec": null
+    },
+    "dataset": {
+        "name": "terminal-bench-core",
+        "version": "head",
+        "local_path": null,
+        "task_ids": [
+            "path-tracing",
+            "extract-elf",
+            "countdown-game",
+            "csv-to-parquet",
+            "kv-store-grpc"
+        ],
+        "registry_url": null,
+        "local_registry_path": null
+    },
+    "local_config": {
+        "output_path": "benchmarks/terminal-bench-test",
+        "run_id": "2025-11-14__02-51-39",
+        "upload_results": false
+    }
+}
