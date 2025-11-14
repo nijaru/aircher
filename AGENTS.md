@@ -14,13 +14,34 @@ src/aircher/           # Python 3.13+ package
 
 ai/                    # AI agent working context (read FIRST)
 ├── STATUS.md          # Current state, blockers, next tasks
-├── TODO.md            # Weekly checkboxes
-├── PLAN.md            # 6-week implementation roadmap
-├── DECISIONS.md       # Architectural rationale
+├── TODO.md            # Active tasks and backlog
+├── PLAN.md            # Implementation roadmap with phase dependencies
+├── DECISIONS.md       # Architectural rationale and tradeoffs
 ├── RESEARCH.md        # Research index ("for X, read Y")
 ├── research/          # 15 SOTA research files (5,155 lines)
-└── design/            # Lightweight API specs (<100 lines each)
+├── design/            # Lightweight API specs (<100 lines each)
+└── decisions/         # Superseded decisions archive
 ```
+
+### AI Context Organization
+
+**Purpose**: The `ai/` directory is the AI agent's workspace for maintaining project state across sessions.
+
+**Session files** (ai/ root - read every session):
+- `STATUS.md` - Current state, metrics, blockers (read FIRST)
+- `TODO.md` - Active tasks only (completed tasks removed)
+- `DECISIONS.md` - Active architectural decisions
+- `RESEARCH.md` - Research findings index
+- `PLAN.md` - Strategic roadmap with dependencies
+
+**Reference files** (subdirectories - loaded only when needed):
+- `research/` - Detailed SOTA analysis (15 files, 5,155 lines)
+- `design/` - API specifications and design docs
+- `decisions/` - Superseded/split decisions archive
+
+**Token efficiency**: Session files kept current/active only for minimal token usage. Historical content pruned (git preserves all history). Detailed content in subdirectories loaded on demand.
+
+**Workflow**: AI reads STATUS.md first → checks TODO.md → references RESEARCH.md index → loads specific research files as needed → updates STATUS.md on exit.
 
 ## Stack
 - **Agent**: LangGraph + LangChain
