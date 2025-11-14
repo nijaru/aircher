@@ -1,5 +1,0 @@
-tree-sitter>=0.22.0
-tree-sitter-rust>=0.22.0
-networkx>=3.2
-sqlite3  # Built-in, but listed for documentation
-matplotlib>=3.8.0  # For visualizing results

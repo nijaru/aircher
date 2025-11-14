@@ -39,6 +39,9 @@ private/
 # Aircher specific
 .aircher/
 
+# Archive (removed from history, keep out)
+archive/
+
 # Large model files (>100MB)
 models/*.safetensors
 models/*.bin
